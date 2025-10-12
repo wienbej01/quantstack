@@ -1,0 +1,61 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# Virtual envs & local config
+.venv/
+venv/
+env/
+ENV/
+*.env
+.env.*
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Build/test artifacts
+build/
+dist/
+.eggs/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+
+# Logs & caches
+logs/
+*.log
+.cache/
+htmlcov/
+
+# IDE/OS noise
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Data files (keep code in git, data out)
+*.parquet
+*.feather
+*.arrow
+*.h5
+*.hdf5
+*.pkl
+*.joblib
+*.sqlite
+*.db
+
+# Optional: large archives
+*.zip
+*.tar
+*.tar.gz
+*.lz4
+*.zst

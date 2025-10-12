@@ -1,0 +1,9 @@
+[project]
+name = "qx-core"
+version = "0.1.0"
+description = "Core contracts, types, config validators, and state management for the quant stack"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.8", "pyyaml>=6.0", "jsonschema>=4.0"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

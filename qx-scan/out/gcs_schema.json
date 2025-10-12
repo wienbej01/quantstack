@@ -1,0 +1,131 @@
+{
+  "families": {
+    "bronze": {
+      "files": 20,
+      "total_size": 4164670,
+      "schemas": [
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "ts: timestamp[ns, tz=America/New_York]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 872",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: double\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1248",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\nts: timestamp[ns, tz=UTC]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1244"
+      ],
+      "unique_schemas": 3
+    },
+    "forex": {
+      "files": 8,
+      "total_size": 460802,
+      "schemas": [
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953",
+        "volume: int64\nvwap: double\nopen: double\nclose: double\nhigh: double\nlow: double\ntimestamp: int64\ntrades: int64\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 953"
+      ],
+      "unique_schemas": 1
+    },
+    "gold": {
+      "files": 20,
+      "total_size": 7843580,
+      "schemas": [
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double",
+        "ts: timestamp[us]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double\nsession_id: uint32\nbar_index: int32\nret_1m: double\nlog_ret_1m: double\nfirst_open: double\nret_from_open: double\ncum_volume: double\ncum_dollar_vol: double\nvwap_session: double\nbars_in_session: uint32\nis_first_bar: bool\nis_last_bar: bool\nprev_session_close: double"
+      ],
+      "unique_schemas": 1
+    },
+    "silver": {
+      "files": 20,
+      "total_size": 2228590,
+      "schemas": [
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double",
+        "ts: timestamp[ms]\nopen: double\nhigh: double\nlow: double\nclose: double\nvolume: double"
+      ],
+      "unique_schemas": 1
+    },
+    "stocks": {
+      "files": 20,
+      "total_size": 5090686,
+      "schemas": [
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: double\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1118",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114",
+        "t: int64\no: double\nh: double\nl: double\nc: double\nv: int64\nvw: double\nn: int64\nsession: string\ndate_et: date32[day]\n-- schema metadata --\npandas: '{\"index_columns\": [], \"column_indexes\": [], \"columns\": [{\"name\":' + 1114"
+      ],
+      "unique_schemas": 2
+    }
+  },
+  "issues": [
+    "Family bronze has 3 different schemas.",
+    "Family stocks has 2 different schemas."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "exp_id": "vwap_revert_pilot",
+  "type": "entry-ab",
+  "base_config": "experiments/vwap_revert/strategy.yaml",
+  "variants": [
+    "experiments/vwap_revert/overlays/policy_rvol_1.5.yaml",
+    "experiments/vwap_revert/overlays/policy_rvol_1.0.yaml"
+  ],
+  "run_ids": [
+    "5d47dc6a-a7a8-4141-8290-749c2c041fec",
+    "55c56034-ded4-4d61-b864-4ef8b38f31ec"
+  ],
+  "seed": 42
+}

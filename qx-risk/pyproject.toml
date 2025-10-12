@@ -1,0 +1,9 @@
+[project]
+name = "qx-risk"
+version = "0.1.0"
+description = "Risk rules, stop/position sizing policies"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "pandas"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

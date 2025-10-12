@@ -1,0 +1,224 @@
+{
+  "experiment": "experiments/vwap_revert_costs",
+  "variants": 9,
+  "results": [
+    {
+      "run_id": "176cdae9-430b-42d0-8ee1-d394081a7292",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "532a9fd3-176a-4798-8f8f-ffb17f26ef36",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "e0a244c3-ba9e-4b84-85c7-b52660cf57f0",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "bd889f7f-76ef-4c9e-967f-75c8591bdd41",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "f9e2b03f-5ee5-4207-8b4c-cd2380189e94",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "b747dac6-de4d-4b0e-a845-8d531e01f0ea",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "2af62342-fe72-4290-9fca-e71560e95657",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "d4452715-6f4b-4376-b28e-8308d7fa7f26",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "9a7ff964-66f2-464e-abeb-b3bb5fb598db",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "run_id": "176cdae9-430b-42d0-8ee1-d394081a7292",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "532a9fd3-176a-4798-8f8f-ffb17f26ef36",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "e0a244c3-ba9e-4b84-85c7-b52660cf57f0",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "bd889f7f-76ef-4c9e-967f-75c8591bdd41",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "f9e2b03f-5ee5-4207-8b4c-cd2380189e94",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "b747dac6-de4d-4b0e-a845-8d531e01f0ea",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "2af62342-fe72-4290-9fca-e71560e95657",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "d4452715-6f4b-4376-b28e-8308d7fa7f26",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "9a7ff964-66f2-464e-abeb-b3bb5fb598db",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+[project]
+name = "qx-broker"
+version = "0.1.0"
+description = "Broker protocol; ibkr stub"
+requires-python = ">=3.11"
+dependencies = ["qx-core"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

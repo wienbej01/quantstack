@@ -1,0 +1,9 @@
+[project]
+name = "qx-screener"
+version = "0.1.0"
+description = "SIP universe filters (cross-sectional selection)"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "pandas"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

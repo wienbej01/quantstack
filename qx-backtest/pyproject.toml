@@ -1,0 +1,9 @@
+[project]
+name = "qx-backtest"
+version = "0.1.0"
+description = "Event loop, fills, cost/slippage"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "pandas"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

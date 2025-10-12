@@ -1,0 +1,9 @@
+[project]
+name = "qx-features"
+version = "0.1.0"
+description = "Feature pipelines + registry (stateless/stateful)"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "pandas"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,9 @@
+[project]
+name = "qx-scan"
+version = "0.1.0"
+description = "Environment scanner for QuantStack"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "rich"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"

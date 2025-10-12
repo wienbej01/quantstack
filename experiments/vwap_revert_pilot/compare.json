@@ -1,0 +1,56 @@
+{
+  "experiment": "experiments/vwap_revert_pilot",
+  "variants": 2,
+  "results": [
+    {
+      "run_id": "5d47dc6a-a7a8-4141-8290-749c2c041fec",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "55c56034-ded4-4d61-b864-4ef8b38f31ec",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "run_id": "5d47dc6a-a7a8-4141-8290-749c2c041fec",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    },
+    {
+      "run_id": "55c56034-ded4-4d61-b864-4ef8b38f31ec",
+      "metrics": {
+        "trades": 1,
+        "avg_R": 0.01,
+        "ES_95": -0.02,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": 0.5,
+        "sharpe_CI_high": 1.5,
+        "capacity_break_even_bps": 50.0
+      }
+    }
+  ]
+}

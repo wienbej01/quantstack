@@ -1,0 +1,9 @@
+[project]
+name = "qx-report"
+version = "0.1.0"
+description = "Report builder, metrics, cards JSON"
+requires-python = ">=3.11"
+dependencies = ["qx-core", "pandas", "matplotlib", "jinja2"]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
