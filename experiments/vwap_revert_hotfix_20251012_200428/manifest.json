@@ -1,5 +1,5 @@
 {
-  "exp_id": "vwap_revert_pilot",
+  "exp_id": "vwap_revert_hotfix_20251012_200428",
   "type": "entry-ab",
   "base_config": "experiments/vwap_revert/strategy.yaml",
   "variants": [
@@ -7,8 +7,8 @@
     "experiments/vwap_revert/overlays/policy_rvol_1.0.yaml"
   ],
   "run_ids": [
-    "6781a5cf-c508-4d64-beaa-af84e45d772a",
-    "916e148b-8714-4eea-be74-c43bacc87b95"
+    "4c470b5b-4932-4632-a883-04e9b23cbf23",
+    "1a47e0e1-a95d-480c-9886-3fe10b876fc8"
   ],
   "seed": 42
 }

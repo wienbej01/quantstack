@@ -3,51 +3,59 @@
 import pandas as pd
 
 
-def add_core_basics(df: pd.DataFrame, **params) -> pd.DataFrame:
-    """Add core basic features to the dataframe.
+def vwap_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
+    """Compute rolling VWAP over lookback_m minutes.
 
     Args:
-        df: DataFrame with bars (ts, symbol, open, high, low, close, volume)
-        **params:
-            vwap_window_m: int, window in minutes for VWAP (default 30)
-            rel_vol_window_m: int, window in minutes for relative volume (default 30)
-            atr_window: int, window for ATR (default 14)
+        df: DataFrame with ts, symbol, close, volume
+        lookback_m: Lookback window in minutes
 
     Returns:
-        DataFrame with added feature columns
+        Series of VWAP values
     """
-    vwap_window = params.get('vwap_window_m', 30)
-    rel_vol_window = params.get('rel_vol_window_m', 30)
-    atr_window = params.get('atr_window', 14)
+    # Assume df is sorted by symbol, ts
+    # Group by symbol and compute rolling VWAP
+    def _vwap_symbol(group):
+        price_volume = group['close'] * group['volume']
+        volume_sum = group['volume'].rolling(lookback_m, min_periods=1).sum()
+        pv_sum = price_volume.rolling(lookback_m, min_periods=1).sum()
+        return pv_sum / volume_sum
 
-    # Ensure sorted
-    df = df.sort_values(['symbol', 'ts']).reset_index(drop=True)
+    return df.groupby('symbol', group_keys=False).transform(_vwap_symbol)
 
-    # Group by symbol and apply features
-    def _add_features(group):
-        # VWAP
-        price_volume = group['close'] * group['volume']  # Use close as price
-        volume_sum = group['volume'].rolling(vwap_window, min_periods=1).sum()
-        pv_sum = price_volume.rolling(vwap_window, min_periods=1).sum()
-        group = group.assign(f__ta__vwap_m=pv_sum / volume_sum)
 
-        # Relative volume
-        vol_mean = group['volume'].rolling(rel_vol_window, min_periods=1).mean()
-        group = group.assign(f__vol__rel_volume_m=group['volume'] / vol_mean)
+def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
+    """Compute relative volume: current vol / rolling mean vol.
 
-        # ATR
+    Args:
+        df: DataFrame with ts, symbol, volume
+        lookback_m: Lookback window in minutes
+
+    Returns:
+        Series of relative volume values
+    """
+    def _rel_vol_symbol(group):
+        vol_mean = group['volume'].rolling(lookback_m, min_periods=1).mean()
+        return group['volume'] / vol_mean
+
+    return df.groupby('symbol', group_keys=False).transform(_rel_vol_symbol)
+
+
+def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
+    """Compute intraday ATR on bar OHLC.
+
+    Args:
+        df: DataFrame with ts, symbol, open, high, low, close
+        lookback_m: Lookback window in minutes
+
+    Returns:
+        Series of ATR values
+    """
+    def _atr(group):
         high_low = group['high'] - group['low']
         high_prev_close = (group['high'] - group['close'].shift(1)).abs()
         low_prev_close = (group['low'] - group['close'].shift(1)).abs()
         tr = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(axis=1)
-        atr = tr.rolling(atr_window, min_periods=1).mean()
-        group = group.assign(f__vol__atr_m=atr)
+        return tr.rolling(lookback_m, min_periods=1).mean()
 
-        return group
-
-    result = df.groupby('symbol', group_keys=False).apply(_add_features)
-
-    # Fill NaN for warmup periods
-    result = result.fillna(method='bfill')  # Backward fill for initial NaN
-
-    return result
+    return df.groupby('symbol', group_keys=False).apply(_atr)

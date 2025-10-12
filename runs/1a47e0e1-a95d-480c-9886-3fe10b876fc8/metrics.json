@@ -1,0 +1,9 @@
+{
+  "trades": 1,
+  "avg_R": 0.01,
+  "ES_95": -0.02,
+  "pvalue_u": 0.5,
+  "sharpe_CI_low": 0.5,
+  "sharpe_CI_high": 1.5,
+  "capacity_break_even_bps": 50.0
+}

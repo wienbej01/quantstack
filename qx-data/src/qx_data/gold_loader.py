@@ -49,9 +49,12 @@ def load_bars(root: str, family: str, symbols: List[str], dates: List[str]) -> p
 
 def _get_parquet_paths(root: str, family: str, symbol: str, date: str) -> List[str]:
     """Get parquet file paths for given symbol and date."""
-    year, month, _ = date.split("-")
-    if family == "bars_1m":
+    if date == "SMOKE" or "-" not in date:
+        # Smoke test or non-standard date: use partitioned structure
+        pattern = os.path.join(root, family, f"symbol={symbol}", f"date={date}", "*.parquet")
+    elif family == "bars_1m":
         # Structure: .../stocks/1m/symbol/year/year-month.parquet
+        year, month, _ = date.split("-")
         pattern = os.path.join(root, "stocks", "1m", symbol, year, f"{year}-{month}.parquet")
     else:
         # Structure: .../family/symbol=symbol/date=date/*.parquet
@@ -74,12 +77,16 @@ def _normalize_in_memory(df: pd.DataFrame) -> pd.DataFrame:
         raise ValueError(f"Missing required columns: {missing}")
 
     # Types
-    if not pd.api.types.is_datetime64_any_dtype(out["ts"]):
-        out["ts"] = pd.to_datetime(out["ts"], utc=True, errors="coerce")
-    elif out["ts"].dt.tz is None:
-        out["ts"] = out["ts"].dt.tz_localize("UTC")
+    if pd.api.types.is_datetime64_any_dtype(out["ts"]):
+        if out["ts"].dt.tz is None:
+            out["ts"] = out["ts"].dt.tz_localize("UTC")
+        else:
+            out["ts"] = out["ts"].dt.tz_convert("UTC")
+        # Convert to nanoseconds since epoch
+        out["ts"] = out["ts"].astype("int64")
     else:
-        out["ts"] = out["ts"].dt.tz_convert("UTC")
+        # Assume already nanoseconds, ensure int64
+        out["ts"] = pd.to_numeric(out["ts"], errors="coerce").astype("int64")
 
     out["symbol"] = out["symbol"].astype(str)
     for col in ["open", "high", "low", "close"]:

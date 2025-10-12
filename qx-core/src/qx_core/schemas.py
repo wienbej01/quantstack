@@ -106,6 +106,7 @@ def trades_schema() -> dict:
             "exit_px": {"type": "number"},
             "fees": {"type": "number"},
             "slippage_est": {"type": "number"},
+            "stop_dist_ps": {"type": "number"},
             "pnl": {"type": "number"},
             "r_multiple": {"type": "number"},
             "mfe": {"type": "number"},
