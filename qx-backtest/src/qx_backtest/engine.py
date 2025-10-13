@@ -19,6 +19,11 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
     Returns:
         Dict with artifacts
     """
+    print("--- Backtest Engine Start ---")
+    print(f"Input df shape: {df.shape}")
+    print(f"Input orders_df shape: {orders_df.shape}")
+    print(f"Input signals_df shape: {signals_df.shape}")
+    print(f"Input params: {params}")
     initial_equity = params.get('initial_equity', 100000.0)
     cost_bps = params.get('cost_bps', 0.0)
     cost_per_share = params.get('cost_per_share', 0.0)
@@ -52,6 +57,7 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
     all_ts = sorted(df['ts'].unique())
 
     for ts in all_ts:
+        print(f"Processing ts: {ts}")
         bars_ts = df[df['ts'] == ts]
         orders_ts = orders_df[orders_df['ts'] == ts] if not orders_df.empty else pd.DataFrame()
         signals_ts = signals_df[signals_df['ts'] == ts] if not signals_df.empty else pd.DataFrame()
@@ -114,6 +120,8 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
             pending_orders.remove(o)
 
         # Process orders (entries)
+        if not orders_ts.empty:
+            print(f"Orders at {ts}:\n{orders_ts}")
         for _, order in orders_ts.iterrows():
             symbol = order['symbol']
             if order['side'] == 'BUY' and symbol not in current_positions:

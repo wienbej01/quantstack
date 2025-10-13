@@ -54,7 +54,13 @@ def _get_parquet_paths(root: str, family: str, symbol: str, date: str) -> List[s
         pattern = os.path.join(root, family, f"symbol={symbol}", f"date={date}", "*.parquet")
     elif family == "bars_1m":
         # Structure: .../stocks/1m/symbol/year/year-month.parquet
-        year, month, _ = date.split("-")
+        parts = date.split("-")
+        if len(parts) == 2:
+            year, month = parts
+        elif len(parts) == 3:
+            year, month, _ = parts
+        else:
+            raise ValueError(f"Invalid date format: {date}")
         pattern = os.path.join(root, "stocks", "1m", symbol, year, f"{year}-{month}.parquet")
     else:
         # Structure: .../family/symbol=symbol/date=date/*.parquet

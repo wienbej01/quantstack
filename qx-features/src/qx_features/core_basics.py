@@ -13,32 +13,52 @@ def vwap_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
     Returns:
         Series of VWAP values
     """
-    # Assume df is sorted by symbol, ts
-    # Group by symbol and compute rolling VWAP
-    def _vwap_symbol(group):
+    all_symbols_results = []
+    for symbol, group in df.groupby('symbol'):
         price_volume = group['close'] * group['volume']
         volume_sum = group['volume'].rolling(lookback_m, min_periods=1).sum()
         pv_sum = price_volume.rolling(lookback_m, min_periods=1).sum()
-        return pv_sum / volume_sum
+        all_symbols_results.append(pv_sum / volume_sum)
 
-    return df.groupby('symbol', group_keys=False).apply(_vwap_symbol).reset_index(level=0, drop=True).iloc[0]
+    return pd.concat(all_symbols_results).sort_index()
 
 
 def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
-    """Compute relative volume: current vol / rolling mean vol.
+    """Compute relative volume: current vol / mean vol for that time of day.
+
+    NOTE: The mean is calculated over the entire dataset provided to this function.
+    It is not a rolling historical average. For a more accurate RVOL, ensure
+    the input DataFrame contains several days of data. The `lookback_m`
+    parameter is ignored.
 
     Args:
-        df: DataFrame with ts, symbol, volume
-        lookback_m: Lookback window in minutes
+        df: DataFrame with ts, symbol, volume. Must have a DatetimeIndex.
+        lookback_m: (Ignored) Kept for signature compatibility.
 
     Returns:
         Series of relative volume values
     """
-    def _rel_vol_symbol(group):
-        vol_mean = group['volume'].rolling(lookback_m, min_periods=1).mean()
-        return group['volume'] / vol_mean
+    all_symbols_results = []
+    for symbol, group in df.groupby('symbol'):
+        group = group.copy()
+        
+        # Convert the 'ts' COLUMN to datetime objects to get time-of-day
+        ts_datetime = pd.to_datetime(group['ts'])
 
-    return df.groupby('symbol', group_keys=False).apply(_rel_vol_symbol).reset_index(level=0, drop=True).iloc[0]
+        # Calculate the average volume for each time of day across the group
+        tod_avg_vol = group.groupby(ts_datetime.dt.time)['volume'].transform('mean')
+
+        # Avoid division by zero
+        tod_avg_vol = tod_avg_vol.replace(0, 1)
+
+        rvol = group['volume'] / tod_avg_vol
+        
+        # Ensure the resulting series has the original index to align correctly
+        rvol.index = group.index
+        
+        all_symbols_results.append(rvol.fillna(1.0))
+
+    return pd.concat(all_symbols_results).sort_index()
 
 
 def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
@@ -51,11 +71,12 @@ def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
     Returns:
         Series of ATR values
     """
-    def _atr(group):
+    all_symbols_results = []
+    for symbol, group in df.groupby('symbol'):
         high_low = group['high'] - group['low']
         high_prev_close = (group['high'] - group['close'].shift(1)).abs()
         low_prev_close = (group['low'] - group['close'].shift(1)).abs()
         tr = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(axis=1)
-        return tr.rolling(lookback_m, min_periods=1).mean()
+        all_symbols_results.append(tr.rolling(lookback_m, min_periods=1).mean())
 
-    return df.groupby('symbol', group_keys=False).apply(_atr).reset_index(level=0, drop=True).iloc[0]
+    return pd.concat(all_symbols_results).sort_index()

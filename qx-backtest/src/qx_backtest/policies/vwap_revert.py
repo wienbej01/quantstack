@@ -37,25 +37,30 @@ def generate_signals(df: pd.DataFrame, params: Dict) -> pd.DataFrame:
         if sip_universe and ts in sip_universe:
             in_sip = symbol in sip_universe[ts]
 
-        # Current position
-        pos = position_tracker.get(symbol, {'entry_ts': None, 'bars_held': 0})
+        # Get position state from START of bar
+        pos_before_decision = position_tracker.get(symbol, {'entry_ts': None, 'bars_held': 0})
 
         # Decision logic
         decision = 'hold'
-        if pos['entry_ts'] is not None:
+        if pos_before_decision['entry_ts'] is not None:
             # In position
-            pos['bars_held'] += 1
-            if close >= vwap or pos['bars_held'] >= timeout_bars:
+            new_bars_held = pos_before_decision['bars_held'] + 1
+            if close >= vwap or new_bars_held >= timeout_bars:
                 decision = 'exit'
                 position_tracker[symbol] = {'entry_ts': None, 'bars_held': 0}
+            else:
+                position_tracker[symbol]['bars_held'] = new_bars_held
         else:
             # Flat
             if close < vwap and rvol >= rvol_min and in_sip and warmup_ok:
                 decision = 'enter'
-                position_tracker[symbol] = {'entry_ts': ts, 'bars_held': 0}
+                position_tracker[symbol] = {'entry_ts': ts, 'bars_held': 1}
 
-        # Signal: 1 for long, 0 for flat
-        signal = 1 if pos['entry_ts'] is not None else 0
+        # Get position state AFTER decision for the current bar
+        pos_after_decision = position_tracker.get(symbol, {'entry_ts': None, 'bars_held': 0})
+        
+        # Generate signal based on the state AFTER the decision
+        signal = 1 if pos_after_decision['entry_ts'] is not None else 0
 
         # Diagnostic columns
         diag = {
@@ -67,21 +72,9 @@ def generate_signals(df: pd.DataFrame, params: Dict) -> pd.DataFrame:
             'rvol': rvol,
             'in_sip': in_sip,
             'warmup_ok': warmup_ok,
-            'bars_held': pos['bars_held'],
+            'bars_held': pos_after_decision['bars_held'],
             'decision': decision
         }
-
-        # Decision trace for first 200
-        if len(signals) < 200:
-            diag['decision_trace'] = {
-                'entry_condition': close < vwap and rvol >= rvol_min and in_sip and warmup_ok,
-                'exit_condition_touch': close >= vwap,
-                'exit_condition_timeout': pos['bars_held'] >= timeout_bars,
-                'current_position': pos['entry_ts'] is not None
-            }
-        else:
-            diag['decision_trace'] = None
-
         signals.append(diag)
 
     return pd.DataFrame(signals)
