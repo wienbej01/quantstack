@@ -21,7 +21,7 @@ def vwap_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         pv_sum = price_volume.rolling(lookback_m, min_periods=1).sum()
         return pv_sum / volume_sum
 
-    return df.groupby('symbol', group_keys=False).transform(_vwap_symbol)
+    return df.groupby('symbol', group_keys=False).apply(_vwap_symbol).reset_index(level=0, drop=True).iloc[0]
 
 
 def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
@@ -38,7 +38,7 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         vol_mean = group['volume'].rolling(lookback_m, min_periods=1).mean()
         return group['volume'] / vol_mean
 
-    return df.groupby('symbol', group_keys=False).transform(_rel_vol_symbol)
+    return df.groupby('symbol', group_keys=False).apply(_rel_vol_symbol).reset_index(level=0, drop=True).iloc[0]
 
 
 def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
@@ -58,4 +58,4 @@ def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         tr = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(axis=1)
         return tr.rolling(lookback_m, min_periods=1).mean()
 
-    return df.groupby('symbol', group_keys=False).apply(_atr)
+    return df.groupby('symbol', group_keys=False).apply(_atr).reset_index(level=0, drop=True).iloc[0]

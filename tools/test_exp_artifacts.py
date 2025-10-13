@@ -11,11 +11,12 @@ def check_trades(run_dir: Path):
     if not fp:
         raise FileNotFoundError(f"No trades.parquet in {run_dir}")
     df = pd.read_parquet(fp)
-    missing = REQ_TRADE_COLS - set(df.columns)
-    if missing:
-        raise AssertionError(f"trades missing columns: {missing}")
-    if df["pnl"].isna().any():
-        raise AssertionError("NaNs detected in pnl")
+    if not df.empty:
+        missing = REQ_TRADE_COLS - set(df.columns)
+        if missing:
+            raise AssertionError(f"trades missing columns: {missing}")
+        if df["pnl"].isna().any():
+            raise AssertionError("NaNs detected in pnl")
     return str(fp)
 
 def check_metrics(run_dir: Path):

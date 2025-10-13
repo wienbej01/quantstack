@@ -97,11 +97,15 @@ def compare_experiments(exp_dir: pathlib.Path) -> None:
 
 
 def _checksums_match(checksums: list) -> bool:
-    """Check if all checksums match."""
+    """Check if all checksums match for fairness (bars, features, sip, seed)."""
     if not checksums:
         return True
     first = checksums[0]
-    return all(c == first for c in checksums)
+    keys_to_check = ["bars_norm_hash", "features_hash", "sip_hash", "seed"]
+    return all(
+        all(c.get(k) == first.get(k) for k in keys_to_check)
+        for c in checksums
+    )
 
 
 def _generate_compare_md(exp_dir: pathlib.Path, data: dict) -> None:

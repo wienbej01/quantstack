@@ -70,16 +70,21 @@ def entry_ab(
 
     # SIP screen
     rvol_col = "f__vol__rel_volume_30"  # Hardcoded for now
-    top_n = 5  # Hardcoded
-    whitelist = None
-    universe_map = screen(df_with_features, rvol_col, top_n, whitelist)
+    top_n = base_config.get("sip", {}).get("top_n", 5)
+    whitelist = base_config.get("sip", {}).get("whitelist")
+    if base_config.get('sip_filter', True):
+        universe_map = screen(df_with_features, rvol_col, top_n, whitelist)
+    else:
+        universe_map = None
     # Hash the universe_map deterministically
-    sorted_universe = {int(k): sorted(list(v)) for k, v in universe_map.items()}
-    sip_hash = hash_dataframe(pd.DataFrame([(k, json.dumps(v, sort_keys=True)) for k, v in sorted_universe.items()], columns=["ts", "symbols"]), cols=["ts", "symbols"])
+    if universe_map is not None:
+        sorted_universe = {int(k): sorted(list(v)) for k, v in universe_map.items()}
+        sip_hash = hash_dataframe(pd.DataFrame([(k, json.dumps(v, sort_keys=True)) for k, v in sorted_universe.items()], columns=["ts", "symbols"]), cols=["ts", "symbols"])
+    else:
+        sip_hash = hash_dataframe(pd.DataFrame([json.dumps({}, sort_keys=True)], columns=["sip"]), cols=["sip"])
 
     # For each variant, run backtest
     run_ids = []
-    variant_checksums = []
     for variant_path in variant_files:
         variant = pathlib.Path(variant_path)
         with open(variant) as f:
@@ -99,7 +104,7 @@ def entry_ab(
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Generate signals
-        policy_params = config["policy"]
+        policy_params = config["policy_params"]
         policy_params["sip_universe"] = universe_map
         signals_df = generate_signals(df_with_features, policy_params)
 
@@ -110,7 +115,7 @@ def entry_ab(
         # Actually, the document says risk.size_and_stops() → orders with qty, stop_dist_ps
         # So, need to create orders from signals
 
-        orders_df = create_orders_from_signals(signals_df, df_with_features, config, warmup_mask)
+        orders_df = create_orders_from_signals(signals_df, df_with_features, config)
 
         # Run backtest
         backtest_params = config["backtest"]
@@ -128,7 +133,7 @@ def entry_ab(
         with open(run_dir / "metrics.json", "w") as f:
             json.dump(artifacts["metrics"], f, indent=2)
 
-        # Collect checksum for this variant
+        # Write checksum for this run
         variant_checksum = {
             "bars_norm_hash": bars_norm_hash,
             "features_hash": features_hash,
@@ -136,16 +141,8 @@ def entry_ab(
             "config_hash": config_hash,
             "seed": seed
         }
-        variant_checksums.append(variant_checksum)
-
-    # Check fairness: all variants must have identical checksums
-    if not force:
-        first_checksum = variant_checksums[0]
-        for i, checksum in enumerate(variant_checksums[1:], 1):
-            if checksum != first_checksum:
-                console.print(f"Variant {i} checksum differs from first. Use --force to override.", style="red")
-                console.print(f"Diff: {checksum} vs {first_checksum}")
-                raise typer.Exit(1)
+        with open(run_dir / "inputs_checksum.json", "w") as f:
+            json.dump(variant_checksum, f, indent=2)
 
     # Write experiment manifest
     manifest = {
@@ -157,7 +154,7 @@ def entry_ab(
         "resolved_config": base_config,  # Actually, should be the merged, but since variants differ, maybe base
         "feature_packs": feature_packs,
         "policy_params": base_config["policy"],  # Base policy
-        "sip_params": base_config["sip"],
+        "sip_params": base_config.get("sip", {}),
         "data_slice": {
             "symbols": symbols,
             "dates": dates,
@@ -169,9 +166,7 @@ def entry_ab(
     with open(exp_dir / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
 
-    # Write inputs checksum (use first, since they should be identical)
-    with open(exp_dir / "inputs_checksum.json", "w") as f:
-        json.dump(first_checksum, f, indent=2)
+    
 
     # Run compare
     from qx_cli.exp.compare import compare_experiments
@@ -194,35 +189,41 @@ def deep_merge(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def create_orders_from_signals(signals_df: pd.DataFrame, df: pd.DataFrame, config: Dict, warmup_mask: pd.Series) -> pd.DataFrame:
+def create_orders_from_signals(signals_df: pd.DataFrame, df: pd.DataFrame, config: Dict) -> pd.DataFrame:
     """Create orders DataFrame from signals with sizing and stops."""
     orders = []
     equity = config["backtest"]["initial_equity"]
-    risk_params = config["risk"]
+    risk_params = config["risk_params"]
 
-    # Merge signals with bars for ATR
-    merged = signals_df.merge(df[["ts", "symbol", "close", "f__vol__atr_14"]], on=["ts", "symbol"], how="left")
+    # Merge signals with bars for ATR and warmup
+    merged = signals_df.merge(df[["ts", "symbol", "close", "f__vol__atr_14", "f__warmup_ok"]], on=["ts", "symbol"], how="left", suffixes=('_sig', '_bar'))
+
+    prev_signals = {}  # symbol -> prev_signal
 
     for _, row in merged.iterrows():
-        if not row["warmup_ok"]:
-            continue
-        if row["signal"] == 1:  # Long signal
+        symbol = row["symbol"]
+        prev_signal = prev_signals.get(symbol, 0)
+        if row["signal"] == 1 and prev_signal == 0 and row["f__warmup_ok"]:
+            # Entry signal
+            atr_mult = risk_params.get('atr_mult', 1.0)
             signal_dict = {
-                "entry_hint": row["close"],
-                "stop_hint": row["close"] - row["f__vol__atr_14"]  # ATR stop
+                "entry_hint": row["close_bar"],
+                "stop_hint": row["close_bar"] - row["f__vol__atr_14"] * atr_mult
             }
             qty = size_order(signal_dict, equity, row["f__vol__atr_14"], risk_params)
             if qty:
                 stop_price, target_price = set_stops(signal_dict, qty, row["f__vol__atr_14"], risk_params)
+                stop_dist_ps = row["f__vol__atr_14"] * atr_mult
                 orders.append({
                     "ts": row["ts"],
                     "symbol": row["symbol"],
                     "side": "BUY",
                     "qty": qty,
-                    "stop_dist_ps": row["f__vol__atr_14"],  # stop distance per share
+                    "stop_dist_ps": stop_dist_ps,
                     "type": "MKT",
                     "tif": "DAY"
                 })
+        prev_signals[symbol] = row["signal"]
 
     return pd.DataFrame(orders)
 

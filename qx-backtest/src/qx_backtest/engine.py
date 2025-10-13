@@ -27,8 +27,10 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
 
     # Ensure sorted
     df = df.sort_values(['ts', 'symbol']).reset_index(drop=True)
-    orders_df = orders_df.sort_values(['ts', 'symbol']).reset_index(drop=True)
-    signals_df = signals_df.sort_values(['ts', 'symbol']).reset_index(drop=True)
+    if not orders_df.empty:
+        orders_df = orders_df.sort_values(['ts', 'symbol']).reset_index(drop=True)
+    if not signals_df.empty:
+        signals_df = signals_df.sort_values(['ts', 'symbol']).reset_index(drop=True)
 
     # Artifacts
     orders = []
@@ -51,8 +53,8 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
 
     for ts in all_ts:
         bars_ts = df[df['ts'] == ts]
-        orders_ts = orders_df[orders_df['ts'] == ts]
-        signals_ts = signals_df[signals_df['ts'] == ts]
+        orders_ts = orders_df[orders_df['ts'] == ts] if not orders_df.empty else pd.DataFrame()
+        signals_ts = signals_df[signals_df['ts'] == ts] if not signals_df.empty else pd.DataFrame()
 
         # Fill pending orders
         to_remove = []
@@ -198,13 +200,14 @@ def run_backtest(df: pd.DataFrame, orders_df: pd.DataFrame, signals_df: pd.DataF
         'capacity_break_even_bps': capacity_bps
     }
 
+    trades_df = pd.DataFrame(trades, columns=['entry_ts', 'exit_ts', 'symbol', 'side', 'qty', 'entry_px', 'exit_px', 'pnl', 'fees', 'slippage_est', 'r_multiple', 'mfe', 'mae', 'duration_s', 'policy_tag', 'risk_tag', 'stop_dist_ps'])
     return {
         'signals': signals_df,
         'orders': pd.DataFrame(orders),
         'fills': pd.DataFrame(fills),
         'positions': pd.DataFrame(positions),
         'equity': pd.DataFrame(equity_curve),
-        'trades': pd.DataFrame(trades),
+        'trades': trades_df,
         'risk_rejects': pd.DataFrame(risk_rejects),
         'allocation_log': pd.DataFrame(allocation_log),
         'metrics': metrics
