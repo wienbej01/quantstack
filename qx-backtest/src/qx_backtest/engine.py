@@ -11,6 +11,9 @@ from .fill import DefaultFiller, Fill, Filler
 from .order import Order, OrderFactory, OrderStatus
 from .portfolio import Portfolio, Position
 
+# Constant for detecting nanosecond timestamps
+NANOSECOND_THRESHOLD = 1e15  # Threshold for detecting nanosecond timestamps
+
 
 @dataclass
 class BacktestConfig:
@@ -176,16 +179,22 @@ class BacktestResult:
 class BacktestEngine:
     """Event-driven backtesting engine."""
 
-    def __init__(self, config: BacktestConfig):
+    def __init__(
+        self, config: BacktestConfig, sip_config: dict[str, Any] | None = None
+    ):
         """Initialize backtesting engine.
 
         Args:
             config: Backtest configuration
+            sip_config: SIP configuration for universe filtering
         """
         self.config = config
         self.portfolio = Portfolio(cash=config.initial_cash)
         self.order_factory = OrderFactory()
         self.filler = config.filler
+
+        # SIP configuration for universe filtering
+        self.sip_config = sip_config or {}
 
         # Event tracking
         self.current_time = None
@@ -229,8 +238,17 @@ class BacktestEngine:
 
             # Process each symbol's bar
             for _, bar in group.iterrows():
-                self.current_bar = bar.to_dict()
-                strategy_func(self, bar.to_dict())
+                bar_dict = bar.to_dict()
+                self.current_bar = bar_dict
+
+                # Update universe if needed (NEW)
+                self._update_universe_if_needed(bar_dict, data)
+
+                # Check if bar should be processed (NEW)
+                if not self._should_process_bar(bar_dict):
+                    continue
+
+                strategy_func(self, bar_dict)
 
             # Process pending orders
             self._process_pending_orders(group)
@@ -392,8 +410,62 @@ class BacktestEngine:
 
     def _check_universe_update_needed(self, bar: dict) -> bool:
         """Check if we need to update universe for this bar's date."""
-        bar_date = datetime.fromtimestamp(bar["ts"]).date()
+        # Handle both nanosecond timestamps and second timestamps
+        ts = bar["ts"]
+        if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+            bar_date = pd.to_datetime(ts, unit="ns").date()
+        else:  # Second timestamp
+            bar_date = datetime.fromtimestamp(ts).date()
         return bar_date != self._last_processed_date
+
+    def _should_process_bar(self, bar: dict) -> bool:
+        """Check if bar should be processed based on daily universe."""
+        # Check if SIP method is configured for HMM
+        sip_method = self.sip_config.get("sip_method")
+        if sip_method != "hmm":
+            return True  # Non-HMM modes process all bars
+
+        # Check SIP configuration for daily mode
+        sip_config = self.sip_config.get("sip_config", {})
+        if sip_config.get("mode") != "daily":
+            return True  # Non-daily modes process all bars
+
+        # For daily HMM mode, check if symbol is in current universe
+        symbol = bar["symbol"]
+        return symbol in self._current_universe
+
+    def _update_universe_if_needed(self, bar: dict, bars_df: pd.DataFrame) -> None:
+        """Update daily universe if we've moved to a new trading day."""
+        if not self._check_universe_update_needed(bar):
+            return
+
+        # Handle both nanosecond timestamps and second timestamps
+        ts = bar["ts"]
+        if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+            bar_date = pd.to_datetime(ts, unit="ns").date()
+        else:  # Second timestamp
+            bar_date = datetime.fromtimestamp(ts).date()
+        self._last_processed_date = bar_date
+
+        # If we already have universe for this day, use it
+        if bar_date in self._daily_universes:
+            self._current_universe = self._daily_universes[bar_date]
+            return
+
+        # Otherwise, compute new universe using SIP selector
+        if hasattr(self, "_sip_selector") and self._sip_selector:
+            # Get all bars for this trading day
+            bars_df["date"] = pd.to_datetime(bars_df["ts"], unit="ns").dt.date
+            day_bars = bars_df[bars_df["date"] == bar_date]
+
+            if not day_bars.empty:
+                # Remove the date column for processing
+                day_bars_clean = day_bars.drop(columns=["date"])
+                universe_map = self._sip_selector.select(day_bars_clean, {})
+                if universe_map:
+                    first_ts = min(universe_map.keys())
+                    new_universe = universe_map[first_ts]
+                    self._update_daily_universe(bar_date, new_universe)
 
     def _generate_results(self) -> BacktestResult:
         """Generate backtest results."""
