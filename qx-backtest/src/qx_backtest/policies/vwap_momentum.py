@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from ..order import OrderSide
 from ..portfolio import Position
 from .base import Policy
 
@@ -88,8 +89,71 @@ class VwapMomentumPolicy(Policy):
         rvol: float,
         timestamp: int,
     ) -> None:
-        """Placeholder for entry signal logic - will be implemented in next task."""
-        pass
+        """Check for momentum entry signal (both long and short)."""
+        # Check if we have room for more positions
+        if self.engine and self.engine.portfolio:
+            current_positions = len(self.engine.portfolio.positions)
+            if current_positions >= self.max_positions:
+                return
+        else:
+            return
+
+        # Check if we already have a pending order for this symbol
+        pending_orders = self.get_pending_orders(symbol)
+        if pending_orders:
+            return
+
+        # Calculate VWAP breakout strength
+        breakout_strength = (close - vwap) / vwap
+        breakout_pct = abs(breakout_strength) * 100
+
+        # Entry criteria for both long and short positions
+        if rvol >= self.min_rvol and breakout_pct >= self.min_breakout_strength:
+            position_size = self._calculate_position_size(close)
+
+            if position_size > 0:
+                if close > vwap:
+                    # Long entry: price above VWAP (momentum breakout)
+                    if self.engine and self.engine.order_factory:
+                        order = self.engine.order_factory.create_market_order(
+                            symbol=symbol,
+                            side=OrderSide.BUY,
+                            quantity=position_size,
+                            tags={
+                                "policy": self.name,
+                                "direction": "LONG",
+                                "entry_price": close,
+                                "vwap": vwap,
+                                "rvol": rvol,
+                                "signal_strength": breakout_strength,
+                                "breakout_pct": breakout_pct,
+                            },
+                        )
+                        self.submit_order(order)
+
+                elif close < vwap:
+                    # Short entry: price below VWAP (momentum breakdown)
+                    if self.engine and self.engine.order_factory:
+                        order = self.engine.order_factory.create_market_order(
+                            symbol=symbol,
+                            side=OrderSide.SELL,
+                            quantity=position_size,
+                            tags={
+                                "policy": self.name,
+                                "direction": "SHORT",
+                                "entry_price": close,
+                                "vwap": vwap,
+                                "rvol": rvol,
+                                "signal_strength": abs(breakout_strength),
+                                "breakout_pct": breakout_pct,
+                            },
+                        )
+                        self.submit_order(order)
+
+    def _calculate_position_size(self, price: float) -> int:
+        """Calculate position size based on risk management."""
+        # Placeholder implementation - will be implemented in Task 5
+        return 100  # Fixed size for now
 
     def _check_exit_signal(  # noqa: PLR0913
         self,
