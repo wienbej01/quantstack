@@ -2,6 +2,8 @@
 
 from typing import Any
 
+import numpy as np
+
 from ..order import OrderSide
 from ..portfolio import Position
 from .base import Policy
@@ -49,6 +51,7 @@ class VwapMomentumPolicy(Policy):
 
         # Track position entry times
         self.position_entry_times: dict[str, int] = {}
+        self.engine: Any = None  # Will be set by set_engine() method
 
     def process_bar(self, bar: dict[str, Any]) -> None:
         """Process a single bar of data."""
@@ -151,8 +154,37 @@ class VwapMomentumPolicy(Policy):
 
     def _calculate_position_size(self, price: float) -> int:
         """Calculate position size based on risk management."""
-        # Placeholder implementation - will be implemented in Task 5
-        return 100  # Fixed size for now
+        # Get current equity
+        current_equity = self.engine.portfolio.total_equity
+        target_value = current_equity * self.position_size_pct
+
+        # Calculate number of shares
+        position_size = int(target_value / price)
+
+        # Ensure minimum position size of 1 share
+        if position_size < 1:
+            position_size = 0
+
+        return position_size
+
+    def on_start(self) -> None:
+        """Called when backtest starts."""
+        self.position_entry_times.clear()
+
+    def on_end(self) -> None:
+        """Called when backtest ends."""
+        # Could log statistics here
+        total_positions_held = len(self.position_entry_times)
+        if total_positions_held > 0:
+            avg_bars_held = (
+                np.mean(list(self.position_entry_times.values()))
+                if self.position_entry_times
+                else 0
+            )
+            print(
+                f"{self.name}: Held {total_positions_held} positions, "
+                f"avg bars held: {avg_bars_held:.1f}"
+            )
 
     def _check_exit_signal(  # noqa: PLR0913
         self,

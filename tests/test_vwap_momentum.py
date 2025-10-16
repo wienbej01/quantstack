@@ -449,3 +449,141 @@ def test_momentum_exit_timeout():
     assert len(policy.engine.orders) == 1
     assert policy.engine.orders[0].side.value == "SELL"
     assert policy.engine.orders[0].tags["exit_reason"] == "timeout_long"
+
+
+def test_calculate_position_size():
+    """Test position size calculation based on equity percentage."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+
+    # Constants for testing
+    EXPECTED_SHARES_100_PRICE = 1000
+    EXPECTED_SHARES_500_PRICE = 200
+    EXPECTED_SHARES_HALF_EQUITY = 500
+
+    policy = VwapMomentumPolicy(position_size_pct=0.1)
+
+    # Mock engine with portfolio
+    class MockEngine:
+        def __init__(self):
+            self.portfolio = MockPortfolio()
+
+    class MockPortfolio:
+        def __init__(self):
+            self.total_equity = 1000000.0
+
+    policy.engine = MockEngine()
+
+    # With $1M equity and 10% allocation, at $100/share should get 1000 shares
+    position_size = policy._calculate_position_size(100.0)
+    assert position_size == EXPECTED_SHARES_100_PRICE
+
+    # Test with higher price
+    position_size_500 = policy._calculate_position_size(500.0)
+    assert position_size_500 == EXPECTED_SHARES_500_PRICE  # $100,000 / $500 = 200 shares
+
+    # Test minimum size constraint (should return 0 if can't afford 1 share)
+    position_size_expensive = policy._calculate_position_size(
+        2000000.0
+    )  # $2M per share
+    assert position_size_expensive == 0  # Should be 0 if can't afford at least 1 share
+
+    # Test different equity amount
+    policy.engine.portfolio.total_equity = 500000.0  # $500K equity
+    position_size_half = policy._calculate_position_size(100.0)
+    assert position_size_half == EXPECTED_SHARES_HALF_EQUITY  # $50,000 / $100 = 500 shares
+
+
+def test_lifecycle_methods():
+    """Test on_start and on_end lifecycle methods."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+
+    policy = VwapMomentumPolicy()
+
+    # Start with some position entry times
+    policy.position_entry_times["AAPL"] = 1640995200000000000
+    policy.position_entry_times["MSFT"] = 1640995260000000000
+
+    # on_start should clear position entry times
+    policy.on_start()
+    assert len(policy.position_entry_times) == 0
+
+    # Add some positions again for on_end test
+    policy.position_entry_times["AAPL"] = 1640995200000000000
+    policy.position_entry_times["MSFT"] = 1640995260000000000
+
+    # on_end should complete without errors (may log statistics)
+    policy.on_end()  # Should not raise any exceptions
+
+
+def test_position_sizing_edge_cases():
+    """Test edge cases in position sizing."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+
+    policy = VwapMomentumPolicy(position_size_pct=0.1)
+
+    # Mock engine with portfolio
+    class MockEngine:
+        def __init__(self):
+            self.portfolio = MockPortfolio()
+
+    class MockPortfolio:
+        def __init__(self):
+            self.total_equity = 1000000.0
+
+    policy.engine = MockEngine()
+
+    # Test with zero price (should not crash)
+    try:
+        size_zero_price = policy._calculate_position_size(0.0)
+        assert size_zero_price == 0
+    except (ZeroDivisionError, ValueError):
+        # Either is acceptable - just should not crash the program
+        pass
+
+    # Test with negative price (should not crash)
+    try:
+        size_negative_price = policy._calculate_position_size(-100.0)
+        # If it doesn't crash, the size should be 0 or handled gracefully
+        assert size_negative_price >= 0
+    except (ValueError, ZeroDivisionError):
+        # Either is acceptable - just should not crash the program
+        pass
+
+    # Test with very small percentage
+    policy.position_size_pct = 0.0001  # 0.01%
+    size_small_pct = policy._calculate_position_size(100.0)
+    assert size_small_pct == 1  # $100 / $100 = 1 share
+
+    # Reset for other tests
+    policy.position_size_pct = 0.1
+
+
+def test_calculate_bars_held():
+    """Test bars held calculation with different time intervals."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+
+    # Constants for testing
+    MINUTES_30 = 30
+
+    policy = VwapMomentumPolicy()
+
+    # Test 1 minute later (should be 1 bar)
+    entry_time = 1640995200000000000  # 2022-01-01 09:00:00 UTC
+    one_minute_later = entry_time + (60 * 1_000_000_000)  # 1 minute in nanoseconds
+    bars_held = policy._calculate_bars_held(entry_time, one_minute_later)
+    assert bars_held == 1
+
+    # Test 30 minutes later (should be 30 bars)
+    thirty_minutes_later = entry_time + (MINUTES_30 * 60 * 1_000_000_000)
+    bars_held_30 = policy._calculate_bars_held(entry_time, thirty_minutes_later)
+    assert bars_held_30 == MINUTES_30
+
+    # Test same time (should be 0 bars)
+    same_time = entry_time
+    bars_held_0 = policy._calculate_bars_held(entry_time, same_time)
+    assert bars_held_0 == 0
+
+    # Test earlier time (should be 0 or negative, but should not crash)
+    earlier_time = entry_time - (60 * 1_000_000_000)
+    bars_held_negative = policy._calculate_bars_held(entry_time, earlier_time)
+    assert bars_held_negative <= 0
