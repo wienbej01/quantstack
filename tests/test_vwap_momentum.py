@@ -749,3 +749,171 @@ def test_enhanced_exit_signal_with_atr():
     assert len(policy.engine.orders) == 1
     assert policy.engine.orders[0].side.value == "SELL"
     assert policy.engine.orders[0].tags["exit_reason"] == "stop_loss"
+
+
+def test_legacy_generate_signals():
+    """Test legacy signal generation function for compatibility."""
+    import pandas as pd
+
+    from qx_backtest.policies.vwap_momentum import generate_signals
+
+    # Create test data with breakout above VWAP
+    data = {
+        "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000],
+        "symbol": ["AAPL", "AAPL", "AAPL"],
+        "close": [149.0, 152.0, 153.0],  # Breaking out above VWAP
+        "high": [149.5, 152.5, 153.5],
+        "low": [148.5, 151.5, 152.5],
+        "f__ta__vwap_30": [149.0, 149.2, 149.4],  # VWAP trending up
+        "f__vol__rel_volume_30": [1.2, 1.5, 1.8],
+        "f__warmup_ok": [True, True, True],
+    }
+    df = pd.DataFrame(data)
+
+    params = {
+        "rvol_min": 1.0,
+        "vwap_col": "f__ta__vwap_30",
+        "rvol_col": "f__vol__rel_volume_30",
+        "timeout_bars": 10,
+        "min_breakout_strength": 0.5,
+    }
+
+    signals = generate_signals(df, params)
+
+    assert len(signals) == 3
+    assert "signal" in signals.columns
+    assert "breakout_strength" in signals.columns
+    assert signals.iloc[0]["signal"] == 0  # No signal initially (close = VWAP)
+    assert signals.iloc[1]["signal"] == 1  # Long signal on breakout
+    assert signals.iloc[2]["signal"] == 1  # Still in position
+    assert signals.iloc[1]["decision"] == "enter"
+
+
+def test_legacy_generate_signals_short():
+    """Test legacy signal generation for short breakdowns."""
+    import pandas as pd
+
+    from qx_backtest.policies.vwap_momentum import generate_signals
+
+    # Create test data with breakdown below VWAP
+    data = {
+        "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000],
+        "symbol": ["AAPL", "AAPL", "AAPL"],
+        "close": [151.0, 148.0, 147.0],  # Breaking down below VWAP
+        "high": [151.5, 148.5, 147.5],
+        "low": [150.5, 147.5, 146.5],
+        "f__ta__vwap_30": [151.0, 150.8, 150.6],  # VWAP trending down
+        "f__vol__rel_volume_30": [1.2, 1.5, 1.8],
+        "f__warmup_ok": [True, True, True],
+    }
+    df = pd.DataFrame(data)
+
+    params = {
+        "rvol_min": 1.0,
+        "vwap_col": "f__ta__vwap_30",
+        "rvol_col": "f__vol__rel_volume_30",
+        "timeout_bars": 10,
+        "min_breakout_strength": 0.5,
+    }
+
+    signals = generate_signals(df, params)
+
+    assert len(signals) == 3
+    assert signals.iloc[0]["signal"] == 0  # No signal initially (close = VWAP)
+    # Note: Current implementation only supports long signals (1) vs flat (0)
+    # Since close < vwap, it doesn't trigger entry for this momentum strategy
+    assert signals.iloc[1]["decision"] == "hold"  # No entry for breakdown
+    assert signals.iloc[2]["decision"] == "hold"  # Continue holding
+
+
+def test_legacy_generate_signals_timeout():
+    """Test legacy signal generation timeout logic."""
+    import pandas as pd
+
+    from qx_backtest.policies.vwap_momentum import generate_signals
+
+    # Create test data with position that times out
+    data = {
+        "ts": [
+            1640995200000000000,
+            1640995260000000000,
+            1640995320000000000,
+            1640995380000000000,
+            1640995440000000000,
+        ],
+        "symbol": ["AAPL", "AAPL", "AAPL", "AAPL", "AAPL"],
+        "close": [149.0, 152.0, 153.0, 154.0, 155.0],  # Continues above VWAP
+        "f__ta__vwap_30": [149.0, 149.2, 149.4, 149.6, 149.8],  # VWAP follows
+        "f__vol__rel_volume_30": [1.5, 1.5, 1.5, 1.5, 1.5],
+        "f__warmup_ok": [True, True, True, True, True],
+    }
+    df = pd.DataFrame(data)
+
+    params = {
+        "rvol_min": 1.0,
+        "vwap_col": "f__ta__vwap_30",
+        "rvol_col": "f__vol__rel_volume_30",
+        "timeout_bars": 2,  # Very short timeout for testing
+        "min_breakout_strength": 0.5,
+    }
+
+    signals = generate_signals(df, params)
+
+    assert len(signals) == 5
+    assert signals.iloc[1]["decision"] == "enter"  # Enter on breakout (bars_held = 1)
+    assert (
+        signals.iloc[2]["decision"] == "exit"
+    )  # Exit due to timeout (bars_held = 2 >= timeout_bars)
+    assert signals.iloc[2]["signal"] == 0  # Signal goes to 0 after exit
+    # After exit, position can immediately re-enter if conditions are still met
+    assert signals.iloc[3]["decision"] == "enter"  # Re-enter after exit
+    assert signals.iloc[3]["signal"] == 1  # Signal back to 1
+    assert (
+        signals.iloc[4]["decision"] == "exit"
+    )  # Exit again due to timeout (bars_held = 2 >= timeout_bars)
+    assert signals.iloc[4]["signal"] == 0  # Signal goes to 0 after second exit
+
+
+def test_legacy_generate_signals_sip_filter():
+    """Test legacy signal generation with SIP universe filtering."""
+    import pandas as pd
+
+    from qx_backtest.policies.vwap_momentum import generate_signals
+
+    # Create test data
+    data = {
+        "ts": [1640995200000000000, 1640995260000000000],
+        "symbol": ["AAPL", "AAPL"],
+        "close": [149.0, 152.0],  # Breakout above VWAP
+        "f__ta__vwap_30": [149.0, 149.2],
+        "f__vol__rel_volume_30": [1.5, 1.5],
+        "f__warmup_ok": [True, True],
+    }
+    df = pd.DataFrame(data)
+
+    # Create SIP universe that excludes AAPL at the breakout time
+    sip_universe = {
+        1640995200000000000: {"MSFT", "GOOG"},  # AAPL not in universe
+        1640995260000000000: {"AAPL", "MSFT"},  # AAPL added to universe
+    }
+
+    params = {
+        "rvol_min": 1.0,
+        "vwap_col": "f__ta__vwap_30",
+        "rvol_col": "f__vol__rel_volume_30",
+        "timeout_bars": 10,
+        "min_breakout_strength": 0.5,
+        "sip_universe": sip_universe,
+    }
+
+    signals = generate_signals(df, params)
+
+    # Should not enter at first bar (AAPL not in SIP universe)
+    assert signals.iloc[0]["in_sip"] == False
+    assert signals.iloc[0]["decision"] == "hold"
+    assert signals.iloc[0]["signal"] == 0
+
+    # Should enter at second bar (AAPL now in SIP universe)
+    assert signals.iloc[1]["in_sip"] == True
+    assert signals.iloc[1]["decision"] == "enter"
+    assert signals.iloc[1]["signal"] == 1
