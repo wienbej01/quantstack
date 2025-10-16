@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from ..portfolio import Position
 from .base import Policy
 
 
@@ -49,10 +50,57 @@ class VwapMomentumPolicy(Policy):
         self.position_entry_times: dict[str, int] = {}
 
     def process_bar(self, bar: dict[str, Any]) -> None:
-        """Process a single bar of data.
+        """Process a single bar of data."""
+        symbol = bar["symbol"]
+        timestamp = bar["ts"]
 
-        Args:
-            bar: Bar data dictionary with OHLCV and features
-        """
-        # Placeholder implementation - will be fully implemented in later tasks
+        # Check required features
+        vwap_col = f"f__ta__vwap_{self.vwap_window}"
+        rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
+
+        if vwap_col not in bar or rvol_col not in bar:
+            return
+
+        vwap = bar[vwap_col]
+        rvol = bar[rvol_col]
+        close = bar["close"]
+        high = bar["high"]
+        low = bar["low"]
+
+        # Get current position
+        position = self.get_position(symbol)
+
+        if position is None or position.is_flat:
+            # Check for entry signal (both long and short)
+            self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
+        else:
+            # Check for exit signal (both long and short)
+            self._check_exit_signal(
+                symbol, bar, position, close, vwap, high, low, timestamp
+            )
+
+    def _check_entry_signal(  # noqa: PLR0913
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        close: float,
+        vwap: float,
+        rvol: float,
+        timestamp: int,
+    ) -> None:
+        """Placeholder for entry signal logic - will be implemented in next task."""
+        pass
+
+    def _check_exit_signal(  # noqa: PLR0913
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        position: Position,
+        close: float,
+        vwap: float,
+        high: float,
+        low: float,
+        timestamp: int,
+    ) -> None:
+        """Placeholder for exit signal logic - will be implemented in next task."""
         pass
