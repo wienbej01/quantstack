@@ -44,6 +44,43 @@ The system uses modular qx-* packages:
 - **qx-report**: Comparative analysis and reporting
 - **qx-cli**: Typer/Rich CLI surface and experiment orchestration
 
+### VWAP Momentum Strategy
+
+The VWAP Momentum strategy complements the reversion strategy by trading breakouts above and below VWAP:
+
+```python
+from qx_backtest.policies import VwapMomentumPolicy, VwapMomentumPolicyEnhanced
+
+# Basic momentum - buys breakouts above VWAP
+policy = VwapMomentumPolicy(
+    vwap_window=30,
+    min_breakout_strength=0.8,
+    position_size_pct=0.15
+)
+
+# Enhanced with ATR-based stops
+enhanced = VwapMomentumPolicyEnhanced(
+    vwap_window=30,
+    atr_window=14,
+    atr_multiplier=2.0,
+    min_profit_atr=1.0
+)
+```
+
+**Key Features:**
+- **Opposite Logic**: Buys when price > VWAP (momentum), sells when price < VWAP (momentum)
+- **ATR Risk Management**: Enhanced version includes volatility-based stops
+- **Trend Following**: Designed for trending markets with momentum
+- **Volume Filtering**: Requires minimum relative volume for entries
+
+**Use Cases:**
+- Strong trending markets
+- Breakout continuation strategies
+- Momentum-based trading systems
+- Complement to reversion strategies
+
+See [VWAP Momentum Guide](docs/vwap_momentum_guide.md) for detailed documentation.
+
 ## Documentation
 
 - [Features](docs/features/) - Detailed feature documentation
