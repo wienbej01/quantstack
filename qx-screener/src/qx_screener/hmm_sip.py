@@ -6,7 +6,6 @@ from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, Field
-
 from qx_core.contracts import UniverseSelector
 from qx_core.hashers import hash_sip_map
 from qx_core.validators import validate_bars_dataframe
@@ -40,7 +39,7 @@ class HMMSIPConfig(BaseModel):
 class HMMSIPUniverseSelector(UniverseSelector):
     name: str = "hmm_sip"
 
-    def __init__(self, cfg: HMMSIPConfig):
+    def __init__(self, cfg: HMMSIPConfig) -> None:
         self.cfg = cfg
         # Simple in-process LRU cache for external parquet reads
         self._cache: dict[tuple[str, str, float], tuple[pd.DataFrame, float]] = {}
@@ -51,9 +50,64 @@ class HMMSIPUniverseSelector(UniverseSelector):
         self._p_hat_cache_ttl_seconds = 1800  # 30 minutes TTL for p_hat files
         self._p_hat_max_cache_size = 200  # More entries for minute-level data
 
+        # Initialize daily selector if mode is daily
+        if self.cfg.mode == "daily":
+            # Import locally to avoid circular import
+            from .daily_hmm_sip import DailyHMMSIPSelector
+
+            self._daily_selector: DailyHMMSIPSelector | None = DailyHMMSIPSelector(
+                score_floor=self.cfg.score_floor,
+                top_k=self.cfg.top_k,
+                broadcast_time=self.cfg.broadcast_time,
+            )
+        else:
+            self._daily_selector = None
+
     def select(
         self, bars_utc: pd.DataFrame, ref: dict, **params
     ) -> dict[int, set[str]]:
+        if self.cfg.mode == "daily":
+            return self._select_daily_mode(bars_utc, ref, **params)
+        else:
+            return self._select_legacy_mode(bars_utc, ref, **params)
+
+    def _select_daily_mode(
+        self, bars_utc: pd.DataFrame, ref: dict, **params
+    ) -> dict[int, set[str]]:
+        """Daily mode: compute universe once per day, broadcast to all intraday timestamps"""
+        validate_bars_dataframe(bars_utc)
+        target_et_date = ref.get("target_date")
+        if not target_et_date:
+            raise ValueError("target_date required for HMM_SIP selector")
+
+        print(
+            f"  [HMM SIP] Using daily mode with top_k={self.cfg.top_k}, "
+            f"score_floor={self.cfg.score_floor}"
+        )
+
+        # Select daily universes
+        self._daily_selector.select_daily_universes(bars_utc)
+
+        # Convert to timestamp-based format for compatibility
+        timestamp_universes = {}
+        for ts in bars_utc["ts"].unique():
+            ts_datetime = pd.to_datetime(ts, unit="ns", utc=True)
+            universe = self._daily_selector.get_universe_for_timestamp(ts_datetime)
+            timestamp_universes[int(ts)] = universe
+
+        # this hash will be consumed upstream into inputs_checksum.json
+        sip_hash = hash_sip_map(timestamp_universes)
+        print(
+            f"  [HMM SIP] Daily universe map: {len(timestamp_universes)} timestamps, "
+            f"sip_hash: {sip_hash[:8]}..."
+        )
+
+        return timestamp_universes
+
+    def _select_legacy_mode(
+        self, bars_utc: pd.DataFrame, ref: dict, **params
+    ) -> dict[int, set[str]]:
+        """Original legacy mode implementation"""
         validate_bars_dataframe(bars_utc)
         target_et_date = ref.get("target_date")
         if not target_et_date:
@@ -61,7 +115,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
 
         # Log selector configuration at startup
         print(
-            f"  [HMM SIP] Selector: top_k={self.cfg.top_k}, score_floor={self.cfg.score_floor}, "
+            f"  [HMM SIP] Using legacy mode: top_k={self.cfg.top_k}, score_floor={self.cfg.score_floor}, "
             f"p_hat_threshold={self.cfg.p_hat_threshold}, min_minutes_in_state={self.cfg.min_minutes_in_state}"
         )
         print(f"  [HMM SIP] External root: {self.cfg.external_premarket_root}")
@@ -91,7 +145,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if minute_p_hat is not None:
                 print(f"  [HMM SIP] Loaded {len(minute_p_hat)} p_hat observations")
             else:
-                print(f"  [HMM SIP] No p_hat data available for gating")
+                print("  [HMM SIP] No p_hat data available for gating")
 
         # Broadcast with optional minute-level gating
         universe_map = self._broadcast_with_minute_gating(
