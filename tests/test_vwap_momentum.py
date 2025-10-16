@@ -243,3 +243,209 @@ def test_momentum_entry_insufficient_breakout() -> None:
 
     # Should not have generated any order
     assert len(policy.engine.orders) == 0
+
+
+def test_momentum_exit_signal_long():
+    """Test long exit signal when price falls back to VWAP."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+    from qx_backtest.portfolio import Position
+
+    policy = VwapMomentumPolicy(vwap_window=30)
+
+    # Mock engine and portfolio for testing
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def get_position(self, symbol: str):
+            """Mock get_position method."""
+            return self.portfolio.positions.get(symbol)
+
+        def get_pending_orders(self, symbol: str | None = None):
+            """Mock get_pending_orders method."""
+            return []
+
+        def submit_order(self, order) -> None:
+            """Mock submit_order method."""
+            self.orders.append(order)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1000000.0
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol: str, side: str, quantity: int, tags=None):
+            order = MockOrder(symbol, side, quantity)
+            order.tags = tags or {}
+            return order
+
+    class MockOrder:
+        def __init__(self, symbol: str, side: str, quantity: int):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+
+    policy.engine = MockEngine()
+
+    # Simulate existing long position
+    position = Position(symbol="AAPL", quantity=100, avg_cost=152.0)
+    policy.engine.portfolio.positions["AAPL"] = position
+    policy.position_entry_times["AAPL"] = 1640995200000000000
+
+    bar = {
+        "ts": 1640995260000000000,  # 1 minute later
+        "symbol": "AAPL",
+        "close": 150.0,  # Back to VWAP (exit signal)
+        "high": 151.0,
+        "low": 149.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.2,
+    }
+
+    policy.process_bar(bar)
+
+    # Should have generated a sell order to exit long
+    assert len(policy.engine.orders) == 1
+    assert policy.engine.orders[0].side.value == "SELL"  # OrderSide.SELL
+    assert "EXIT_LONG" in policy.engine.orders[0].tags["direction"]
+
+
+def test_momentum_exit_signal_short():
+    """Test short exit signal when price rises back to VWAP."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+    from qx_backtest.portfolio import Position
+
+    policy = VwapMomentumPolicy(vwap_window=30)
+
+    # Mock engine and portfolio for testing
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def get_position(self, symbol: str):
+            """Mock get_position method."""
+            return self.portfolio.positions.get(symbol)
+
+        def get_pending_orders(self, symbol: str | None = None):
+            """Mock get_pending_orders method."""
+            return []
+
+        def submit_order(self, order) -> None:
+            """Mock submit_order method."""
+            self.orders.append(order)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1000000.0
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol: str, side: str, quantity: int, tags=None):
+            order = MockOrder(symbol, side, quantity)
+            order.tags = tags or {}
+            return order
+
+    class MockOrder:
+        def __init__(self, symbol: str, side: str, quantity: int):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+
+    policy.engine = MockEngine()
+
+    # Simulate existing short position
+    position = Position(symbol="AAPL", quantity=-100, avg_cost=148.0)
+    policy.engine.portfolio.positions["AAPL"] = position
+    policy.position_entry_times["AAPL"] = 1640995200000000000
+
+    bar = {
+        "ts": 1640995260000000000,  # 1 minute later
+        "symbol": "AAPL",
+        "close": 150.0,  # Back to VWAP (exit signal for short)
+        "high": 151.0,
+        "low": 149.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.2,
+    }
+
+    policy.process_bar(bar)
+
+    # Should have generated a buy order to exit short
+    assert len(policy.engine.orders) == 1
+    assert policy.engine.orders[0].side.value == "BUY"  # OrderSide.BUY
+    assert "EXIT_SHORT" in policy.engine.orders[0].tags["direction"]
+
+
+def test_momentum_exit_timeout():
+    """Test exit when maximum bars are reached."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+    from qx_backtest.portfolio import Position
+
+    policy = VwapMomentumPolicy(vwap_window=30, max_position_bars=10)
+
+    # Mock engine and portfolio
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def get_position(self, symbol: str):
+            """Mock get_position method."""
+            return self.portfolio.positions.get(symbol)
+
+        def get_pending_orders(self, symbol: str | None = None):
+            """Mock get_pending_orders method."""
+            return []
+
+        def submit_order(self, order) -> None:
+            """Mock submit_order method."""
+            self.orders.append(order)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1000000.0
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol: str, side: str, quantity: int, tags=None):
+            order = MockOrder(symbol, side, quantity)
+            order.tags = tags or {}
+            return order
+
+    class MockOrder:
+        def __init__(self, symbol: str, side: str, quantity: int):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+
+    policy.engine = MockEngine()
+
+    # Simulate existing long position with old entry time
+    position = Position(symbol="AAPL", quantity=100, avg_cost=152.0)
+    policy.engine.portfolio.positions["AAPL"] = position
+    # Set entry time to 15 minutes ago (exceeding max_position_bars=10)
+    old_entry_time = 1640995200000000000 - (15 * 60 * 1_000_000_000)
+    policy.position_entry_times["AAPL"] = old_entry_time
+
+    bar = {
+        "ts": 1640995200000000000,
+        "symbol": "AAPL",
+        "close": 155.0,  # Still above VWAP but should exit due to timeout
+        "high": 156.0,
+        "low": 154.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.2,
+    }
+
+    policy.process_bar(bar)
+
+    # Should have generated a sell order due to timeout
+    assert len(policy.engine.orders) == 1
+    assert policy.engine.orders[0].side.value == "SELL"
+    assert policy.engine.orders[0].tags["exit_reason"] == "timeout_long"

@@ -131,24 +131,23 @@ class VwapMomentumPolicy(Policy):
                         )
                         self.submit_order(order)
 
-                elif close < vwap:
+                elif close < vwap and self.engine and self.engine.order_factory:
                     # Short entry: price below VWAP (momentum breakdown)
-                    if self.engine and self.engine.order_factory:
-                        order = self.engine.order_factory.create_market_order(
-                            symbol=symbol,
-                            side=OrderSide.SELL,
-                            quantity=position_size,
-                            tags={
-                                "policy": self.name,
-                                "direction": "SHORT",
-                                "entry_price": close,
-                                "vwap": vwap,
-                                "rvol": rvol,
-                                "signal_strength": abs(breakout_strength),
-                                "breakout_pct": breakout_pct,
-                            },
-                        )
-                        self.submit_order(order)
+                    order = self.engine.order_factory.create_market_order(
+                        symbol=symbol,
+                        side=OrderSide.SELL,
+                        quantity=position_size,
+                        tags={
+                            "policy": self.name,
+                            "direction": "SHORT",
+                            "entry_price": close,
+                            "vwap": vwap,
+                            "rvol": rvol,
+                            "signal_strength": abs(breakout_strength),
+                            "breakout_pct": breakout_pct,
+                        },
+                    )
+                    self.submit_order(order)
 
     def _calculate_position_size(self, price: float) -> int:
         """Calculate position size based on risk management."""
@@ -166,5 +165,66 @@ class VwapMomentumPolicy(Policy):
         low: float,
         timestamp: int,
     ) -> None:
-        """Placeholder for exit signal logic - will be implemented in next task."""
-        pass
+        """Check for momentum exit signal (both long and short positions)."""
+        # Check if position has entry time recorded
+        if symbol not in self.position_entry_times:
+            self.position_entry_times[symbol] = timestamp
+
+        entry_time = self.position_entry_times[symbol]
+        bars_held = self._calculate_bars_held(entry_time, timestamp)
+
+        # Determine position direction from position cost basis
+        is_long_position = position.quantity > 0
+
+        exit_reason = None
+
+        if is_long_position:
+            # Long position exit criteria (opposite of reversal)
+            if close <= vwap:
+                exit_reason = "vwap_target_long"
+            elif bars_held >= self.max_position_bars:
+                exit_reason = "timeout_long"
+        # Short position exit criteria (opposite of reversal)
+        elif close >= vwap:
+            exit_reason = "vwap_target_short"
+        elif bars_held >= self.max_position_bars:
+            exit_reason = "timeout_short"
+
+        if exit_reason:
+            # Check if we already have a pending exit order
+            pending_orders = self.get_pending_orders(symbol)
+            exit_side = OrderSide.SELL if is_long_position else OrderSide.BUY
+            exit_pending = any(order.side == exit_side for order in pending_orders)
+
+            if not exit_pending and self.engine and self.engine.order_factory:
+                # Create exit order for entire position
+                order = self.engine.order_factory.create_market_order(
+                    symbol=symbol,
+                    side=exit_side,
+                    quantity=abs(position.quantity),
+                    tags={
+                        "policy": self.name,
+                        "direction": "EXIT_"
+                        + ("LONG" if is_long_position else "SHORT"),
+                        "exit_reason": exit_reason,
+                        "bars_held": bars_held,
+                        "entry_price": position.avg_cost,
+                        "exit_price": close,
+                        "vwap": vwap,
+                        "position_side": "LONG" if is_long_position else "SHORT",
+                    },
+                )
+
+                self.submit_order(order)
+
+    def _calculate_bars_held(self, entry_time: int, current_time: int) -> int:
+        """Calculate number of bars held since entry.
+
+        This is a simplified calculation - in practice you'd need
+        to account for market hours, holidays, etc.
+        """
+        # Assuming 1-minute bars (1 billion nanoseconds = 1 second)
+        # 60 seconds = 1 minute = 60 billion nanoseconds
+        minute_ns = 60 * 1_000_000_000
+        bars_held = (current_time - entry_time) // minute_ns
+        return int(bars_held)
