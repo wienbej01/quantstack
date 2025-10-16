@@ -260,3 +260,245 @@ class VwapMomentumPolicy(Policy):
         minute_ns = 60 * 1_000_000_000
         bars_held = (current_time - entry_time) // minute_ns
         return int(bars_held)
+
+
+class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
+    """Enhanced VWAP momentum policy with ATR-based stops and profit targets."""
+
+    def __init__(
+        self,
+        vwap_window: int = 30,
+        min_rvol: float = 1.0,
+        max_position_bars: int = 50,
+        position_size_pct: float = 0.1,
+        max_positions: int = 5,
+        min_breakout_strength: float = 0.5,
+        atr_window: int = 14,
+        atr_multiplier: float = 2.0,
+        min_profit_atr: float = 0.5,
+        name: str = "VwapMomentumEnhanced",
+    ):
+        """Initialize enhanced VWAP momentum policy.
+
+        Args:
+            vwap_window: VWAP lookback window in minutes
+            min_rvol: Minimum relative volume for entry
+            max_position_bars: Maximum bars to hold position
+            position_size_pct: Position size as percentage of equity
+            max_positions: Maximum concurrent positions
+            min_breakout_strength: Minimum breakout strength required
+            atr_window: ATR lookback window for stop loss
+            atr_multiplier: ATR multiplier for stop loss
+            min_profit_atr: Minimum profit target in ATR multiples
+            name: Policy name
+        """
+        super().__init__(
+            vwap_window,
+            min_rvol,
+            max_position_bars,
+            position_size_pct,
+            max_positions,
+            min_breakout_strength,
+            name,
+        )
+        self.atr_window = atr_window
+        self.atr_multiplier = atr_multiplier
+        self.min_profit_atr = min_profit_atr
+
+    def process_bar(self, bar: dict[str, Any]) -> None:
+        """Process a single bar of data."""
+        symbol = bar["symbol"]
+        timestamp = bar["ts"]
+
+        # Check required features
+        vwap_col = f"f__ta__vwap_{self.vwap_window}"
+        rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
+        atr_col = f"f__vol__atr_{self.atr_window}"
+
+        if vwap_col not in bar or rvol_col not in bar or atr_col not in bar:
+            return
+
+        vwap = bar[vwap_col]
+        rvol = bar[rvol_col]
+        atr = bar[atr_col]
+        close = bar["close"]
+        high = bar["high"]
+        low = bar["low"]
+
+        # Get current position
+        position = self.get_position(symbol)
+
+        if position is None or position.is_flat:
+            # Enhanced entry signal
+            self._check_entry_signal_enhanced(
+                symbol, bar, close, vwap, rvol, atr, timestamp
+            )
+        else:
+            # Enhanced exit signal
+            self._check_exit_signal_enhanced(
+                symbol, bar, position, close, vwap, high, low, atr, timestamp
+            )
+
+    def _check_entry_signal_enhanced(
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        close: float,
+        vwap: float,
+        rvol: float,
+        atr: float,
+        timestamp: int,
+    ) -> None:
+        """Check for enhanced momentum entry signal."""
+        # Entry criteria with additional filters
+        breakout_strength = abs(close - vwap) / vwap
+        breakout_pct = breakout_strength * 100
+
+        # Entry criteria with additional filters
+        if (
+            rvol >= self.min_rvol
+            and atr > 0
+            and breakout_pct >= self.min_breakout_strength
+        ):
+
+            # Additional filter: avoid entering during extreme volatility
+            volatility_ratio = atr / close
+            if volatility_ratio > 0.1:  # More than 10% daily volatility
+                return
+
+            # Check position limits
+            current_positions = len(self.engine.portfolio.positions)
+            if current_positions >= self.max_positions:
+                return
+
+            # Check for existing orders
+            pending_orders = self.get_pending_orders(symbol)
+            if pending_orders:
+                return
+
+            # Calculate position size with volatility adjustment
+            base_size = self._calculate_position_size(close)
+            volatility_adjustment = max(0.5, 1.0 - volatility_ratio * 5)
+            position_size = int(base_size * volatility_adjustment)
+
+            if position_size > 0:
+                if close > vwap:
+                    # Long breakout: need sufficient profit potential
+                    if (close - vwap) >= (self.min_profit_atr * atr):
+                        order = self.engine.order_factory.create_market_order(
+                            symbol=symbol,
+                            side=OrderSide.BUY,
+                            quantity=position_size,
+                            tags={
+                                "policy": self.name,
+                                "direction": "LONG",
+                                "entry_price": close,
+                                "vwap": vwap,
+                                "rvol": rvol,
+                                "atr": atr,
+                                "signal_strength": breakout_strength,
+                                "volatility_ratio": volatility_ratio,
+                            },
+                        )
+                        self.submit_order(order)
+                elif close < vwap:
+                    # Short breakdown: need sufficient profit potential
+                    if (vwap - close) >= (self.min_profit_atr * atr):
+                        order = self.engine.order_factory.create_market_order(
+                            symbol=symbol,
+                            side=OrderSide.SELL,
+                            quantity=position_size,
+                            tags={
+                                "policy": self.name,
+                                "direction": "SHORT",
+                                "entry_price": close,
+                                "vwap": vwap,
+                                "rvol": rvol,
+                                "atr": atr,
+                                "signal_strength": breakout_strength,
+                                "volatility_ratio": volatility_ratio,
+                            },
+                        )
+                        self.submit_order(order)
+
+    def _check_exit_signal_enhanced(
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        position: Position,
+        close: float,
+        vwap: float,
+        high: float,
+        low: float,
+        atr: float,
+        timestamp: int,
+    ) -> None:
+        """Check for enhanced exit signal."""
+        if symbol not in self.position_entry_times:
+            self.position_entry_times[symbol] = timestamp
+
+        entry_time = self.position_entry_times[symbol]
+        bars_held = self._calculate_bars_held(entry_time, timestamp)
+
+        # Calculate stop loss and profit targets
+        is_long_position = position.quantity > 0
+
+        if is_long_position:
+            stop_loss_price = position.avg_cost - (atr * self.atr_multiplier)
+            profit_target_price = position.avg_cost + (atr * self.min_profit_atr)
+        else:
+            stop_loss_price = position.avg_cost + (atr * self.atr_multiplier)
+            profit_target_price = position.avg_cost - (atr * self.min_profit_atr)
+
+        exit_reason = None
+
+        # Enhanced exit criteria - prioritize stop loss and profit targets
+        if is_long_position:
+            if close <= stop_loss_price:
+                exit_reason = "stop_loss"
+            elif close >= profit_target_price:
+                exit_reason = "profit_target"
+            elif close <= vwap:
+                exit_reason = "vwap_target"
+            elif bars_held >= self.max_position_bars:
+                exit_reason = "timeout"
+        else:
+            if close >= stop_loss_price:
+                exit_reason = "stop_loss"
+            elif close <= profit_target_price:
+                exit_reason = "profit_target"
+            elif close >= vwap:
+                exit_reason = "vwap_target"
+            elif bars_held >= self.max_position_bars:
+                exit_reason = "timeout"
+
+        if exit_reason:
+            # Check for pending exit orders
+            pending_orders = self.get_pending_orders(symbol)
+            exit_side = OrderSide.SELL if is_long_position else OrderSide.BUY
+            exit_pending = any(order.side == exit_side for order in pending_orders)
+
+            if not exit_pending:
+                order = self.engine.order_factory.create_market_order(
+                    symbol=symbol,
+                    side=exit_side,
+                    quantity=abs(position.quantity),
+                    tags={
+                        "policy": self.name,
+                        "exit_reason": exit_reason,
+                        "bars_held": bars_held,
+                        "entry_price": position.avg_cost,
+                        "exit_price": close,
+                        "vwap": vwap,
+                        "atr": atr,
+                        "stop_loss_price": stop_loss_price,
+                        "profit_target_price": profit_target_price,
+                        "pnl_per_atr": (
+                            (close - position.avg_cost) / atr
+                            if atr > 0 and is_long_position
+                            else (position.avg_cost - close) / atr if atr > 0 else 0
+                        ),
+                    },
+                )
+
+                self.submit_order(order)

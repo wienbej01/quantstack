@@ -479,7 +479,9 @@ def test_calculate_position_size():
 
     # Test with higher price
     position_size_500 = policy._calculate_position_size(500.0)
-    assert position_size_500 == EXPECTED_SHARES_500_PRICE  # $100,000 / $500 = 200 shares
+    assert (
+        position_size_500 == EXPECTED_SHARES_500_PRICE
+    )  # $100,000 / $500 = 200 shares
 
     # Test minimum size constraint (should return 0 if can't afford 1 share)
     position_size_expensive = policy._calculate_position_size(
@@ -490,7 +492,9 @@ def test_calculate_position_size():
     # Test different equity amount
     policy.engine.portfolio.total_equity = 500000.0  # $500K equity
     position_size_half = policy._calculate_position_size(100.0)
-    assert position_size_half == EXPECTED_SHARES_HALF_EQUITY  # $50,000 / $100 = 500 shares
+    assert (
+        position_size_half == EXPECTED_SHARES_HALF_EQUITY
+    )  # $50,000 / $100 = 500 shares
 
 
 def test_lifecycle_methods():
@@ -587,3 +591,161 @@ def test_calculate_bars_held():
     earlier_time = entry_time - (60 * 1_000_000_000)
     bars_held_negative = policy._calculate_bars_held(entry_time, earlier_time)
     assert bars_held_negative <= 0
+
+
+def test_vwap_momentum_enhanced_initialization():
+    """Test enhanced policy with ATR stops."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicyEnhanced
+
+    policy = VwapMomentumPolicyEnhanced(
+        vwap_window=20,
+        min_rvol=1.2,
+        atr_window=14,
+        atr_multiplier=2.0,
+        min_profit_atr=1.0,
+    )
+
+    assert policy.name == "VwapMomentumEnhanced"
+    assert policy.vwap_window == 20
+    assert policy.min_rvol == 1.2
+    assert policy.atr_window == 14
+    assert policy.atr_multiplier == 2.0
+    assert policy.min_profit_atr == 1.0
+
+
+def test_enhanced_entry_signal_with_atr():
+    """Test enhanced entry signal includes ATR validation."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicyEnhanced
+
+    policy = VwapMomentumPolicyEnhanced(
+        vwap_window=30,
+        min_breakout_strength=0.5,
+        atr_window=14,
+        min_profit_atr=2.0,  # Higher requirement - need 2x ATR profit potential
+    )
+
+    # Mock engine and portfolio
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def get_position(self, symbol: str):
+            """Mock get_position method."""
+            return None  # No position initially
+
+        def get_pending_orders(self, symbol: str | None = None):
+            """Mock get_pending_orders method."""
+            return []
+
+        def submit_order(self, order) -> None:
+            """Mock submit_order method."""
+            self.orders.append(order)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1000000.0
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol, side, quantity, tags=None):
+            order = MockOrder(symbol, side, quantity)
+            order.tags = tags or {}
+            return order
+
+    class MockOrder:
+        def __init__(self, symbol, side, quantity):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+
+    policy.engine = MockEngine()
+
+    bar = {
+        "ts": 1640995200000000000,
+        "symbol": "AAPL",
+        "close": 152.0,  # 2.0 above VWAP (1.33% breakout)
+        "high": 152.5,
+        "low": 151.5,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.5,
+        "f__vol__atr_14": 2.0,  # ATR of $2.0, breakout is only 1x ATR
+    }
+
+    policy.process_bar(bar)
+
+    # Should NOT have generated order (breakout < min_profit_atr * ATR)
+    # 2.0 breakout < 2.0 * 2.0 ATR requirement = 4.0
+    assert len(policy.engine.orders) == 0
+
+
+def test_enhanced_exit_signal_with_atr():
+    """Test enhanced exit signal with ATR-based stops and profit targets."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicyEnhanced
+    from qx_backtest.portfolio import Position
+
+    policy = VwapMomentumPolicyEnhanced(
+        vwap_window=30, atr_window=14, atr_multiplier=2.0, min_profit_atr=1.0
+    )
+
+    # Mock engine and portfolio
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def get_position(self, symbol: str):
+            """Mock get_position method."""
+            return self.portfolio.positions.get(symbol)
+
+        def get_pending_orders(self, symbol: str | None = None):
+            """Mock get_pending_orders method."""
+            return []
+
+        def submit_order(self, order) -> None:
+            """Mock submit_order method."""
+            self.orders.append(order)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1000000.0
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol, side, quantity, tags=None):
+            order = MockOrder(symbol, side, quantity)
+            order.tags = tags or {}
+            return order
+
+    class MockOrder:
+        def __init__(self, symbol, side, quantity):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+
+    policy.engine = MockEngine()
+
+    # Simulate existing long position
+    position = Position(symbol="AAPL", quantity=100, avg_cost=152.0)
+    policy.engine.portfolio.positions["AAPL"] = position
+    policy.position_entry_times["AAPL"] = 1640995200000000000
+
+    bar = {
+        "ts": 1640995260000000000,  # 1 minute later
+        "symbol": "AAPL",
+        "close": 148.0,  # Below stop loss (152.0 - 2.0 * 2.0 = 148.0)
+        "high": 149.0,
+        "low": 147.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.2,
+        "f__vol__atr_14": 2.0,  # ATR of $2.0
+    }
+
+    policy.process_bar(bar)
+
+    # Should have generated sell order due to stop loss
+    assert len(policy.engine.orders) == 1
+    assert policy.engine.orders[0].side.value == "SELL"
+    assert policy.engine.orders[0].tags["exit_reason"] == "stop_loss"
