@@ -62,6 +62,8 @@ def _generate_test_bars(np: Any) -> pd.DataFrame:
     PULLBACK_BAR = 25
     CYCLE_LENGTH = 30
 
+    rng = np.random.default_rng(42)
+
     # Generate test bars
     dates = pd.date_range("2024-01-01 09:30:00", "2024-01-01 16:00:00", freq="1min")
     symbol = "AAPL"
@@ -73,18 +75,18 @@ def _generate_test_bars(np: Any) -> pd.DataFrame:
     for i, ts in enumerate(dates):
         # Simulate price movement with some VWAP tracking
         if i % CYCLE_LENGTH == BREAKOUT_BAR:  # Every 30 minutes, create a breakout
-            price_move = np.random.uniform(0.5, 2.0)  # Upward breakout
+            price_move = rng.uniform(0.5, 2.0)  # Upward breakout
         elif i % CYCLE_LENGTH == PULLBACK_BAR:  # Pull back later
-            price_move = -np.random.uniform(0.3, 1.0)
+            price_move = -rng.uniform(0.3, 1.0)
         else:
-            price_move = np.random.normal(0, 0.1)  # Random noise
+            price_move = rng.normal(0, 0.1)  # Random noise
 
         price = base_price + price_move
         vwap = vwap_base + price_move * 0.3  # VWAP lags behind
 
-        high = price + abs(np.random.normal(0, 0.1))
-        low = price - abs(np.random.normal(0, 0.1))
-        volume = int(np.random.uniform(500000, 2000000))
+        high = price + abs(rng.normal(0, 0.1))
+        low = price - abs(rng.normal(0, 0.1))
+        volume = int(rng.uniform(500000, 2000000))
 
         bars_data.append(
             {

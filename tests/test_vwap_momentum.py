@@ -473,25 +473,27 @@ def test_calculate_position_size():
 
     policy.engine = MockEngine()
 
+    bar = {"f__vol__atr_14": 0.0}
+
     # With $1M equity and 10% allocation, at $100/share should get 1000 shares
-    position_size = policy._calculate_position_size(100.0)
+    position_size = policy._calculate_position_size(100.0, bar)
     assert position_size == EXPECTED_SHARES_100_PRICE
 
     # Test with higher price
-    position_size_500 = policy._calculate_position_size(500.0)
+    position_size_500 = policy._calculate_position_size(500.0, bar)
     assert (
         position_size_500 == EXPECTED_SHARES_500_PRICE
     )  # $100,000 / $500 = 200 shares
 
     # Test minimum size constraint (should return 0 if can't afford 1 share)
     position_size_expensive = policy._calculate_position_size(
-        2000000.0
+        2000000.0, bar
     )  # $2M per share
     assert position_size_expensive == 0  # Should be 0 if can't afford at least 1 share
 
     # Test different equity amount
     policy.engine.portfolio.total_equity = 500000.0  # $500K equity
-    position_size_half = policy._calculate_position_size(100.0)
+    position_size_half = policy._calculate_position_size(100.0, bar)
     assert (
         position_size_half == EXPECTED_SHARES_HALF_EQUITY
     )  # $50,000 / $100 = 500 shares
@@ -538,7 +540,7 @@ def test_position_sizing_edge_cases():
 
     # Test with zero price (should not crash)
     try:
-        size_zero_price = policy._calculate_position_size(0.0)
+        size_zero_price = policy._calculate_position_size(0.0, {"f__vol__atr_14": 0.0})
         assert size_zero_price == 0
     except (ZeroDivisionError, ValueError):
         # Either is acceptable - just should not crash the program
@@ -546,7 +548,9 @@ def test_position_sizing_edge_cases():
 
     # Test with negative price (should not crash)
     try:
-        size_negative_price = policy._calculate_position_size(-100.0)
+        size_negative_price = policy._calculate_position_size(
+            -100.0, {"f__vol__atr_14": 0.0}
+        )
         # If it doesn't crash, the size should be 0 or handled gracefully
         assert size_negative_price >= 0
     except (ValueError, ZeroDivisionError):
@@ -555,7 +559,9 @@ def test_position_sizing_edge_cases():
 
     # Test with very small percentage
     policy.position_size_pct = 0.0001  # 0.01%
-    size_small_pct = policy._calculate_position_size(100.0)
+    size_small_pct = policy._calculate_position_size(
+        100.0, {"f__vol__atr_14": 0.0}
+    )
     assert size_small_pct == 1  # $100 / $100 = 1 share
 
     # Reset for other tests

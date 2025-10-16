@@ -5,6 +5,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from qx_risk.atr_stop import size_order
+
 from ..order import OrderSide
 from ..portfolio import Position
 from .base import Policy
@@ -29,6 +31,8 @@ class VwapMomentumPolicy(Policy):
         max_positions: int = 5,
         min_breakout_strength: float = 0.5,
         name: str = "VwapMomentum",
+        risk_params: dict[str, float] | None = None,
+        atr_col: str = "f__vol__atr_14",
     ):
         """Initialize VWAP momentum policy.
 
@@ -49,6 +53,8 @@ class VwapMomentumPolicy(Policy):
         self.position_size_pct = position_size_pct
         self.max_positions = max_positions
         self.min_breakout_strength = min_breakout_strength
+        self.risk_params = risk_params or {}
+        self.atr_col = atr_col
 
         # Track position entry times
         self.position_entry_times: dict[str, int] = {}
@@ -64,6 +70,9 @@ class VwapMomentumPolicy(Policy):
         rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
 
         if vwap_col not in bar or rvol_col not in bar:
+            return
+
+        if not bar.get("f__warmup_ok", True):
             return
 
         vwap = bar[vwap_col]
@@ -113,7 +122,7 @@ class VwapMomentumPolicy(Policy):
 
         # Entry criteria for both long and short positions
         if rvol >= self.min_rvol and breakout_pct >= self.min_breakout_strength:
-            position_size = self._calculate_position_size(close)
+            position_size = self._calculate_position_size(close, bar)
 
             if position_size > 0:
                 if close > vwap:
@@ -134,6 +143,7 @@ class VwapMomentumPolicy(Policy):
                             },
                         )
                         self.submit_order(order)
+                        self.position_entry_times[symbol] = timestamp
 
                 elif close < vwap and self.engine and self.engine.order_factory:
                     # Short entry: price below VWAP (momentum breakdown)
@@ -152,20 +162,33 @@ class VwapMomentumPolicy(Policy):
                         },
                     )
                     self.submit_order(order)
+                    self.position_entry_times[symbol] = timestamp
 
-    def _calculate_position_size(self, price: float) -> int:
+    def _calculate_position_size(self, price: float, bar: dict[str, Any]) -> int:
         """Calculate position size based on risk management."""
-        # Get current equity
-        current_equity = self.engine.portfolio.total_equity
+        if price <= 0 or self.engine is None or self.engine.portfolio is None:
+            return 0
+
+        current_equity = getattr(self.engine.portfolio, "total_equity", 0.0) or 0.0
+        if current_equity <= 0:
+            return 0
+
         target_value = current_equity * self.position_size_pct
+        position_size = int(target_value / price) if price > 0 else 0
 
-        # Calculate number of shares
-        position_size = int(target_value / price)
+        atr = bar.get(self.atr_col)
+        if self.risk_params and atr and atr > 0:
+            atr_mult = self.risk_params.get("atr_mult", 1.0)
+            signal_dict = {
+                "entry_hint": price,
+                "stop_hint": price - atr * atr_mult if atr_mult else None,
+            }
+            qty = size_order(signal_dict, current_equity, atr, self.risk_params)
+            if qty:
+                position_size = qty
 
-        # Ensure minimum position size of 1 share
         if position_size < 1:
-            position_size = 0
-
+            return 0
         return position_size
 
     def on_start(self) -> None:
@@ -249,6 +272,8 @@ class VwapMomentumPolicy(Policy):
                 )
 
                 self.submit_order(order)
+                self.position_entry_times.pop(symbol, None)
+                self.position_entry_times.pop(symbol, None)
 
     def _calculate_bars_held(self, entry_time: int, current_time: int) -> int:
         """Calculate number of bars held since entry.
@@ -278,6 +303,8 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
         atr_multiplier: float = 2.0,
         min_profit_atr: float = 0.5,
         name: str = "VwapMomentumEnhanced",
+        risk_params: dict[str, float] | None = None,
+        atr_col: str = "f__vol__atr_14",
     ):
         """Initialize enhanced VWAP momentum policy.
 
@@ -301,6 +328,8 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
             max_positions,
             min_breakout_strength,
             name,
+            risk_params=risk_params,
+            atr_col=atr_col,
         )
         self.atr_window = atr_window
         self.atr_multiplier = atr_multiplier
@@ -378,7 +407,7 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
                 return
 
             # Calculate position size with volatility adjustment
-            base_size = self._calculate_position_size(close)
+            base_size = self._calculate_position_size(close, bar)
             volatility_adjustment = max(0.5, 1.0 - volatility_ratio * 5)
             position_size = int(base_size * volatility_adjustment)
 

@@ -68,7 +68,7 @@ def test_policy_creation_through_registry() -> None:
     momentum_policy = momentum_class(
         vwap_window=TEST_VWAP_WINDOW_BASIC,
         min_rvol=TEST_RVOL_BASIC,
-        min_breakout_strength=TEST_BREAKOUT_STRENGTH
+        min_breakout_strength=TEST_BREAKOUT_STRENGTH,
     )
     assert momentum_policy.vwap_window == TEST_VWAP_WINDOW_BASIC
     assert momentum_policy.min_rvol == TEST_RVOL_BASIC
@@ -80,7 +80,7 @@ def test_policy_creation_through_registry() -> None:
         vwap_window=TEST_VWAP_WINDOW_ENHANCED,
         atr_window=TEST_ATR_WINDOW,
         atr_multiplier=TEST_ATR_MULTIPLIER,
-        min_profit_atr=TEST_MIN_PROFIT_ATR
+        min_profit_atr=TEST_MIN_PROFIT_ATR,
     )
     assert enhanced_policy.vwap_window == TEST_VWAP_WINDOW_ENHANCED
     assert enhanced_policy.atr_window == TEST_ATR_WINDOW
