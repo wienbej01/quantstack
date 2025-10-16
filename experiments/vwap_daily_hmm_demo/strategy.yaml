@@ -1,0 +1,38 @@
+gold_root: "/home/jacobw/gcs-mount"
+family: "stocks"
+symbols: ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "JPM"]
+dates: ["2024-01-03", "2024-01-04", "2024-01-05"]
+
+features:
+  - name: "core_basics"
+    params:
+      vwap_window_m: 30
+      rel_vol_window_m: 30
+      atr_window: 14
+
+policy: "vwap_revert"
+policy_params:
+  entry_threshold: 0.02
+  exit_threshold: 0.01
+  max_position_bars: 20
+  max_concurrent_positions: 3
+  position_size_pct: 0.1
+
+sip:
+  method: "hmm"
+  config:
+    mode: "daily"
+    score_floor: 0.01
+    top_k: 3
+    rebalance_frequency: "daily"
+    broadcast_time: "09:30:00"
+
+risk:
+  max_drawdown: 0.15
+  max_portfolio_risk: 0.02
+
+backtest:
+  initial_equity: 1000000
+  cost_bps: 5
+  cost_per_share: 0.0035
+  seed: 42
