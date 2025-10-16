@@ -1,0 +1,11 @@
+{
+  "exp_id": "vwap_comparison_2024_01",
+  "type": "entry-ab",
+  "base_config": "vwap_comparison/base_strategy.yaml",
+  "variants": [
+    "vwap_comparison/revert_overlay.yaml",
+    "vwap_comparison/momentum_overlay.yaml"
+  ],
+  "seed": 42,
+  "description": "Compare VWAP reversal vs momentum strategies"
+}
