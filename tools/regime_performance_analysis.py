@@ -26,6 +26,7 @@ import seaborn as sns
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
+from qx_backtest.order import OrderSide, OrderType
 from qx_core.regime_config import RegimeConfig, validate_regime_config
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply
@@ -155,10 +156,11 @@ class RegimePerformanceAnalyzer:
                 if close < vwap * 0.995:  # 0.5% below VWAP
                     order = engine.order_factory.create_order(
                         symbol=symbol,
-                        side="BUY",
-                        qty=100,
-                        entry=close,
-                        tag="vwap_revert",
+                        side=OrderSide.BUY,
+                        order_type=OrderType.MARKET,
+                        quantity=100,
+                        price=close,
+                        tags={"tag": "vwap_revert"},
                     )
                     engine.submit_order(order)
                     trades.append(
@@ -180,10 +182,11 @@ class RegimePerformanceAnalyzer:
                 if close > vwap * 1.005 or close < vwap * 0.98:  # Exit conditions
                     order = engine.order_factory.create_order(
                         symbol=symbol,
-                        side="SELL",
-                        qty=position.quantity,
-                        entry=close,
-                        tag="vwap_revert_exit",
+                        side=OrderSide.SELL,
+                        order_type=OrderType.MARKET,
+                        quantity=position.quantity,
+                        price=close,
+                        tags={"tag": "vwap_revert_exit"},
                     )
                     engine.submit_order(order)
                     trades.append(

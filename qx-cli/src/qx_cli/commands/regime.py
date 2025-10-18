@@ -8,11 +8,13 @@ from typing import Any
 
 import pandas as pd
 import typer
+import yaml
 
 # Add parent directories to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
+from qx_backtest.order import OrderSide, OrderType
 from qx_core.regime.detector import create_regime_detector
 from qx_core.regime_config import RegimeConfig, validate_regime_config
 from qx_core.schemas import RegimeSignal, RegimeType
@@ -35,6 +37,7 @@ def backtest(
     """Run regime-aware backtest."""
 
     # Load configuration
+    full_config = _load_full_config(config_path)
     config = _load_regime_config(config_path)
     if not config:
         typer.echo(f"Error: Could not load configuration from {config_path}", err=True)
@@ -49,41 +52,61 @@ def backtest(
 
     # Set up symbols
     if symbols:
-        symbol_list = [s.strip() for s in symbols.split(",")]
+        symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
     else:
-        # Use default symbols from config or fallback
-        symbol_list = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+        symbol_list = full_config.get(
+            "symbols", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+        )
 
     if verbose:
         typer.echo(f"Symbols: {symbol_list}")
 
     # Set up dates
     if not start_date:
-        start_date = "2024-01-02"
+        start_date = full_config.get("start_date", "2024-01-02")
     if not end_date:
-        end_date = "2024-01-31"
+        end_date = full_config.get("end_date", "2024-01-31")
 
     if verbose:
         typer.echo(f"Date range: {start_date} to {end_date}")
 
     # Load data
+    gold_root = full_config.get("gold_root", "/home/jacobw/gcs-mount")
+    family = full_config.get("family", "bars_1m")
+
+    # Determine date partitions for loading
+    daily_dates = _generate_date_range(start_date, end_date)
+    if family == "bars_1m":
+        load_dates = sorted({d[:7] for d in daily_dates})  # YYYY-MM
+    else:
+        load_dates = daily_dates
+
     try:
-        gold_root = "/home/jacobw/gcs-mount"
         data = load_bars(
             root=gold_root,
-            family="bars_1m",
+            family=family,
             symbols=symbol_list,
-            dates=_generate_date_range(start_date, end_date),
+            dates=load_dates,
         )
         typer.echo(f"Loaded {len(data)} bars for {len(symbol_list)} symbols")
+        data = data.sort_values(["symbol", "ts"]).reset_index(drop=True)
     except Exception as e:
         typer.echo(f"Error loading data: {e}", err=True)
         raise typer.Exit(1)
 
     # Apply features
     try:
-        features_config = [{"type": "regime_basics"}, {"type": "core_basics"}]
+        features_config = _normalize_feature_config(
+            full_config.get(
+                "features",
+                [
+                    {"type": "regime_basics", "params": {}},
+                    {"type": "core_basics", "params": {}},
+                ],
+            )
+        )
         data_with_features = apply(data, features_config)
+        data_with_features = data_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
         typer.echo("Applied regime and core features")
     except Exception as e:
         typer.echo(f"Error applying features: {e}", err=True)
@@ -128,7 +151,8 @@ def backtest(
             if engine.get_position(symbol) is None:
                 qty = 100  # Simple fixed quantity
                 order = engine.order_factory.create_order(
-                    symbol=symbol, side="BUY", qty=qty, entry=close, tag="regime_test"
+                    symbol=symbol, side=OrderSide.BUY, order_type=OrderType.MARKET,
+                    quantity=qty, price=close, tags={"tag": "regime_test"}
                 )
                 engine.submit_order(order)
 
@@ -136,12 +160,11 @@ def backtest(
             # Sell signal
             position = engine.get_position(symbol)
             if position and position.quantity > 0:
-                order = engine.order_factory.create_order(
+                order = engine.order_factory.create_market_order(
                     symbol=symbol,
-                    side="SELL",
-                    qty=position.quantity,
-                    entry=close,
-                    tag="regime_test",
+                    side=OrderSide.SELL,
+                    quantity=position.quantity,
+                    tags={"policy": "regime_test"},
                 )
                 engine.submit_order(order)
 
@@ -317,8 +340,9 @@ def validate_config(
     """Validate regime configuration file."""
 
     try:
-        with open(config_path, "r") as f:
-            config_dict = json.load(f)
+        config_dict = _read_regime_section(config_path)
+        if not config_dict:
+            raise ValueError("No regime configuration found")
 
         # Validate configuration
         config = validate_regime_config(config_dict)
@@ -350,11 +374,69 @@ def validate_config(
 def _load_regime_config(config_path: str) -> RegimeConfig | None:
     """Load regime configuration from file."""
     try:
-        with open(config_path, "r") as f:
-            config_dict = json.load(f)
+        config_dict = _read_regime_section(config_path)
+        if not config_dict:
+            return None
         return validate_regime_config(config_dict)
     except Exception:
         return None
+
+
+def _load_full_config(config_path: str) -> dict[str, Any]:
+    """Load full configuration (YAML/JSON)."""
+    return _parse_config_file(config_path)
+
+
+def _read_regime_section(config_path: str) -> dict[str, Any] | None:
+    """Read configuration file and extract the regime section."""
+    data = _parse_config_file(config_path)
+
+    if not isinstance(data, dict):
+        return None
+
+    # Accept nested regime section or direct configuration
+    if "regime" in data and isinstance(data["regime"], dict):
+        return data["regime"]
+
+    # Some configs might store under 'regime_config'
+    if "regime_config" in data and isinstance(data["regime_config"], dict):
+        return data["regime_config"]
+
+    return data
+
+
+def _parse_config_file(config_path: str) -> dict[str, Any]:
+    """Parse a configuration file supporting JSON or YAML formats."""
+    with open(config_path, "r") as f:
+        raw_text = f.read()
+
+    # Try JSON first for backwards compatibility
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        data = yaml.safe_load(raw_text)
+
+    if data is None:
+        return {}
+
+    if not isinstance(data, dict):
+        raise ValueError("Configuration must be a JSON or YAML object")
+
+    return data
+
+
+def _normalize_feature_config(config_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Normalize feature configuration entries for the registry apply helper."""
+    normalized: list[dict[str, Any]] = []
+    for item in config_items:
+        if not isinstance(item, dict):
+            continue
+        feature_type = item.get("type") or item.get("name")
+        if not feature_type:
+            continue
+        params = item.get("params", {})
+        normalized.append({"type": feature_type, "params": params})
+    return normalized or [{"type": "regime_basics", "params": {}}, {"type": "core_basics", "params": {}}]
 
 
 def _generate_date_range(start_date: str, end_date: str) -> list[str]:
