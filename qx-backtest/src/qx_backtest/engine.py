@@ -11,6 +11,18 @@ from .fill import DefaultFiller, Fill, Filler
 from .order import Order, OrderFactory, OrderStatus
 from .portfolio import Portfolio, Position
 
+# Optional regime detection import
+try:
+    from qx_core.regime.detector import RegimeDetectorRules, create_regime_detector
+    from qx_core.schemas import RegimeSignal, RegimeType
+
+    REGIME_DETECTION_AVAILABLE = True
+except ImportError:
+    REGIME_DETECTION_AVAILABLE = False
+    RegimeSignal = None
+    RegimeType = None
+    RegimeDetectorRules = None
+
 # Constant for detecting nanosecond timestamps
 NANOSECOND_THRESHOLD = 1e15  # Threshold for detecting nanosecond timestamps
 
@@ -47,6 +59,10 @@ class BacktestConfig:
     # Progress tracking
     show_progress: bool = True
     progress_callback: Callable[[int, int], None] | None = None
+
+    # Regime detection
+    regime_config: dict[str, Any] | None = None  # Regime detection configuration
+    strategy_map: dict[str, list[str]] | None = None  # Strategy mapping by regime
 
     def __post_init__(self) -> None:
         """Initialize default values."""
@@ -211,6 +227,22 @@ class BacktestEngine:
         self._current_universe: set[str] = set()
         self._last_processed_date: date | None = None
 
+        # Regime detection
+        self._regime_detector = None
+        self._current_regime = RegimeType.OFF if REGIME_DETECTION_AVAILABLE else None
+        self._regime_history: list[RegimeSignal] = []
+        self._strategy_map = config.strategy_map or {}
+
+        # Initialize regime detector if configured
+        if (
+            REGIME_DETECTION_AVAILABLE
+            and config.regime_config
+            and config.regime_config.get("enabled", False)
+        ):
+            self._regime_detector = create_regime_detector(
+                config.regime_config.get("detector_params", {})
+            )
+
     def run(self, data: pd.DataFrame, strategy_func: Any) -> BacktestResult:
         """Run backtest on historical data.
 
@@ -247,6 +279,9 @@ class BacktestEngine:
                 # Check if bar should be processed (NEW)
                 if not self._should_process_bar(bar_dict):
                     continue
+
+                # Update regime detection if enabled
+                self._update_regime_if_needed(group)
 
                 strategy_func(self, bar_dict)
 
@@ -390,7 +425,11 @@ class BacktestEngine:
         """Extract trading days and prepare for daily universe updates."""
         trading_days = set()
         for bar in bars:
-            bar_date = datetime.fromtimestamp(bar["ts"]).date()
+            ts = bar["ts"]
+            if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+                bar_date = pd.to_datetime(ts, unit="ns").date()
+            else:  # Millisecond timestamp - convert to nanoseconds first
+                bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()
             trading_days.add(bar_date)
 
         # For days we haven't processed yet, we'll need to compute universes
@@ -410,12 +449,12 @@ class BacktestEngine:
 
     def _check_universe_update_needed(self, bar: dict) -> bool:
         """Check if we need to update universe for this bar's date."""
-        # Handle both nanosecond timestamps and second timestamps
+        # Handle both nanosecond timestamps and millisecond timestamps
         ts = bar["ts"]
         if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
             bar_date = pd.to_datetime(ts, unit="ns").date()
-        else:  # Second timestamp
-            bar_date = datetime.fromtimestamp(ts).date()
+        else:  # Millisecond timestamp - convert to nanoseconds first
+            bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()
         return bar_date != self._last_processed_date
 
     def _should_process_bar(self, bar: dict) -> bool:
@@ -439,12 +478,12 @@ class BacktestEngine:
         if not self._check_universe_update_needed(bar):
             return
 
-        # Handle both nanosecond timestamps and second timestamps
+        # Handle both nanosecond timestamps and millisecond timestamps
         ts = bar["ts"]
         if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
             bar_date = pd.to_datetime(ts, unit="ns").date()
-        else:  # Second timestamp
-            bar_date = datetime.fromtimestamp(ts).date()
+        else:  # Millisecond timestamp - convert to nanoseconds first
+            bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()
         self._last_processed_date = bar_date
 
         # If we already have universe for this day, use it
@@ -461,7 +500,9 @@ class BacktestEngine:
             if not day_bars.empty:
                 # Remove the date column for processing
                 day_bars_clean = day_bars.drop(columns=["date"])
-                universe_map = self._sip_selector.select(day_bars_clean, {})
+                # Provide required reference with target_date
+                ref = {"target_date": bar_date.strftime("%Y-%m-%d")}
+                universe_map = self._sip_selector.select(day_bars_clean, ref)
                 if universe_map:
                     first_ts = min(universe_map.keys())
                     new_universe = universe_map[first_ts]
@@ -542,7 +583,7 @@ class BacktestEngine:
                 elif position > 0:
                     # Closing long position
                     sell_quantity = min(trade["quantity"], position)
-                    sell_proceeds = -trade["total_cost"]  # Negative because it's a cost
+                    sell_proceeds = trade["total_cost"]  # Cash inflow for long exit
                     avg_cost_basis = (total_cost / position) * sell_quantity
                     pnl = sell_proceeds - avg_cost_basis
 
@@ -577,6 +618,89 @@ class BacktestEngine:
             total_losses = abs(sum(losing_pnls))
             if total_losses > 0:
                 result.profit_factor = total_wins / total_losses
+
+    def _update_regime_if_needed(self, group: pd.DataFrame) -> None:
+        """Update regime detection if enabled.
+
+        Args:
+            group: DataFrame of bars for current timestamp
+        """
+        if not REGIME_DETECTION_AVAILABLE or self._regime_detector is None:
+            return
+
+        try:
+            # Evaluate regime for current timestamp
+            regime_signal = self._regime_detector.evaluate(group, self.current_time)
+            self._current_regime = regime_signal.regime
+            self._regime_history.append(regime_signal)
+
+        except Exception as e:
+            # Log error but continue with last known regime
+            print(f"Warning: Regime detection failed at {self.current_time}: {e}")
+
+    def get_current_regime(self) -> RegimeType | None:
+        """Get current market regime.
+
+        Returns:
+            Current regime type or None if regime detection disabled
+        """
+        return self._current_regime
+
+    def is_strategy_allowed(self, strategy_name: str) -> bool:
+        """Check if strategy is allowed in current regime.
+
+        Args:
+            strategy_name: Name of the strategy to check
+
+        Returns:
+            True if strategy is allowed in current regime
+        """
+        if not REGIME_DETECTION_AVAILABLE or self._current_regime is None:
+            return True  # No regime gating
+
+        # Check stress override - no strategies allowed in stress
+        if self._current_regime == RegimeType.STRESS:
+            return False
+
+        # Check strategy mapping for current regime
+        allowed_strategies = self._strategy_map.get(self._current_regime.value, [])
+        if not allowed_strategies:
+            return True  # No restrictions if mapping is empty
+
+        return strategy_name in allowed_strategies
+
+    def get_regime_history(self) -> list[RegimeSignal]:
+        """Get complete regime detection history.
+
+        Returns:
+            List of regime signals in chronological order
+        """
+        return self._regime_history.copy()
+
+    def get_regime_statistics(self) -> dict[str, Any]:
+        """Get regime detection statistics.
+
+        Returns:
+            Dictionary with regime statistics
+        """
+        if not REGIME_DETECTION_AVAILABLE or not self._regime_detector:
+            return {"regime_detection_enabled": False}
+
+        stats = self._regime_detector.get_statistics()
+        stats["regime_detection_enabled"] = True
+        stats["current_regime"] = (
+            self._current_regime.value if self._current_regime else None
+        )
+
+        # Add regime duration statistics
+        if self._regime_history:
+            regime_counts = {}
+            for signal in self._regime_history:
+                regime = signal.regime.value
+                regime_counts[regime] = regime_counts.get(regime, 0) + 1
+            stats["regime_distribution"] = regime_counts
+
+        return stats
 
 
 # Legacy function for backward compatibility
