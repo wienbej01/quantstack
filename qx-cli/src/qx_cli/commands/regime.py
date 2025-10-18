@@ -133,7 +133,7 @@ def backtest(
     def regime_aware_strategy(engine: BacktestEngine, bar: dict[str, Any]) -> None:
         """Simple strategy that respects regime gating."""
         # Check if strategy is allowed in current regime
-        strategy_name = "simple_test"
+        strategy_name = "vwap_revert"
         if not engine.is_strategy_allowed(strategy_name):
             return  # Skip trading in disallowed regimes
 
