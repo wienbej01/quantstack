@@ -24,7 +24,7 @@ regime:
   # Strategy mapping by regime
   strategy_map:
     BULL: ["vwap_momentum", "vwap_revert"]
-    BEAR: ["vwap_revert"]
+    BEAR: ["vwap_momentum", "vwap_revert"]
     SIDEWAYS: ["vwap_revert"]
     STRESS: []  # No strategies in stress
 

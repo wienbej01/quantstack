@@ -106,7 +106,9 @@ def backtest(
             )
         )
         data_with_features = apply(data, features_config)
-        data_with_features = data_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
+        data_with_features = data_with_features.sort_values(
+            ["ts", "symbol"]
+        ).reset_index(drop=True)
         typer.echo("Applied regime and core features")
     except Exception as e:
         typer.echo(f"Error applying features: {e}", err=True)
@@ -129,42 +131,120 @@ def backtest(
         typer.echo(f"Error creating backtest engine: {e}", err=True)
         raise typer.Exit(1)
 
-    # Define simple strategy function that respects regime gating
+    # Define regime-aware strategy function that selects different strategies based on regime
     def regime_aware_strategy(engine: BacktestEngine, bar: dict[str, Any]) -> None:
-        """Simple strategy that respects regime gating."""
-        # Check if strategy is allowed in current regime
-        strategy_name = "vwap_revert"
-        if not engine.is_strategy_allowed(strategy_name):
-            return  # Skip trading in disallowed regimes
+        """Regime-aware strategy that selects appropriate strategy based on current regime."""
 
-        # Simple VWAP reversion logic
+        # Get current regime
+        current_regime = engine.get_current_regime()
+        if not current_regime:
+            return  # No regime detected, skip trading
+
         symbol = bar["symbol"]
         close = bar["close"]
-
-        # Get features from engine (simplified - in real implementation
-        # features would be passed separately)
         vwap_signal = bar.get("f__ta__vwap_30", close)
 
-        # Generate signal
-        if close < vwap_signal * 0.995:  # 0.5% below VWAP
-            # Buy signal
+        # Strategy selection based on regime
+        if current_regime == "BULL":
+            # In BULL markets, prefer momentum strategy (long momentum)
+            if engine.is_strategy_allowed("vwap_momentum"):
+                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BULL")
+            elif engine.is_strategy_allowed("vwap_revert"):
+                vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
+
+        elif current_regime == "BEAR":
+            # In BEAR markets, prefer momentum strategy (short momentum)
+            if engine.is_strategy_allowed("vwap_momentum"):
+                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BEAR")
+            elif engine.is_strategy_allowed("vwap_revert"):
+                vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
+
+        elif current_regime == "SIDEWAYS":
+            # In SIDEWAYS markets, use reversion strategy
+            if engine.is_strategy_allowed("vwap_revert"):
+                vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
+
+        elif current_regime == "STRESS":
+            # In STRESS markets, no trading (risk off)
+            pass
+
+    def vwap_momentum_strategy(engine: BacktestEngine, bar: dict, symbol: str, close: float, vwap_signal: float, regime: str = "BULL") -> None:
+        """VWAP momentum strategy - regime-aware directional momentum trading."""
+
+        if regime == "BULL":
+            # BULL momentum: Buy on strength, sell on weakness
+            if close > vwap_signal * 1.002:  # 0.2% above VWAP - momentum breakout
+                if engine.get_position(symbol) is None:
+                    order = engine.order_factory.create_order(
+                        symbol=symbol,
+                        side=OrderSide.BUY,
+                        order_type=OrderType.MARKET,
+                        quantity=100,
+                        price=close,
+                        tags={"strategy": "vwap_momentum", "regime": "BULL", "direction": "long"},
+                    )
+                    engine.submit_order(order)
+
+            elif close < vwap_signal * 0.998:  # 0.2% below VWAP - momentum breakdown
+                position = engine.get_position(symbol)
+                if position and position.quantity > 0:
+                    order = engine.order_factory.create_market_order(
+                        symbol=symbol,
+                        side=OrderSide.SELL,
+                        quantity=position.quantity,
+                        tags={"strategy": "vwap_momentum", "regime": "BULL", "direction": "long"},
+                    )
+                    engine.submit_order(order)
+
+        elif regime == "BEAR":
+            # BEAR momentum: Short on weakness, cover on strength
+            if close < vwap_signal * 0.998:  # 0.2% below VWAP - momentum breakdown (short signal)
+                if engine.get_position(symbol) is None:
+                    order = engine.order_factory.create_order(
+                        symbol=symbol,
+                        side=OrderSide.SELL,
+                        order_type=OrderType.MARKET,
+                        quantity=100,
+                        price=close,
+                        tags={"strategy": "vwap_momentum", "regime": "BEAR", "direction": "short"},
+                    )
+                    engine.submit_order(order)
+
+            elif close > vwap_signal * 1.002:  # 0.2% above VWAP - momentum breakout (cover signal)
+                position = engine.get_position(symbol)
+                if position and position.quantity < 0:  # Short position
+                    order = engine.order_factory.create_market_order(
+                        symbol=symbol,
+                        side=OrderSide.BUY,
+                        quantity=abs(position.quantity),
+                        tags={"strategy": "vwap_momentum", "regime": "BEAR", "direction": "short"},
+                    )
+                    engine.submit_order(order)
+
+    def vwap_revert_strategy(engine: BacktestEngine, bar: dict, symbol: str, close: float, vwap_signal: float) -> None:
+        """VWAP reversion strategy - buy on weakness, sell on strength."""
+
+        # Reversion logic: Buy when price is below VWAP (oversold), sell when above (overbought)
+        if close < vwap_signal * 0.995:  # 0.5% below VWAP - oversold
             if engine.get_position(symbol) is None:
-                qty = 100  # Simple fixed quantity
                 order = engine.order_factory.create_order(
-                    symbol=symbol, side=OrderSide.BUY, order_type=OrderType.MARKET,
-                    quantity=qty, price=close, tags={"tag": "regime_test"}
+                    symbol=symbol,
+                    side=OrderSide.BUY,
+                    order_type=OrderType.MARKET,
+                    quantity=100,
+                    price=close,
+                    tags={"strategy": "vwap_revert", "regime": str(engine.get_current_regime())},
                 )
                 engine.submit_order(order)
 
-        elif close > vwap_signal * 1.005:  # 0.5% above VWAP
-            # Sell signal
+        elif close > vwap_signal * 1.005:  # 0.5% above VWAP - overbought
             position = engine.get_position(symbol)
             if position and position.quantity > 0:
                 order = engine.order_factory.create_market_order(
                     symbol=symbol,
                     side=OrderSide.SELL,
                     quantity=position.quantity,
-                    tags={"policy": "regime_test"},
+                    tags={"strategy": "vwap_revert", "regime": str(engine.get_current_regime())},
                 )
                 engine.submit_order(order)
 
@@ -425,7 +505,9 @@ def _parse_config_file(config_path: str) -> dict[str, Any]:
     return data
 
 
-def _normalize_feature_config(config_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _normalize_feature_config(
+    config_items: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     """Normalize feature configuration entries for the registry apply helper."""
     normalized: list[dict[str, Any]] = []
     for item in config_items:
@@ -436,7 +518,10 @@ def _normalize_feature_config(config_items: list[dict[str, Any]]) -> list[dict[s
             continue
         params = item.get("params", {})
         normalized.append({"type": feature_type, "params": params})
-    return normalized or [{"type": "regime_basics", "params": {}}, {"type": "core_basics", "params": {}}]
+    return normalized or [
+        {"type": "regime_basics", "params": {}},
+        {"type": "core_basics", "params": {}},
+    ]
 
 
 def _generate_date_range(start_date: str, end_date: str) -> list[str]:
