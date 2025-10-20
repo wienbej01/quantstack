@@ -84,6 +84,14 @@ class VwapMomentumPolicy(Policy):
         # Get current position
         position = self.get_position(symbol)
 
+        # Respect regime gating: exit positions but block new entries when disallowed
+        if not self.is_allowed():
+            if position is not None and not position.is_flat:
+                self._check_exit_signal(
+                    symbol, bar, position, close, vwap, high, low, timestamp
+                )
+            return
+
         if position is None or position.is_flat:
             # Check for entry signal (both long and short)
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
@@ -492,15 +500,14 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
                 exit_reason = "vwap_target"
             elif bars_held >= self.max_position_bars:
                 exit_reason = "timeout"
-        else:
-            if close >= stop_loss_price:
-                exit_reason = "stop_loss"
-            elif close <= profit_target_price:
-                exit_reason = "profit_target"
-            elif close >= vwap:
-                exit_reason = "vwap_target"
-            elif bars_held >= self.max_position_bars:
-                exit_reason = "timeout"
+        elif close >= stop_loss_price:
+            exit_reason = "stop_loss"
+        elif close <= profit_target_price:
+            exit_reason = "profit_target"
+        elif close >= vwap:
+            exit_reason = "vwap_target"
+        elif bars_held >= self.max_position_bars:
+            exit_reason = "timeout"
 
         if exit_reason:
             # Check for pending exit orders

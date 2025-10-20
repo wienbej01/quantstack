@@ -1,0 +1,25 @@
+# Overlay to enable VPA features for enhanced ML trading
+features:
+  - name: "core_basics"
+    params:
+      vwap_window_m: 30
+      rel_vol_window_m: 30
+      atr_window: 14
+  - name: "vpa_patterns"
+    params:
+      volume_spike_threshold: 2.0
+      price_breakout_window: 20
+      divergence_window: 10
+      absorption_lookback: 5
+      climax_volume_pct: 0.95
+
+# Optional ML policy configuration
+policy: "ml_vpa"
+policy_params:
+  model_path: "models/trained_vpa_model"
+  prediction_threshold: 0.6
+  vpa_weight: 0.3
+  max_position_bars: 50
+  position_size_pct: 0.1
+  max_positions: 5
+  min_confidence: 0.5

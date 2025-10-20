@@ -9,6 +9,7 @@ from datetime import date, datetime
 import pandas as pd
 import pytest
 from pydantic import ValidationError
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_screener.daily_hmm_sip import DailyHMMSIPSelector
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector

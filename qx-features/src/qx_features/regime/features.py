@@ -375,7 +375,7 @@ def compute_all_regime_features(
     # Check sorting
     if (
         not df.groupby("symbol", group_keys=False)
-        .apply(lambda g: g["ts"].is_monotonic_increasing)
+        .apply(lambda g: g["ts"].is_monotonic_increasing, include_groups=False)
         .all()
     ):
         raise ValueError("DataFrame must be sorted by [symbol, ts]")
@@ -501,7 +501,7 @@ def validate_regime_inputs(df: pd.DataFrame) -> None:
     # Check sorting
     if (
         not df.groupby("symbol", group_keys=False)
-        .apply(lambda g: g["ts"].is_monotonic_increasing)
+        .apply(lambda g: g["ts"].is_monotonic_increasing, include_groups=False)
         .all()
     ):
         raise ValueError("DataFrame must be sorted by [symbol, ts]")

@@ -1,0 +1,60 @@
+{
+  "experiment": "experiments/gold_fallback_test",
+  "variants": 2,
+  "results": [
+    {
+      "run_id": "6cae1548-57e3-4b13-b17c-76a8e83c28f1",
+      "metrics": {
+        "total_return": 0.0,
+        "annualized_return": 0.0,
+        "volatility": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_duration": 0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0
+      }
+    },
+    {
+      "run_id": "6ac74b79-196a-4fe7-82c0-31fdddd77ee7",
+      "metrics": {
+        "total_return": 0.0,
+        "annualized_return": 0.0,
+        "volatility": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_duration": 0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0
+      }
+    }
+  ],
+  "leaderboard": [
+    {
+      "run_id": "6cae1548-57e3-4b13-b17c-76a8e83c28f1",
+      "metrics": {
+        "total_return": 0.0,
+        "annualized_return": 0.0,
+        "volatility": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_duration": 0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0
+      }
+    },
+    {
+      "run_id": "6ac74b79-196a-4fe7-82c0-31fdddd77ee7",
+      "metrics": {
+        "total_return": 0.0,
+        "annualized_return": 0.0,
+        "volatility": 0.0,
+        "sharpe_ratio": 0.0,
+        "max_drawdown": 0.0,
+        "max_drawdown_duration": 0,
+        "win_rate": 0.0,
+        "profit_factor": 0.0
+      }
+    }
+  ]
+}

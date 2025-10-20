@@ -1,0 +1,51 @@
+# Test configuration for S7 entry-ab experiment
+name: "s7_test_experiment"
+description: "Test S7 CLI Orchestration & Fairness"
+
+# Data configuration
+gold_root: "/home/jacobw/gcs-mount/gold"
+family: "bars_1m"
+symbols: ["AAPL", "GOOGL", "MSFT"]
+dates: ["2024-01-01", "2024-01-02"]
+
+# Feature packs
+features:
+  - pack: "vwap"
+    params:
+      window: 30
+  - pack: "rel_volume"
+    params:
+      window: 30
+  - pack: "atr"
+    params:
+      window: 14
+
+# SIP screening
+sip_filter: true
+sip:
+  top_n: 5
+  rvol_col: "f__vol__rel_volume_30"
+  whitelist: null
+
+# Policy configuration
+policy:
+  strategy: "vwap_revert"
+  params:
+    rvol_min: 1.0
+    vwap_window: 30
+    max_position_bars: 50
+
+# Risk management
+risk_params:
+  max_risk_frac: 0.02
+  atr_mult: 2.0
+
+# Backtest configuration
+backtest:
+  initial_equity: 1000000
+  commission_per_share: 0.0035
+  commission_min: 0.35
+  slippage_bps: 5
+
+# Determinism
+seed: 42

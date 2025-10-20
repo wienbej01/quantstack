@@ -13,13 +13,20 @@ import typer
 import yaml
 from rich.console import Console
 
-from qx_backtest.engine import run_backtest
-from qx_backtest.policies.vwap_revert import generate_signals
+from qx_backtest.engine import BacktestConfig, BacktestEngine
+from qx_backtest.fill import DefaultFiller
+from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+from qx_backtest.policies.vwap_momentum import (
+    generate_signals as generate_vwap_momentum_signals,
+)
+from qx_backtest.policies.vwap_revert import VwapRevertPolicy
+from qx_backtest.policies.vwap_revert import (
+    generate_signals as generate_vwap_revert_signals,
+)
 from qx_cli.exp import app
 from qx_core.hashers import hash_dataframe, hash_sip_map
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply_feature_packs
-from qx_risk.atr_stop import set_stops, size_order
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 from qx_screener.sip import screen
 
@@ -80,7 +87,6 @@ def entry_ab(
     # Apply features
     feature_packs = base_config["features"]
     df_with_features = apply_feature_packs(bars_df, feature_packs)
-    warmup_mask = df_with_features["f__warmup_ok"]
     features_hash = hash_dataframe(
         df_with_features,
         cols=[c for c in df_with_features.columns if c.startswith("f__")],
@@ -88,6 +94,7 @@ def entry_ab(
 
     # For each variant, run backtest
     run_ids = []
+    actual_metrics: list[dict[str, Any]] = []
     for variant_path in variant_files:
         variant = pathlib.Path(variant_path)
         with open(variant) as f:
@@ -96,53 +103,40 @@ def entry_ab(
         # Merge configs (deep merge)
         config = deep_merge(base_config, overlay)
 
-        # SIP screen - support both original SIP and HMM SIP (per variant)
+        # SIP screening / hashing
         universe_map = None
         sip_hash = None
+        sip_selector = None
+        sip_method = "none"
 
         if config.get("sip_filter", True):
-            # Setup SIP selector with support for daily mode
             sip_selector, sip_method = _setup_sip_selector(config)
-
-            # Enhanced logging for daily mode
-            if sip_method == "hmm" and sip_selector.cfg.mode == "daily":
-                console.print("Daily HMM_SIP enabled:")
-                console.print(f"  - Score floor: {sip_selector.cfg.score_floor}")
-                console.print(f"  - Top-K: {sip_selector.cfg.top_k}")
-                console.print(
-                    f"  - Rebalance: {sip_selector.cfg.rebalance_frequency}"
-                )
 
             if sip_method == "hmm":
                 # Use HMM SIP selector
-                hmm_selector = sip_selector
-
-                # Get target date from config (use first date for universe selection)
-                target_date = dates[0] if dates else None
+                target_dates = config.get("dates") or dates
+                target_date = target_dates[0] if target_dates else None
                 if target_date:
                     ref = {"target_date": target_date}
-                    universe_map = hmm_selector.select(df_with_features, ref)
+                    universe_map = sip_selector.select(df_with_features, ref)
 
-                # Use deterministic hash_sip_map function
-                if universe_map:
-                    sip_hash = hash_sip_map(universe_map)
-                else:
-                    # Empty universe hash
-                    sip_hash = hash_dataframe(
+                sip_hash = (
+                    hash_sip_map(universe_map)
+                    if universe_map
+                    else hash_dataframe(
                         pd.DataFrame([json.dumps({}, sort_keys=True)], columns=["sip"]),
                         cols=["sip"],
                     )
-
+                )
             else:
-                # Use original SIP screener
+                # Original SIP screener (legacy top-N)
                 sip_config = config.get("sip", {})
-                rvol_col = "f__vol__rel_volume_30"  # Hardcoded for now
+                rvol_col = "f__vol__rel_volume_30"
                 top_n = sip_config.get("top_n", 5)
                 whitelist = sip_config.get("whitelist")
                 universe_map = screen(df_with_features, rvol_col, top_n, whitelist)
 
-                # Hash the universe_map deterministically (original method)
-                if universe_map is not None:
+                if universe_map:
                     sorted_universe = {
                         int(k): sorted(list(v)) for k, v in universe_map.items()
                     }
@@ -162,63 +156,187 @@ def entry_ab(
                         cols=["sip"],
                     )
         else:
-            # No SIP filtering
-            universe_map = None
             sip_hash = hash_dataframe(
                 pd.DataFrame([json.dumps({}, sort_keys=True)], columns=["sip"]),
                 cols=["sip"],
             )
 
         # Config hash (of merged config, excluding seed?)
-        # Convert sets to lists for JSON serialization
         config_copy = json.loads(json.dumps(config, sort_keys=True, default=str))
         config_str = json.dumps(config_copy, sort_keys=True)
         config_hash = hash_dataframe(
             pd.DataFrame([config_str], columns=["config"]), cols=["config"]
         )
 
-        # Generate run ID
+        # Generate run ID / directory
         run_id = str(uuid.uuid4())
         run_ids.append(run_id)
         run_dir = pathlib.Path("runs") / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
 
         # Log SIP selector info
-        sip_method = config.get("sip", {}).get("method", "original")
+        sip_info_method = config.get("sip", {}).get("method", "original")
         sip_top_k = config.get("sip", {}).get("top_k", "default")
         sip_preview = f"{sip_hash[:8]}..." if sip_hash else "none"
         console.print(
-            f"[{variant_path}] SIP: {sip_method}, top_k: {sip_top_k}, sip_hash: {sip_preview}"
+            f"[{variant_path}] SIP: {sip_info_method}, top_k: {sip_top_k}, sip_hash: {sip_preview}"
         )
 
-        # Generate signals
-        policy_params = config["policy_params"]
-        policy_params["sip_universe"] = universe_map
-        signals_df = generate_signals(df_with_features, policy_params)
+        # Prepare bars for engine
+        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(
+            drop=True
+        )
 
-        # Size and stops (integrate into signals or separate)
-        # For simplicity, assume signals have entry_hint = close, stop_hint = close - atr
-        # But need to add qty and stop_dist_ps to signals
-
-        # Actually, the document says risk.size_and_stops() → orders with qty, stop_dist_ps
-        # So, need to create orders from signals
-
-        orders_df = create_orders_from_signals(signals_df, df_with_features, config)
-
-        # Run backtest
         backtest_params = config["backtest"]
-        artifacts = run_backtest(
-            df_with_features, orders_df, signals_df, backtest_params
+        filler = DefaultFiller(
+            commission_per_share=backtest_params.get("cost_per_share", 0.0),
+            commission_min=backtest_params.get("commission_min", 0.0),
+            slippage_bps=backtest_params.get("cost_bps", 0),
+        )
+        backtest_cfg = BacktestConfig(
+            initial_cash=backtest_params.get("initial_equity", 100_000.0),
+            filler=filler,
         )
 
-        # Write available artifacts
+        engine_sip_cfg: dict[str, Any]
+        if sip_method == "hmm":
+            engine_sip_cfg = {
+                "sip_method": "hmm",
+                "sip_config": config.get("sip", {}).get("config", {}),
+            }
+        else:
+            engine_sip_cfg = {"sip_method": "none"}
+
+        engine = BacktestEngine(backtest_cfg, engine_sip_cfg)
+        if sip_method == "hmm" and sip_selector:
+            engine._sip_selector = sip_selector
+
+        policy_type = str(config.get("policy", "vwap_revert")).lower()
+        policy_params = config.get("policy_params", {}).copy()
+
+        if "rvol_min" in policy_params:
+            if "min_rvol" not in policy_params:
+                policy_params["min_rvol"] = policy_params["rvol_min"]
+            policy_params.pop("rvol_min", None)
+
+        def ensure_risk_params() -> None:
+            if "risk_params" not in policy_params and config.get("risk_params"):
+                policy_params["risk_params"] = config["risk_params"]
+
+        if policy_type in {"vwap_momentum", "momentum"}:
+            if (
+                "timeout_bars" in policy_params
+                and "max_position_bars" not in policy_params
+            ):
+                policy_params["max_position_bars"] = policy_params.pop("timeout_bars")
+            ensure_risk_params()
+            policy = VwapMomentumPolicy(**policy_params)
+            generate_signals_fn = generate_vwap_momentum_signals
+        else:
+            if (
+                "timeout_bars" in policy_params
+                and "max_position_bars" not in policy_params
+            ):
+                policy_params["max_position_bars"] = policy_params.pop("timeout_bars")
+            ensure_risk_params()
+            policy = VwapRevertPolicy(**policy_params)
+            generate_signals_fn = generate_vwap_revert_signals
+        policy.engine = engine
+        engine.policy = policy
+        policy.on_start()
+
+        def strategy_fn(engine_ref: BacktestEngine, bar: dict[str, Any]) -> None:
+            policy.process_bar(bar)
+
+        result = engine.run(bars_for_engine, strategy_fn)
+        policy.on_end()
+
+        # Diagnostics signals (optional, for parity with legacy outputs)
+        signal_params = {
+            **policy_params,
+            "sip_universe": universe_map,
+            "timeout_bars": policy_params.get("max_position_bars", 10),
+        }
+        signal_params.setdefault(
+            "rvol_min",
+            policy_params.get("min_rvol", policy_params.get("rvol_min", 1.0)),
+        )
+        signals_df = generate_signals_fn(bars_for_engine, signal_params)
+
+        # Extract artifacts
+        equity_df = (
+            result.equity_curve
+            if isinstance(result.equity_curve, pd.DataFrame)
+            else pd.DataFrame(result.equity_curve)
+        )
+        trades_df = pd.DataFrame(result.trades_history)
+        if trades_df.empty:
+            trades_df = pd.DataFrame(
+                columns=[
+                    "timestamp",
+                    "symbol",
+                    "side",
+                    "quantity",
+                    "price",
+                    "commission",
+                    "total_cost",
+                    "order_id",
+                ]
+            )
+        orders_history_df = pd.DataFrame(result.orders_history)
+        if orders_history_df.empty:
+            orders_history_df = pd.DataFrame(
+                columns=[
+                    "order_id",
+                    "symbol",
+                    "side",
+                    "order_type",
+                    "quantity",
+                    "price",
+                    "stop_price",
+                    "time_in_force",
+                    "timestamp",
+                    "status",
+                    "filled_quantity",
+                    "remaining_quantity",
+                    "avg_fill_price",
+                    "is_fully_filled",
+                    "is_active",
+                    "strategy_id",
+                    "parent_order_id",
+                    "tags",
+                    "fill_count",
+                ]
+            )
+
+        result_dict = result.to_dict()
+        result_dict["trading"]["total_trades"] = result.total_trades
+        result_dict["trading"]["winning_trades"] = result.winning_trades
+        result_dict["trading"]["losing_trades"] = result.losing_trades
+        result_dict["trading"]["avg_trade_pnl"] = result.avg_trade_pnl
+        result_dict["trading"]["avg_win"] = result.avg_win
+        result_dict["trading"]["avg_loss"] = result.avg_loss
+        result_dict["trading"]["largest_win"] = result.largest_win
+        result_dict["trading"]["largest_loss"] = result.largest_loss
+        result_dict["performance"]["win_rate"] = result.win_rate
+        result_dict["performance"]["total_trades"] = result.total_trades
+
+        # Persist artifacts
         signals_df.to_parquet(run_dir / "signals.parquet")
-        orders_df.to_parquet(run_dir / "orders.parquet")
-        artifacts["equity"].to_parquet(run_dir / "equity.parquet")
-        artifacts["trades"].to_parquet(run_dir / "trades.parquet")
-        artifacts["orders"].to_parquet(run_dir / "filled_orders.parquet")
+        orders_history_df.to_parquet(run_dir / "orders.parquet")
+        equity_df.to_parquet(run_dir / "equity.parquet")
+        trades_df.to_parquet(run_dir / "trades.parquet")
+        orders_history_df.to_parquet(run_dir / "filled_orders.parquet")
         with open(run_dir / "metrics.json", "w") as f:
-            json.dump(artifacts["metrics"], f, indent=2)
+            json.dump(result_dict, f, indent=2)
+
+        actual_metrics.append(
+            {
+                "run_id": run_id,
+                "performance": result_dict.get("performance", {}),
+                "trading": result_dict.get("trading", {}),
+            }
+        )
 
         # Write checksum for this run
         variant_checksum = {
@@ -265,6 +383,24 @@ def entry_ab(
     # Print run summary
     print_run_summary(compare_result, run_ids)
 
+    console.print("\nActual Performance:")
+    for metrics in actual_metrics:
+        run_id = metrics["run_id"]
+        performance = metrics.get("performance", {})
+        trading = metrics.get("trading", {})
+        console.print(f"  {run_id}:")
+        console.print(
+            f"    Total Return: {performance.get('total_return', 0):.3%} | "
+            f"Sharpe: {performance.get('sharpe_ratio', 0):.2f} | "
+            f"Win Rate: {performance.get('win_rate', 0):.2%}"
+        )
+        console.print(
+            f"    Trades: {trading.get('total_trades', 0)} | "
+            f"Wins: {trading.get('winning_trades', 0)} | "
+            f"Losses: {trading.get('losing_trades', 0)} | "
+            f"Avg Trade PnL: {trading.get('avg_trade_pnl', 0):.2f}"
+        )
+
     console.print(f"Experiment {name} completed. Artifacts in {exp_dir}")
 
 
@@ -303,56 +439,6 @@ def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def create_orders_from_signals(
-    signals_df: pd.DataFrame, df: pd.DataFrame, config: dict
-) -> pd.DataFrame:
-    """Create orders DataFrame from signals with sizing and stops."""
-    orders = []
-    equity = config["backtest"]["initial_equity"]
-    risk_params = config["risk_params"]
-
-    # Merge signals with bars for ATR and warmup
-    merged = signals_df.merge(
-        df[["ts", "symbol", "close", "f__vol__atr_14", "f__warmup_ok"]],
-        on=["ts", "symbol"],
-        how="left",
-        suffixes=("_sig", "_bar"),
-    )
-
-    prev_signals = {}  # symbol -> prev_signal
-
-    for _, row in merged.iterrows():
-        symbol = row["symbol"]
-        prev_signal = prev_signals.get(symbol, 0)
-        if row["signal"] == 1 and prev_signal == 0 and row["f__warmup_ok"]:
-            # Entry signal
-            atr_mult = risk_params.get("atr_mult", 1.0)
-            signal_dict = {
-                "entry_hint": row["close_bar"],
-                "stop_hint": row["close_bar"] - row["f__vol__atr_14"] * atr_mult,
-            }
-            qty = size_order(signal_dict, equity, row["f__vol__atr_14"], risk_params)
-            if qty:
-                stop_price, target_price = set_stops(
-                    signal_dict, qty, row["f__vol__atr_14"], risk_params
-                )
-                stop_dist_ps = row["f__vol__atr_14"] * atr_mult
-                orders.append(
-                    {
-                        "ts": row["ts"],
-                        "symbol": row["symbol"],
-                        "side": "BUY",
-                        "qty": qty,
-                        "stop_dist_ps": stop_dist_ps,
-                        "type": "MKT",
-                        "tif": "DAY",
-                    }
-                )
-        prev_signals[symbol] = row["signal"]
-
-    return pd.DataFrame(orders)
-
-
 def print_run_summary(compare_result: dict, run_ids: list) -> None:
     """Print concise run summary."""
     # Load trades for each run
@@ -360,12 +446,16 @@ def print_run_summary(compare_result: dict, run_ids: list) -> None:
     for run_id in run_ids:
         run_dir = pathlib.Path("runs") / run_id
         trades_df = pd.read_parquet(run_dir / "trades.parquet")
-        if not trades_df.empty:
-            mean_pnl = trades_df["pnl"].mean()
-            median_r = trades_df["r_multiple"].median()
-        else:
-            mean_pnl = 0.0
-            median_r = 0.0
+        mean_pnl = (
+            trades_df["pnl"].mean()
+            if not trades_df.empty and "pnl" in trades_df.columns
+            else 0.0
+        )
+        median_r = (
+            trades_df["r_multiple"].median()
+            if not trades_df.empty and "r_multiple" in trades_df.columns
+            else 0.0
+        )
         summaries.append(
             {
                 "run_id": run_id,

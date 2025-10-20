@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from ..schemas import RegimeSignal, RegimeType
+from ..utils import ts_to_date
 
 
 @dataclass
@@ -79,9 +80,14 @@ class RegimeDetectorRules:
         )
         self._aggregate_symbol = "__aggregate__"
 
+        # Daily caching - regime determined once per trading day
+        self._daily_regime_cache: Dict[str, RegimeSignal] = {}
+        self._last_evaluation_date: Dict[str, str] = {}
+
         # Performance tracking
         self._evaluation_count = 0
         self._regime_changes = 0
+        self._cache_hits = 0
 
     def evaluate(self, features_df: pd.DataFrame, ts: int) -> RegimeSignal:
         """Evaluate regime for a single timestamp across all symbols.
@@ -94,6 +100,16 @@ class RegimeDetectorRules:
             RegimeSignal with classification and metadata
         """
         self._evaluation_count += 1
+
+        # Convert timestamp to date string for daily caching
+        current_date = ts_to_date(ts).strftime("%Y-%m-%d")
+
+        # Check if we have a cached regime for this date
+        if current_date in self._daily_regime_cache:
+            self._cache_hits += 1
+            cached_signal = self._daily_regime_cache[current_date]
+            # Return cached signal with updated timestamp but same regime
+            return self._clone_signal(cached_signal, ts, cached_signal.persistence_count)
 
         if features_df.empty:
             return self._create_signal(ts, RegimeType.OFF, 0.0, "No data available")
@@ -116,6 +132,9 @@ class RegimeDetectorRules:
         # Detect stress first (highest priority)
         stress_result = self._detect_stress(agg_features, ts)
         if stress_result.regime == RegimeType.STRESS:
+            # Cache stress regime for the day
+            self._daily_regime_cache[current_date] = stress_result
+            self._last_evaluation_date[self._aggregate_symbol] = current_date
             return stress_result
 
         # Ensure required trend features are present
@@ -126,18 +145,26 @@ class RegimeDetectorRules:
         ]
         missing_keys = [key for key in required_trend_keys if key not in agg_features]
         if missing_keys:
-            return self._create_signal(
+            no_features_signal = self._create_signal(
                 ts,
                 RegimeType.OFF,
                 0.0,
                 f"Missing regime features: {', '.join(missing_keys)}",
             )
+            # Cache OFF regime for the day
+            self._daily_regime_cache[current_date] = no_features_signal
+            self._last_evaluation_date[self._aggregate_symbol] = current_date
+            return no_features_signal
 
         # Detect trend vs sideways
         trend_result = self._detect_trend_regime(agg_features, ts)
 
         # Apply persistence guard
         final_regime = self._apply_persistence_guard(trend_result, ts)
+
+        # Cache the determined regime for the day
+        self._daily_regime_cache[current_date] = final_regime
+        self._last_evaluation_date[self._aggregate_symbol] = current_date
 
         return final_regime
 
@@ -191,8 +218,11 @@ class RegimeDetectorRules:
         self._regime_history.clear()
         self._last_regime_change.clear()
         self._persistence_counters.clear()
+        self._daily_regime_cache.clear()
+        self._last_evaluation_date.clear()
         self._evaluation_count = 0
         self._regime_changes = 0
+        self._cache_hits = 0
 
     def get_statistics(self) -> Dict[str, Any]:
         """Get detector performance statistics.
@@ -204,6 +234,9 @@ class RegimeDetectorRules:
             "evaluations": self._evaluation_count,
             "regime_changes": self._regime_changes,
             "change_rate": self._regime_changes / max(self._evaluation_count, 1),
+            "cache_hits": self._cache_hits,
+            "cache_hit_rate": self._cache_hits / max(self._evaluation_count, 1),
+            "daily_regimes_cached": len(self._daily_regime_cache),
             "symbols_tracked": len(self._regime_history),
             "avg_persistence": self._calculate_avg_persistence(),
         }

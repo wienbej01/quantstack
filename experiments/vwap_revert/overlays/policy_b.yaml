@@ -1,0 +1,3 @@
+# Variant B: Aggressive rvol_min = 1.5
+policy_params:
+  rvol_min: 1.5

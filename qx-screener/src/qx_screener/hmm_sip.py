@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, Field
+
 from qx_core.contracts import UniverseSelector
 from qx_core.hashers import hash_sip_map
 from qx_core.validators import validate_bars_dataframe
@@ -49,6 +51,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
         self._p_hat_cache: dict[tuple[str, str, float], tuple[pd.DataFrame, float]] = {}
         self._p_hat_cache_ttl_seconds = 1800  # 30 minutes TTL for p_hat files
         self._p_hat_max_cache_size = 200  # More entries for minute-level data
+        # Cache for Gold symbols discovery (expensive operation)
+        self._gold_symbols_cache: tuple[set[str], float] | None = None
+        self._gold_symbols_cache_ttl_seconds = 7200  # 2 hours TTL for symbols
 
         # Initialize daily selector if mode is daily
         if self.cfg.mode == "daily":
@@ -225,23 +230,71 @@ class HMMSIPUniverseSelector(UniverseSelector):
             # If any error occurs loading, return None to trigger fallback
             return None
 
+    def _get_gold_symbols(self) -> set[str]:
+        """Get comprehensive Gold symbols list with caching."""
+        current_time = time.time()
+
+        # Check cache first
+        if self._gold_symbols_cache is not None:
+            cached_symbols, cache_time = self._gold_symbols_cache
+            if current_time - cache_time < self._gold_symbols_cache_ttl_seconds:
+                print(
+                    f"  [CACHE HIT] Using cached Gold symbols: {len(cached_symbols)} symbols"
+                )
+                return cached_symbols
+
+        # Cache miss - discover symbols
+        print(f"  [CACHE MISS] Discovering Gold symbols...")
+        gold_root = "/home/jacobw/gcs-mount"
+        stocks_path = os.path.join(gold_root, "stocks")
+
+        gold_symbols = set()
+        if os.path.exists(stocks_path):
+            for item in os.listdir(stocks_path):
+                symbol_path = os.path.join(stocks_path, item)
+                if os.path.isdir(symbol_path) and item != "_errors":
+                    gold_symbols.add(item)
+
+        # Cache the result
+        self._gold_symbols_cache = (gold_symbols, current_time)
+        print(f"  [CACHE MISS] Discovered and cached {len(gold_symbols)} Gold symbols")
+
+        return gold_symbols
+
     def _compute_gold_premarket_shortlist(
         self, bars_utc: pd.DataFrame, target_et_date: str
     ) -> list[str]:
         """Compute premarket shortlist from Gold data only (fallback)."""
+        # Use existing data if available, otherwise expand symbol universe
+        print(f"  [HMM SIP] Using Gold fallback for {target_et_date}")
+
+        # Start with symbols from input data
+        available_symbols = set(bars_utc["symbol"].unique())
+        print(f"  [HMM SIP] Input data has {len(available_symbols)} symbols")
+
+        # Load comprehensive universe from Gold data for proper HMM_SIP filtering (cached)
+        gold_symbols = self._get_gold_symbols()
+        available_symbols.update(gold_symbols)
+        print(
+            f"  [HMM SIP] Using comprehensive universe: {len(available_symbols)} total symbols"
+        )
+
+        # Use the input data as-is for premarket analysis
+        full_bars_df = bars_utc
+        print(f"  [HMM SIP] Using {len(full_bars_df):,} bars for premarket analysis")
+
         # Convert UTC timestamps to ET for slicing
-        bars_et = bars_utc.copy()
+        bars_et = full_bars_df.copy()
         bars_et["ts_et"] = pd.to_datetime(
             bars_et["ts"], unit="ns", utc=True
         ).dt.tz_convert(ET_TZ)
 
-        # Parse target date
-        target_date = pd.Timestamp(target_et_date)
-
         # Filter to target ET date
-        bars_et = bars_et[bars_et["ts_et"].dt.date == target_date.date()]
+        target_date_parsed = pd.to_datetime(target_et_date).date()
+        bars_et = bars_et[bars_et["ts_et"].dt.date == target_date_parsed]
 
         if bars_et.empty:
+            print(f"  [HMM SIP] No data found for {target_et_date}")
             return []
 
         # Define premarket window (04:00-09:29 ET)

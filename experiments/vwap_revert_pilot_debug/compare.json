@@ -3,29 +3,29 @@
   "variants": 1,
   "results": [
     {
-      "run_id": "541dd9cb-7dab-4891-8277-45837ff66736",
+      "run_id": "15c5eb2f-1bb4-4b83-b65f-646c7de60502",
       "metrics": {
-        "trades": 0,
-        "avg_R": 0.0,
-        "ES_95": 0.0,
-        "pvalue_u": 1.0,
-        "sharpe_CI_low": 0.0,
-        "sharpe_CI_high": 0.0,
-        "capacity_break_even_bps": 0.0
+        "trades": 623,
+        "avg_R": -0.6666069857177439,
+        "ES_95": -4.598743333333311,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": -0.7666069857177439,
+        "sharpe_CI_high": -0.5666069857177439,
+        "capacity_break_even_bps": 50.0
       }
     }
   ],
   "leaderboard": [
     {
-      "run_id": "541dd9cb-7dab-4891-8277-45837ff66736",
+      "run_id": "15c5eb2f-1bb4-4b83-b65f-646c7de60502",
       "metrics": {
-        "trades": 0,
-        "avg_R": 0.0,
-        "ES_95": 0.0,
-        "pvalue_u": 1.0,
-        "sharpe_CI_low": 0.0,
-        "sharpe_CI_high": 0.0,
-        "capacity_break_even_bps": 0.0
+        "trades": 623,
+        "avg_R": -0.6666069857177439,
+        "ES_95": -4.598743333333311,
+        "pvalue_u": 0.5,
+        "sharpe_CI_low": -0.7666069857177439,
+        "sharpe_CI_high": -0.5666069857177439,
+        "capacity_break_even_bps": 50.0
       }
     }
   ]

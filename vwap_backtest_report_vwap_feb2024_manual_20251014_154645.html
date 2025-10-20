@@ -1,0 +1,113 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VWAP Backtest Report - AAPL February 2024</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .metric-card { background: #f8f9fa; padding: 20px; border-radius: 8px; border-left: 4px solid #3498db; }
+        .metric-label { font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #2c3e50; }
+        .metric-value.positive { color: #27ae60; }
+        .metric-value.negative { color: #e74c3c; }
+        .summary { background: #ecf0f1; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .status { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #3498db; color: white; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd; color: #7f8c8d; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 VWAP Backtest Report</h1>
+        <div class="status">
+            <strong>Strategy:</strong> VWAP Reversion |
+            <strong>Symbol:</strong> AAPL |
+            <strong>Period:</strong> February 2024 |
+            <strong>Run ID:</strong> vwap_feb2024_manual_20251014_154645
+        </div>
+
+        <h2>📊 Performance Summary</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Return</div>
+                <div class="metric-value positive">3.37%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Sharpe Ratio</div>
+                <div class="metric-value">1.987</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Max Drawdown</div>
+                <div class="metric-value negative">-5.58%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Win Rate</div>
+                <div class="metric-value">80.0%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Total Trades</div>
+                <div class="metric-value">10</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Average R-Multiple</div>
+                <div class="metric-value">0.18</div>
+            </div>
+        </div>
+
+        <h2>📈 Detailed Metrics</h2>
+        <table>
+            <tr><th>Metric</th><th>Value</th></tr>
+            <tr><td>Initial Equity</td><td>$100,000.00</td></tr>
+            <tr><td>Final Equity</td><td>$103,371.53</td></tr>
+            <tr><td>Total Return</td><td>3.37%</td></tr>
+            <tr><td>Annualized Volatility</td><td>21.10%</td></tr>
+            <tr><td>Sharpe Ratio</td><td>1.987</td></tr>
+            <tr><td>Maximum Drawdown</td><td>-5.58%</td></tr>
+            <tr><td>Calmar Ratio</td><td>0.604</td></tr>
+            <tr><td>Total Trades</td><td>10</td></tr>
+            <tr><td>Win Rate</td><td>80.0%</td></tr>
+            <tr><td>Average Trade Return</td><td>18.3 bps</td></tr>
+            <tr><td>Average R-Multiple</td><td>0.18</td></tr>
+            <tr><td>Profit Factor</td><td>4.40</td></tr>
+            <tr><td>Average Trade Duration</td><td>27.5 minutes</td></tr>
+            <tr><td>Trading Days</td><td>21</td></tr>
+        </table>
+
+        <h2>🎯 Strategy Analysis</h2>
+        <div class="summary">
+            <h3>Performance Assessment:</h3>
+            <ul>
+                <li><strong>Return Quality:</strong> Good (3.37% return)</li>
+                <li><strong>Risk-Adjusted Return:</strong> Excellent (Sharpe: 1.987)</li>
+                <li><strong>Risk Management:</strong> Excellent (Max DD: -5.58%)</li>
+                <li><strong>Trade Consistency:</strong> Excellent (Win Rate: 80.0%)</li>
+            </ul>
+        </div>
+
+        <h2>⚙️ Strategy Parameters</h2>
+        <table>
+            <tr><th>Parameter</th><th>Value</th></tr>
+            <tr><td>Strategy</td><td>VWAP Reversion</td></tr>
+            <tr><td>VWAP Window</td><td>30 minutes</td></tr>
+            <tr><td>Relative Volume Window</td><td>30 minutes</td></tr>
+            <tr><td>Entry Threshold</td><td>rvol ≥ 1.0</td></tr>
+            <tr><td>Max Position Duration</td><td>50 bars (50 minutes)</td></tr>
+            <tr><td>Risk per Trade</td><td>2% of equity</td></tr>
+            <tr><td>ATR Multiplier</td><td>2.0x for stop loss</td></tr>
+            <tr><td>Commission</td><td>5 bps</td></tr>
+            <tr><td>Slippage</td><td>$0.0035 per share</td></tr>
+        </table>
+
+        <div class="footer">
+            <p>Report generated on 2025-10-14 15:46:45 | QuantStack VWAP Backtest Engine</p>
+        </div>
+    </div>
+</body>
+</html>
+    

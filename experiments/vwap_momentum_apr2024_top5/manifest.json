@@ -1,0 +1,104 @@
+{
+  "exp_id": "vwap_momentum_apr2024_top5",
+  "type": "entry-ab",
+  "base_config": "experiments/vwap_revert_pilot_debug/strategy.yaml",
+  "variants": [
+    "experiments/vwap_revert_q3_2024/overlays/policy_rvol_1.0.yaml"
+  ],
+  "run_ids": [
+    "0ec2d8bd-bf69-409b-96c6-55f0094a83a1"
+  ],
+  "resolved_config": {
+    "backtest": {
+      "cost_bps": 5,
+      "cost_per_share": 0.01,
+      "initial_equity": 1000000
+    },
+    "dates": [
+      "2024-04-01",
+      "2024-04-02",
+      "2024-04-03",
+      "2024-04-04",
+      "2024-04-05"
+    ],
+    "family": "stocks",
+    "features": [
+      {
+        "name": "core_basics",
+        "params": {
+          "atr_window": 14,
+          "rel_vol_window_m": 30,
+          "vwap_window_m": 30
+        }
+      }
+    ],
+    "gold_root": "/home/jacobw/gcs-mount",
+    "policy": "vwap_momentum",
+    "policy_params": {
+      "vwap_window": 30,
+      "min_rvol": 1.0,
+      "max_position_bars": 50,
+      "position_size_pct": 0.02,
+      "max_positions": 3,
+      "min_breakout_strength": 0.2,
+      "risk_params": {
+        "max_risk_frac": 0.003,
+        "atr_mult": 1.0
+      },
+      "atr_col": "f__vol__atr_14"
+    },
+    "risk": "atr_stop",
+    "risk_params": {
+      "max_risk_frac": 0.003,
+      "atr_mult": 1.0
+    },
+    "seed": 42,
+    "sip": {
+      "method": "hmm",
+      "config": {
+        "mode": "daily",
+        "top_k": 5,
+        "score_floor": 0.0
+      }
+    },
+    "sip_filter": true,
+    "symbols": [
+      "AAPL"
+    ]
+  },
+  "feature_packs": [
+    {
+      "name": "core_basics",
+      "params": {
+        "atr_window": 14,
+        "rel_vol_window_m": 30,
+        "vwap_window_m": 30
+      }
+    }
+  ],
+  "policy_params": "vwap_momentum",
+  "sip_params": {
+    "method": "hmm",
+    "config": {
+      "mode": "daily",
+      "top_k": 5,
+      "score_floor": 0.0
+    },
+    "hash_function": "hash_sip_map"
+  },
+  "data_slice": {
+    "symbols": [
+      "AAPL"
+    ],
+    "dates": [
+      "2024-04-01",
+      "2024-04-02",
+      "2024-04-03",
+      "2024-04-04",
+      "2024-04-05"
+    ],
+    "gold_root": "/home/jacobw/gcs-mount"
+  },
+  "git_commit": "dirty",
+  "seed": 42
+}

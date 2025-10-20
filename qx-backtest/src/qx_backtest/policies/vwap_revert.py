@@ -32,7 +32,7 @@ class VwapRevertPolicy(Policy):
         min_deviation_pct: float = 0.5,
         name: str = "VwapRevert",
         risk_params: dict[str, Any] | None = None,
-        atr_col: str = "f__vol__atr_14"
+        atr_col: str = "f__vol__atr_14",
     ):
         """Initialize VWAP revert policy.
 
@@ -62,31 +62,41 @@ class VwapRevertPolicy(Policy):
 
     def process_bar(self, bar: dict[str, Any]) -> None:
         """Process a single bar of data."""
-        symbol = bar['symbol']
-        timestamp = bar['ts']
+        symbol = bar["symbol"]
+        timestamp = bar["ts"]
 
         # Check required features
-        vwap_col = f'f__ta__vwap_{self.vwap_window}'
-        rvol_col = f'f__vol__rel_volume_{self.vwap_window}'
+        vwap_col = f"f__ta__vwap_{self.vwap_window}"
+        rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
 
         if vwap_col not in bar or rvol_col not in bar:
             return
 
         vwap = bar[vwap_col]
         rvol = bar[rvol_col]
-        close = bar['close']
-        high = bar['high']
-        low = bar['low']
+        close = bar["close"]
+        high = bar["high"]
+        low = bar["low"]
 
         # Get current position
         position = self.get_position(symbol)
+
+        # If regime gating disables the strategy, only manage open positions
+        if not self.is_allowed():
+            if position is not None and not position.is_flat:
+                self._check_exit_signal(
+                    symbol, bar, position, close, vwap, high, low, timestamp
+                )
+            return
 
         if position is None or position.is_flat:
             # Check for entry signal (both long and short)
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
         else:
             # Check for exit signal (both long and short)
-            self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
+            self._check_exit_signal(
+                symbol, bar, position, close, vwap, high, low, timestamp
+            )
 
     def _check_entry_signal(
         self,
@@ -95,7 +105,7 @@ class VwapRevertPolicy(Policy):
         close: float,
         vwap: float,
         rvol: float,
-        timestamp: int
+        timestamp: int,
     ) -> None:
         """Check for entry signal (both long and short)."""
         # Check if we have room for more positions
@@ -126,16 +136,16 @@ class VwapRevertPolicy(Policy):
                         side=OrderSide.BUY,
                         quantity=position_size,
                         tags={
-                            'policy': self.name,
-                            'direction': 'LONG',
-                            'entry_price': close,
-                            'vwap': vwap,
-                            'rvol': rvol,
-                            'signal_strength': abs(vwap_deviation),
-                            'deviation_pct': deviation_pct,
-                            'stop_price': stop_price,
-                            'target_price': target_price
-                        }
+                            "policy": self.name,
+                            "direction": "LONG",
+                            "entry_price": close,
+                            "vwap": vwap,
+                            "rvol": rvol,
+                            "signal_strength": abs(vwap_deviation),
+                            "deviation_pct": deviation_pct,
+                            "stop_price": stop_price,
+                            "target_price": target_price,
+                        },
                     )
                     self.submit_order(order)
                     if stop_price is not None:
@@ -150,16 +160,16 @@ class VwapRevertPolicy(Policy):
                         side=OrderSide.SELL,
                         quantity=position_size,
                         tags={
-                            'policy': self.name,
-                            'direction': 'SHORT',
-                            'entry_price': close,
-                            'vwap': vwap,
-                            'rvol': rvol,
-                            'signal_strength': abs(vwap_deviation),
-                            'deviation_pct': deviation_pct,
-                            'stop_price': stop_price,
-                            'target_price': target_price
-                        }
+                            "policy": self.name,
+                            "direction": "SHORT",
+                            "entry_price": close,
+                            "vwap": vwap,
+                            "rvol": rvol,
+                            "signal_strength": abs(vwap_deviation),
+                            "deviation_pct": deviation_pct,
+                            "stop_price": stop_price,
+                            "target_price": target_price,
+                        },
                     )
                     self.submit_order(order)
                     if stop_price is not None:
@@ -176,7 +186,7 @@ class VwapRevertPolicy(Policy):
         vwap: float,
         high: float,
         low: float,
-        timestamp: int
+        timestamp: int,
     ) -> None:
         """Check for exit signal (both long and short positions)."""
         # Check if position has entry time recorded
@@ -232,15 +242,16 @@ class VwapRevertPolicy(Policy):
                     side=exit_side,
                     quantity=abs(position.quantity),
                     tags={
-                        'policy': self.name,
-                        'direction': 'EXIT_' + ('LONG' if is_long_position else 'SHORT'),
-                        'exit_reason': exit_reason,
-                        'bars_held': bars_held,
-                        'entry_price': position.avg_cost,
-                        'exit_price': close,
-                        'vwap': vwap,
-                        'position_side': 'LONG' if is_long_position else 'SHORT'
-                    }
+                        "policy": self.name,
+                        "direction": "EXIT_"
+                        + ("LONG" if is_long_position else "SHORT"),
+                        "exit_reason": exit_reason,
+                        "bars_held": bars_held,
+                        "entry_price": position.avg_cost,
+                        "exit_price": close,
+                        "vwap": vwap,
+                        "position_side": "LONG" if is_long_position else "SHORT",
+                    },
                 )
 
                 self.submit_order(order)
@@ -264,7 +275,9 @@ class VwapRevertPolicy(Policy):
                     "entry_hint": price,
                     "stop_hint": price - atr * self.risk_params.get("atr_mult", 1.0),
                 }
-                risk_qty = size_order(signal_dict, current_equity, atr, self.risk_params)
+                risk_qty = size_order(
+                    signal_dict, current_equity, atr, self.risk_params
+                )
                 if risk_qty:
                     base_size = risk_qty
                     stop_price, target_price = set_stops(
@@ -312,7 +325,7 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
         atr_window: int = 14,
         atr_multiplier: float = 2.0,
         min_profit_atr: float = 0.5,
-        name: str = "VwapRevertEnhanced"
+        name: str = "VwapRevertEnhanced",
     ):
         """Initialize enhanced VWAP revert policy.
 
@@ -327,21 +340,27 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
             min_profit_atr: Minimum profit target in ATR multiples
             name: Policy name
         """
-        super().__init__(vwap_window, min_rvol, max_position_bars,
-                        position_size_pct, max_positions, name)
+        super().__init__(
+            vwap_window,
+            min_rvol,
+            max_position_bars,
+            position_size_pct,
+            max_positions,
+            name,
+        )
         self.atr_window = atr_window
         self.atr_multiplier = atr_multiplier
         self.min_profit_atr = min_profit_atr
 
     def process_bar(self, bar: dict[str, Any]) -> None:
         """Process a single bar of data."""
-        symbol = bar['symbol']
-        timestamp = bar['ts']
+        symbol = bar["symbol"]
+        timestamp = bar["ts"]
 
         # Check required features
-        vwap_col = f'f__ta__vwap_{self.vwap_window}'
-        rvol_col = f'f__vol__rel_volume_{self.vwap_window}'
-        atr_col = f'f__vol__atr_{self.atr_window}'
+        vwap_col = f"f__ta__vwap_{self.vwap_window}"
+        rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
+        atr_col = f"f__vol__atr_{self.atr_window}"
 
         if vwap_col not in bar or rvol_col not in bar or atr_col not in bar:
             return
@@ -349,19 +368,23 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
         vwap = bar[vwap_col]
         rvol = bar[rvol_col]
         atr = bar[atr_col]
-        close = bar['close']
-        high = bar['high']
-        low = bar['low']
+        close = bar["close"]
+        high = bar["high"]
+        low = bar["low"]
 
         # Get current position
         position = self.get_position(symbol)
 
         if position is None or position.is_flat:
             # Enhanced entry signal
-            self._check_entry_signal_enhanced(symbol, bar, close, vwap, rvol, atr, timestamp)
+            self._check_entry_signal_enhanced(
+                symbol, bar, close, vwap, rvol, atr, timestamp
+            )
         else:
             # Enhanced exit signal
-            self._check_exit_signal_enhanced(symbol, bar, position, close, vwap, high, low, atr, timestamp)
+            self._check_exit_signal_enhanced(
+                symbol, bar, position, close, vwap, high, low, atr, timestamp
+            )
 
     def _check_entry_signal_enhanced(
         self,
@@ -371,14 +394,16 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
         vwap: float,
         rvol: float,
         atr: float,
-        timestamp: int
+        timestamp: int,
     ) -> None:
         """Check for enhanced entry signal."""
         # Entry criteria with additional filters
-        if (close < vwap and
-            rvol >= self.min_rvol and
-            atr > 0 and  # Valid ATR
-            (vwap - close) >= (self.min_profit_atr * atr)):  # Sufficient profit potential
+        if (
+            close < vwap
+            and rvol >= self.min_rvol
+            and atr > 0  # Valid ATR
+            and (vwap - close) >= (self.min_profit_atr * atr)
+        ):  # Sufficient profit potential
 
             # Additional filter: avoid entering during extreme volatility
             volatility_ratio = atr / close
@@ -398,7 +423,9 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
             # Calculate position size with volatility adjustment
             base_size_tuple = self._calculate_position_size(close, bar)
             base_size = base_size_tuple[0]  # Extract just the position size from tuple
-            volatility_adjustment = max(0.5, 1.0 - volatility_ratio * 5)  # Reduce size in high volatility
+            volatility_adjustment = max(
+                0.5, 1.0 - volatility_ratio * 5
+            )  # Reduce size in high volatility
             position_size = int(base_size * volatility_adjustment)
 
             if position_size > 0:
@@ -407,14 +434,14 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
                     side=OrderSide.BUY,
                     quantity=position_size,
                     tags={
-                        'policy': self.name,
-                        'entry_price': close,
-                        'vwap': vwap,
-                        'rvol': rvol,
-                        'atr': atr,
-                        'signal_strength': (vwap - close) / vwap,
-                        'volatility_ratio': volatility_ratio
-                    }
+                        "policy": self.name,
+                        "entry_price": close,
+                        "vwap": vwap,
+                        "rvol": rvol,
+                        "atr": atr,
+                        "signal_strength": (vwap - close) / vwap,
+                        "volatility_ratio": volatility_ratio,
+                    },
                 )
 
                 self.submit_order(order)
@@ -429,7 +456,7 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
         high: float,
         low: float,
         atr: float,
-        timestamp: int
+        timestamp: int,
     ) -> None:
         """Check for enhanced exit signal."""
         if symbol not in self.position_entry_times:
@@ -466,17 +493,19 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
                     side=OrderSide.SELL,
                     quantity=position.quantity,
                     tags={
-                        'policy': self.name,
-                        'exit_reason': exit_reason,
-                        'bars_held': bars_held,
-                        'entry_price': position.avg_cost,
-                        'exit_price': close,
-                        'vwap': vwap,
-                        'atr': atr,
-                        'stop_loss_price': stop_loss_price,
-                        'profit_target_price': profit_target_price,
-                        'pnl_per_atr': (close - position.avg_cost) / atr if atr > 0 else 0
-                    }
+                        "policy": self.name,
+                        "exit_reason": exit_reason,
+                        "bars_held": bars_held,
+                        "entry_price": position.avg_cost,
+                        "exit_price": close,
+                        "vwap": vwap,
+                        "atr": atr,
+                        "stop_loss_price": stop_loss_price,
+                        "profit_target_price": profit_target_price,
+                        "pnl_per_atr": (
+                            (close - position.avg_cost) / atr if atr > 0 else 0
+                        ),
+                    },
                 )
 
                 self.submit_order(order)
@@ -493,22 +522,22 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     Returns:
         DataFrame with signals: ts, symbol, signal (1=long, 0=flat), and diagnostic columns
     """
-    rvol_min = params.get('rvol_min', 1.0)
-    vwap_col = params.get('vwap_col', 'f__ta__vwap_30')
-    rvol_col = params.get('rvol_col', 'f__vol__rel_volume_30')
-    timeout_bars = params.get('timeout_bars', 10)
-    sip_universe = params.get('sip_universe')  # Dict[ts, Set[symbols]] or None
+    rvol_min = params.get("rvol_min", 1.0)
+    vwap_col = params.get("vwap_col", "f__ta__vwap_30")
+    rvol_col = params.get("rvol_col", "f__vol__rel_volume_30")
+    timeout_bars = params.get("timeout_bars", 10)
+    sip_universe = params.get("sip_universe")  # Dict[ts, Set[symbols]] or None
 
     signals = []
     position_tracker = {}  # symbol -> {'entry_ts': ts, 'bars_held': int}
 
     for idx, row in df.iterrows():
-        ts = row['ts']
-        symbol = row['symbol']
-        close = row['close']
+        ts = row["ts"]
+        symbol = row["symbol"]
+        close = row["close"]
         vwap = row[vwap_col]
         rvol = row[rvol_col]
-        warmup_ok = row.get('f__warmup_ok', True)
+        warmup_ok = row.get("f__warmup_ok", True)
 
         # Check SIP filter
         in_sip = True
@@ -516,41 +545,45 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             in_sip = symbol in sip_universe[ts]
 
         # Get position state from START of bar
-        pos_before_decision = position_tracker.get(symbol, {'entry_ts': None, 'bars_held': 0})
+        pos_before_decision = position_tracker.get(
+            symbol, {"entry_ts": None, "bars_held": 0}
+        )
 
         # Decision logic
-        decision = 'hold'
-        if pos_before_decision['entry_ts'] is not None:
+        decision = "hold"
+        if pos_before_decision["entry_ts"] is not None:
             # In position
-            new_bars_held = pos_before_decision['bars_held'] + 1
+            new_bars_held = pos_before_decision["bars_held"] + 1
             if close >= vwap or new_bars_held >= timeout_bars:
-                decision = 'exit'
-                position_tracker[symbol] = {'entry_ts': None, 'bars_held': 0}
+                decision = "exit"
+                position_tracker[symbol] = {"entry_ts": None, "bars_held": 0}
             else:
-                position_tracker[symbol]['bars_held'] = new_bars_held
+                position_tracker[symbol]["bars_held"] = new_bars_held
         # Flat
         elif close < vwap and rvol >= rvol_min and in_sip and warmup_ok:
-            decision = 'enter'
-            position_tracker[symbol] = {'entry_ts': ts, 'bars_held': 1}
+            decision = "enter"
+            position_tracker[symbol] = {"entry_ts": ts, "bars_held": 1}
 
         # Get position state AFTER decision for the current bar
-        pos_after_decision = position_tracker.get(symbol, {'entry_ts': None, 'bars_held': 0})
+        pos_after_decision = position_tracker.get(
+            symbol, {"entry_ts": None, "bars_held": 0}
+        )
 
         # Generate signal based on the state AFTER the decision
-        signal = 1 if pos_after_decision['entry_ts'] is not None else 0
+        signal = 1 if pos_after_decision["entry_ts"] is not None else 0
 
         # Diagnostic columns
         diag = {
-            'ts': ts,
-            'symbol': symbol,
-            'signal': signal,
-            'close': close,
-            'vwap': vwap,
-            'rvol': rvol,
-            'in_sip': in_sip,
-            'warmup_ok': warmup_ok,
-            'bars_held': pos_after_decision['bars_held'],
-            'decision': decision
+            "ts": ts,
+            "symbol": symbol,
+            "signal": signal,
+            "close": close,
+            "vwap": vwap,
+            "rvol": rvol,
+            "in_sip": in_sip,
+            "warmup_ok": warmup_ok,
+            "bars_held": pos_after_decision["bars_held"],
+            "decision": decision,
         }
         signals.append(diag)
 

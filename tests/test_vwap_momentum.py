@@ -559,9 +559,7 @@ def test_position_sizing_edge_cases():
 
     # Test with very small percentage
     policy.position_size_pct = 0.0001  # 0.01%
-    size_small_pct = policy._calculate_position_size(
-        100.0, {"f__vol__atr_14": 0.0}
-    )
+    size_small_pct = policy._calculate_position_size(100.0, {"f__vol__atr_14": 0.0})
     assert size_small_pct == 1  # $100 / $100 = 1 share
 
     # Reset for other tests
@@ -923,3 +921,126 @@ def test_legacy_generate_signals_sip_filter():
     assert signals.iloc[1]["in_sip"] == True
     assert signals.iloc[1]["decision"] == "enter"
     assert signals.iloc[1]["signal"] == 1
+
+
+def test_momentum_respects_regime_gate_for_entries() -> None:
+    """Ensure momentum policy blocks new entries when regime gate disables it."""
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+
+    class MockOrder:
+        def __init__(self, symbol, side, quantity, tags=None):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+            self.tags = tags or {}
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol, side, quantity, tags=None):
+            return MockOrder(symbol, side, quantity, tags)
+
+    class MockPortfolio:
+        def __init__(self):
+            self.positions = {}
+            self.total_equity = 1_000_000.0
+
+    class MockEngine:
+        def __init__(self):
+            self.orders = []
+            self.pending = []
+            self.portfolio = MockPortfolio()
+            self.order_factory = MockOrderFactory()
+
+        def is_strategy_allowed(self, strategy: str) -> bool:
+            return False  # Gate disabled
+
+        def get_position(self, symbol: str):
+            return self.portfolio.positions.get(symbol)
+
+        def get_pending_orders(self, symbol: str | None = None):
+            return self.pending
+
+        def submit_order(self, order):
+            self.orders.append(order)
+
+    policy = VwapMomentumPolicy(vwap_window=30, min_breakout_strength=0.5)
+    engine = MockEngine()
+    policy.set_engine(engine)
+
+    bar = {
+        "ts": 1640995200000000000,
+        "symbol": "AAPL",
+        "close": 152.5,
+        "high": 153.0,
+        "low": 151.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.5,
+    }
+
+    policy.process_bar(bar)
+
+    # Gate is disabled so no new orders should be produced
+    assert engine.orders == []
+
+
+def test_momentum_exit_triggers_when_gate_disabled() -> None:
+    """Regime gate should allow managing existing positions by exiting."""
+    from qx_backtest.order import OrderSide
+    from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
+    from qx_backtest.portfolio import Position
+
+    class MockOrder:
+        def __init__(self, symbol, side, quantity, tags=None):
+            self.symbol = symbol
+            self.side = side
+            self.quantity = quantity
+            self.tags = tags or {}
+
+    class MockOrderFactory:
+        def create_market_order(self, symbol, side, quantity, tags=None):
+            return MockOrder(symbol, side, quantity, tags)
+
+    class MockPortfolio:
+        def __init__(self, position):
+            self.positions = {position.symbol: position}
+            self.total_equity = 1_000_000.0
+
+    class MockEngine:
+        def __init__(self, position):
+            self.orders = []
+            self.pending = []
+            self.position = position
+            self.portfolio = MockPortfolio(position)
+            self.order_factory = MockOrderFactory()
+
+        def is_strategy_allowed(self, strategy: str) -> bool:
+            return False  # Gate disabled
+
+        def get_position(self, symbol: str):
+            return self.position if symbol == self.position.symbol else None
+
+        def get_pending_orders(self, symbol: str | None = None):
+            return self.pending
+
+        def submit_order(self, order):
+            self.orders.append(order)
+
+    position = Position(symbol="AAPL", quantity=50, avg_cost=150.0)
+    policy = VwapMomentumPolicy(vwap_window=30, min_breakout_strength=0.5)
+    engine = MockEngine(position)
+    policy.set_engine(engine)
+
+    bar = {
+        "ts": 1640995260000000000,
+        "symbol": "AAPL",
+        "close": 149.5,  # Back below VWAP to trigger exit
+        "high": 150.0,
+        "low": 149.0,
+        "f__ta__vwap_30": 150.0,
+        "f__vol__rel_volume_30": 1.2,
+    }
+
+    policy.process_bar(bar)
+
+    assert len(engine.orders) == 1
+    assert engine.orders[0].side == OrderSide.SELL
+    assert engine.orders[0].quantity == 50

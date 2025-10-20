@@ -1,0 +1,21 @@
+# Test configuration for cost sweep experiment
+name: "test_cost_sweep"
+description: "Test cost sweep experiment"
+symbols: ["AAPL", "GOOGL", "MSFT"]
+start_date: "2023-01-01"
+end_date: "2023-12-31"
+
+strategy:
+  name: "VwapRevert"
+  vwap_window: 30
+  min_rvol: 1.0
+  max_position_bars: 50
+  position_size_pct: 0.1
+  max_positions: 5
+
+portfolio:
+  initial_cash: 1000000.0
+
+primary_metric: "sharpe_ratio"
+secondary_metrics: ["total_return", "max_drawdown", "win_rate"]
+seed: 42

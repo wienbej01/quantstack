@@ -1,0 +1,152 @@
+"""QuantStack Core: Contracts, types, validators, and utilities."""
+
+from .contracts import BacktestEngine
+from .contracts import Bar as BarContract
+from .contracts import Broker, DataClient, FeaturePipeline
+from .contracts import Order as OrderContract
+from .contracts import Policy, RiskManager
+from .contracts import Side as ContractSide
+from .contracts import UniverseSelector
+from .hashers import (
+    compute_consistent_checksum,
+    hash_dataframe,
+    hash_dict,
+    hash_difference,
+    hash_list,
+    hash_sip_map,
+    hash_string,
+    verify_hash_stability,
+)
+from .schemas import (
+    AllocationLog,
+    Bar,
+    CompareReport,
+    ExperimentManifest,
+    ExperimentType,
+    InputsChecksum,
+    Metrics,
+    Order,
+    OrderType,
+    RiskReject,
+    Side,
+    Signal,
+    TimeInForce,
+    Trade,
+)
+from .utils import (  # Constants; Bar utilities; Session utilities; Time utilities
+    MICROSECONDS_PER_SECOND,
+    NANOSECONDS_PER_MICROSECOND,
+    NANOSECONDS_PER_SECOND,
+    US_CENTRAL,
+    US_EASTERN,
+    US_MOUNTAIN,
+    US_PACIFIC,
+    UTC,
+    TimeWindow,
+    add_time_bars,
+    datetime_to_utc_ns,
+    format_utc_ns,
+    get_market_sessions_for_date,
+    get_session_bounds,
+    get_time_buckets,
+    get_trading_days,
+    is_market_session,
+    is_trading_day,
+    normalize_timestamps,
+    parse_duration,
+    resample_bars,
+    utc_now,
+    utc_ns_to_datetime,
+    utc_ns_to_timestamp,
+)
+from .validators import (
+    ValidationError,
+    validate_allocation_log_dataframe,
+    validate_bars_dataframe,
+    validate_dataframe_schema,
+    validate_inputs_checksum,
+    validate_orders_dataframe,
+    validate_pydantic_models,
+    validate_risk_rejects_dataframe,
+    validate_signals_dataframe,
+    validate_trades_dataframe,
+)
+
+__version__ = "0.1.0"
+
+__all__ = [
+    # Schemas
+    "Bar",
+    "Signal",
+    "Order",
+    "Trade",
+    "RiskReject",
+    "AllocationLog",
+    "InputsChecksum",
+    "Metrics",
+    "ExperimentManifest",
+    "CompareReport",
+    "Side",
+    "OrderType",
+    "TimeInForce",
+    "ExperimentType",
+    # Validators
+    "ValidationError",
+    "validate_bars_dataframe",
+    "validate_signals_dataframe",
+    "validate_orders_dataframe",
+    "validate_trades_dataframe",
+    "validate_risk_rejects_dataframe",
+    "validate_allocation_log_dataframe",
+    "validate_inputs_checksum",
+    "validate_dataframe_schema",
+    "validate_pydantic_models",
+    # Hashers
+    "hash_dataframe",
+    "hash_dict",
+    "hash_list",
+    "hash_string",
+    "hash_sip_map",
+    "compute_consistent_checksum",
+    "verify_hash_stability",
+    "hash_difference",
+    # Utils - Time
+    "utc_now",
+    "datetime_to_utc_ns",
+    "utc_ns_to_datetime",
+    "utc_ns_to_timestamp",
+    "normalize_timestamps",
+    "format_utc_ns",
+    "parse_duration",
+    "TimeWindow",
+    # Utils - Session
+    "get_session_bounds",
+    "is_market_session",
+    "is_trading_day",
+    "get_trading_days",
+    "get_market_sessions_for_date",
+    # Utils - Bars
+    "add_time_bars",
+    "resample_bars",
+    "get_time_buckets",
+    # Constants
+    "UTC",
+    "US_EASTERN",
+    "US_CENTRAL",
+    "US_MOUNTAIN",
+    "US_PACIFIC",
+    "NANOSECONDS_PER_SECOND",
+    "NANOSECONDS_PER_MICROSECOND",
+    "MICROSECONDS_PER_SECOND",
+    # Contracts
+    "ContractSide",
+    "BarContract",
+    "OrderContract",
+    "DataClient",
+    "FeaturePipeline",
+    "UniverseSelector",
+    "Policy",
+    "RiskManager",
+    "BacktestEngine",
+    "Broker",
+]

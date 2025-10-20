@@ -5,7 +5,7 @@ import ast
 import hashlib
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 # Allowlist roots: 16 strategy repos, include only src/**, lib/**, features/**
 ALLOWLIST_ROOTS = [
@@ -39,9 +39,27 @@ DENYLIST_PATTERNS = [
 ]
 
 FEATURE_KEYWORDS = [
-    "vwap", "atr", "rsi", "macd", "bollinger", "feature", "indicator",
-    "volume", "price", "f__", "rolling", "ewm", "resample", "ta",
-    "orderflow", "ict", "sma", "ema", "std", "mean", "pct_change"
+    "vwap",
+    "atr",
+    "rsi",
+    "macd",
+    "bollinger",
+    "feature",
+    "indicator",
+    "volume",
+    "price",
+    "f__",
+    "rolling",
+    "ewm",
+    "resample",
+    "ta",
+    "orderflow",
+    "ict",
+    "sma",
+    "ema",
+    "std",
+    "mean",
+    "pct_change",
 ]
 
 
@@ -102,7 +120,7 @@ def is_feature_function(node: ast.FunctionDef | ast.ClassDef, content: str) -> b
     return (has_df_param or has_ts_symbol) and has_pandas_ops
 
 
-def parse_for_features(file_path: Path) -> List[Dict[str, Any]]:
+def parse_for_features(file_path: Path) -> list[dict[str, Any]]:
     """Parse file for potential feature builders with detailed analysis."""
     features = []
     try:
@@ -135,9 +153,13 @@ def parse_for_features(file_path: Path) -> List[Dict[str, Any]]:
                                 outputs.append(child.value.id)
                         elif isinstance(child, ast.Assign):
                             for target in child.targets:
-                                if isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name):
+                                if isinstance(target, ast.Attribute) and isinstance(
+                                    target.value, ast.Name
+                                ):
                                     if target.value.id in inputs:
-                                        outputs.append(ast.unparse(target).split('.')[-1])
+                                        outputs.append(
+                                            ast.unparse(target).split(".")[-1]
+                                        )
 
                 # Standardize feature names
                 pack = file_path.parent.name
@@ -147,29 +169,36 @@ def parse_for_features(file_path: Path) -> List[Dict[str, Any]]:
                 # Purity/idempotence (heuristic)
                 purity_flags = {
                     "idempotent": "apply" not in content,  # Assume apply might modify
-                    "pure": "random" not in content.lower() and "time" not in content.lower(),
+                    "pure": "random" not in content.lower()
+                    and "time" not in content.lower(),
                 }
 
-                features.append({
-                    "name": name,
-                    "standardized_name": standardized_name,
-                    "type": "class" if isinstance(node, ast.ClassDef) else "function",
-                    "file": str(file_path),
-                    "callable": f"{file_path.stem}.{name}",
-                    "inputs": inputs,
-                    "outputs": list(set(outputs)),  # Dedupe
-                    "feature_names": [standardized_name] if needs_adapter else [name],
-                    "purity_flags": purity_flags,
-                    "reuse_count": 1,  # Will be updated when clustering
-                    "content_hash": content_hash,
-                    "needs_adapter": needs_adapter,
-                    "docstring": docstring[:200],
-                })
+                features.append(
+                    {
+                        "name": name,
+                        "standardized_name": standardized_name,
+                        "type": (
+                            "class" if isinstance(node, ast.ClassDef) else "function"
+                        ),
+                        "file": str(file_path),
+                        "callable": f"{file_path.stem}.{name}",
+                        "inputs": inputs,
+                        "outputs": list(set(outputs)),  # Dedupe
+                        "feature_names": (
+                            [standardized_name] if needs_adapter else [name]
+                        ),
+                        "purity_flags": purity_flags,
+                        "reuse_count": 1,  # Will be updated when clustering
+                        "content_hash": content_hash,
+                        "needs_adapter": needs_adapter,
+                        "docstring": docstring[:200],
+                    }
+                )
 
     return features
 
 
-def cluster_duplicates(features: List[Dict]) -> List[Dict]:
+def cluster_duplicates(features: list[dict]) -> list[dict]:
     """Cluster features by content hash and update reuse counts."""
     hash_groups = {}
     for feat in features:
@@ -189,7 +218,7 @@ def cluster_duplicates(features: List[Dict]) -> List[Dict]:
     return clustered
 
 
-def scan_features_v2() -> Dict[str, Any]:
+def scan_features_v2() -> dict[str, Any]:
     """Scan for features with allowlist/denylist."""
     catalog = []
 

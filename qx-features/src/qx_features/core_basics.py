@@ -257,7 +257,7 @@ def compute_all_core_features(
         vwap = np.where(volume_sum > 0, pv_sum / volume_sum, group["close"])
         return pd.Series(vwap, index=group.index, name=vwap_col)
 
-    vwap_result = result.groupby("symbol", group_keys=False).apply(compute_vwap)
+    vwap_result = result.groupby("symbol", group_keys=False).apply(compute_vwap, include_groups=False)
     if isinstance(vwap_result, pd.DataFrame):
         vwap_result = vwap_result.stack().reset_index(level=0, drop=True)
     else:

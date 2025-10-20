@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
@@ -231,7 +231,16 @@ class BacktestEngine:
         self._regime_detector = None
         self._current_regime = RegimeType.OFF if REGIME_DETECTION_AVAILABLE else None
         self._regime_history: list[RegimeSignal] = []
-        self._strategy_map = config.strategy_map or {}
+        raw_strategy_map: dict[str, list[str]] = config.strategy_map or {}
+        if not raw_strategy_map and config.regime_config:
+            raw_strategy_map = config.regime_config.get("strategy_map", {}) or {}
+        self._strategy_map = {}
+        for regime, strategies in raw_strategy_map.items():
+            if isinstance(strategies, (list, tuple, set)):
+                self._strategy_map[regime] = [str(strategy).lower() for strategy in strategies]
+            else:
+                # Allow single string values for convenience
+                self._strategy_map[regime] = [str(strategies).lower()]
 
         # Initialize regime detector if configured
         if (
@@ -593,31 +602,34 @@ class BacktestEngine:
                     total_cost -= avg_cost_basis
 
         # Calculate statistics
-        if round_trip_pnls:
-            result.total_trades = len(round_trip_pnls)
-            result.winning_trades = sum(1 for pnl in round_trip_pnls if pnl > 0)
-            result.losing_trades = sum(1 for pnl in round_trip_pnls if pnl < 0)
+        if not round_trip_pnls:
+            return
 
-            if result.total_trades > 0:
-                result.win_rate = result.winning_trades / result.total_trades
+        result.total_trades = len(round_trip_pnls)
+        result.winning_trades = sum(1 for pnl in round_trip_pnls if pnl > 0)
+        result.losing_trades = sum(1 for pnl in round_trip_pnls if pnl < 0)
+
+        if result.total_trades > 0:
+            result.win_rate = result.winning_trades / result.total_trades
+            if round_trip_pnls:
                 result.avg_trade_pnl = sum(round_trip_pnls) / result.total_trades
 
-            winning_pnls = [pnl for pnl in round_trip_pnls if pnl > 0]
-            losing_pnls = [pnl for pnl in round_trip_pnls if pnl < 0]
+        winning_pnls = [pnl for pnl in round_trip_pnls if pnl > 0]
+        losing_pnls = [pnl for pnl in round_trip_pnls if pnl < 0]
 
-            if winning_pnls:
-                result.avg_win = sum(winning_pnls) / len(winning_pnls)
-                result.largest_win = max(winning_pnls)
+        if winning_pnls:
+            result.avg_win = sum(winning_pnls) / len(winning_pnls)
+            result.largest_win = max(winning_pnls)
 
-            if losing_pnls:
-                result.avg_loss = sum(losing_pnls) / len(losing_pnls)
-                result.largest_loss = min(losing_pnls)
+        if losing_pnls:
+            result.avg_loss = sum(losing_pnls) / len(losing_pnls)
+            result.largest_loss = min(losing_pnls)
 
-            # Profit factor
-            total_wins = sum(winning_pnls)
-            total_losses = abs(sum(losing_pnls))
-            if total_losses > 0:
-                result.profit_factor = total_wins / total_losses
+        # Profit factor
+        total_wins = sum(winning_pnls)
+        total_losses = abs(sum(losing_pnls))
+        if total_losses > 0:
+            result.profit_factor = total_wins / total_losses
 
     def _update_regime_if_needed(self, group: pd.DataFrame) -> None:
         """Update regime detection if enabled.
@@ -638,7 +650,7 @@ class BacktestEngine:
             # Log error but continue with last known regime
             print(f"Warning: Regime detection failed at {self.current_time}: {e}")
 
-    def get_current_regime(self) -> RegimeType | None:
+    def get_current_regime(self) -> Optional[RegimeType]:
         """Get current market regime.
 
         Returns:
@@ -692,13 +704,8 @@ class BacktestEngine:
             self._current_regime.value if self._current_regime else None
         )
 
-        # Add regime duration statistics
-        if self._regime_history:
-            regime_counts = {}
-            for signal in self._regime_history:
-                regime = signal.regime.value
-                regime_counts[regime] = regime_counts.get(regime, 0) + 1
-            stats["regime_distribution"] = regime_counts
+        # Note: Removed confusing minute-level regime_distribution
+        # For daily regime detection, we focus on regime_changes and cache_hit_rate
 
         return stats
 

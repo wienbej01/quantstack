@@ -1,0 +1,84 @@
+{
+  "performance": {
+    "total_return": -0.0031405110291253813,
+    "annualized_return": -3.776990050485818e-05,
+    "volatility": 0.05753993451580454,
+    "sharpe_ratio": -0.3482410967117293,
+    "max_drawdown": -0.1306251750085129,
+    "max_drawdown_duration": 20862,
+    "win_rate": 0.3794642857142857,
+    "profit_factor": 0.53113002819995
+  },
+  "trading": {
+    "total_trades": 224,
+    "winning_trades": 85,
+    "losing_trades": 139,
+    "avg_trade_pnl": -38.46796575615185,
+    "avg_win": 114.83565429065716,
+    "avg_loss": -132.21478377038758,
+    "largest_win": 835.5503847272703,
+    "largest_loss": -1507.1808322400975
+  },
+  "regime_statistics": {
+    "evaluations": 113837,
+    "regime_changes": 4,
+    "change_rate": 3.513796041708759e-05,
+    "cache_hits": 113634,
+    "cache_hit_rate": 0.9982167485088328,
+    "daily_regimes_cached": 27,
+    "symbols_tracked": 1,
+    "avg_persistence": 3.6666666666666665,
+    "regime_detection_enabled": true,
+    "current_regime": "BEAR",
+    "regime_distribution": {
+      "OFF": 176,
+      "BEAR": 57816,
+      "BULL": 25123,
+      "STRESS": 14923,
+      "SIDEWAYS": 15799
+    }
+  },
+  "configuration": {
+    "enabled": true,
+    "model": "rules",
+    "strategy_map": {
+      "BULL": [
+        "vwap_momentum",
+        "vwap_revert"
+      ],
+      "BEAR": [
+        "vwap_momentum",
+        "vwap_revert"
+      ],
+      "SIDEWAYS": [
+        "vwap_revert"
+      ],
+      "STRESS": []
+    },
+    "persistence_bars": 3,
+    "cooldown_minutes": 15,
+    "features": {
+      "volatility_window": 30,
+      "trend_window": 60,
+      "stress_threshold": 2.0,
+      "vwap_window": 30,
+      "atr_window": 14
+    },
+    "detector_params": {
+      "variance_ratio_bull": 1.2,
+      "variance_ratio_bear": 0.8,
+      "adx_trend_threshold": 30.0,
+      "volatility_stress_threshold": 2.0,
+      "volatility_high_threshold": 1.5,
+      "volatility_low_threshold": 0.7,
+      "stress_vol_threshold": 2.0,
+      "stress_volume_threshold": 3.0,
+      "sideways_band_min": 0.2,
+      "sideways_band_max": 0.8,
+      "variance_ratio_weight": 0.4,
+      "adx_weight": 0.3,
+      "volatility_weight": 0.2,
+      "band_position_weight": 0.1
+    }
+  }
+}
