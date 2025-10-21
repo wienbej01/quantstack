@@ -186,6 +186,9 @@ def test_policies(df, detector):
             )
             engine = BacktestEngine(config)
 
+            # Attach policy to engine
+            policy.set_engine(engine)
+
             # Use AAPL data for testing
             symbol_data = df[df["symbol"] == "AAPL"].copy()
             if len(symbol_data) == 0:
