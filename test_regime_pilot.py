@@ -191,8 +191,9 @@ def test_policies(df, detector):
             if len(symbol_data) == 0:
                 continue
 
-            # Simple strategy function - use lambda with default parameter to avoid loop variable binding
-            strategy_func = lambda engine, bar, p=policy: p.process_bar(bar)
+            # Simple strategy function - use proper function to avoid loop variable binding
+            def strategy_func(engine, bar, p=policy):
+                p.process_bar(bar)
 
             # Run backtest through engine (handles regime detection automatically)
             result = engine.run(symbol_data, strategy_func)
@@ -221,10 +222,80 @@ def test_policies(df, detector):
     return results
 
 
+def run_diagnostic_check(df, verbose=False):
+    """Run diagnostic checks on regime signals before testing."""
+    if not verbose:
+        return
+
+    print("\n🔍 DIAGNOSTIC: Regime Signal Distribution")
+
+    # Regime classification thresholds
+    STRESS_VOL_THRESHOLD = 2.0
+    BULL_VAR_RATIO_MIN = 1.2
+    BEAR_VAR_RATIO_MAX = 0.8
+    SIDEWAYS_VAR_RANGE = 0.1
+    TRENDING_ADX_MIN = 25
+    SIDEWAYS_ADX_MAX = 22
+
+    # Count regime occurrences (excluding warmup)
+    warmup_mask = df.get("f__regime__warmup_ok", pd.Series(True, index=df.index))
+    ready_bars = df[warmup_mask]
+
+    if len(ready_bars) == 0:
+        print("⚠️  No bars past warmup period")
+        return
+
+    # Manual regime detection for diagnostics
+    regime_counts = {"BULL": 0, "BEAR": 0, "SIDEWAYS": 0, "STRESS": 0, "NONE": 0}
+
+    for _, bar in ready_bars.iterrows():
+        features = {
+            "var_ratio": bar.get("f__regime__var_ratio_10_60", 1.0),
+            "adx": bar.get("f__regime__adx_proxy_14", 20.0),
+            "band_pos": bar.get("f__regime__band_pos_20_2.0", 0.5),
+            "mod_vol": bar.get("f__regime__mod_vol_30", 1.0),
+            "stress": bar.get("f__regime__stress_10_10", 0.0),
+        }
+
+        # Simple regime classification using defined constants
+        if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
+            regime = "STRESS"
+        elif (
+            features["var_ratio"] > BULL_VAR_RATIO_MIN
+            and features["adx"] >= TRENDING_ADX_MIN
+        ):
+            regime = "BULL"
+        elif (
+            features["var_ratio"] < BEAR_VAR_RATIO_MAX
+            and features["adx"] >= TRENDING_ADX_MIN
+        ):
+            regime = "BEAR"
+        elif (
+            abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
+            or features["adx"] < SIDEWAYS_ADX_MAX
+        ):
+            regime = "SIDEWAYS"
+        else:
+            regime = "NONE"
+
+        regime_counts[regime] += 1
+
+    total_ready = len(ready_bars)
+    print(f"Ready bars (past warmup): {total_ready}")
+    for regime, count in regime_counts.items():
+        pct = (count / total_ready * 100) if total_ready > 0 else 0
+        print(f"  {regime}: {count} ({pct:.1f}%)")
+
+    if regime_counts["BULL"] + regime_counts["BEAR"] == 0:
+        print("⚠️  No trending regimes detected - policies may not generate trades")
+
+
 def main():
     """Main pilot test function."""
     print("🚀 Regime-Aligned Strategy Pilot Test")
     print("=" * 50)
+
+    verbose = True  # TODO: Make this command-line configurable
 
     # Load data
     df = load_test_data()
@@ -234,6 +305,9 @@ def main():
 
     # Prepare features
     df_features = prepare_features(df)
+
+    # Run diagnostic check
+    run_diagnostic_check(df_features, verbose=verbose)
 
     # Create regime detector
     detector = create_regime_detector()

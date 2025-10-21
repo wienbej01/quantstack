@@ -3,6 +3,7 @@
 
 import sys
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -119,6 +120,44 @@ def test_engine_updates_regime():
 
     # The test passes if the engine processes bars and detects regimes
     assert len(unique_regimes) > 0, "No regimes detected"
+
+
+def test_diagnostic_regime_counts():
+    """Test that diagnostic logging provides regime distribution statistics."""
+    # Create sample data with known regime distribution
+    df = create_minimal_dataset()
+    df_features = prepare_features(df)
+
+    # Capture logs from diagnostic function (should fail initially)
+    with patch("builtins.print") as mock_print:
+        try:
+            from test_regime_pilot import run_diagnostic_check
+
+            run_diagnostic_check(df_features, verbose=True)
+        except ImportError:
+            # Function doesn't exist yet - test should fail
+            pytest.fail(
+                "run_diagnostic_check function not found in test_regime_pilot.py"
+            )
+
+    # Assert regime counts were logged
+    log_calls = [str(call) for call in mock_print.call_args_list]
+
+    # Should contain diagnostic header
+    assert any(
+        "DIAGNOSTIC" in call and "Regime Signal Distribution" in call
+        for call in log_calls
+    ), "Diagnostic header not found in logs"
+
+    # Should contain regime counts (format: "BULL: 0 (0.0%)")
+    assert any(
+        "BULL:" in call for call in log_calls
+    ), "BULL regime count not found in logs"
+
+    # Should contain ready bars count
+    assert any(
+        "Ready bars" in call for call in log_calls
+    ), "Ready bars count not found in logs"
 
 
 if __name__ == "__main__":
