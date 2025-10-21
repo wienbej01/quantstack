@@ -154,7 +154,7 @@ def create_regime_detector():
 
 
 def test_policies(df, detector):
-    """Test regime-aligned policies."""
+    """Test regime-aligned policies with proper engine integration."""
     print("\n=== Testing Regime-Aligned Policies ===")
 
     # Initialize policies with fixed infrastructure
@@ -173,89 +173,50 @@ def test_policies(df, detector):
     for name, policy in policies.items():
         print(f"\n📈 Testing {name.upper()} policy...")
 
-        # Create backtest config
-        config = BacktestConfig(initial_cash=100000.0)
-        engine = BacktestEngine(config)
-        policy.engine = engine
+        try:
+            # Create backtest config with strategy mapping
+            config = BacktestConfig(
+                initial_cash=100000.0,
+                regime_config={"enabled": True},  # Enable regime detection
+                strategy_map={
+                    "BULL": [name] if "momentum" in name or "pullback" in name else [],
+                    "BEAR": [name] if "momentum" in name else [],
+                    "SIDEWAYS": [name] if "rotation" in name else [],
+                },
+            )
+            engine = BacktestEngine(config)
 
-        # Create a strategy function that uses the policy
-        def strategy_func(engine, bar):
-            policy.process_bar(bar)
+            # Use AAPL data for testing
+            symbol_data = df[df["symbol"] == "AAPL"].copy()
+            if len(symbol_data) == 0:
+                continue
 
-        # Run backtest for this symbol
-        symbol_data = df[df["symbol"] == "AAPL"].copy()  # Use AAPL for testing
-        if len(symbol_data) > 0:
-            try:
-                # Create a simple strategy function that processes bars
-                def process_bars(engine, data):
-                    for _, bar in data.iterrows():
-                        # Convert to dict and add regime detection
-                        bar_dict = bar.to_dict()
+            # Simple strategy function - use lambda with default parameter to avoid loop variable binding
+            strategy_func = lambda engine, bar, p=policy: p.process_bar(bar)
 
-                        # Add regime detection to bars
-                        bar_features = {
-                            "f__regime__var_ratio_10_60": bar_dict.get(
-                                "f__regime__var_ratio_10_60", 1.0
-                            ),
-                            "f__regime__adx_proxy_14": bar_dict.get(
-                                "f__regime__adx_proxy_14", 20.0
-                            ),
-                            "f__regime__mod_vol_30": bar_dict.get(
-                                "f__regime__mod_vol_30", 1.0
-                            ),
-                            "f__regime__band_pos_20_2.0": bar_dict.get(
-                                "f__regime__band_pos_20_2.0", 0.5
-                            ),
-                            "f__regime__stress_10_10": bar_dict.get(
-                                "f__regime__stress_10_10", 0.0
-                            ),
-                        }
+            # Run backtest through engine (handles regime detection automatically)
+            result = engine.run(symbol_data, strategy_func)
 
-                        # Detect regime
-                        signal = detector.evaluate_symbol(
-                            bar_dict["symbol"], bar_features, bar_dict["ts"]
-                        )
-                        if signal:
-                            bar_dict["f__regime__current"] = signal.regime
-                            bar_dict["f__regime__confidence"] = signal.confidence
+            # Extract results
+            trades = result.trades_history
+            portfolio = result.portfolio
+            orders = result.orders
 
-                        # Process bar with policy
-                        policy.process_bar(bar_dict)
+            results[name] = {
+                "trades": len(trades),
+                "final_equity": portfolio.equity,
+                "final_return": portfolio.equity - 100000,
+                "orders": len(orders),
+                "errors": len(result.errors) if hasattr(result, "errors") else 0,
+            }
 
-                # Process the data
-                process_bars(engine, symbol_data)
+            print(
+                f"✅ {name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L"
+            )
 
-                # For now, just report that processing completed successfully
-                result = type(
-                    "Result",
-                    (),
-                    {
-                        "trades_history": [],
-                        "portfolio": type("Portfolio", (), {"equity": 100000.0})(),
-                        "errors": [],
-                    },
-                )()
-
-                # Extract results
-                trades = result.trades_history
-                portfolio = result.portfolio
-
-                results[name] = {
-                    "trades": len(trades),
-                    "final_equity": portfolio.equity,
-                    "final_return": portfolio.equity
-                    - 100000,  # Assuming 100k starting equity
-                    "orders": 0,  # Not tracking orders in this simple test
-                    "errors": len(result.errors) if hasattr(result, "errors") else 0,
-                }
-
-                print(
-                    f"✅ {name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L"
-                )
-
-            except Exception as e:
-                print(f"❌ Error running {name} backtest: {e}")
-                results[name] = {"error": str(e)}
+        except Exception as e:
+            print(f"❌ Error in {name} policy: {e}")
+            results[name] = {"error": str(e)}
 
     return results
 

@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "qx-core" / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "qx-features" / "src"))
 sys.path.insert(0, str(Path(__file__).parent.parent / "qx-data" / "src"))
 
+from qx_backtest.engine import BacktestConfig, BacktestEngine
 from test_regime_pilot import prepare_features
 
 
@@ -80,6 +81,44 @@ def test_prepare_features_includes_regime_features():
     assert "f__regime__warmup_ok" in result.columns
     warmup_true = result["f__regime__warmup_ok"].sum()
     assert warmup_true > 0, "No bars marked as ready past warmup"
+
+
+def test_engine_updates_regime():
+    """Test that BacktestEngine properly runs regime detection through engine.run()."""
+    # Create backtest config with regime detection enabled
+    config = BacktestConfig(initial_cash=100000.0, regime_config={"enabled": True})
+    engine = BacktestEngine(config)
+
+    # Create sample data with regime features
+    df = create_minimal_dataset()
+    df_features = prepare_features(df)
+
+    # Mock policy to capture regime calls
+    calls = []
+
+    class MockPolicy:
+        def process_bar(self, bar):
+            calls.append(bar.get("f__regime__current", "NONE"))
+
+    policy = MockPolicy()
+
+    # Strategy function that uses the policy
+    def strategy_func(engine, bar):
+        policy.process_bar(bar)
+
+    # Run backtest through engine.run (should handle regime detection automatically)
+    engine.run(df_features, strategy_func)
+
+    # Verify regime detection occurred and we got some calls
+    assert len(calls) > 0, "No bars were processed"
+    print(f"Regime calls captured: {len(calls)} total")
+
+    # Check that regime detection worked (should have regimes beyond just 'NONE')
+    unique_regimes = {str(call) for call in calls if call != "NONE"}
+    print(f"Unique regimes detected: {unique_regimes}")
+
+    # The test passes if the engine processes bars and detects regimes
+    assert len(unique_regimes) > 0, "No regimes detected"
 
 
 if __name__ == "__main__":
