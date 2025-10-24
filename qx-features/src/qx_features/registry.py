@@ -20,6 +20,9 @@ from qx_features.regime.features import (
     stress_metrics,
     variance_ratio,
 )
+from qx_features.regime_enhanced import (
+    compute_all_regime_enhanced_features,
+)
 from qx_features.vpa import compute_vpa_features
 
 
@@ -103,6 +106,20 @@ class FeatureRegistry:
             "absorption_lookback": 5,
             "climax_volume_pct": 0.95,
         },
+        "regime_enhanced": {
+            "price_step": 0.1,
+            "profile_window": 100,
+            "disp_atr_threshold": 1.0,
+            "disp_volume_threshold": 1.3,
+            "sweep_window": 20,
+            "sweep_range_threshold": 0.0002,
+            "ofi_ema_span": 5,
+            "absorption_range_ratio": 0.6,
+            "absorption_body_ratio": 0.25,
+            "climax_volume_pct": 0.95,
+            "climax_range_ratio": 1.5,
+            "climax_wick_ratio": 0.5,
+        },
     }
 
     @classmethod
@@ -178,6 +195,9 @@ def apply(
         elif pack_type == "vpa_patterns":
             # Special case for VPA patterns
             result = _apply_vpa_patterns(result, params)
+        elif pack_type == "regime_enhanced":
+            # Special case for regime enhanced features
+            result = _apply_regime_enhanced_features(result, params)
         elif pack_type in FeatureRegistry._PREDEFINED_PACKS:
             # Apply predefined pack
             if pack_type == "vpa_patterns":
@@ -239,6 +259,11 @@ def _apply_core_basics_optimized(
 def _apply_vpa_patterns(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     """Apply VPA pattern features."""
     return compute_vpa_features(df, **params)
+
+
+def _apply_regime_enhanced_features(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
+    """Apply regime enhanced features using optimized pipeline."""
+    return compute_all_regime_enhanced_features(df, config=params)
 
 
 def _apply_regime_features_optimized(

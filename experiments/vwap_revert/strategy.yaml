@@ -7,7 +7,7 @@ features:
     params:
       vwap_window_m: 30
       rel_vol_window_m: 30
-      atr_window: 14
+      atr_window: 30
 policy: "vwap_revert"
 policy_params:
   rvol_min: 1.0

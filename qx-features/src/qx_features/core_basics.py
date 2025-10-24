@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_core.utils import utc_ns_to_datetime
 
 
@@ -65,21 +64,11 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         group = group.copy()
 
         # Convert nanosecond timestamps to datetime for time-of-day calculation
-        ts_datetime = utc_ns_to_datetime(group["ts"].values)
+        group["tod_minutes"] = [d.hour * 60 + d.minute for d in utc_ns_to_datetime(group["ts"].values)]
 
-        # Calculate the average volume for each time of day across all days
-        # Use time-of-day in minutes from midnight for grouping
-        tod_minutes = [dt.hour * 60 + dt.minute for dt in ts_datetime]
-
-        # Compute mean volume for each time-of-day minute
-        volume_series = group["volume"].values
-        tod_avg_vol = pd.Series(
-            [
-                group["volume"][np.array(tod_minutes) == minute].mean()
-                for minute in tod_minutes
-            ],
-            index=group.index,
-        )
+        # Calculate mean volume for each minute of the day using a robust method
+        tod_avg_map = group.groupby("tod_minutes")["volume"].mean()
+        tod_avg_vol = group["tod_minutes"].map(tod_avg_map)
 
         # Avoid division by zero
         tod_avg_vol = tod_avg_vol.replace(0, 1)
@@ -206,14 +195,18 @@ def get_feature_name(feature_type: str, params: dict[str, Any]) -> str:
         window = params.get("lookback_m", params.get("window_m", 30))
         return f"f__vol__rel_volume_{window}"
     elif feature_type == "atr":
-        window = params.get("lookback_m", params.get("window_m", 14))
+        window = params.get("lookback_m", params.get("window_m", 30))
         return f"f__vol__atr_{window}"
     else:
         raise ValueError(f"Unknown feature type: {feature_type}")
 
 
 def compute_all_core_features(
-    df: pd.DataFrame, vwap_window: int = 30, rvol_window: int = 30, atr_window: int = 14
+    df: pd.DataFrame,
+    vwap_window: int = 30,
+    rvol_window: int = 30,
+    atr_window: int = 30,
+    verbose: bool = True,
 ) -> pd.DataFrame:
     """Compute all core basic features with vectorized operations for SP500 scale performance.
 
@@ -239,14 +232,16 @@ def compute_all_core_features(
     total_symbols = len(symbols)
     total_bars = len(df)
 
-    print(
-        f"  Computing features for {total_symbols:,} symbols ({total_bars:,} bars)..."
-    )
-    print(f"  [VECTORIZED] Using vectorized operations for SP500-scale performance...")
+    if verbose:
+        print(
+            f"  Computing features for {total_symbols:,} symbols ({total_bars:,} bars)..."
+        )
+        print("  [VECTORIZED] Using vectorized operations for SP500-scale performance...")
     start_time = time.time()
 
     # HYBRID VWAP - vectorized where possible, but with safe groupby
-    print(f"  [HYBRID] Computing VWAP for all symbols...")
+    if verbose:
+        print("  [HYBRID] Computing VWAP for all symbols...")
     vwap_col = f"f__ta__vwap_{vwap_window}"
 
     # Compute VWAP using groupby-apply for safety
@@ -257,7 +252,9 @@ def compute_all_core_features(
         vwap = np.where(volume_sum > 0, pv_sum / volume_sum, group["close"])
         return pd.Series(vwap, index=group.index, name=vwap_col)
 
-    vwap_result = result.groupby("symbol", group_keys=False).apply(compute_vwap, include_groups=False)
+    vwap_result = result.groupby("symbol", group_keys=False).apply(
+        compute_vwap, include_groups=False
+    )
     if isinstance(vwap_result, pd.DataFrame):
         vwap_result = vwap_result.stack().reset_index(level=0, drop=True)
     else:
@@ -265,7 +262,8 @@ def compute_all_core_features(
     result[vwap_col] = vwap_result.reset_index(drop=True)
 
     # VECTORIZED RELATIVE VOLUME - compute all at once
-    print(f"  [VECTORIZED] Computing Relative Volume...")
+    if verbose:
+        print("  [VECTORIZED] Computing Relative Volume...")
     rvol_col = f"f__vol__rel_volume_{rvol_window}"
 
     # Convert timestamps once for all symbols
@@ -292,7 +290,8 @@ def compute_all_core_features(
     )  # Default to 1.0 if NaN
 
     # HYBRID ATR - vectorized where possible, but with safe groupby
-    print(f"  [HYBRID] Computing ATR...")
+    if verbose:
+        print("  [HYBRID] Computing ATR...")
     atr_col = f"f__vol__atr_{atr_window}"
 
     # Calculate True Range components vectorized
@@ -313,7 +312,9 @@ def compute_all_core_features(
     def compute_atr(group):
         return group["true_range"].rolling(atr_window, min_periods=1).mean()
 
-    atr_result = result.groupby("symbol", group_keys=False).apply(compute_atr, include_groups=False)
+    atr_result = result.groupby("symbol", group_keys=False).apply(
+        compute_atr, include_groups=False
+    )
     if isinstance(atr_result, pd.DataFrame):
         atr_result = atr_result.stack().reset_index(level=0, drop=True)
     else:
@@ -332,7 +333,8 @@ def compute_all_core_features(
     result.drop(columns=temp_cols, inplace=True)
 
     # VECTORIZED WARMUP MASK
-    print(f"  [VECTORIZED] Computing warmup masks...")
+    if verbose:
+        print("  [VECTORIZED] Computing warmup masks...")
     feature_windows = {"vwap": vwap_window, "rvol": rvol_window, "atr": atr_window}
     max_window = max(feature_windows.values())
     result["f__warmup_ok"] = (
@@ -343,13 +345,14 @@ def compute_all_core_features(
     total_time = time.time() - start_time
     bars_per_second = total_bars / total_time if total_time > 0 else 0
 
-    print(
-        f"  ✓ Features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)"
-    )
-    print(f"  ✓ Processed {total_symbols:,} symbols and {total_bars:,} bars")
-    print(
-        f"  ✓ Vectorized operations: {total_time:.1f}s vs estimated {total_time * 16.7:.1f}s (16.7x speedup)"
-    )
-    sys.stdout.flush()
+    if verbose:
+        print(
+            f"  ✓ Features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)"
+        )
+        print(f"  ✓ Processed {total_symbols:,} symbols and {total_bars:,} bars")
+        print(
+            f"  ✓ Vectorized operations: {total_time:.1f}s vs estimated {total_time * 16.7:.1f}s (16.7x speedup)"
+        )
+        sys.stdout.flush()
 
     return result

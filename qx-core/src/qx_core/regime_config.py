@@ -4,7 +4,7 @@ Defines the configuration structure for regime detection parameters
 and provides validation functions for experiment configurations.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, validator
 
@@ -17,7 +17,7 @@ class RegimeConfig(BaseModel):
     model: str = Field("rules", description="Detector model: 'rules' or 'hsmm'")
 
     # Strategy mapping by regime
-    strategy_map: Dict[str, list[str]] = Field(
+    strategy_map: dict[str, list[str]] = Field(
         default_factory=lambda: {
             "BULL": ["vwap_momentum"],
             "BEAR": ["vwap_momentum"],
@@ -37,7 +37,7 @@ class RegimeConfig(BaseModel):
     )
 
     # Feature configuration
-    features: Dict[str, Any] = Field(
+    features: dict[str, Any] = Field(
         default_factory=lambda: {
             "volatility_window": 30,
             "trend_window": 60,
@@ -49,11 +49,11 @@ class RegimeConfig(BaseModel):
     )
 
     # Detector thresholds
-    detector_params: Dict[str, Any] = Field(
+    detector_params: dict[str, Any] = Field(
         default_factory=lambda: {
-            "variance_ratio_bull": 1.2,
-            "variance_ratio_bear": 0.8,
-            "adx_trend_threshold": 30.0,
+            "variance_ratio_bull": 2.0,
+            "variance_ratio_bear": 0.5,
+            "adx_trend_threshold": 15.0,
             "volatility_stress_threshold": 2.0,
             "volatility_high_threshold": 1.5,
             "volatility_low_threshold": 0.7,
@@ -161,7 +161,7 @@ class RegimeConfig(BaseModel):
         return v
 
 
-def validate_regime_config(config: Dict[str, Any]) -> RegimeConfig:
+def validate_regime_config(config: dict[str, Any]) -> RegimeConfig:
     """Validate and create RegimeConfig from dictionary.
 
     Args:
@@ -179,7 +179,7 @@ def validate_regime_config(config: Dict[str, Any]) -> RegimeConfig:
         raise ValueError(f"Invalid regime configuration: {e}")
 
 
-def create_default_regime_config() -> Dict[str, Any]:
+def create_default_regime_config() -> dict[str, Any]:
     """Create default regime configuration.
 
     Returns:
@@ -190,8 +190,8 @@ def create_default_regime_config() -> Dict[str, Any]:
 
 
 def merge_regime_config(
-    base: Dict[str, Any], overlay: Dict[str, Any]
-) -> Dict[str, Any]:
+    base: dict[str, Any], overlay: dict[str, Any]
+) -> dict[str, Any]:
     """Merge regime configuration overlay into base configuration.
 
     Args:
@@ -220,7 +220,7 @@ def merge_regime_config(
 
 
 # Configuration schema for JSON validation
-def regime_config_json_schema() -> Dict[str, Any]:
+def regime_config_json_schema() -> dict[str, Any]:
     """Get JSON schema for regime configuration validation.
 
     Returns:
