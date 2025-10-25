@@ -1,0 +1,9 @@
+# Variant B: Aggressive parameters
+policy:
+  params:
+    rvol_min: 1.5
+    vwap_window: 20
+
+risk_params:
+  max_risk_frac: 0.03
+  atr_mult: 1.5

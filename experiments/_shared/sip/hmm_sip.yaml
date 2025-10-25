@@ -1,0 +1,24 @@
+# Shared HMM SIP configuration
+# This file defines the HMM SIP selector parameters that can be referenced by experiments
+
+sip:
+  selector:
+    type: hmm_sip
+    params:
+      # Number of symbols to select from HMM SIP
+      top_k: 40
+
+      # Minimum score threshold for symbols (0.0 = no floor)
+      score_floor: 0.0
+
+      # Root directory for external premarket Top-K files
+      external_premarket_root: "~/hybrid-local/signals/sip/universe/pre"
+
+      # Enable Gold-only fallback when external files are unavailable
+      enable_gold_fallback: true
+
+      # Optional minute-level probability threshold (null = disabled)
+      p_hat_threshold: null
+
+      # Minimum minutes in state for minute-level gating
+      min_minutes_in_state: 0

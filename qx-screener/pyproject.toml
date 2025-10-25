@@ -1,9 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "qx-screener"
 version = "0.1.0"
-description = "SIP universe filters (cross-sectional selection)"
+description = "Universe selection and screening for QuantStack"
+readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["qx-core", "pandas"]
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pyarrow>=12.0.0",
+    "pydantic>=2.0.0",
+    "qx-core",
+    "qx-data",
+    "qx-features",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx_screener"]

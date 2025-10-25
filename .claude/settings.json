@@ -1,0 +1,39 @@
+{
+  "project": "quantstack",
+  "include_paths": [
+    "/home/jacobw/quantstack",
+    "/home/jacobw/intraday_stack",
+    "/home/jacobw/hybrid_fourier",
+    "/home/jacobw/hybrid-local",
+    "/home/jacobw/HMM_SIP",
+    "/home/jacobw/Cor_trading",
+    "/home/jacobw/RL_trading",
+    "/home/jacobw/timegpt_v2",
+    "/home/jacobw/transalpha",
+    "/home/jacobw/volume_price_trade"
+  ],
+  "read_only_paths": [
+    "/home/jacobw/gcs-mount"
+  ],
+  "deny_globs": [
+    "**/*.parquet",
+    "**/data/**",
+    "**/.venv/**",
+    "**/__pycache__/**",
+    "**/.mypy_cache/**",
+    "**/.pytest_cache/**",
+    "**/run/**",
+    "**/secrets/**"
+  ],
+  "env": {
+    "PYTHONWARNINGS": "ignore",
+    "PYTHONPATH": "."
+  },
+  "tools": {
+    "git": { "enabled": true },
+    "shell": { "enabled": true, "safe_mode": true },
+    "mcp": {
+      "context7": { "enabled": true }
+    }
+  }
+}

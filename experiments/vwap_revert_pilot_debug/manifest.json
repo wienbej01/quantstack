@@ -6,7 +6,7 @@
     "experiments/vwap_revert_q3_2024/overlays/policy_rvol_1.0.yaml"
   ],
   "run_ids": [
-    "541dd9cb-7dab-4891-8277-45837ff66736"
+    "15c5eb2f-1bb4-4b83-b65f-646c7de60502"
   ],
   "resolved_config": {
     "gold_root": "/home/jacobw/gcs-mount/gold",

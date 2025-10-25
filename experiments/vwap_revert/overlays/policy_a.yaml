@@ -1,0 +1,3 @@
+# Variant A: Conservative rvol_min = 1.0
+policy_params:
+  rvol_min: 1.0

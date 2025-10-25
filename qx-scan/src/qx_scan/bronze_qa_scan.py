@@ -3,14 +3,14 @@
 import json
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.console import Console
 
 console = Console()
 
 
-def scan_bronze_qa(root_path: str = "/home/jacobw/gcs-mount/bronze") -> Dict[str, Any]:
+def scan_bronze_qa(root_path: str = "/home/jacobw/gcs-mount/bronze") -> dict[str, Any]:
     """Scan Bronze data for QA issues and normalization planning."""
     root = Path(root_path)
     if not root.exists():
@@ -42,7 +42,7 @@ def scan_bronze_qa(root_path: str = "/home/jacobw/gcs-mount/bronze") -> Dict[str
     }
 
 
-def analyze_parquet_file(file_path: Path) -> Dict[str, Any]:
+def analyze_parquet_file(file_path: Path) -> dict[str, Any]:
     """Analyze a single Parquet file for schema and issues."""
     import pyarrow.parquet as pq
 
@@ -54,9 +54,9 @@ def analyze_parquet_file(file_path: Path) -> Dict[str, Any]:
     columns = df.columns.tolist()
 
     # Schema variant detection
-    has_t = 't' in columns
-    has_ts = 'ts' in columns or 'timestamp' in columns
-    has_ohlcv = all(c in columns for c in ['open', 'high', 'low', 'close', 'volume'])
+    has_t = "t" in columns
+    has_ts = "ts" in columns or "timestamp" in columns
+    has_ohlcv = all(c in columns for c in ["open", "high", "low", "close", "volume"])
 
     if not has_ohlcv:
         issues.append("Missing required OHLCV columns")
@@ -70,27 +70,27 @@ def analyze_parquet_file(file_path: Path) -> Dict[str, Any]:
 
     if has_t:
         # Check if t is epoch ms
-        if df['t'].dtype != 'int64':
+        if df["t"].dtype != "int64":
             issues.append("t column not int64 (expected epoch ms)")
     elif has_ts:
         # Infer timezone
         pass  # Stub
 
     # Type audit
-    if 'volume' in df.columns and df['volume'].dtype == 'float64':
+    if "volume" in df.columns and df["volume"].dtype == "float64":
         issues.append("Volume is float (should be int)")
 
     # Check OHLCV values
     if has_ohlcv:
-        if (df['high'] < df['low']).any():
+        if (df["high"] < df["low"]).any():
             issues.append("High < Low detected")
-        if (df[['open', 'high', 'low', 'close']] < 0).any().any():
+        if (df[["open", "high", "low", "close"]] < 0).any().any():
             issues.append("Negative OHLC values")
-        if 'volume' in df.columns and (df['volume'] < 0).any():
+        if "volume" in df.columns and (df["volume"] < 0).any():
             issues.append("Negative volume")
 
     # Non-monotonic ts
-    ts_col = 't' if has_t else ('ts' if 'ts' in columns else 'timestamp')
+    ts_col = "t" if has_t else ("ts" if "ts" in columns else "timestamp")
     if ts_col in df.columns:
         if not df[ts_col].is_monotonic_increasing:
             issues.append("Non-monotonic timestamps")
@@ -120,7 +120,7 @@ def infer_family(file_path: Path) -> str:
     return file_path.parent.name
 
 
-def generate_normalization_plan(scan_results: Dict[str, Any]) -> Dict[str, Any]:
+def generate_normalization_plan(scan_results: dict[str, Any]) -> dict[str, Any]:
     """Generate normalization plan from scan results."""
     plan = {}
 
@@ -178,7 +178,9 @@ def main():
         issues_md += f"## {family}\n"
         for file_info in data["files"]:
             if file_info["issues"]:
-                issues_md += f"- {file_info['path']}: {', '.join(file_info['issues'])}\n"
+                issues_md += (
+                    f"- {file_info['path']}: {', '.join(file_info['issues'])}\n"
+                )
                 for issue in file_info["issues"]:
                     issue_counts[issue] += 1
 

@@ -1,0 +1,1917 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bidirectional VWAP Backtest Report - AAPL H1 2024</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        h3 { color: #2c3e50; margin-top: 25px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin: 20px 0; }
+        .metric-card { background: #f8f9fa; padding: 20px; border-radius: 8px; }
+        .metric-card.positive { border-left: 4px solid #27ae60; }
+        .metric-card.negative { border-left: 4px solid #e74c3c; }
+        .metric-label { font-weight: bold; color: #7f8c8d; margin-bottom: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; }
+        .long { background: #e8f8f5; }
+        .short { background: #fdf2f2; }
+        .direction-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        .direction-table th, .direction-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        .direction-table th { background-color: #3498db; color: white; }
+        .direction-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .trade-list { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 12px; }
+        .trade-list th, .trade-list td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        .trade-list th { background-color: #34498db; color: white; }
+        .trade-list tr:nth-child(even) { background-color: #f9f9f9; }
+        .profit { color: #27ae60; font-weight: bold; }
+        .loss { color: #e74c3c; font-weight: bold; }
+        .summary { background: #ecf0f1; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .status { background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Bidirectional VWAP Backtest Report</h1>
+        <div class="status">
+            <strong>Strategy:</strong> Bidirectional VWAP Reversion |
+            <strong>Symbol:</strong> AAPL |
+            <strong>Period:</strong> H1 2024 (Jan-Jun) |
+            <strong>Enhanced:</strong> Both Long & Short Positions
+        </div>
+
+        <h2>📊 Overall Performance</h2>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Total Return</div>
+                <div class="metric-value positive">18.87%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Sharpe Ratio</div>
+                <div class="metric-value">0.166</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Max Drawdown</div>
+                <div class="metric-value negative">-1.00%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Total Trades</div>
+                <div class="metric-value">110</div>
+            </div>
+        </div>
+
+        <h2>📈📉 Directional Performance Analysis</h2>
+        <table class="direction-table">
+            <tr><th>Metric</th><th>Long Positions</th><th>Short Positions</th><th>Total</th></tr>
+            <tr>
+                <td><strong>Total Trades</strong></td>
+                <td class="long">102</td>
+                <td class="short">8</td>
+                <td>110</td>
+            </tr>
+            <tr>
+                <td><strong>Win Rate</strong></td>
+                <td class="long">69.6%</td>
+                <td class="short">62.5%</td>
+                <td>69.1%</td>
+            </tr>
+            <tr>
+                <td><strong>Total P&L</strong></td>
+                <td class="long profit">$15,770.66</td>
+                <td class="short profit">$3,098.68</td>
+                <td class="profit">$18,869.34</td>
+            </tr>
+            <tr>
+                <td><strong>Avg Return (bps)</strong></td>
+                <td class="long">15461.4</td>
+                <td class="short">38733.5</td>
+                <td>17153.9</td>
+            </tr>
+            <tr>
+                <td><strong>Profit Factor</strong></td>
+                <td class="long">3.06</td>
+                <td class="short">4.43</td>
+                <td>3.21</td>
+            </tr>
+            <tr>
+                <td><strong>Avg Duration</strong></td>
+                <td class="long">26.4 min</td>
+                <td class="short">21.9 min</td>
+                <td>26.0 min</td>
+            </tr>
+        </table>
+
+        <h2>📋 Detailed Trade List</h2>
+        <table class="trade-list">
+            <tr>
+                <th>#</th><th>Date</th><th>Entry</th><th>Exit</th><th>Direction</th>
+th>Signal</th><th>Entry $</th><th>Exit $</th><th>Qty</th><th>P&L</th><th>P&L %</th><th>Duration</th><th>Result</th>
+            </tr>
+
+            <tr>
+                <td>1</td>
+                <td>2024-01-02</td>
+                <td>09:55</td>
+                <td>10:05</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.00</td>
+                <td>$187.70</td>
+                <td>100</td>
+                <td class="profit">$+270.03</td>
+                <td class="profit">+13.5%</td>
+                <td>10 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>2</td>
+                <td>2024-01-08</td>
+                <td>14:15</td>
+                <td>14:48</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$188.17</td>
+                <td>$180.91</td>
+                <td>100</td>
+                <td class="profit">$+725.34</td>
+                <td class="profit">+36.3%</td>
+                <td>33 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>3</td>
+                <td>2024-01-09</td>
+                <td>09:15</td>
+                <td>09:25</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.83</td>
+                <td>$186.72</td>
+                <td>100</td>
+                <td class="profit">$+88.60</td>
+                <td class="profit">+4.4%</td>
+                <td>10 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>4</td>
+                <td>2024-01-09</td>
+                <td>11:25</td>
+                <td>12:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.37</td>
+                <td>$186.68</td>
+                <td>100</td>
+                <td class="profit">$+30.46</td>
+                <td class="profit">+1.5%</td>
+                <td>39 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>5</td>
+                <td>2024-01-10</td>
+                <td>09:45</td>
+                <td>09:54</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.51</td>
+                <td>$182.13</td>
+                <td>100</td>
+                <td class="loss">$-237.86</td>
+                <td class="loss">-11.9%</td>
+                <td>9 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>6</td>
+                <td>2024-01-10</td>
+                <td>10:25</td>
+                <td>10:54</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$183.94</td>
+                <td>$181.35</td>
+                <td>100</td>
+                <td class="loss">$-259.15</td>
+                <td class="loss">-13.0%</td>
+                <td>29 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>7</td>
+                <td>2024-01-11</td>
+                <td>11:15</td>
+                <td>11:58</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.86</td>
+                <td>$187.57</td>
+                <td>100</td>
+                <td class="profit">$+171.64</td>
+                <td class="profit">+8.6%</td>
+                <td>43 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>8</td>
+                <td>2024-01-12</td>
+                <td>10:15</td>
+                <td>10:55</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.37</td>
+                <td>$184.39</td>
+                <td>100</td>
+                <td class="loss">$-298.52</td>
+                <td class="loss">-14.9%</td>
+                <td>40 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>9</td>
+                <td>2024-01-16</td>
+                <td>09:15</td>
+                <td>09:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$189.39</td>
+                <td>$192.76</td>
+                <td>100</td>
+                <td class="profit">$+336.97</td>
+                <td class="profit">+16.9%</td>
+                <td>41 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>10</td>
+                <td>2024-01-17</td>
+                <td>15:35</td>
+                <td>15:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$190.47</td>
+                <td>$193.96</td>
+                <td>100</td>
+                <td class="profit">$+349.77</td>
+                <td class="profit">+17.5%</td>
+                <td>21 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>11</td>
+                <td>2024-01-18</td>
+                <td>14:25</td>
+                <td>14:38</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$190.44</td>
+                <td>$191.65</td>
+                <td>100</td>
+                <td class="profit">$+120.81</td>
+                <td class="profit">+6.0%</td>
+                <td>13 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>12</td>
+                <td>2024-01-24</td>
+                <td>15:35</td>
+                <td>16:09</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$191.95</td>
+                <td>$201.25</td>
+                <td>100</td>
+                <td class="profit">$+929.98</td>
+                <td class="profit">+46.5%</td>
+                <td>34 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>13</td>
+                <td>2024-01-25</td>
+                <td>09:55</td>
+                <td>10:07</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$190.75</td>
+                <td>$191.00</td>
+                <td>100</td>
+                <td class="profit">$+25.50</td>
+                <td class="profit">+1.3%</td>
+                <td>12 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>14</td>
+                <td>2024-01-25</td>
+                <td>10:35</td>
+                <td>11:12</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.79</td>
+                <td>$195.91</td>
+                <td>100</td>
+                <td class="profit">$+812.23</td>
+                <td class="profit">+40.6%</td>
+                <td>37 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>15</td>
+                <td>2024-01-26</td>
+                <td>09:55</td>
+                <td>10:34</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.71</td>
+                <td>$189.35</td>
+                <td>100</td>
+                <td class="profit">$+263.90</td>
+                <td class="profit">+13.2%</td>
+                <td>39 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>16</td>
+                <td>2024-01-29</td>
+                <td>09:45</td>
+                <td>10:09</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$188.67</td>
+                <td>$185.68</td>
+                <td>100</td>
+                <td class="loss">$-299.73</td>
+                <td class="loss">-15.0%</td>
+                <td>24 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>17</td>
+                <td>2024-01-29</td>
+                <td>10:45</td>
+                <td>10:58</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$188.72</td>
+                <td>$192.36</td>
+                <td>100</td>
+                <td class="profit">$+364.27</td>
+                <td class="profit">+18.2%</td>
+                <td>13 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>18</td>
+                <td>2024-01-30</td>
+                <td>14:15</td>
+                <td>14:33</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$190.76</td>
+                <td>$195.34</td>
+                <td>100</td>
+                <td class="profit">$+458.29</td>
+                <td class="profit">+22.9%</td>
+                <td>18 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>19</td>
+                <td>2024-01-31</td>
+                <td>15:15</td>
+                <td>15:48</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$192.64</td>
+                <td>$193.39</td>
+                <td>100</td>
+                <td class="profit">$+74.64</td>
+                <td class="profit">+3.7%</td>
+                <td>33 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>20</td>
+                <td>2024-02-02</td>
+                <td>14:45</td>
+                <td>15:30</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$189.34</td>
+                <td>$196.40</td>
+                <td>100</td>
+                <td class="profit">$+705.32</td>
+                <td class="profit">+35.3%</td>
+                <td>45 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>21</td>
+                <td>2024-02-07</td>
+                <td>14:15</td>
+                <td>14:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.91</td>
+                <td>$188.82</td>
+                <td>100</td>
+                <td class="profit">$+291.81</td>
+                <td class="profit">+14.6%</td>
+                <td>41 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>22</td>
+                <td>2024-02-08</td>
+                <td>13:15</td>
+                <td>13:46</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$190.13</td>
+                <td>$180.78</td>
+                <td>100</td>
+                <td class="profit">$+934.69</td>
+                <td class="profit">+46.7%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>23</td>
+                <td>2024-02-09</td>
+                <td>15:55</td>
+                <td>16:15</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.82</td>
+                <td>$189.40</td>
+                <td>100</td>
+                <td class="profit">$+358.05</td>
+                <td class="profit">+17.9%</td>
+                <td>20 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>24</td>
+                <td>2024-02-12</td>
+                <td>10:35</td>
+                <td>10:44</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$183.70</td>
+                <td>$180.01</td>
+                <td>100</td>
+                <td class="loss">$-369.11</td>
+                <td class="loss">-18.5%</td>
+                <td>9 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>25</td>
+                <td>2024-02-13</td>
+                <td>14:05</td>
+                <td>14:25</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$182.19</td>
+                <td>$177.42</td>
+                <td>100</td>
+                <td class="loss">$-477.43</td>
+                <td class="loss">-23.9%</td>
+                <td>20 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>26</td>
+                <td>2024-02-13</td>
+                <td>13:35</td>
+                <td>14:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$183.08</td>
+                <td>$184.56</td>
+                <td>100</td>
+                <td class="profit">$+148.31</td>
+                <td class="profit">+7.4%</td>
+                <td>29 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>27</td>
+                <td>2024-02-14</td>
+                <td>13:25</td>
+                <td>13:39</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$192.21</td>
+                <td>$193.66</td>
+                <td>100</td>
+                <td class="loss">$-144.61</td>
+                <td class="loss">-7.2%</td>
+                <td>14 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>28</td>
+                <td>2024-02-20</td>
+                <td>09:55</td>
+                <td>10:33</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$189.30</td>
+                <td>$190.13</td>
+                <td>100</td>
+                <td class="profit">$+82.66</td>
+                <td class="profit">+4.1%</td>
+                <td>38 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>29</td>
+                <td>2024-02-21</td>
+                <td>09:15</td>
+                <td>09:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.64</td>
+                <td>$184.67</td>
+                <td>100</td>
+                <td class="loss">$-96.45</td>
+                <td class="loss">-4.8%</td>
+                <td>41 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>30</td>
+                <td>2024-02-21</td>
+                <td>14:05</td>
+                <td>14:43</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.50</td>
+                <td>$191.99</td>
+                <td>100</td>
+                <td class="profit">$+548.45</td>
+                <td class="profit">+27.4%</td>
+                <td>38 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>31</td>
+                <td>2024-02-23</td>
+                <td>11:15</td>
+                <td>11:24</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.19</td>
+                <td>$189.80</td>
+                <td>100</td>
+                <td class="profit">$+261.18</td>
+                <td class="profit">+13.1%</td>
+                <td>9 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>32</td>
+                <td>2024-02-26</td>
+                <td>14:05</td>
+                <td>14:32</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.00</td>
+                <td>$190.80</td>
+                <td>100</td>
+                <td class="profit">$+480.21</td>
+                <td class="profit">+24.0%</td>
+                <td>27 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>33</td>
+                <td>2024-02-27</td>
+                <td>11:25</td>
+                <td>12:03</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.81</td>
+                <td>$194.59</td>
+                <td>100</td>
+                <td class="profit">$+677.57</td>
+                <td class="profit">+33.9%</td>
+                <td>38 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>34</td>
+                <td>2024-02-27</td>
+                <td>14:25</td>
+                <td>14:46</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$194.34</td>
+                <td>$197.06</td>
+                <td>100</td>
+                <td class="loss">$-272.61</td>
+                <td class="loss">-13.6%</td>
+                <td>21 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>35</td>
+                <td>2024-02-29</td>
+                <td>11:25</td>
+                <td>12:01</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$188.62</td>
+                <td>$186.53</td>
+                <td>100</td>
+                <td class="loss">$-209.07</td>
+                <td class="loss">-10.4%</td>
+                <td>36 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>36</td>
+                <td>2024-03-01</td>
+                <td>09:05</td>
+                <td>09:31</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.72</td>
+                <td>$185.21</td>
+                <td>100</td>
+                <td class="loss">$-50.94</td>
+                <td class="loss">-2.5%</td>
+                <td>26 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>37</td>
+                <td>2024-03-01</td>
+                <td>15:25</td>
+                <td>15:39</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$183.69</td>
+                <td>$188.53</td>
+                <td>100</td>
+                <td class="profit">$+484.00</td>
+                <td class="profit">+24.2%</td>
+                <td>14 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>38</td>
+                <td>2024-03-04</td>
+                <td>14:45</td>
+                <td>14:52</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.47</td>
+                <td>$186.73</td>
+                <td>100</td>
+                <td class="profit">$+225.11</td>
+                <td class="profit">+11.3%</td>
+                <td>7 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>39</td>
+                <td>2024-03-04</td>
+                <td>10:55</td>
+                <td>11:39</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.33</td>
+                <td>$187.27</td>
+                <td>100</td>
+                <td class="profit">$+294.18</td>
+                <td class="profit">+14.7%</td>
+                <td>44 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>40</td>
+                <td>2024-03-05</td>
+                <td>10:15</td>
+                <td>10:21</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.17</td>
+                <td>$181.65</td>
+                <td>100</td>
+                <td class="loss">$-251.22</td>
+                <td class="loss">-12.6%</td>
+                <td>6 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>41</td>
+                <td>2024-03-05</td>
+                <td>11:35</td>
+                <td>11:46</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.64</td>
+                <td>$185.00</td>
+                <td>100</td>
+                <td class="loss">$-264.06</td>
+                <td class="loss">-13.2%</td>
+                <td>11 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>42</td>
+                <td>2024-03-07</td>
+                <td>10:35</td>
+                <td>10:54</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$189.59</td>
+                <td>$185.32</td>
+                <td>100</td>
+                <td class="loss">$-426.75</td>
+                <td class="loss">-21.3%</td>
+                <td>19 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>43</td>
+                <td>2024-03-11</td>
+                <td>09:25</td>
+                <td>09:31</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.78</td>
+                <td>$188.19</td>
+                <td>100</td>
+                <td class="profit">$+140.80</td>
+                <td class="profit">+7.0%</td>
+                <td>6 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>44</td>
+                <td>2024-03-12</td>
+                <td>10:45</td>
+                <td>11:17</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.05</td>
+                <td>$186.08</td>
+                <td>100</td>
+                <td class="profit">$+103.93</td>
+                <td class="profit">+5.2%</td>
+                <td>32 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>45</td>
+                <td>2024-03-12</td>
+                <td>11:35</td>
+                <td>12:07</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.46</td>
+                <td>$185.49</td>
+                <td>100</td>
+                <td class="loss">$-96.92</td>
+                <td class="loss">-4.8%</td>
+                <td>32 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>46</td>
+                <td>2024-03-13</td>
+                <td>14:55</td>
+                <td>15:23</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.79</td>
+                <td>$185.78</td>
+                <td>100</td>
+                <td class="profit">$+98.90</td>
+                <td class="profit">+5.0%</td>
+                <td>28 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>47</td>
+                <td>2024-03-13</td>
+                <td>15:25</td>
+                <td>15:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$185.46</td>
+                <td>$184.06</td>
+                <td>100</td>
+                <td class="loss">$-140.63</td>
+                <td class="loss">-7.0%</td>
+                <td>31 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>48</td>
+                <td>2024-03-14</td>
+                <td>14:15</td>
+                <td>14:31</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$184.59</td>
+                <td>$185.68</td>
+                <td>100</td>
+                <td class="profit">$+109.24</td>
+                <td class="profit">+5.5%</td>
+                <td>16 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>49</td>
+                <td>2024-03-15</td>
+                <td>14:05</td>
+                <td>14:38</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$186.37</td>
+                <td>$188.73</td>
+                <td>100</td>
+                <td class="profit">$+236.00</td>
+                <td class="profit">+11.8%</td>
+                <td>33 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>50</td>
+                <td>2024-03-19</td>
+                <td>15:15</td>
+                <td>15:59</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.10</td>
+                <td>$187.52</td>
+                <td>100</td>
+                <td class="profit">$+41.94</td>
+                <td class="profit">+2.1%</td>
+                <td>44 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>51</td>
+                <td>2024-03-20</td>
+                <td>10:55</td>
+                <td>11:39</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$187.22</td>
+                <td>$189.64</td>
+                <td>100</td>
+                <td class="profit">$+242.63</td>
+                <td class="profit">+12.1%</td>
+                <td>44 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>52</td>
+                <td>2024-03-20</td>
+                <td>09:35</td>
+                <td>10:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$189.98</td>
+                <td>$193.74</td>
+                <td>100</td>
+                <td class="profit">$+375.89</td>
+                <td class="profit">+18.8%</td>
+                <td>29 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>53</td>
+                <td>2024-03-22</td>
+                <td>09:05</td>
+                <td>09:45</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$192.36</td>
+                <td>$189.84</td>
+                <td>100</td>
+                <td class="loss">$-252.71</td>
+                <td class="loss">-12.6%</td>
+                <td>40 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>54</td>
+                <td>2024-03-25</td>
+                <td>13:15</td>
+                <td>13:58</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$193.08</td>
+                <td>$191.54</td>
+                <td>100</td>
+                <td class="loss">$-153.75</td>
+                <td class="loss">-7.7%</td>
+                <td>43 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>55</td>
+                <td>2024-03-25</td>
+                <td>13:45</td>
+                <td>14:00</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$195.44</td>
+                <td>$198.64</td>
+                <td>100</td>
+                <td class="profit">$+320.47</td>
+                <td class="profit">+16.0%</td>
+                <td>15 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>56</td>
+                <td>2024-03-26</td>
+                <td>11:15</td>
+                <td>11:51</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$193.95</td>
+                <td>$195.09</td>
+                <td>100</td>
+                <td class="profit">$+114.21</td>
+                <td class="profit">+5.7%</td>
+                <td>36 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>57</td>
+                <td>2024-04-03</td>
+                <td>14:05</td>
+                <td>14:36</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$196.67</td>
+                <td>$201.21</td>
+                <td>100</td>
+                <td class="profit">$+454.09</td>
+                <td class="profit">+22.7%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>58</td>
+                <td>2024-04-04</td>
+                <td>09:15</td>
+                <td>09:21</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$196.06</td>
+                <td>$198.01</td>
+                <td>100</td>
+                <td class="profit">$+194.48</td>
+                <td class="profit">+9.7%</td>
+                <td>6 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>59</td>
+                <td>2024-04-05</td>
+                <td>13:35</td>
+                <td>14:06</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$194.83</td>
+                <td>$200.33</td>
+                <td>100</td>
+                <td class="profit">$+550.34</td>
+                <td class="profit">+27.5%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>60</td>
+                <td>2024-04-08</td>
+                <td>14:15</td>
+                <td>14:44</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$198.25</td>
+                <td>$190.66</td>
+                <td>100</td>
+                <td class="profit">$+758.99</td>
+                <td class="profit">+38.0%</td>
+                <td>29 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>61</td>
+                <td>2024-04-09</td>
+                <td>13:55</td>
+                <td>14:25</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$194.11</td>
+                <td>$199.30</td>
+                <td>100</td>
+                <td class="profit">$+519.68</td>
+                <td class="profit">+26.0%</td>
+                <td>30 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>62</td>
+                <td>2024-04-10</td>
+                <td>09:55</td>
+                <td>10:16</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$198.32</td>
+                <td>$198.71</td>
+                <td>100</td>
+                <td class="profit">$+38.74</td>
+                <td class="profit">+1.9%</td>
+                <td>21 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>63</td>
+                <td>2024-04-12</td>
+                <td>13:25</td>
+                <td>14:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$200.40</td>
+                <td>$201.20</td>
+                <td>100</td>
+                <td class="profit">$+80.41</td>
+                <td class="profit">+4.0%</td>
+                <td>39 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>64</td>
+                <td>2024-04-15</td>
+                <td>10:55</td>
+                <td>11:01</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$197.41</td>
+                <td>$202.74</td>
+                <td>100</td>
+                <td class="profit">$+533.55</td>
+                <td class="profit">+26.7%</td>
+                <td>6 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>65</td>
+                <td>2024-04-15</td>
+                <td>10:05</td>
+                <td>10:39</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$200.23</td>
+                <td>$200.90</td>
+                <td>100</td>
+                <td class="profit">$+67.53</td>
+                <td class="profit">+3.4%</td>
+                <td>34 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>66</td>
+                <td>2024-04-16</td>
+                <td>10:45</td>
+                <td>11:00</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$202.35</td>
+                <td>$208.45</td>
+                <td>100</td>
+                <td class="profit">$+610.50</td>
+                <td class="profit">+30.5%</td>
+                <td>15 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>67</td>
+                <td>2024-04-19</td>
+                <td>15:35</td>
+                <td>15:46</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$203.37</td>
+                <td>$203.08</td>
+                <td>100</td>
+                <td class="loss">$-29.17</td>
+                <td class="loss">-1.5%</td>
+                <td>11 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>68</td>
+                <td>2024-04-22</td>
+                <td>15:45</td>
+                <td>15:52</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$204.83</td>
+                <td>$203.91</td>
+                <td>100</td>
+                <td class="loss">$-91.82</td>
+                <td class="loss">-4.6%</td>
+                <td>7 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>69</td>
+                <td>2024-04-23</td>
+                <td>11:05</td>
+                <td>11:33</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$206.71</td>
+                <td>$203.39</td>
+                <td>100</td>
+                <td class="loss">$-331.49</td>
+                <td class="loss">-16.6%</td>
+                <td>28 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>70</td>
+                <td>2024-04-24</td>
+                <td>15:15</td>
+                <td>15:37</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$207.41</td>
+                <td>$203.63</td>
+                <td>100</td>
+                <td class="loss">$-377.64</td>
+                <td class="loss">-18.9%</td>
+                <td>22 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>71</td>
+                <td>2024-04-24</td>
+                <td>14:35</td>
+                <td>14:45</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$211.28</td>
+                <td>$202.48</td>
+                <td>100</td>
+                <td class="profit">$+879.62</td>
+                <td class="profit">+44.0%</td>
+                <td>10 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>72</td>
+                <td>2024-04-25</td>
+                <td>13:45</td>
+                <td>14:10</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$205.78</td>
+                <td>$209.73</td>
+                <td>100</td>
+                <td class="profit">$+395.43</td>
+                <td class="profit">+19.8%</td>
+                <td>25 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>73</td>
+                <td>2024-04-29</td>
+                <td>11:25</td>
+                <td>11:35</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$206.78</td>
+                <td>$212.18</td>
+                <td>100</td>
+                <td class="profit">$+540.62</td>
+                <td class="profit">+27.0%</td>
+                <td>10 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>74</td>
+                <td>2024-04-30</td>
+                <td>14:15</td>
+                <td>14:21</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$207.58</td>
+                <td>$210.10</td>
+                <td>100</td>
+                <td class="profit">$+252.05</td>
+                <td class="profit">+12.6%</td>
+                <td>6 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>75</td>
+                <td>2024-05-02</td>
+                <td>11:55</td>
+                <td>12:21</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$210.02</td>
+                <td>$208.90</td>
+                <td>100</td>
+                <td class="loss">$-112.80</td>
+                <td class="loss">-5.6%</td>
+                <td>26 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>76</td>
+                <td>2024-05-03</td>
+                <td>11:25</td>
+                <td>12:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$210.70</td>
+                <td>$216.25</td>
+                <td>100</td>
+                <td class="profit">$+554.83</td>
+                <td class="profit">+27.7%</td>
+                <td>39 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>77</td>
+                <td>2024-05-06</td>
+                <td>10:15</td>
+                <td>10:26</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$213.20</td>
+                <td>$214.96</td>
+                <td>100</td>
+                <td class="profit">$+175.51</td>
+                <td class="profit">+8.8%</td>
+                <td>11 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>78</td>
+                <td>2024-05-08</td>
+                <td>11:05</td>
+                <td>11:13</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$220.32</td>
+                <td>$213.29</td>
+                <td>100</td>
+                <td class="profit">$+702.15</td>
+                <td class="profit">+35.1%</td>
+                <td>8 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>79</td>
+                <td>2024-05-09</td>
+                <td>10:55</td>
+                <td>11:28</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$217.55</td>
+                <td>$215.38</td>
+                <td>100</td>
+                <td class="loss">$-216.88</td>
+                <td class="loss">-10.8%</td>
+                <td>33 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>80</td>
+                <td>2024-05-10</td>
+                <td>11:35</td>
+                <td>12:16</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$217.72</td>
+                <td>$219.24</td>
+                <td>100</td>
+                <td class="profit">$+152.70</td>
+                <td class="profit">+7.6%</td>
+                <td>41 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>81</td>
+                <td>2024-05-10</td>
+                <td>09:15</td>
+                <td>09:46</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$216.88</td>
+                <td>$223.47</td>
+                <td>100</td>
+                <td class="profit">$+659.15</td>
+                <td class="profit">+33.0%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>82</td>
+                <td>2024-05-13</td>
+                <td>10:45</td>
+                <td>11:27</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$221.29</td>
+                <td>$222.50</td>
+                <td>100</td>
+                <td class="profit">$+121.52</td>
+                <td class="profit">+6.1%</td>
+                <td>42 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>83</td>
+                <td>2024-05-14</td>
+                <td>14:05</td>
+                <td>14:15</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$222.12</td>
+                <td>$218.59</td>
+                <td>100</td>
+                <td class="loss">$-353.23</td>
+                <td class="loss">-17.7%</td>
+                <td>10 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>84</td>
+                <td>2024-05-20</td>
+                <td>14:35</td>
+                <td>15:09</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$227.30</td>
+                <td>$232.44</td>
+                <td>100</td>
+                <td class="profit">$+514.85</td>
+                <td class="profit">+25.7%</td>
+                <td>34 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>85</td>
+                <td>2024-05-23</td>
+                <td>14:55</td>
+                <td>15:17</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$232.41</td>
+                <td>$235.51</td>
+                <td>100</td>
+                <td class="profit">$+310.14</td>
+                <td class="profit">+15.5%</td>
+                <td>22 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>86</td>
+                <td>2024-05-29</td>
+                <td>15:45</td>
+                <td>16:09</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$235.14</td>
+                <td>$241.33</td>
+                <td>100</td>
+                <td class="profit">$+619.28</td>
+                <td class="profit">+31.0%</td>
+                <td>24 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>87</td>
+                <td>2024-05-30</td>
+                <td>14:45</td>
+                <td>15:06</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$237.78</td>
+                <td>$239.36</td>
+                <td>100</td>
+                <td class="profit">$+157.32</td>
+                <td class="profit">+7.9%</td>
+                <td>21 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>88</td>
+                <td>2024-05-30</td>
+                <td>10:55</td>
+                <td>11:17</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$236.99</td>
+                <td>$234.77</td>
+                <td>100</td>
+                <td class="loss">$-222.50</td>
+                <td class="loss">-11.1%</td>
+                <td>22 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>89</td>
+                <td>2024-05-31</td>
+                <td>10:35</td>
+                <td>11:11</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$239.49</td>
+                <td>$238.71</td>
+                <td>100</td>
+                <td class="loss">$-78.14</td>
+                <td class="loss">-3.9%</td>
+                <td>36 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>90</td>
+                <td>2024-06-03</td>
+                <td>13:25</td>
+                <td>13:56</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$241.11</td>
+                <td>$244.01</td>
+                <td>100</td>
+                <td class="profit">$+289.84</td>
+                <td class="profit">+14.5%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>91</td>
+                <td>2024-06-05</td>
+                <td>14:05</td>
+                <td>14:42</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$243.63</td>
+                <td>$244.17</td>
+                <td>100</td>
+                <td class="profit">$+53.91</td>
+                <td class="profit">+2.7%</td>
+                <td>37 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>92</td>
+                <td>2024-06-05</td>
+                <td>09:55</td>
+                <td>10:33</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$242.99</td>
+                <td>$246.33</td>
+                <td>100</td>
+                <td class="profit">$+334.36</td>
+                <td class="profit">+16.7%</td>
+                <td>38 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>93</td>
+                <td>2024-06-06</td>
+                <td>15:35</td>
+                <td>16:11</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$246.30</td>
+                <td>$248.97</td>
+                <td>100</td>
+                <td class="profit">$+267.11</td>
+                <td class="profit">+13.4%</td>
+                <td>36 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>94</td>
+                <td>2024-06-07</td>
+                <td>14:15</td>
+                <td>14:46</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$247.26</td>
+                <td>$248.37</td>
+                <td>100</td>
+                <td class="profit">$+110.74</td>
+                <td class="profit">+5.5%</td>
+                <td>31 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>95</td>
+                <td>2024-06-07</td>
+                <td>09:35</td>
+                <td>09:57</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$247.58</td>
+                <td>$255.46</td>
+                <td>100</td>
+                <td class="profit">$+788.18</td>
+                <td class="profit">+39.4%</td>
+                <td>22 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>96</td>
+                <td>2024-06-10</td>
+                <td>13:15</td>
+                <td>13:58</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$249.20</td>
+                <td>$250.52</td>
+                <td>100</td>
+                <td class="profit">$+132.30</td>
+                <td class="profit">+6.6%</td>
+                <td>43 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>97</td>
+                <td>2024-06-11</td>
+                <td>09:25</td>
+                <td>09:30</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$252.51</td>
+                <td>$254.43</td>
+                <td>100</td>
+                <td class="profit">$+191.39</td>
+                <td class="profit">+9.6%</td>
+                <td>5 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>98</td>
+                <td>2024-06-11</td>
+                <td>11:45</td>
+                <td>12:18</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$251.68</td>
+                <td>$248.80</td>
+                <td>100</td>
+                <td class="loss">$-288.56</td>
+                <td class="loss">-14.4%</td>
+                <td>33 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>99</td>
+                <td>2024-06-12</td>
+                <td>14:45</td>
+                <td>15:14</td>
+                <td>📉 SHORT</td>
+                <td>Price Above VWAP</td>
+                <td>$259.76</td>
+                <td>$264.61</td>
+                <td>100</td>
+                <td class="loss">$-484.89</td>
+                <td class="loss">-24.2%</td>
+                <td>29 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>100</td>
+                <td>2024-06-13</td>
+                <td>09:25</td>
+                <td>09:54</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$253.18</td>
+                <td>$251.36</td>
+                <td>100</td>
+                <td class="loss">$-182.02</td>
+                <td class="loss">-9.1%</td>
+                <td>29 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>101</td>
+                <td>2024-06-14</td>
+                <td>15:15</td>
+                <td>15:48</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$254.64</td>
+                <td>$256.72</td>
+                <td>100</td>
+                <td class="profit">$+207.99</td>
+                <td class="profit">+10.4%</td>
+                <td>33 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>102</td>
+                <td>2024-06-17</td>
+                <td>09:55</td>
+                <td>10:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$254.56</td>
+                <td>$248.71</td>
+                <td>100</td>
+                <td class="loss">$-584.51</td>
+                <td class="loss">-29.2%</td>
+                <td>9 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>103</td>
+                <td>2024-06-17</td>
+                <td>11:25</td>
+                <td>12:04</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$257.09</td>
+                <td>$256.66</td>
+                <td>100</td>
+                <td class="loss">$-43.42</td>
+                <td class="loss">-2.2%</td>
+                <td>39 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>104</td>
+                <td>2024-06-18</td>
+                <td>15:35</td>
+                <td>16:20</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$257.46</td>
+                <td>$266.24</td>
+                <td>100</td>
+                <td class="profit">$+877.67</td>
+                <td class="profit">+43.9%</td>
+                <td>45 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>105</td>
+                <td>2024-06-24</td>
+                <td>15:55</td>
+                <td>16:03</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$264.87</td>
+                <td>$270.36</td>
+                <td>100</td>
+                <td class="profit">$+549.11</td>
+                <td class="profit">+27.5%</td>
+                <td>8 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>106</td>
+                <td>2024-06-24</td>
+                <td>11:35</td>
+                <td>11:51</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$262.83</td>
+                <td>$266.74</td>
+                <td>100</td>
+                <td class="profit">$+390.24</td>
+                <td class="profit">+19.5%</td>
+                <td>16 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>107</td>
+                <td>2024-06-26</td>
+                <td>14:55</td>
+                <td>15:16</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$263.92</td>
+                <td>$270.83</td>
+                <td>100</td>
+                <td class="profit">$+690.60</td>
+                <td class="profit">+34.5%</td>
+                <td>21 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>108</td>
+                <td>2024-06-26</td>
+                <td>13:25</td>
+                <td>13:52</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$267.25</td>
+                <td>$271.09</td>
+                <td>100</td>
+                <td class="profit">$+384.29</td>
+                <td class="profit">+19.2%</td>
+                <td>27 min</td>
+                <td>✅</td>
+            </tr>
+        
+            <tr>
+                <td>109</td>
+                <td>2024-06-28</td>
+                <td>15:25</td>
+                <td>15:54</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$269.65</td>
+                <td>$265.22</td>
+                <td>100</td>
+                <td class="loss">$-443.19</td>
+                <td class="loss">-22.2%</td>
+                <td>29 min</td>
+                <td>❌</td>
+            </tr>
+        
+            <tr>
+                <td>110</td>
+                <td>2024-06-28</td>
+                <td>14:25</td>
+                <td>14:55</td>
+                <td>📈 LONG</td>
+                <td>Price Below VWAP</td>
+                <td>$268.82</td>
+                <td>$264.84</td>
+                <td>100</td>
+                <td class="loss">$-398.07</td>
+                <td class="loss">-19.9%</td>
+                <td>30 min</td>
+                <td>❌</td>
+            </tr>
+        
+        </table>
+
+        <h2>🎯 Strategic Analysis</h2>
+        <div class="summary">
+            <h3>Directional Effectiveness:</h3>
+            <ul>
+                <li><strong>Long Positions:</strong> Needs Improvement (69.6% win rate, 15461.4 bps avg)</li>
+                <li><strong>Short Positions:</strong> Good (62.5% win rate, 38733.5 bps avg)</li>
+                <li><strong>Synergy:</strong> Excellent (difference: 7.1 percentage points)</li>
+            </ul>
+
+            <h3>Performance Assessment:</h3>
+            <ul>
+                <li><strong>Risk-Adjusted Returns:</strong> Poor (Sharpe: 0.166)</li>
+                <li><strong>Risk Management:</strong> Excellent (Max DD: -1.00%)</li>
+                <li><strong>Consistency:</strong> Good (Win Rate: 69.1%)</li>
+            </ul>
+        </div>
+
+        <h2>🔧 Enhanced Strategy Features</h2>
+        <div class="summary">
+            <h3>Bidirectional Trading:</h3>
+            <ul>
+                <li><strong>Long Entries:</strong> Buy when price deviates below VWAP (buy the dip)</li>
+                <li><strong>Short Entries:</strong> Sell when price deviates above VWAP (sell the rally)</li>
+                <li><strong>VWAP Targets:</strong> Exit when price reverts to VWAP in either direction</li>
+                <li><strong>Volume Filter:</strong> Minimum relative volume threshold (rvol ≥ 1.0)</li>
+                <li><strong>Deviation Threshold:</strong> Minimum 0.5% deviation from VWAP for entry</li>
+            </ul>
+
+            <h3>Risk Management:</h3>
+            <ul>
+                <li><strong>Position Sizing:</strong> 2% risk per trade across all positions</li>
+                <li><strong>Stop Loss:</strong> ATR-based stops (2x ATR multiplier)</li>
+                <li><strong>Time Limits:</strong> Maximum 50 bars (50 minutes) holding time</li>
+                <li><strong>Portfolio Limits:</strong> Maximum 5 concurrent positions</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>Report generated on 2025-10-15 10:22:53 | QuantStack Bidirectional VWAP Engine</p>
+        </div>
+    </div>
+</body>
+</html>
+    

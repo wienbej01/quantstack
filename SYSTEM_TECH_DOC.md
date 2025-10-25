@@ -54,6 +54,16 @@ This document describes the QuantStack trading system's technical architecture, 
 - Data validation: Run `check_gold_and_make_smoke_sample.py` with appropriate parameters
 - Environment: Requires Python 3, pandas, GCS mount access
 
+### Plug-and-Play Guidelines
+- Core modules (`qx_data`, `qx_features`, `qx_backtest` engine/fill, `qx_risk`, `qx_core`, `qx_report`, CLI metrics) remain **frozen infrastructure**; any changes require documented review.
+- Strategies should plug in via config overlays (`policy_params`, `risk_params`), policy classes under `qx_backtest/policies/`, and SIP/feature pack registration. Extend rather than modify the core.
+- Reproducibility is mandatory: `bars_norm_hash`, `features_hash`, `sip_hash`, and `config_hash` must stay stable unless maintainers sign off on the change.
+
+### Strategy Portfolio
+- **VWAP Revert** – mean-reversion baseline with risk controls; the default `entry-ab` config continues to reference this policy.
+- **VWAP Momentum** – breakout variant now sharing the same risk hooks (ATR sizing, warm-up gating). Command-line usage mirrors the revert flow but with `policy: vwap_momentum`.
+- Use `tools/grid_search_apr2024.py` for quick parameter sweeps across 5/15/30/60 minute aggregations (SIP and risk settings are adjustable).
+
 ## Assumptions
 - Gold data is mounted at `/home/jacobw/gcs-mount/gold/`
 - Virtual environment activated for dependencies

@@ -1,0 +1,88 @@
+# Stress regime testing configuration
+gold_root: "/home/jacobw/gcs-mount"
+family: "stocks"
+symbols: ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"]
+dates: ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-08", "2024-01-09", "2024-01-10", "2024-01-11", "2024-01-12", "2024-01-15", "2024-01-16", "2024-01-17", "2024-01-18", "2024-01-19", "2024-01-22"]
+
+# Feature configuration optimized for stress detection
+features:
+  - name: "regime_fast"  # Faster response for stress testing
+    params: {}
+  - name: "core_basics"
+    params:
+      vwap_window_m: 20  # Shorter windows for faster response
+      rel_vol_window_m: 20
+      atr_window: 10
+
+# Regime detection configuration - stress focused
+regime:
+  enabled: true
+  model: "rules"
+  persistence_bars: 2  # Quick response
+  cooldown_minutes: 5   # Short cooldown for testing
+
+  # Conservative strategy mapping for stress testing
+  strategy_map:
+    BULL: ["vwap_momentum"]
+    BEAR: ["vwap_revert"]
+    SIDEWAYS: ["vwap_revert"]
+    STRESS: []  # No trading during stress
+
+  # Sensitive stress detection parameters
+  detector_params:
+    variance_ratio_bull: 1.1
+    variance_ratio_bear: 0.9
+    adx_trend_threshold: 20.0  # Lower threshold
+    volatility_stress_threshold: 1.5  # Lower stress threshold
+    volatility_high_threshold: 1.3
+    volatility_low_threshold: 0.8
+    stress_vol_threshold: 1.5  # Lower volume threshold
+    stress_volume_threshold: 2.0
+    sideways_band_min: 0.3
+    sideways_band_max: 0.7
+    variance_ratio_weight: 0.3
+    adx_weight: 0.3
+    volatility_weight: 0.3  # Higher weight for volatility
+    band_position_weight: 0.1
+
+# Conservative policy
+policy: "vwap_revert"
+policy_params:
+  rvol_min: 1.2  # Higher threshold for more selective trading
+  vwap_window_m: 20
+  max_position_bars: 30  # Shorter holding periods
+
+# Very conservative risk management for stress testing
+risk: "atr_stop"
+risk_params:
+  max_risk_frac: 0.015  # Lower risk fraction
+  atr_mult: 2.5  # Wider stops
+  regime_adjustments:
+    BULL:
+      risk_multiplier: 0.9
+      atr_multiplier: 1.1
+    BEAR:
+      risk_multiplier: 0.6
+      atr_multiplier: 1.4
+    SIDEWAYS:
+      risk_multiplier: 0.7
+      atr_multiplier: 1.2
+    STRESS:
+      risk_multiplier: 0.2  # Very low risk in stress
+      atr_multiplier: 2.0
+    OFF:
+      risk_multiplier: 1.0
+      atr_multiplier: 1.0
+
+# Backtest configuration
+backtest:
+  initial_equity: 1000000
+  cost_bps: 5
+  cost_per_share: 0.0035
+
+# Experiment metadata
+seed: 123
+description: "Stress regime testing with conservative parameters"
+
+# SIP configuration (optional)
+sip_filter: false

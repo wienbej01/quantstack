@@ -1,9 +1,37 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "qx-cli"
 version = "0.1.0"
-description = "Orchestration CLI"
+description = "Orchestration CLI for QuantStack experiments"
+readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["qx-core", "typer", "rich", "pandas", "pyarrow", "pyyaml>=6.0"]
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pyarrow>=12.0.0",
+    "pydantic>=2.0.0",
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "pyyaml>=6.0",
+    "click>=8.0.0",
+    "qx-core",
+    "qx-data",
+    "qx-features",
+    "qx-screener",
+    "qx-backtest",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+qx = "qx_cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx_cli"]

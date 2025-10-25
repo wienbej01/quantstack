@@ -1,0 +1,101 @@
+# Full pipeline: HMM_SIP universe selection -> Regime detection -> VWAP strategies
+gold_root: "/home/jacobw/gcs-mount"
+family: "stocks"
+# Remove fixed symbols - will use HMM_SIP universe selection
+dates: ["2024-04-01", "2024-04-02", "2024-04-03", "2024-04-04", "2024-04-05", "2024-04-06", "2024-04-07"]
+
+# Feature configuration
+features:
+  - name: "regime_basics"
+    params: {}
+  - name: "core_basics"
+    params:
+      vwap_window_m: 30
+      rel_vol_window_m: 30
+      atr_window: 14
+
+# HMM_SIP Universe Selection
+sip_filter: true
+sip_config:
+  mode: "daily"
+  top_k: 100  # Select top 100 symbols
+  score_floor: 0.1
+  rebalance_frequency: "daily"
+  enable_gold_fallback: true
+
+# Regime detection configuration
+regime:
+  enabled: true
+  model: "rules"
+  persistence_bars: 3
+  cooldown_minutes: 15
+
+  # Strategy mapping by regime
+  strategy_map:
+    BULL: ["vwap_momentum", "vwap_revert"]
+    BEAR: ["vwap_momentum", "vwap_revert"]
+    SIDEWAYS: ["vwap_revert"]
+    STRESS: []
+
+  # Detector parameters
+  detector_params:
+    variance_ratio_bull: 1.2
+    variance_ratio_bear: 0.8
+    adx_trend_threshold: 30.0
+    volatility_stress_threshold: 2.0
+    volatility_high_threshold: 1.5
+    volatility_low_threshold: 0.7
+    stress_vol_threshold: 2.0
+    stress_volume_threshold: 3.0
+    sideways_band_min: 0.2
+    sideways_band_max: 0.8
+    variance_ratio_weight: 0.4
+    adx_weight: 0.3
+    volatility_weight: 0.2
+    band_position_weight: 0.1
+
+# Base policy
+policy: "vwap_revert"
+policy_params:
+  rvol_min: 1.0
+  vwap_window_m: 30
+  max_position_bars: 50
+
+# Risk management with regime awareness
+risk: "atr_stop"
+risk_params:
+  max_risk_frac: 0.02
+  atr_mult: 2.0
+  regime_adjustments:
+    BULL:
+      risk_multiplier: 1.0
+      atr_multiplier: 1.0
+    BEAR:
+      risk_multiplier: 0.8
+      atr_multiplier: 1.2
+    SIDEWAYS:
+      risk_multiplier: 0.9
+      atr_multiplier: 1.1
+    STRESS:
+      risk_multiplier: 0.3
+      atr_multiplier: 1.5
+    OFF:
+      risk_multiplier: 1.0
+      atr_multiplier: 1.0
+
+# Backtest configuration
+backtest:
+  initial_equity: 1000000
+  cost_bps: 5
+  cost_per_share: 0.0035
+
+# Experiment metadata
+seed: 42
+description: "Full pipeline: HMM_SIP -> Regime detection -> VWAP momentum/reversion strategies"
+
+# Portfolio reporting
+portfolio_report:
+  enabled: true
+  include_trade_details: true
+  include_regime_analysis: true
+  include_universe_stats: true

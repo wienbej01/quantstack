@@ -1,0 +1,61 @@
+{
+  "experiment": "experiments/vwap_pilot_e2e",
+  "exp_id": "vwap_pilot_e2e",
+  "type": "entry-ab",
+  "variants": 2,
+  "results": [
+    {
+      "run_id": "dcb3952d-3085-4572-81b4-7f6a926cde5c",
+      "variant": "policy_a",
+      "rvol_min": 1.0,
+      "trades": 12,
+      "avg_R": 0.5740979109695284,
+      "sharpe_CI_high": 1.5,
+      "win_rate": 0.75,
+      "total_pnl": 688.9174931634341
+    },
+    {
+      "run_id": "911815ae-f119-49cd-85bb-9dae56173908",
+      "variant": "policy_b",
+      "rvol_min": 1.5,
+      "trades": 18,
+      "avg_R": 0.5470629890811265,
+      "sharpe_CI_high": 1.8,
+      "win_rate": 0.6666666666666666,
+      "total_pnl": 984.7133803460276
+    }
+  ],
+  "leaderboard": [
+    {
+      "run_id": "911815ae-f119-49cd-85bb-9dae56173908",
+      "variant": "policy_b",
+      "rvol_min": 1.5,
+      "trades": 18,
+      "avg_R": 0.5470629890811265,
+      "sharpe_CI_high": 1.8,
+      "win_rate": 0.6666666666666666,
+      "total_pnl": 984.7133803460276
+    },
+    {
+      "run_id": "dcb3952d-3085-4572-81b4-7f6a926cde5c",
+      "variant": "policy_a",
+      "rvol_min": 1.0,
+      "trades": 12,
+      "avg_R": 0.5740979109695284,
+      "sharpe_CI_high": 1.5,
+      "win_rate": 0.75,
+      "total_pnl": 688.9174931634341
+    }
+  ],
+  "winner": {
+    "run_id": "911815ae-f119-49cd-85bb-9dae56173908",
+    "variant": "policy_b",
+    "rvol_min": 1.5,
+    "trades": 18,
+    "avg_R": 0.5470629890811265,
+    "sharpe_CI_high": 1.8,
+    "win_rate": 0.6666666666666666,
+    "total_pnl": 984.7133803460276
+  },
+  "created_at": "2025-10-14T14:12:36.378914"
+}

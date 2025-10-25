@@ -1,0 +1,35 @@
+{
+  "performance": {
+    "total_return": -0.03620838984794994,
+    "annualized_return": -0.000584198335498165,
+    "volatility": 0.21623175229295585,
+    "sharpe_ratio": -0.09519507712082086,
+    "max_drawdown": -0.1278761326558088,
+    "max_drawdown_duration": 15457,
+    "win_rate": 0.2467889908256881,
+    "profit_factor": 0.3594934708000984,
+    "total_trades": 1090
+  },
+  "trading": {
+    "total_trades": 1090,
+    "winning_trades": 269,
+    "losing_trades": 821,
+    "avg_trade_pnl": -27.82220258561905,
+    "avg_win": 63.27514839273123,
+    "avg_loss": -57.67017751031604,
+    "largest_win": 484.6604035810451,
+    "largest_loss": -413.23930508262856
+  },
+  "execution": {
+    "total_commissions": 3247.0000000000055,
+    "total_slippage": 0.0,
+    "fill_rate": 0.5
+  },
+  "metadata": {
+    "start_date": "2024-06-03",
+    "end_date": "2024-07-01",
+    "benchmark": "SPY",
+    "strategy_name": "Unknown",
+    "equity_curve_length": 15904
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "gold_root": "/home/jacobw/gcs-mount/gold",
+  "family": "bars_1m",
+  "symbols": [
+    "AAPL"
+  ],
+  "dates": [
+    "2024-02-01",
+    "2024-02-02",
+    "2024-02-05",
+    "2024-02-06",
+    "2024-02-07",
+    "2024-02-08",
+    "2024-02-09",
+    "2024-02-12",
+    "2024-02-13",
+    "2024-02-14",
+    "2024-02-15",
+    "2024-02-16",
+    "2024-02-20",
+    "2024-02-21",
+    "2024-02-22",
+    "2024-02-23",
+    "2024-02-26",
+    "2024-02-27",
+    "2024-02-28",
+    "2024-02-29"
+  ],
+  "features": [
+    {
+      "name": "core_basics",
+      "params": {
+        "vwap_window_m": 30,
+        "rel_vol_window_m": 30,
+        "atr_window": 14
+      }
+    }
+  ],
+  "policy": "vwap_revert",
+  "policy_params": {
+    "rvol_min": 1.0,
+    "vwap_window_m": 30,
+    "max_position_bars": 50
+  },
+  "risk": "atr_stop",
+  "risk_params": {
+    "max_risk_frac": 0.02,
+    "atr_mult": 2.0
+  },
+  "backtest": {
+    "initial_equity": 100000,
+    "cost_bps": 5,
+    "cost_per_share": 0.0035
+  },
+  "seed": 42,
+  "sip_filter": false,
+  "bidirectional": true
+}

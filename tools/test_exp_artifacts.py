@@ -1,10 +1,31 @@
 #!/usr/bin/env python3
-import argparse, json, sys
+import argparse
+import json
+import sys
 from pathlib import Path
+
 import pandas as pd
 
-REQ_TRADE_COLS = {"entry_ts","exit_ts","symbol","side","qty","entry_px","exit_px","pnl"}
-REQ_METRIC_KEYS = ["trades","avg_R","ES_95","pvalue_u","sharpe_CI_low","sharpe_CI_high","capacity_break_even_bps"]
+REQ_TRADE_COLS = {
+    "entry_ts",
+    "exit_ts",
+    "symbol",
+    "side",
+    "qty",
+    "entry_px",
+    "exit_px",
+    "pnl",
+}
+REQ_METRIC_KEYS = [
+    "trades",
+    "avg_R",
+    "ES_95",
+    "pvalue_u",
+    "sharpe_CI_low",
+    "sharpe_CI_high",
+    "capacity_break_even_bps",
+]
+
 
 def check_trades(run_dir: Path):
     fp = next(run_dir.rglob("trades.parquet"), None)
@@ -19,6 +40,7 @@ def check_trades(run_dir: Path):
             raise AssertionError("NaNs detected in pnl")
     return str(fp)
 
+
 def check_metrics(run_dir: Path):
     fp = next(run_dir.rglob("metrics.json"), None)
     if not fp:
@@ -29,8 +51,11 @@ def check_metrics(run_dir: Path):
             raise AssertionError(f"metrics missing key: {k}")
     return str(fp)
 
+
 def main():
-    ap = argparse.ArgumentParser(description="Validate artifacts emitted by experiments harness")
+    ap = argparse.ArgumentParser(
+        description="Validate artifacts emitted by experiments harness"
+    )
     ap.add_argument("--runs-root", default="runs", help="Root where run_* folders live")
     args = ap.parse_args()
 
@@ -55,6 +80,7 @@ def main():
             print(f"[fail] {rd.name}: {e}", file=sys.stderr)
 
     sys.exit(0 if ok else 1)
+
 
 if __name__ == "__main__":
     main()

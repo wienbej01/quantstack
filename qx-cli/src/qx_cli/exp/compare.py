@@ -15,7 +15,9 @@ console = Console()
 @app.command("compare")
 def compare(
     exp: pathlib.Path = typer.Option(..., "--exp", help="Experiment directory"),
-    force: bool = typer.Option(False, "--force", help="Force comparison even if checksums differ"),
+    force: bool = typer.Option(
+        False, "--force", help="Force comparison even if checksums differ"
+    ),
 ) -> None:
     """Compare variants in an experiment."""
     console.print(f"Comparing experiment: {exp}")
@@ -45,7 +47,9 @@ def compare(
 
         # Check if all checksums match (stub: always pass for now)
         if not _checksums_match(checksums):
-            console.print("Input checksums differ. Use --force to compare anyway.", style="red")
+            console.print(
+                "Input checksums differ. Use --force to compare anyway.", style="red"
+            )
             raise typer.Exit(1)
 
     # Collect metrics from runs
@@ -62,7 +66,9 @@ def compare(
         "experiment": str(exp),
         "variants": len(results),
         "results": results,
-        "leaderboard": sorted(results, key=lambda x: x["metrics"]["sharpe_CI_high"], reverse=True),
+        "leaderboard": sorted(
+            results, key=lambda x: x["metrics"].get("sharpe_ratio", 0.0), reverse=True
+        ),
     }
 
     with open(exp_dir / "compare.json", "w") as f:
@@ -74,17 +80,17 @@ def compare(
     # Display table
     table = Table(title="Experiment Comparison")
     table.add_column("Run ID", style="cyan")
-    table.add_column("Trades", justify="right")
-    table.add_column("Avg R", justify="right")
-    table.add_column("Sharpe CI", justify="right")
+    table.add_column("Total Return", justify="right")
+    table.add_column("Sharpe Ratio", justify="right")
+    table.add_column("Win Rate", justify="right")
 
     for result in compare_data["leaderboard"]:
         m = result["metrics"]
         table.add_row(
             result["run_id"][:8],
-            str(m["trades"]),
-            f"{m['avg_R']:.3f}",
-            f"[{m['sharpe_CI_low']:.2f}, {m['sharpe_CI_high']:.2f}]",
+            f"{m.get('total_return', 0.0):.3f}",
+            f"{m.get('sharpe_ratio', 0.0):.3f}",
+            f"{m.get('win_rate', 0.0):.3f}",
         )
 
     console.print(table)
@@ -102,10 +108,7 @@ def _checksums_match(checksums: list) -> bool:
         return True
     first = checksums[0]
     keys_to_check = ["bars_norm_hash", "features_hash", "sip_hash", "seed"]
-    return all(
-        all(c.get(k) == first.get(k) for k in keys_to_check)
-        for c in checksums
-    )
+    return all(all(c.get(k) == first.get(k) for k in keys_to_check) for c in checksums)
 
 
 def _generate_compare_md(exp_dir: pathlib.Path, data: dict) -> None:
@@ -116,12 +119,12 @@ def _generate_compare_md(exp_dir: pathlib.Path, data: dict) -> None:
 - Variants: {data['variants']}
 
 ## Leaderboard
-| Run ID | Trades | Avg R | Sharpe CI |
-|--------|--------|-------|-----------|
+| Run ID | Total Return | Sharpe Ratio | Win Rate |
+|--------|-------------|--------------|----------|
 """
     for result in data["leaderboard"]:
         m = result["metrics"]
-        md += f"| {result['run_id'][:8]} | {m['trades']} | {m['avg_R']:.3f} | [{m['sharpe_CI_low']:.2f}, {m['sharpe_CI_high']:.2f}] |\n"
+        md += f"| {result['run_id'][:8]} | {m.get('total_return', 0.0):.3f} | {m.get('sharpe_ratio', 0.0):.3f} | {m.get('win_rate', 0.0):.3f} |\n"
 
     with open(exp_dir / "compare.md", "w") as f:
         f.write(md)

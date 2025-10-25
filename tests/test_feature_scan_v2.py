@@ -1,13 +1,16 @@
 """Tests for feature scanner v2."""
 
 import json
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-from qx_scan.feature_scan import cluster_duplicates, parse_for_features, scan_features_v2, should_include_file
+from qx_scan.feature_scan import (
+    cluster_duplicates,
+    parse_for_features,
+    scan_features_v2,
+    should_include_file,
+)
 
 
 class TestFeatureScanV2:
@@ -119,6 +122,7 @@ def non_feature_function(x):
 
         with patch("qx_scan.feature_scan.scan_features_v2", return_value=sample_result):
             from qx_scan.feature_scan import main
+
             main()
 
             out_dir = Path("~/quantstack/qx-scan/out").expanduser()

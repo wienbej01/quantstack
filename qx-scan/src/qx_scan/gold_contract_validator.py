@@ -2,21 +2,35 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from rich.console import Console
 
 console = Console()
 
 ALLOWED_COLUMNS = {
-    "ts", "symbol", "open", "high", "low", "close", "volume", "trades",
-    "vwap", "session", "date_et", "turnover", "spread", "_dq_flags"
+    "ts",
+    "symbol",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "trades",
+    "vwap",
+    "session",
+    "date_et",
+    "turnover",
+    "spread",
+    "_dq_flags",
 }
 
 REQUIRED_COLUMNS = {"ts", "symbol", "open", "high", "low", "close", "volume"}
 
 
-def validate_gold_contract(root_path: str = "/home/jacobw/gcs-mount/gold") -> Dict[str, Any]:
+def validate_gold_contract(
+    root_path: str = "/home/jacobw/gcs-mount/gold",
+) -> dict[str, Any]:
     """Validate Gold data contracts."""
     root = Path(root_path)
     if not root.exists():
@@ -46,7 +60,7 @@ def validate_gold_contract(root_path: str = "/home/jacobw/gcs-mount/gold") -> Di
     }
 
 
-def validate_gold_file(file_path: Path) -> List[str]:
+def validate_gold_file(file_path: Path) -> list[str]:
     """Validate a single Gold Parquet file."""
     import pyarrow.parquet as pq
 
