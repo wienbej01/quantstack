@@ -43,7 +43,7 @@ def compute_vpa_features(
     df["volume_avg"] = df["volume"].rolling(window=20, min_periods=10).mean()
     df["volume_ratio"] = df["volume"] / df["volume_avg"]
     df["p__vpa__volume_spike"] = (df["volume_ratio"] > volume_spike_threshold).astype(
-        int
+        bool
     )
     df["conf__vpa__volume_spike"] = np.clip(
         (df["volume_ratio"] - 1.0) / (volume_spike_threshold - 1.0), 0, 1
@@ -59,12 +59,12 @@ def compute_vpa_features(
     df["price_range"] = df["price_high_max"] - df["price_low_min"]
 
     # Bullish breakout: close above previous high
-    df["bullish_breakout"] = (df["close"] > df["price_high_max"].shift(1)).astype(int)
+    df["bullish_breakout"] = (df["close"] > df["price_high_max"].shift(1)).astype(bool)
     # Bearish breakout: close below previous low
-    df["bearish_breakout"] = (df["close"] < df["price_low_min"].shift(1)).astype(int)
+    df["bearish_breakout"] = (df["close"] < df["price_low_min"].shift(1)).astype(bool)
     df["p__vpa__price_breakout"] = (
         df["bullish_breakout"] | df["bearish_breakout"]
-    ).astype(int)
+    ).astype(bool)
 
     # Confidence based on how much the breakout exceeds the previous range
     df["breakout_strength"] = np.where(
@@ -85,14 +85,14 @@ def compute_vpa_features(
     # Price up but volume down (bearish divergence)
     df["bearish_divergence"] = (
         (df["price_change"] > 0) & (df["volume_change"] < -0.1)
-    ).astype(int)
+    ).astype(bool)
     # Price down but volume up (bullish divergence)
     df["bullish_divergence"] = (
         (df["price_change"] < 0) & (df["volume_change"] > 0.1)
-    ).astype(int)
+    ).astype(bool)
     df["p__vpa__volume_divergence"] = (
         df["bearish_divergence"] | df["bullish_divergence"]
-    ).astype(int)
+    ).astype(bool)
 
     # Confidence based on magnitude of divergence
     df["divergence_magnitude"] = np.abs(df["price_change"]) * np.abs(
@@ -114,7 +114,7 @@ def compute_vpa_features(
     df["low_price_movement"] = df["price_movement"] < df["price_movement_avg"] * 0.5
     df["p__vpa__absorption"] = (
         df["vpr_high"] & df["low_price_movement"] & (df["volume"] > df["volume_avg"])
-    ).astype(int)
+    ).astype(bool)
 
     # Confidence based on how high the volume-price ratio is
     df["vpr_percentile"] = (
@@ -126,7 +126,7 @@ def compute_vpa_features(
     df["volume_percentile"] = (
         df["volume"].rolling(window=50, min_periods=20).rank(pct=True)
     )
-    df["p__vpa__climax"] = (df["volume_percentile"] > climax_volume_pct).astype(int)
+    df["p__vpa__climax"] = (df["volume_percentile"] > climax_volume_pct).astype(bool)
 
     # Confidence based on how extreme the volume is
     df["conf__vpa__climax"] = np.clip(

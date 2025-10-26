@@ -25,7 +25,7 @@ class PolicyParameters:
 
     # Risk parameters
     atr_stop_multiple: float = 1.0
-    atr_target_multiple: float = 1.0  # increase target multiple from 0.8
+    atr_target_multiple: float = 1.5  # increase target multiple from 0.8
     atr_trailing_multiple: float = 1.0
     max_position_size: float = 1.0
     timeout_bars: int = 60
@@ -57,7 +57,7 @@ class MomentumParameters(PolicyParameters):
     # Entry conditions
     avwap_bias_threshold: float = 0.0035  # 0.35% AVWAP bias
     avwap_tolerance: float = (
-        0.0  # tolerance for AVWAP deviation (0 = no extra tolerance)
+        0.001  # tolerance for AVWAP deviation (0 = no extra tolerance)
     )
     discount_pd_range: tuple[float, float] = (0.62, 0.79)  # Discount PD array
     premium_pd_range: tuple[float, float] = (0.62, 0.79)  # Premium PD array
@@ -116,40 +116,45 @@ class AVWAPMomentumPolicy(Policy):
 
     def process_bar(self, bar: dict[str, Any]) -> None:
         """Process bar and generate trading signals."""
-        self._total_bars_processed += 1
+        try:
+            self._total_bars_processed += 1
 
-        # Check regime gating
-        if not self._check_regime_gating(bar):
-            return
+            # Check regime gating
+            if not self._check_regime_gating(bar):
+                return
 
-        # Check warmup
-        if not self._check_warmup(bar):
-            return
+            # Check warmup
+            if not self._check_warmup(bar):
+                return
 
-        current_regime = bar.get("f__regime__current", RegimeType.OFF)
+            current_regime = bar.get("f__regime__current", RegimeType.OFF)
 
-        # Get position
-        position = self.get_position(bar["symbol"])
+            # Get position
+            position = self.get_position(bar["symbol"])
 
-        # INTRADAY RULE: Force close all positions at market close (15:55 ET)
-        if self._is_market_close(bar) and position and position.quantity != 0:
-            self._close_position(bar, position, "End of day")
-            return
+            # INTRADAY RULE: Force close all positions at market close (15:55 ET)
+            if self._is_market_close(bar) and position and position.quantity != 0:
+                self._close_position(bar, position, "End of day")
+                return
 
-        # Exit logic for existing positions
-        if position and position.quantity != 0:
-            self._manage_position(bar, position)
-            return
+            # Exit logic for existing positions
+            if position and position.quantity != 0:
+                self._manage_position(bar, position)
+                return
 
-        # If position is closed, remove from active_orders before checking for new entries.
-        if bar["symbol"] in self.active_orders:
-            del self.active_orders[bar["symbol"]]
+            # If position is closed, remove from active_orders before checking for new entries.
+            if bar["symbol"] in self.active_orders:
+                del self.active_orders[bar["symbol"]]
 
-        # Entry logic
-        if current_regime == RegimeType.BULL:
-            self._check_bull_entry(bar)
-        elif current_regime == RegimeType.BEAR:
-            self._check_bear_entry(bar)
+            # Entry logic
+            if current_regime == RegimeType.BULL:
+                self._check_bull_entry(bar)
+            elif current_regime == RegimeType.BEAR:
+                self._check_bear_entry(bar)
+        except Exception as e:
+            print(f"[DEBUG] AVWAPMomentumPolicy.process_bar Exception: {e}")
+            print(f"[DEBUG] Problematic bar: {bar}")
+            raise e
 
     def _check_regime_gating(self, bar: dict[str, Any]) -> bool:
         """Check if strategy is allowed under current regime."""
@@ -1077,13 +1082,13 @@ class ValueRotationParameters(PolicyParameters):
     stress_required: bool = False  # Must be no stress
 
     # Entry conditions
-    max_below_val_distance: float = 0.5  # up from 0.25 (allows shallower deviations)
-    max_above_vah_distance: float = 0.5
+    max_below_val_distance: float = 0.8  # up from 0.25 (allows shallower deviations)
+    max_above_vah_distance: float = 0.8
     require_value_acceptance: bool = False
     require_absorption_or_sweep: bool = False
 
     # AVWAP proximity
-    max_avwap_distance: float = 0.5  # Max 0.5 ATR from session AVWAP
+    max_avwap_distance: float = 0.015  # Max 0.5 ATR from session AVWAP
     require_avwap_context: bool = False
 
     # Risk management

@@ -363,14 +363,14 @@ def test_policies(df, detector):
             orders = result.orders_history
 
             # Compute final equity safely
-            if hasattr(result, "equity_curve") and len(result.equity_curve) > 0:
+            if hasattr(result, "equity_curve") and not result.equity_curve.empty:
                 final_equity = result.equity_curve["total_equity"].iloc[-1]
             else:
                 # Fallback to engine portfolio
                 final_equity = (
                     engine.portfolio.total_equity
                     if hasattr(engine, "portfolio")
-                    else 100000.0
+                    else config.initial_cash
                 )
 
             final_return = final_equity - config.initial_cash
