@@ -1,0 +1,144 @@
+# Regime-Aligned Strategy Test Configuration
+# April 1-7, 2024 - No SIP Filtering
+
+# Enable regime detection
+regime:
+  enabled: true
+  persistence_bars: 5
+  cooldown_minutes: 15
+
+  # Strategy mapping for regimes
+  strategy_map:
+    BULL: ["avwap_momentum", "avwap_pullback"]
+    BEAR: ["avwap_momentum", "liquidity_sweep"]
+    SIDEWAYS: ["value_rotation"]
+    STRESS: []  # Risk-off by default
+
+  # Regime detector parameters
+  detector_params:
+    variance_ratio_bull: 1.2
+    variance_ratio_bear: 0.8
+    adx_trend_threshold: 25.0
+    volatility_stress_threshold: 2.0
+    sideways_band_min: 0.3
+    sideways_band_max: 0.7
+    stress_enabled: true
+
+# Feature configuration
+features:
+  - type: "core_basics"
+    params:
+      vwap_window_m: 30
+      rel_volume_window_m: 30
+      atr_window_m: 14
+
+  - type: "regime_basics"
+
+  - type: "regime_enhanced"
+    params:
+      price_step: 0.1
+      profile_window: 100
+      disp_atr_threshold: 1.2
+      disp_volume_threshold: 1.3
+      sweep_window: 20
+      ofi_ema_span: 8
+      absorption_range_ratio: 0.6
+      absorption_body_ratio: 0.25
+      climax_volume_pct: 0.95
+
+# Symbol universe (no SIP filtering)
+universe:
+  method: "fixed"
+  symbols:
+    - "AAPL"
+    - "MSFT"
+    - "GOOGL"
+    - "TSLA"
+    - "NVDA"
+
+# Strategy parameters
+strategies:
+  avwap_momentum:
+    enabled: true
+    breakout_threshold_bps: 20
+    stop_atr_multiple: 1.0
+    target_atr_multiple: 1.0
+    trailing_enabled: true
+    max_position_size: 1.0
+    timeout_bars: 60
+
+  avwap_pullback:
+    enabled: true
+    deviation_threshold_bps: 35
+    stop_atr_multiple: 1.0
+    target_atr_multiple: 0.8
+    trailing_enabled: true
+    max_position_size: 1.0
+    timeout_bars: 60
+
+  value_rotation:
+    enabled: true
+    min_deviation_bps: 15
+    stop_atr_multiple: 1.0
+    target_atr_multiple: 0.8
+    max_position_size: 1.0
+    timeout_bars: 45
+
+  liquidity_sweep:
+    enabled: true
+    sweep_range_threshold: 0.15
+    reversal_confirmation: true
+    fvg_fill_entry: true
+    stop_atr_multiple: 1.0
+    target_atr_multiple: 0.8
+    max_position_size: 1.0
+    timeout_bars: 45
+
+# Risk management
+risk:
+  base_risk_fraction: 0.02
+  max_portfolio_risk: 0.06
+
+  # Regime multipliers
+  regime_multipliers:
+    BULL:
+      risk_multiplier: 1.0
+      atr_multiplier: 1.0
+    BEAR:
+      risk_multiplier: 0.8
+      atr_multiplier: 1.2
+    SIDEWAYS:
+      risk_multiplier: 0.9
+      atr_multiplier: 1.1
+    STRESS:
+      risk_multiplier: 0.3
+      atr_multiplier: 1.5
+
+# Session constraints
+session:
+  start_time: "09:30"
+  end_time: "16:00"
+  timezone: "America/New_York"
+
+  # Trading restrictions
+  no_entries_first_minutes: 2
+  no_entries_last_minutes: 10
+  max_trades_per_symbol: 2
+  max_trades_per_session: 10
+
+# Backtest configuration
+backtest:
+  start_date: "2024-04-01"
+  end_date: "2024-04-07"
+  initial_capital: 100000
+  commission_per_share: 0.001
+  slippage_bps: 5
+
+# Output configuration
+output:
+  save_trades: true
+  save_portfolio: true
+  save_performance: true
+  output_dir: "runs/april_2024_test"
+  generate_report: true
+  verbose: true

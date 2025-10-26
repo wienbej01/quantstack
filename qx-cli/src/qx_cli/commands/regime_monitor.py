@@ -6,12 +6,10 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 import click
-import pandas as pd
 
-from qx_backtest.engine import BacktestEngine
 from qx_cli.main import cli
 from qx_core.regime.detector import RegimeDetectorRules
 from qx_core.regime.monitoring import RegimeMonitor, RegimeMonitoringMetrics, RegimeType
@@ -38,9 +36,9 @@ def regime_monitor():
 def monitor(
     symbol: str,
     start_date: str,
-    end_date: Optional[str],
-    config: Optional[str],
-    output: Optional[str],
+    end_date: str | None,
+    config: str | None,
+    output: str | None,
     live: bool,
     update_interval: int,
 ):
@@ -130,7 +128,7 @@ def monitor(
 @regime_monitor.command()
 @click.option("--metrics-file", "-m", required=True, help="Metrics file (JSON)")
 @click.option("--output-dir", "-o", help="Output directory for reports")
-def analyze(metrics_file: str, output_dir: Optional[str]):
+def analyze(metrics_file: str, output_dir: str | None):
     """Analyze regime monitoring metrics."""
 
     # Load metrics
@@ -169,9 +167,7 @@ def analyze(metrics_file: str, output_dir: Optional[str]):
 @click.option("--start-date", required=True, help="Start date (YYYY-MM-DD)")
 @click.option("--end-date", help="End date (YYYY-MM-DD, default: start-date)")
 @click.option("--output", "-o", help="Output file for comparison (JSON)")
-def compare(
-    symbols: tuple, start_date: str, end_date: Optional[str], output: Optional[str]
-):
+def compare(symbols: tuple, start_date: str, end_date: str | None, output: str | None):
     """Compare regime behavior across multiple symbols."""
 
     symbols_list = list(symbols)
@@ -231,7 +227,7 @@ def display_regime_metrics(metrics: RegimeMonitoringMetrics) -> None:
     click.echo("=" * 60)
 
     # Overall stats
-    click.echo(f"\nOverall Statistics:")
+    click.echo("\nOverall Statistics:")
     click.echo(f"  Total bars monitored: {metrics.total_bars:,}")
     click.echo(f"  Regime changes: {metrics.regime_changes}")
     click.echo(f"  Unique regimes seen: {len(metrics.unique_regimes_seen)}")
@@ -239,7 +235,7 @@ def display_regime_metrics(metrics: RegimeMonitoringMetrics) -> None:
     click.echo(f"  Avg detection confidence: {metrics.detection_confidence_avg:.2f}")
 
     # Regime state metrics
-    click.echo(f"\nRegime State Analysis:")
+    click.echo("\nRegime State Analysis:")
     for regime, state_metrics in metrics.state_metrics.items():
         if state_metrics.entry_count > 0:
             click.echo(f"  {regime.value}:")
@@ -250,7 +246,7 @@ def display_regime_metrics(metrics: RegimeMonitoringMetrics) -> None:
 
     # Transition metrics
     trans_metrics = metrics.transition_metrics
-    click.echo(f"\nRegime Transition Analysis:")
+    click.echo("\nRegime Transition Analysis:")
     click.echo(f"  Total transitions: {trans_metrics.total_transitions}")
     click.echo(f"  Regime flips: {trans_metrics.regime_flips}")
     click.echo(f"  Stability ratio: {trans_metrics.stability_ratio:.2%}")
@@ -261,7 +257,7 @@ def display_regime_metrics(metrics: RegimeMonitoringMetrics) -> None:
     # Performance metrics
     perf_metrics = metrics.performance_metrics
     if perf_metrics.regime_trades:
-        click.echo(f"\nPerformance by Regime:")
+        click.echo("\nPerformance by Regime:")
         for regime, trades in perf_metrics.regime_trades.items():
             if trades > 0:
                 click.echo(f"  {regime.value}:")
@@ -297,7 +293,7 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
         click.echo("  Status: POOR - Significant instability, investigation needed")
 
     # Regime stability insights
-    click.echo(f"\nRegime Stability Insights:")
+    click.echo("\nRegime Stability Insights:")
     flip_frequency = summary["transition_metrics"]["flip_frequency_per_hour"]
     if flip_frequency < 0.1:
         click.echo("  • Very stable regime behavior (low flip frequency)")
@@ -308,7 +304,7 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
 
     # Performance insights
     if summary["performance_metrics"]["regime_breakdown"]:
-        click.echo(f"\nPerformance Insights:")
+        click.echo("\nPerformance Insights:")
         best_regime = max(
             summary["performance_metrics"]["regime_breakdown"].items(),
             key=lambda x: x[1]["sharpe"],
@@ -326,7 +322,7 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
         )
 
     # Recommendations
-    click.echo(f"\nRecommendations:")
+    click.echo("\nRecommendations:")
     if flip_frequency > 0.5:
         click.echo("  • Consider increasing regime persistence thresholds")
     if health_score < 0.6:
@@ -337,8 +333,8 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
 
 
 def generate_comparison_report(
-    all_metrics: Dict[str, RegimeMonitoringMetrics]
-) -> Dict[str, Any]:
+    all_metrics: dict[str, RegimeMonitoringMetrics]
+) -> dict[str, Any]:
     """Generate comparison report across multiple symbols."""
     comparison = {
         "metadata": {
@@ -379,7 +375,7 @@ def generate_comparison_report(
     return comparison
 
 
-def display_comparison_report(comparison: Dict[str, Any]) -> None:
+def display_comparison_report(comparison: dict[str, Any]) -> None:
     """Display comparison report."""
     click.echo("\n" + "=" * 60)
     click.echo("REGIME BEHAVIOR COMPARISON REPORT")
@@ -387,14 +383,14 @@ def display_comparison_report(comparison: Dict[str, Any]) -> None:
 
     # Aggregate metrics
     agg = comparison["aggregate_metrics"]
-    click.echo(f"\nAggregate Summary:")
+    click.echo("\nAggregate Summary:")
     click.echo(f"  Symbols analyzed: {len(comparison['metadata']['symbols_analyzed'])}")
     click.echo(f"  Average health score: {agg['avg_health_score']:.2f}")
     click.echo(f"  Best performing: {agg['best_performing_symbol']}")
     click.echo(f"  Worst performing: {agg['worst_performing_symbol']}")
 
     # Symbol-by-symbol comparison
-    click.echo(f"\nSymbol-by-Symbol Comparison:")
+    click.echo("\nSymbol-by-Symbol Comparison:")
     for symbol, metrics in comparison["symbol_comparison"].items():
         click.echo(f"  {symbol}:")
         click.echo(f"    Health score: {metrics['health_score']:.2f}")
@@ -413,10 +409,10 @@ def save_metrics(metrics: RegimeMonitoringMetrics, output_file: str) -> None:
         json.dump(data, f, indent=2, default=str)
 
 
-def load_metrics(metrics_file: str) -> Optional[RegimeMonitoringMetrics]:
+def load_metrics(metrics_file: str) -> RegimeMonitoringMetrics | None:
     """Load metrics from JSON file."""
     try:
-        with open(metrics_file, "r") as f:
+        with open(metrics_file) as f:
             data = json.load(f)
 
         # Recreate metrics object from saved data

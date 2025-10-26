@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 from qx_core.utils import utc_ns_to_datetime
 
 
@@ -64,7 +65,9 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         group = group.copy()
 
         # Convert nanosecond timestamps to datetime for time-of-day calculation
-        group["tod_minutes"] = [d.hour * 60 + d.minute for d in utc_ns_to_datetime(group["ts"].values)]
+        group["tod_minutes"] = [
+            d.hour * 60 + d.minute for d in utc_ns_to_datetime(group["ts"].values)
+        ]
 
         # Calculate mean volume for each minute of the day using a robust method
         tod_avg_map = group.groupby("tod_minutes")["volume"].mean()
@@ -236,7 +239,9 @@ def compute_all_core_features(
         print(
             f"  Computing features for {total_symbols:,} symbols ({total_bars:,} bars)..."
         )
-        print("  [VECTORIZED] Using vectorized operations for SP500-scale performance...")
+        print(
+            "  [VECTORIZED] Using vectorized operations for SP500-scale performance..."
+        )
     start_time = time.time()
 
     # HYBRID VWAP - vectorized where possible, but with safe groupby

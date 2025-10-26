@@ -3,9 +3,7 @@
 Direct VWAP test without SIP complexity to validate timestamp fix
 """
 
-import os
 import sys
-from datetime import datetime
 
 import pandas as pd
 
@@ -74,10 +72,10 @@ def run_direct_vwap_test():
     try:
         if sample_ts > 1e15:
             dt = pd.to_datetime(sample_ts, unit="ns")
-            print(f"  Using nanosecond conversion")
+            print("  Using nanosecond conversion")
         else:
             dt = pd.to_datetime(sample_ts, unit="ms")
-            print(f"  Using millisecond conversion")
+            print("  Using millisecond conversion")
         print(f"  ✓ Converted to: {dt}")
         date = dt.date()
         print(f"  ✓ Date: {date}")
@@ -130,9 +128,9 @@ def run_direct_vwap_test():
 
         if result.total_trades > 0:
             print(f"\n✅ SUCCESS: Generated {result.total_trades} trades")
-            print(f"✅ System is working properly!")
+            print("✅ System is working properly!")
         else:
-            print(f"\n⚠️  No trades generated - may need parameter tuning")
+            print("\n⚠️  No trades generated - may need parameter tuning")
 
     except Exception as e:
         print(f"❌ Backtest failed: {e}")

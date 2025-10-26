@@ -6,7 +6,6 @@ This script shows how to run an A/B test comparing the original SIP screener
 with the new HMM SIP selector using the created overlay configurations.
 """
 
-import subprocess
 import sys
 from pathlib import Path
 

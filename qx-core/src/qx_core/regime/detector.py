@@ -6,8 +6,8 @@ regime switching.
 """
 
 from collections import defaultdict, deque
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Any
 
 import pandas as pd
@@ -27,15 +27,15 @@ class RegimeDetectorConfig:
     """Configuration for regime detection rules."""
 
     # Trend detection thresholds
-    variance_ratio_bull: float = 2.0
-    variance_ratio_bear: float = 0.5
-    adx_trend_threshold: float = 15.0
+    variance_ratio_bull: float = 1.1  # further reduced from 1.2
+    variance_ratio_bear: float = 0.9  # further increased from 0.8
+    adx_trend_threshold: float = 15.0  # reduced from 20.0
     trend_confidence_min: float = 0.6
 
     # Volatility thresholds
     volatility_stress_threshold: float = 2.0
-    volatility_high_threshold: float = 1.5
-    volatility_low_threshold: float = 0.7
+    volatility_high_threshold: float = 1.6
+    volatility_low_threshold: float = 0.8
 
     # Stress detection thresholds
     stress_vol_threshold: float = 2.0
@@ -48,7 +48,7 @@ class RegimeDetectorConfig:
     sideways_confidence_min: float = 0.5
 
     # Persistence and cooldown
-    persistence_bars: int = 3
+    persistence_bars: int = 2
     cooldown_minutes: int = 15
 
     # Feature weights for confidence calculation
@@ -61,7 +61,9 @@ class RegimeDetectorConfig:
     avwap_bias_threshold: float = 0.02  # 2% deviation from AVWAP for bias
     value_acceptance_bars_min: int = 3  # Minimum bars in value area for acceptance
     ofi_confirmation_threshold: float = 0.1  # OFI trend threshold for confirmation
-    regime_feature_weight: float = 0.15  # Weight for enhanced features in regime decisions
+    regime_feature_weight: float = (
+        0.15  # Weight for enhanced features in regime decisions
+    )
 
 
 class RegimeDetectorRules:
@@ -326,7 +328,9 @@ class RegimeDetectorRules:
         agg = {}
 
         # Original regime features
-        regime_feature_cols = [col for col in df.columns if col.startswith("f__regime__")]
+        regime_feature_cols = [
+            col for col in df.columns if col.startswith("f__regime__")
+        ]
 
         for col in regime_feature_cols:
             if col in df.columns:
@@ -342,15 +346,17 @@ class RegimeDetectorRules:
         enhanced_feature_patterns = [
             "f__anchor__",  # AVWAP features
             "f__profile__",  # Volume profile features
-            "f__ict__",     # ICT structure features
-            "f__flow__",    # Order flow features
-            "f__vpa__",     # VPA features
+            "f__ict__",  # ICT structure features
+            "f__flow__",  # Order flow features
+            "f__vpa__",  # VPA features
             "f__stress__",  # Stress contraction features
         ]
 
         enhanced_features = []
         for pattern in enhanced_feature_patterns:
-            enhanced_features.extend([col for col in df.columns if col.startswith(pattern)])
+            enhanced_features.extend(
+                [col for col in df.columns if col.startswith(pattern)]
+            )
 
         # Aggregate enhanced features with null safety
         for col in enhanced_features:
@@ -643,9 +649,7 @@ class RegimeDetectorRules:
         self, signal: RegimeSignal, ts: int, segment_symbol: str
     ) -> RegimeSignal:
         """Apply persistence guard to prevent excessive regime switching."""
-        return self._apply_persistence_guard_for_symbol(
-            segment_symbol, signal, ts
-        )
+        return self._apply_persistence_guard_for_symbol(segment_symbol, signal, ts)
 
     def _apply_persistence_guard_for_symbol(
         self, symbol: str, signal: RegimeSignal, ts: int
@@ -815,11 +819,17 @@ class RegimeDetectorRules:
 
         distribution: dict[str, int] = {}
         for signal in self._segment_regime_cache.values():
-            regime_value = signal.regime.value if isinstance(signal.regime, RegimeType) else str(signal.regime)
+            regime_value = (
+                signal.regime.value
+                if isinstance(signal.regime, RegimeType)
+                else str(signal.regime)
+            )
             distribution[regime_value] = distribution.get(regime_value, 0) + 1
         return distribution
 
     # Factory function for creating detectors from config
+
+
 def create_regime_detector(
     config_dict: dict[str, Any] | None = None
 ) -> RegimeDetectorRules:
@@ -836,15 +846,15 @@ def create_regime_detector(
 
     # Extract configuration parameters
     config = RegimeDetectorConfig(
-        variance_ratio_bull=config_dict.get("variance_ratio_bull", 2.0),
-        variance_ratio_bear=config_dict.get("variance_ratio_bear", 0.5),
+        variance_ratio_bull=config_dict.get("variance_ratio_bull", 1.1),
+        variance_ratio_bear=config_dict.get("variance_ratio_bear", 0.9),
         adx_trend_threshold=config_dict.get("adx_trend_threshold", 15.0),
         volatility_stress_threshold=config_dict.get("volatility_stress_threshold", 2.0),
-        volatility_high_threshold=config_dict.get("volatility_high_threshold", 1.5),
-        volatility_low_threshold=config_dict.get("volatility_low_threshold", 0.7),
+        volatility_high_threshold=config_dict.get("volatility_high_threshold", 1.6),
+        volatility_low_threshold=config_dict.get("volatility_low_threshold", 0.8),
         stress_vol_threshold=config_dict.get("stress_vol_threshold", 2.0),
         stress_volume_threshold=config_dict.get("stress_volume_threshold", 3.0),
-        persistence_bars=config_dict.get("persistence_bars", 3),
+        persistence_bars=config_dict.get("persistence_bars", 2),
         cooldown_minutes=config_dict.get("cooldown_minutes", 15),
         variance_ratio_weight=config_dict.get("variance_ratio_weight", 0.4),
         adx_weight=config_dict.get("adx_weight", 0.3),

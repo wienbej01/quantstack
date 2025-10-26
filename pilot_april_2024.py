@@ -7,11 +7,8 @@ Validates: daily ticker selection, VWAP execution, trade generation
 import os
 import sys
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List
 
 import pandas as pd
-import yaml
 
 # Add src directories to path
 sys.path.insert(0, "qx-screener/src")
@@ -25,11 +22,10 @@ from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.policies.vwap_revert import VwapRevertPolicy
 from qx_data import gold_loader
 from qx_features import core_basics
-from qx_features.registry import FeatureRegistry
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
 
-def load_config() -> Dict:
+def load_config() -> dict:
     """Load pilot configuration"""
     return {
         "gold_root": "/home/jacobw/gcs-mount",
@@ -329,7 +325,7 @@ def run_pilot():
         ]
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
-        print(f"  ✓ All required columns present")
+        print("  ✓ All required columns present")
 
         # Setup backtest engine
         print("\nSetting up backtest engine...")
@@ -392,7 +388,7 @@ def run_pilot():
             print(f"Max drawdown: {result.max_drawdown:.1%}")
             print(f"Profit factor: {result.profit_factor:.2f}")
 
-            print(f"\nTrade statistics:")
+            print("\nTrade statistics:")
             print(f"  Avg trade P&L: ${result.avg_trade_pnl:,.2f}")
             if result.avg_win > 0:
                 print(f"  Avg win: ${result.avg_win:,.2f}")
@@ -402,7 +398,7 @@ def run_pilot():
             print(f"  Largest loss: ${result.largest_loss:,.2f}")
 
             # Validate trade generation
-            print(f"\n✅ TRADE GENERATION VALIDATION:")
+            print("\n✅ TRADE GENERATION VALIDATION:")
             print(f"  ✓ System generated {result.total_trades} trades")
             print(f"  ✓ Trades across {len(daily_universes)} trading days")
             print(

@@ -17,8 +17,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "qx-data" / "src"))
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.policies.regime_aligned import AVWAPMomentumPolicy
-
-from test_regime_pilot import create_regime_detector, prepare_features
+from test_regime_pilot import (
+    create_regime_detector,
+    prepare_features,
+    run_diagnostic_check,
+)
 
 
 def create_minimal_dataset() -> pd.DataFrame:
@@ -130,12 +133,11 @@ def test_diagnostic_regime_counts() -> None:
     df = create_minimal_dataset()
     df_features = prepare_features(df)
 
-    # Capture logs from diagnostic function (should fail initially)
+    # Create detector and capture logs from diagnostic function
+    detector = create_regime_detector()
     with patch("builtins.print") as mock_print:
         try:
-            from test_regime_pilot import run_diagnostic_check
-
-            run_diagnostic_check(df_features, verbose=True)
+            run_diagnostic_check(df_features, detector, verbose=True)
         except ImportError:
             # Function doesn't exist yet - test should fail
             pytest.fail(

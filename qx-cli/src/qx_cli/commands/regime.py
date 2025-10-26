@@ -17,7 +17,6 @@ from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.order import OrderSide, OrderType
 from qx_core.regime.detector import create_regime_detector
 from qx_core.regime_config import RegimeConfig, validate_regime_config
-from qx_core.schemas import RegimeSignal, RegimeType
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply
 
@@ -88,7 +87,11 @@ def backtest(
     try:
         # If SIP filtering enabled and no symbols specified in config, discover all available symbols
         config_symbols = full_config.get("symbols")
-        if symbol_list is None and config_symbols is None and full_config.get("sip_filter", False):
+        if (
+            symbol_list is None
+            and config_symbols is None
+            and full_config.get("sip_filter", False)
+        ):
             # Discover all available symbols from gold/stocks/1m directory structure
             all_symbols = set()
             base_path = os.path.join(gold_root, "gold", "stocks", "1m")
@@ -116,7 +119,7 @@ def backtest(
         # Apply SIP filtering if enabled
         if full_config.get("sip_filter", False):
             try:
-                from qx_screener.hmm_sip import HMMSIPUniverseSelector, HMMSIPConfig
+                from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
                 sip_config_dict = full_config.get("sip_config", {})
                 sip_config = HMMSIPConfig(**sip_config_dict)
@@ -127,48 +130,70 @@ def backtest(
                 selected_symbols = set()
 
                 # Add date column if not present
-                if 'date_et' not in data.columns:
+                if "date_et" not in data.columns:
                     # Convert timestamp to ET date
-                    data['date_et'] = pd.to_datetime(data['ts'], unit='ns').dt.tz_localize('UTC').dt.tz_convert('America/New_York').dt.strftime('%Y-%m-%d')
+                    data["date_et"] = (
+                        pd.to_datetime(data["ts"], unit="ns")
+                        .dt.tz_localize("UTC")
+                        .dt.tz_convert("America/New_York")
+                        .dt.strftime("%Y-%m-%d")
+                    )
 
                 for date in daily_dates:
                     try:
-                        date_data = data[data['date_et'] == date]
+                        date_data = data[data["date_et"] == date]
                         if not date_data.empty:
                             if verbose:
-                                typer.echo(f"Running SIP selection for {date} with {len(date_data)} bars and {date_data['symbol'].nunique()} symbols")
-                            sip_result = sip_selector.select(date_data, {"target_date": date})
+                                typer.echo(
+                                    f"Running SIP selection for {date} with {len(date_data)} bars and {date_data['symbol'].nunique()} symbols"
+                                )
+                            sip_result = sip_selector.select(
+                                date_data, {"target_date": date}
+                            )
                             # Extract all symbols from all timestamps in the result
                             date_symbols = set()
                             for ts_symbols in sip_result.values():
                                 date_symbols.update(ts_symbols)
                             if verbose:
-                                typer.echo(f"SIP selected {len(date_symbols)} symbols for {date}: {list(date_symbols)[:5] if date_symbols else 'None'}")
+                                typer.echo(
+                                    f"SIP selected {len(date_symbols)} symbols for {date}: {list(date_symbols)[:5] if date_symbols else 'None'}"
+                                )
                             selected_symbols.update(date_symbols)
-                        else:
-                            if verbose:
-                                typer.echo(f"No data available for {date}")
+                        elif verbose:
+                            typer.echo(f"No data available for {date}")
                     except Exception as e:
-                        typer.echo(f"Warning: SIP selection failed for {date}: {e}", err=True)
+                        typer.echo(
+                            f"Warning: SIP selection failed for {date}: {e}", err=True
+                        )
                         # No symbols selected - trading will be stopped for this date
 
                 # Filter data to selected symbols only
-                original_symbols = len(data['symbol'].unique())
-                data = data[data['symbol'].isin(selected_symbols)]
-                final_symbols = len(data['symbol'].unique())
+                original_symbols = len(data["symbol"].unique())
+                data = data[data["symbol"].isin(selected_symbols)]
+                final_symbols = len(data["symbol"].unique())
 
-                typer.echo(f"SIP filtering: {original_symbols} -> {final_symbols} symbols")
+                typer.echo(
+                    f"SIP filtering: {original_symbols} -> {final_symbols} symbols"
+                )
 
                 # If no symbols selected, stop the backtest
                 if final_symbols == 0:
-                    typer.echo("❌ No symbols passed SIP gate for any trading day", err=True)
-                    typer.echo("⚠️  Stopping backtest - trading requires universe selection", err=True)
+                    typer.echo(
+                        "❌ No symbols passed SIP gate for any trading day", err=True
+                    )
+                    typer.echo(
+                        "⚠️  Stopping backtest - trading requires universe selection",
+                        err=True,
+                    )
                     raise typer.Exit(1)
 
                 symbol_list = list(selected_symbols)
 
             except ImportError:
-                typer.echo("Warning: SIP filtering requested but qx_screener not available", err=True)
+                typer.echo(
+                    "Warning: SIP filtering requested but qx_screener not available",
+                    err=True,
+                )
                 typer.echo("Proceeding with all symbols", err=True)
             except Exception as e:
                 typer.echo(f"Warning: SIP filtering failed: {e}", err=True)
@@ -237,14 +262,18 @@ def backtest(
         if current_regime == "BULL":
             # In BULL markets, prefer momentum strategy (long momentum)
             if engine.is_strategy_allowed("vwap_momentum"):
-                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BULL")
+                vwap_momentum_strategy(
+                    engine, bar, symbol, close, vwap_signal, regime="BULL"
+                )
             elif engine.is_strategy_allowed("vwap_revert"):
                 vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
 
         elif current_regime == "BEAR":
             # In BEAR markets, prefer momentum strategy (short momentum)
             if engine.is_strategy_allowed("vwap_momentum"):
-                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BEAR")
+                vwap_momentum_strategy(
+                    engine, bar, symbol, close, vwap_signal, regime="BEAR"
+                )
             elif engine.is_strategy_allowed("vwap_revert"):
                 vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
 
@@ -257,7 +286,14 @@ def backtest(
             # In STRESS markets, no trading (risk off)
             pass
 
-    def vwap_momentum_strategy(engine: BacktestEngine, bar: dict, symbol: str, close: float, vwap_signal: float, regime: str = "BULL") -> None:
+    def vwap_momentum_strategy(
+        engine: BacktestEngine,
+        bar: dict,
+        symbol: str,
+        close: float,
+        vwap_signal: float,
+        regime: str = "BULL",
+    ) -> None:
         """VWAP momentum strategy - regime-aware directional momentum trading."""
 
         if regime == "BULL":
@@ -270,7 +306,11 @@ def backtest(
                         order_type=OrderType.MARKET,
                         quantity=100,
                         price=close,
-                        tags={"strategy": "vwap_momentum", "regime": "BULL", "direction": "long"},
+                        tags={
+                            "strategy": "vwap_momentum",
+                            "regime": "BULL",
+                            "direction": "long",
+                        },
                     )
                     engine.submit_order(order)
 
@@ -281,13 +321,19 @@ def backtest(
                         symbol=symbol,
                         side=OrderSide.SELL,
                         quantity=position.quantity,
-                        tags={"strategy": "vwap_momentum", "regime": "BULL", "direction": "long"},
+                        tags={
+                            "strategy": "vwap_momentum",
+                            "regime": "BULL",
+                            "direction": "long",
+                        },
                     )
                     engine.submit_order(order)
 
         elif regime == "BEAR":
             # BEAR momentum: Short on weakness, cover on strength
-            if close < vwap_signal * 0.998:  # 0.2% below VWAP - momentum breakdown (short signal)
+            if (
+                close < vwap_signal * 0.998
+            ):  # 0.2% below VWAP - momentum breakdown (short signal)
                 if engine.get_position(symbol) is None:
                     order = engine.order_factory.create_order(
                         symbol=symbol,
@@ -295,27 +341,41 @@ def backtest(
                         order_type=OrderType.MARKET,
                         quantity=100,
                         price=close,
-                        tags={"strategy": "vwap_momentum", "regime": "BEAR", "direction": "short"},
+                        tags={
+                            "strategy": "vwap_momentum",
+                            "regime": "BEAR",
+                            "direction": "short",
+                        },
                     )
                     engine.submit_order(order)
 
-            elif close > vwap_signal * 1.002:  # 0.2% above VWAP - momentum breakout (cover signal)
+            elif (
+                close > vwap_signal * 1.002
+            ):  # 0.2% above VWAP - momentum breakout (cover signal)
                 position = engine.get_position(symbol)
                 if position and position.quantity < 0:  # Short position
                     order = engine.order_factory.create_market_order(
                         symbol=symbol,
                         side=OrderSide.BUY,
                         quantity=abs(position.quantity),
-                        tags={"strategy": "vwap_momentum", "regime": "BEAR", "direction": "short"},
+                        tags={
+                            "strategy": "vwap_momentum",
+                            "regime": "BEAR",
+                            "direction": "short",
+                        },
                     )
                     engine.submit_order(order)
 
-    def vwap_revert_strategy(engine: BacktestEngine, bar: dict, symbol: str, close: float, vwap_signal: float) -> None:
+    def vwap_revert_strategy(
+        engine: BacktestEngine, bar: dict, symbol: str, close: float, vwap_signal: float
+    ) -> None:
         """VWAP reversion strategy - buy on weakness, sell on strength."""
 
         # Reversion logic: Buy when price is below VWAP (oversold), sell when above (overbought)
         # Use very loose thresholds to ensure trades are generated for testing
-        if close < vwap_signal * 0.995:  # 0.5% below VWAP - oversold (very loose for testing)
+        if (
+            close < vwap_signal * 0.995
+        ):  # 0.5% below VWAP - oversold (very loose for testing)
             if engine.get_position(symbol) is None:
                 order = engine.order_factory.create_order(
                     symbol=symbol,
@@ -323,18 +383,26 @@ def backtest(
                     order_type=OrderType.MARKET,
                     quantity=100,
                     price=close,
-                    tags={"strategy": "vwap_revert", "regime": str(engine.get_current_regime())},
+                    tags={
+                        "strategy": "vwap_revert",
+                        "regime": str(engine.get_current_regime()),
+                    },
                 )
                 engine.submit_order(order)
 
-        elif close > vwap_signal * 1.005:  # 0.5% above VWAP - overbought (very loose for testing)
+        elif (
+            close > vwap_signal * 1.005
+        ):  # 0.5% above VWAP - overbought (very loose for testing)
             position = engine.get_position(symbol)
             if position and position.quantity > 0:
                 order = engine.order_factory.create_market_order(
                     symbol=symbol,
                     side=OrderSide.SELL,
                     quantity=position.quantity,
-                    tags={"strategy": "vwap_revert", "regime": str(engine.get_current_regime())},
+                    tags={
+                        "strategy": "vwap_revert",
+                        "regime": str(engine.get_current_regime()),
+                    },
                 )
                 engine.submit_order(order)
 
@@ -381,7 +449,7 @@ def backtest(
             # Show meaningful daily regime statistics
             typer.echo(f"Daily regime changes: {regime_stats.get('regime_changes', 0)}")
             typer.echo(f"Cache hit rate: {regime_stats.get('cache_hit_rate', 0):.1%}")
-            typer.echo(f"Daily regimes cached: {regime_stats.get('daily_regimes_cached', 0)}")
+            typer.echo(f"Cached segments: {regime_stats.get('cached_segments', 0)}")
 
         # Portfolio reporting temporarily disabled for debugging
         # TODO: Fix f-string formatting issues in portfolio report function
@@ -414,7 +482,7 @@ def analyze(
     # Create detector
     try:
         if detector_config:
-            with open(detector_config, "r") as f:
+            with open(detector_config) as f:
                 config_dict = json.load(f)
             detector = create_regime_detector(config_dict.get("detector_params", {}))
         else:
@@ -580,7 +648,7 @@ def _read_regime_section(config_path: str) -> dict[str, Any] | None:
 
 def _parse_config_file(config_path: str) -> dict[str, Any]:
     """Parse a configuration file supporting JSON or YAML formats."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         raw_text = f.read()
 
     # Try JSON first for backwards compatibility
@@ -635,8 +703,7 @@ def _generate_date_range(start_date: str, end_date: str) -> list[str]:
 
 def _generate_portfolio_report(result, regime_stats, symbols, config):
     """Generate comprehensive portfolio report."""
-    from datetime import datetime
-    import json
+
 
 if __name__ == "__main__":
     app()

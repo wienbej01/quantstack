@@ -1,0 +1,634 @@
+jacobw@jacob-20nks0qn06:~/quantstack$ pytest tests/test_regime_pilot_smoke.py tests/test_regime_detector.py tests/test_regime_enhanced_features.py tests/test_regime_aligned_policies.py -q
+.........................................F...............FFFFFFFFF.F                                                                                               [100%]
+================================================================================ FAILURES ================================================================================
+_________________________________________________________________ test_detector_with_newly_fixed_columns _________________________________________________________________
+
+    def test_detector_with_newly_fixed_columns():
+        """Add scenario verifying evaluate() continues working with new features by including newly fixed columns (ensures no KeyError after changes)."""
+        # Create detector with default configuration
+        detector = create_default_detector()
+
+        # Create features including all newly fixed columns from Workstream B
+        features = {
+            # Basic regime features
+            "f__regime__var_ratio_10_60": 1.3,  # Trending market
+            "f__regime__adx_proxy_14": 32.0,     # Strong trend
+            "f__regime__mod_vol_30": 1.1,       # Normal volatility
+            "f__regime__band_pos_20_2.0": 0.85,  # Upper band position
+            "f__regime__stress_10_10": 0.0,      # No stress
+
+            # NEWLY FIXED COLUMNS from Workstream B:
+            # B1: Previous-Extreme AVWAP Persistence
+            "f__anchor__prev_high_avwap": 150.8,  # Should be computed properly without NaN issues
+            "f__anchor__prev_low_avwap": 149.2,   # Should maintain persistence after touch
+
+            # B2: ICT FVG Level Stability
+            "f__ict__fvg_bull_lower": 150.3,       # Should be non-null at first detection
+            "f__ict__fvg_bull_upper": 150.7,       # Should be properly set without shift errors
+            "f__ict__fvg_bull_active": True,       # Should correctly track fill status
+
+            "f__ict__fvg_bear_lower": 149.5,       # Should be non-null at first detection
+            "f__ict__fvg_bear_upper": 149.9,       # Should be properly set without shift errors
+            "f__ict__fvg_bear_active": False,      # Should correctly track fill status
+
+            # B3: VPA Stopping Volume Robustness
+            "f__vpa__stopping_volume": True,       # Should be computed without int < DataFrame errors
+            "f__vpa__absorption": True,            # Should work properly with fixed logic
+            "f__vpa__climax": False,               # Should work without errors
+
+            # Additional enhanced features to ensure compatibility
+            "f__anchor__session_avwap": 150.0,
+            "f__anchor__first_hour_avwap": 150.2,
+            "f__profile__poc": 150.1,
+            "f__profile__vah": 150.8,
+            "f__profile__val": 149.4,
+            "f__flow__ofi": 1200.0,
+            "f__flow__ofi_trend": 0.15,
+            "f__ict__in_discount": False,
+            "f__ict__disp_high": 151.0,
+            "f__ict__disp_low": 149.0,
+            "f__stress__contraction": False,
+        }
+
+        ts = 1704067200000000000  # 2024-01-01 00:00:00 UTC in nanoseconds
+
+        # This should not raise any KeyError exceptions
+        try:
+            signal = detector.evaluate_symbol("AAPL", features, ts)
+
+            # Verify signal was created successfully
+            assert signal is not None
+>           assert signal.symbol == "AAPL"
+                   ^^^^^^^^^^^^^
+
+tests/test_regime_detector.py:770:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = RegimeSignal(ts=1704067200000000000, regime=<RegimeType.BULL: 'BULL'>, confidence=0.6, features={'f__regime__var_ratio... 'Symbol trend'}, persistence_count=1, model_version='rules_v1', src='regime', segment='PM', session_date='2023-12-31')
+item = 'symbol'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+
+            if pydantic_extra and item in pydantic_extra:
+                return pydantic_extra[item]
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'RegimeSignal' object has no attribute 'symbol'
+
+.venv/lib/python3.12/site-packages/pydantic/main.py:1026: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+    def test_detector_with_newly_fixed_columns():
+        """Add scenario verifying evaluate() continues working with new features by including newly fixed columns (ensures no KeyError after changes)."""
+        # Create detector with default configuration
+        detector = create_default_detector()
+
+        # Create features including all newly fixed columns from Workstream B
+        features = {
+            # Basic regime features
+            "f__regime__var_ratio_10_60": 1.3,  # Trending market
+            "f__regime__adx_proxy_14": 32.0,     # Strong trend
+            "f__regime__mod_vol_30": 1.1,       # Normal volatility
+            "f__regime__band_pos_20_2.0": 0.85,  # Upper band position
+            "f__regime__stress_10_10": 0.0,      # No stress
+
+            # NEWLY FIXED COLUMNS from Workstream B:
+            # B1: Previous-Extreme AVWAP Persistence
+            "f__anchor__prev_high_avwap": 150.8,  # Should be computed properly without NaN issues
+            "f__anchor__prev_low_avwap": 149.2,   # Should maintain persistence after touch
+
+            # B2: ICT FVG Level Stability
+            "f__ict__fvg_bull_lower": 150.3,       # Should be non-null at first detection
+            "f__ict__fvg_bull_upper": 150.7,       # Should be properly set without shift errors
+            "f__ict__fvg_bull_active": True,       # Should correctly track fill status
+
+            "f__ict__fvg_bear_lower": 149.5,       # Should be non-null at first detection
+            "f__ict__fvg_bear_upper": 149.9,       # Should be properly set without shift errors
+            "f__ict__fvg_bear_active": False,      # Should correctly track fill status
+
+            # B3: VPA Stopping Volume Robustness
+            "f__vpa__stopping_volume": True,       # Should be computed without int < DataFrame errors
+            "f__vpa__absorption": True,            # Should work properly with fixed logic
+            "f__vpa__climax": False,               # Should work without errors
+
+            # Additional enhanced features to ensure compatibility
+            "f__anchor__session_avwap": 150.0,
+            "f__anchor__first_hour_avwap": 150.2,
+            "f__profile__poc": 150.1,
+            "f__profile__vah": 150.8,
+            "f__profile__val": 149.4,
+            "f__flow__ofi": 1200.0,
+            "f__flow__ofi_trend": 0.15,
+            "f__ict__in_discount": False,
+            "f__ict__disp_high": 151.0,
+            "f__ict__disp_low": 149.0,
+            "f__stress__contraction": False,
+        }
+
+        ts = 1704067200000000000  # 2024-01-01 00:00:00 UTC in nanoseconds
+
+        # This should not raise any KeyError exceptions
+        try:
+            signal = detector.evaluate_symbol("AAPL", features, ts)
+
+            # Verify signal was created successfully
+            assert signal is not None
+            assert signal.symbol == "AAPL"
+            assert signal.ts == ts
+
+            # With strong trend features, should detect BULL regime
+            assert signal.regime in [RegimeType.BULL, RegimeType.SIDEWAYS]  # BULL expected but SIDEWAYS acceptable
+
+            # Should have confidence score
+            assert 0.0 <= signal.confidence <= 1.0
+
+            # Should have segment metadata
+            assert hasattr(signal, 'segment')
+            assert hasattr(signal, 'session_date')
+
+        except KeyError as e:
+            pytest.fail(f"Detector evaluation failed with KeyError: {e}. This indicates the detector cannot handle newly fixed columns.")
+        except Exception as e:
+>           pytest.fail(f"Detector evaluation failed with unexpected error: {e}")
+E           Failed: Detector evaluation failed with unexpected error: 'RegimeSignal' object has no attribute 'symbol'
+
+tests/test_regime_detector.py:786: Failed
+_______________________________________________________ TestRegimeEnhancedRegression.test_prev_extreme_persistence _______________________________________________________
+
+self = <test_regime_enhanced_features.TestRegimeEnhancedRegression object at 0x740f6b6dee40>
+
+    def test_prev_extreme_persistence(self):
+        """Create two sessions with synthetic price touches verifying AVWAP holds constant after touch and NaN prior."""
+        # Create two sessions data
+        dates_session1 = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
+        dates_session2 = pd.date_range("2024-01-03 09:30:00", periods=10, freq="1min", tz="America/New_York")
+        all_dates = dates_session1.append(dates_session2)
+
+        # Session 1: Previous day high was 151.0, touched at bar 4
+        # Session 2: Previous day high was 152.0, touched at bar 6
+        data = {
+            "ts": all_dates.tz_convert("UTC").view("int64"),
+            "symbol": ["AAPL"] * 20,
+            "session_date": ["2024-01-02"] * 10 + ["2024-01-03"] * 10,
+            "open": [150.0] * 20,
+            "high": [150.2, 150.4, 150.6, 151.0, 151.2, 151.4, 151.6, 151.8, 152.0, 152.2,
+                    152.5, 152.7, 152.9, 153.1, 153.3, 152.0, 152.2, 152.4, 152.6, 152.8],
+            "low": [149.8] * 20,
+            "close": [150.1] * 20,
+            "volume": [1000] * 20,
+        }
+        df = pd.DataFrame(data)
+
+        # Import the function to test AVWAP computation directly
+        from qx_features.regime_enhanced import _compute_prev_extreme_avwaps
+
+        result = _compute_prev_extreme_avwaps(df)
+
+        # Verify column exists
+        assert "f__anchor__prev_high_avwap" in result.columns
+
+        # Session 1: Should be NaN before touch (bars 0-3), then constant after touch (bars 4-9)
+        session1_data = result[result["session_date"] == "2024-01-02"]
+        assert session1_data["f__anchor__prev_high_avwap"].iloc[:4].isna().all(), "Should be NaN before first touch"
+>       assert not session1_data["f__anchor__prev_high_avwap"].iloc[4:].isna().any(), "Should not be NaN after touch"
+E       AssertionError: Should not be NaN after touch
+E       assert not np.True_
+E        +  where np.True_ = any()
+E        +    where any = 4    True\n5    True\n6    True\n7    True\n8    True\n9    True\nName: f__anchor__prev_high_avwap, dtype: bool.any
+E        +      where 4    True\n5    True\n6    True\n7    True\n8    True\n9    True\nName: f__anchor__prev_high_avwap, dtype: bool = isna()
+E        +        where isna = 4   NaN\n5   NaN\n6   NaN\n7   NaN\n8   NaN\n9   NaN\nName: f__anchor__prev_high_avwap, dtype: float64.isna
+
+tests/test_regime_enhanced_features.py:503: AssertionError
+______________________________________________________ TestRegimeEnhancedRegression.test_first_fvg_levels_non_null _______________________________________________________
+
+self = <test_regime_enhanced_features.TestRegimeEnhancedRegression object at 0x740f6b6defc0>
+
+    def test_first_fvg_levels_non_null(self):
+        """Craft three-bar pattern hitting FVG and assert lower/upper populated, active flag toggles off after fill."""
+        # Create data with clear three-candle FVG pattern
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
+
+        # Bars 0-2: Create bull FVG (bar 2 high > bar 0 low, with uptrend)
+        # Bar 3-9: Fill the FVG progressively
+        data = {
+            "ts": dates.tz_convert("UTC").view("int64"),
+            "symbol": ["AAPL"] * 10,
+            "open": [150.0, 150.3, 150.6, 150.4, 150.7, 151.0, 151.3, 151.6, 151.9, 152.2],
+            "high": [150.2, 150.5, 150.9, 150.6, 150.9, 151.2, 151.5, 151.8, 152.1, 152.4],
+            "low": [149.8, 150.1, 150.4, 150.2, 150.5, 150.8, 151.1, 151.4, 151.7, 152.0],
+            "close": [150.1, 150.4, 150.8, 150.5, 150.8, 151.1, 151.4, 151.7, 152.0, 152.3],
+            "volume": [1000] * 10,
+            # Add required columns for ICT computation
+            "f__vol__atr_14": [0.5] * 10,
+            "f__vol__rel_volume_30": [1.0] * 10,
+        }
+        df = pd.DataFrame(data)
+
+        result = compute_ict_structures(df, verbose=False)
+
+        # Check FVG columns exist
+        assert "f__ict__fvg_bull_lower" in result.columns
+        assert "f__ict__fvg_bull_upper" in result.columns
+        assert "f__ict__fvg_bull_active" in result.columns
+
+        # First FVG detection should be at bar 2 (index 2)
+        fvg_detected = result["f__ict__fvg_bull_lower"].notna()
+        assert fvg_detected.iloc[2], "FVG should be detected at bar 2"
+
+        # First detection should have non-null levels
+        assert not pd.isna(result["f__ict__fvg_bull_lower"].iloc[2]), "FVG lower should be non-null at first detection"
+        assert not pd.isna(result["f__ict__fvg_bull_upper"].iloc[2]), "FVG upper should be non-null at first detection"
+
+        # FVG should be active initially
+        assert result["f__ict__fvg_bull_active"].iloc[2], "FVG should be active at first detection"
+
+        # FVG should be filled when price closes within gap (around bar 6-7)
+        # Check that active flag eventually becomes False
+>       assert not result["f__ict__fvg_bull_active"].iloc[-1], "FVG should eventually be filled"
+E       AssertionError: FVG should eventually be filled
+E       assert not np.True_
+
+tests/test_regime_enhanced_features.py:555: AssertionError
+-------------------------------------------------------------------------- Captured stdout call --------------------------------------------------------------------------
+  Computing ICT structures...
+_________________________________________________________ TestRegimeEnhancedRegression.test_stopping_volume_flag _________________________________________________________
+
+self = <test_regime_enhanced_features.TestRegimeEnhancedRegression object at 0x740f6b6df140>
+
+    def test_stopping_volume_flag(self):
+        """Generate bars with volume spike and trend reversal; assert boolean flag set once."""
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
+
+        # Create uptrend followed by volume spike and reversal
+        data = {
+            "ts": dates.tz_convert("UTC").view("int64"),
+            "symbol": ["AAPL"] * 10,
+            "open": [150.0, 150.2, 150.4, 150.6, 150.8, 151.0, 151.2, 151.4, 151.6, 151.8],
+            "high": [150.3, 150.5, 150.7, 150.9, 151.1, 151.3, 151.5, 151.7, 151.9, 152.1],
+            "low": [149.7, 149.9, 150.1, 150.3, 150.5, 150.7, 150.9, 151.1, 151.3, 151.5],
+            "close": [150.2, 150.4, 150.6, 150.8, 151.0, 151.2, 151.4, 151.6, 151.8, 152.0],
+            # Normal volume, then spike at bar 6, then normal
+            "volume": [1000, 1100, 1200, 1300, 1400, 5000, 1600, 1700, 1800, 1900],
+        }
+        df = pd.DataFrame(data)
+
+        result = compute_order_flow_vpa(df, verbose=False)
+
+        # Check stopping volume column exists
+        assert "f__vpa__stopping_volume" in result.columns
+
+        # Should detect stopping volume at the volume spike (bar 6, index 5)
+        # This is where uptrend continues but with huge volume, followed by reversal
+>       assert result["f__vpa__stopping_volume"].any(), "Should detect stopping volume at least once"
+E       AssertionError: Should detect stopping volume at least once
+E       assert np.False_
+E        +  where np.False_ = any()
+E        +    where any = 0    False\n1    False\n2    False\n3    False\n4    False\n5    False\n6    False\n7    False\n8    False\n9    False\nName: f__vpa__stopping_volume, dtype: bool.any
+
+tests/test_regime_enhanced_features.py:581: AssertionError
+-------------------------------------------------------------------------- Captured stdout call --------------------------------------------------------------------------
+  Computing order flow and VPA metrics...
+___________________________________________________________ TestRegimeEnhancedRegression.test_logging_hygiene ____________________________________________________________
+
+self = <test_regime_enhanced_features.TestRegimeEnhancedRegression object at 0x740f6b6df170>, capsys = <_pytest.capture.CaptureFixture object at 0x740f6b5ae090>
+
+    def test_logging_hygiene(self, capsys):
+        """Capture logging: use capsys to confirm silence unless explicitly enabling verbose flag."""
+        dates = pd.date_range("2024-01-02 09:30:00", periods=5, freq="1min", tz="America/New_York")
+
+        data = {
+            "ts": dates.tz_convert("UTC").view("int64"),
+            "symbol": ["AAPL"] * 5,
+            "open": [150.0] * 5,
+            "high": [151.0] * 5,
+            "low": [149.0] * 5,
+            "close": [150.5] * 5,
+            "volume": [1000] * 5,
+            "f__vol__atr_14": [0.5] * 5,
+            "f__vol__rel_volume_30": [1.0] * 5,
+            "f__regime__stress_10_10": [0.0] * 5,
+        }
+        df = pd.DataFrame(data)
+
+        # Test with verbose=False (default) - should produce no output
+>       result1 = compute_all_regime_enhanced_features(df, verbose=False)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: compute_all_regime_enhanced_features() got an unexpected keyword argument 'verbose'
+
+tests/test_regime_enhanced_features.py:609: TypeError
+_______________________________________________________________ test_momentum_policy_generates_long_order ________________________________________________________________
+
+    def test_momentum_policy_generates_long_order():
+        engine = DummyEngine()
+        policy = AVWAPMomentumPolicy()
+        policy.engine = engine
+        policy.params.min_risk_reward = 0.5
+
+        bar = {
+            'symbol': 'AAPL',
+            'ts': 1_000_000_000_000_000_000,  # nanosecond timestamp
+            'open': 100.0,
+            'high': 101.2,
+            'low': 99.7,
+            'close': 100.8,
+            'volume': 150_000,
+            'f__warmup_ok': True,
+            'f__regime__current': RegimeType.BULL,
+            'f__regime__var_ratio_10_60': 1.35,
+            'f__regime__adx_proxy_14': 38.0,
+            'f__regime__mod_vol_30': 1.1,
+            'f__anchor__session_avwap': 100.2,
+            'f__anchor__first_hour_avwap': 100.1,
+            'f__anchor__prev_low_avwap': 99.4,
+            'f__flow__ofi_trend': 0.18,
+            'f__flow__ofi': 1200.0,
+            'f__ict__in_discount': True,
+            'f__ict__fvg_bull_active': True,
+            'f__ict__fvg_bull_upper': 100.6,
+            'f__ict__liq_sweep_high': False,
+            'f__ict__disp_high': 100.9,
+            'f__ict__disp_low': 99.2,
+            'f__ict__liq_sweep_low': False,
+            'f__vpa__absorption': True,
+            'f__vol__atr_14': 0.6,
+        }
+
+        policy.process_bar(bar)
+
+        assert len(engine.orders) == 1
+        order = engine.orders[0]
+
+        # Verify order is instance of real MarketOrder
+        assert isinstance(order, MarketOrder)
+        assert order.order_type == OrderType.MARKET
+        assert order.ts_submitted == bar['ts']
+        assert order.side.value == 'BUY'
+>       assert order.strategy_id == policy.name
+E       AssertionError: assert 'avwap_momentum' == 'AVWAP_Momentum'
+E
+E         - AVWAP_Momentum
+E         + avwap_momentum
+
+tests/test_regime_aligned_policies.py:87: AssertionError
+_______________________________________________________________ test_pullback_policy_detects_reclaim_entry _______________________________________________________________
+
+    def test_pullback_policy_detects_reclaim_entry():
+        engine = DummyEngine()
+        policy = AVWAPPullbackPolicy()
+        policy.engine = engine
+        policy.params.min_risk_reward = 0.5
+        policy.params.stop_buffer_atr = 0.2
+        policy.params.target_multiple = 1.0
+        policy.params.atr_stop_multiple = 0.5
+
+        base_bar = {
+            'symbol': 'AAPL',
+            'open': 100.0,
+            'high': 101.0,
+            'low': 99.8,
+            'close': 100.2,
+            'volume': 120_000,
+            'f__warmup_ok': True,
+            'f__regime__current': RegimeType.BULL,
+            'f__regime__var_ratio_10_60': 1.3,
+            'f__regime__adx_proxy_14': 33.0,
+            'f__regime__mod_vol_30': 1.1,
+            'f__anchor__session_avwap': 100.0,
+            'f__anchor__first_hour_avwap': 100.05,
+            'f__anchor__prev_low_avwap': 99.3,
+            'f__ict__fvg_bull_active': False,
+            'f__ict__fvg_bull_upper': 100.3,
+            'f__ict__liq_sweep_high': False,
+            'f__ict__disp_high': 101.2,
+            'f__ict__disp_low': 99.1,
+            'f__ict__in_discount': True,
+            'f__ict__liq_sweep_low': False,
+            'f__vpa__absorption': False,
+            'f__vol__atr_14': 0.6,
+        }
+
+        # Feed history bars to build pullback context
+        for i in range(4):
+            bar = base_bar.copy()
+            bar['ts'] = i + 1
+            if i == 2:
+                bar['low'] = 99.4  # Deep pullback below AVWAP threshold
+            policy.process_bar(bar)
+
+        # Signal bar with reclaim and confirmation
+        signal_bar = base_bar.copy()
+        signal_bar.update(
+            {
+                'ts': 10,
+                'low': 99.6,
+                'close': 100.4,
+                'f__ict__fvg_bull_active': True,
+                'f__flow__ofi_trend': 0.2,
+                'f__flow__ofi': 800.0,
+                'f__vpa__absorption': True,
+            }
+        )
+
+        policy.process_bar(signal_bar)
+
+        assert len(engine.orders) == 1
+>       assert engine.orders[0].side.value == 'BUY'
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'str' object has no attribute 'value'
+
+tests/test_regime_aligned_policies.py:150: AttributeError
+______________________________________________________________ test_value_rotation_policy_enters_from_below ______________________________________________________________
+
+    def test_value_rotation_policy_enters_from_below():
+        engine = DummyEngine()
+        policy = ValueRotationPolicy()
+        policy.engine = engine
+        policy.params.min_risk_reward = 0.5
+
+        outside_bar = {
+            'symbol': 'AAPL',
+            'ts': 1,
+            'open': 100.0,
+            'high': 100.6,
+            'low': 99.4,
+            'close': 99.6,
+            'volume': 90_000,
+            'f__warmup_ok': True,
+            'f__regime__current': RegimeType.SIDEWAYS,
+            'f__regime__var_ratio_10_60': 1.0,
+            'f__regime__adx_proxy_14': 18.0,
+            'f__regime__mod_vol_30': 1.1,
+            'f__regime__stress_10_10': 0.0,
+            'f__profile__poc': 100.6,
+            'f__profile__vah': 100.8,
+            'f__profile__val': 99.8,
+            'f__profile__below_value': True,
+            'f__profile__above_value': False,
+            'f__profile__value_acceptance': False,
+            'f__vpa__absorption': False,
+            'f__ict__liq_sweep_low': False,
+            'f__vol__atr_14': 0.6,
+            'f__anchor__session_avwap': 100.05,
+        }
+
+        policy.process_bar(outside_bar)
+
+        inside_bar = outside_bar.copy()
+        inside_bar.update(
+            {
+                'ts': 2,
+                'close': 100.1,
+                'low': 99.6,
+                'f__profile__below_value': False,
+                'f__profile__value_acceptance': True,
+                'f__vpa__absorption': True,
+            }
+        )
+
+        policy.process_bar(inside_bar)
+
+        assert len(engine.orders) == 1
+        order = engine.orders[0]
+
+        # Verify order is instance of real MarketOrder
+        assert isinstance(order, MarketOrder)
+        assert order.order_type == OrderType.MARKET
+>       assert order.ts_submitted == bar['ts']
+                                     ^^^
+E       NameError: name 'bar' is not defined
+
+tests/test_regime_aligned_policies.py:207: NameError
+_______________________________________________________________ test_momentum_policy_generates_short_order _______________________________________________________________
+
+    def test_momentum_policy_generates_short_order():
+        """Test short entry path to ensure MarketOrder side toggles appropriately."""
+        engine = DummyEngine()
+        policy = AVWAPMomentumPolicy()
+        policy.engine = engine
+        policy.params.min_risk_reward = 0.5
+
+        # BEAR regime setup for short entry
+        bar = {
+            'symbol': 'AAPL',
+            'ts': 1_000_000_000_000_000_000,
+            'open': 100.0,
+            'high': 100.3,
+            'low': 98.8,
+            'close': 99.2,
+            'volume': 150_000,
+            'f__warmup_ok': True,
+            'f__regime__current': RegimeType.BEAR,
+            'f__regime__var_ratio_10_60': 0.75,
+            'f__regime__adx_proxy_14': 32.0,
+            'f__regime__mod_vol_30': 1.15,
+            'f__anchor__session_avwap': 100.1,
+            'f__anchor__first_hour_avwap': 100.05,
+            'f__anchor__prev_high_avwap': 100.6,
+            'f__flow__ofi_trend': -0.15,
+            'f__flow__ofi': -900.0,
+            'f__ict__in_premium': True,
+            'f__ict__fvg_bear_active': True,
+            'f__ict__fvg_bear_lower': 99.4,
+            'f__ict__liq_sweep_low': False,
+            'f__ict__disp_high': 101.0,
+            'f__ict__disp_low': 98.5,
+            'f__ict__liq_sweep_high': False,
+            'f__vpa__absorption': True,
+            'f__vol__atr_14': 0.65,
+        }
+
+        policy.process_bar(bar)
+
+>       assert len(engine.orders) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <test_regime_aligned_policies.DummyEngine object at 0x740f6b585070>.orders
+
+tests/test_regime_aligned_policies.py:251: AssertionError
+___________________________________________________________________ test_policy_uses_atr_stop_manager ____________________________________________________________________
+
+    def test_policy_uses_atr_stop_manager():
+        """Verify policy uses ATRStopManager with default config applied."""
+        engine = DummyEngine()
+        policy = AVWAPMomentumPolicy()
+        policy.engine = engine
+
+        # Verify ATRStopManager exists and has default config
+>       assert hasattr(policy, 'atr_stop_manager')
+E       AssertionError: assert False
+E        +  where False = hasattr(<qx_backtest.policies.regime_aligned.AVWAPMomentumPolicy object at 0x740f6b5859d0>, 'atr_stop_manager')
+
+tests/test_regime_aligned_policies.py:269: AssertionError
+___________________________________________________________________ test_atr_stop_manager_integration ____________________________________________________________________
+
+    def test_atr_stop_manager_integration():
+        """Test ATRStopManager integration with policy for stop/target computation."""
+        engine = DummyEngine()
+        policy = AVWAPMomentumPolicy()
+        policy.engine = engine
+
+        # Test ATRStopManager default configuration exists
+>       assert hasattr(policy, 'atr_stop_manager')
+E       AssertionError: assert False
+E        +  where False = hasattr(<qx_backtest.policies.regime_aligned.AVWAPMomentumPolicy object at 0x740f6b586780>, 'atr_stop_manager')
+
+tests/test_regime_aligned_policies.py:340: AssertionError
+============================================================================ warnings summary ============================================================================
+qx-core/src/qx_core/regime_config.py:72
+  /home/jacobw/quantstack/qx-core/src/qx_core/regime_config.py:72: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator("strategy_map")
+
+qx-core/src/qx_core/regime_config.py:86
+  /home/jacobw/quantstack/qx-core/src/qx_core/regime_config.py:86: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator("features")
+
+qx-core/src/qx_core/regime_config.py:115
+  /home/jacobw/quantstack/qx-core/src/qx_core/regime_config.py:115: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    @validator("detector_params")
+
+tests/test_regime_pilot_smoke.py::test_prepare_features_includes_regime_features
+tests/test_regime_pilot_smoke.py::test_engine_updates_regime
+tests/test_regime_pilot_smoke.py::test_diagnostic_regime_counts
+tests/test_regime_pilot_smoke.py::test_detector_produces_non_sideways_signals
+tests/test_regime_pilot_smoke.py::test_backtest_engine_generates_orders
+tests/test_regime_pilot_smoke.py::test_integration_end_to_end
+  /home/jacobw/quantstack/qx-features/src/qx_features/core_basics.py:183: FutureWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.
+    .apply(lambda g: g["ts"].is_monotonic_increasing)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================================================================== short test summary info =========================================================================
+FAILED tests/test_regime_detector.py::test_detector_with_newly_fixed_columns - Failed: Detector evaluation failed with unexpected error: 'RegimeSignal' object has no attribute 'symbol'
+FAILED tests/test_regime_enhanced_features.py::TestRegimeEnhancedRegression::test_prev_extreme_persistence - AssertionError: Should not be NaN after touch
+FAILED tests/test_regime_enhanced_features.py::TestRegimeEnhancedRegression::test_first_fvg_levels_non_null - AssertionError: FVG should eventually be filled
+FAILED tests/test_regime_enhanced_features.py::TestRegimeEnhancedRegression::test_stopping_volume_flag - AssertionError: Should detect stopping volume at least once
+FAILED tests/test_regime_enhanced_features.py::TestRegimeEnhancedRegression::test_logging_hygiene - TypeError: compute_all_regime_enhanced_features() got an unexpected keyword argument 'verbose'
+FAILED tests/test_regime_aligned_policies.py::test_momentum_policy_generates_long_order - AssertionError: assert 'avwap_momentum' == 'AVWAP_Momentum'
+FAILED tests/test_regime_aligned_policies.py::test_pullback_policy_detects_reclaim_entry - AttributeError: 'str' object has no attribute 'value'
+FAILED tests/test_regime_aligned_policies.py::test_value_rotation_policy_enters_from_below - NameError: name 'bar' is not defined
+FAILED tests/test_regime_aligned_policies.py::test_momentum_policy_generates_short_order - assert 0 == 1
+FAILED tests/test_regime_aligned_policies.py::test_policy_uses_atr_stop_manager - AssertionError: assert False
+FAILED tests/test_regime_aligned_policies.py::test_atr_stop_manager_integration - AssertionError: assert False
+((.venv) ) jacobw@jacob-20nks0qn06:~/quantstack$

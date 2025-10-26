@@ -2,7 +2,6 @@
 
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from qx_risk.atr_stop import set_stops, size_order
@@ -207,12 +206,11 @@ class VwapRevertPolicy(Policy):
                 exit_reason = "vwap_target_long"
             elif bars_held >= self.max_position_bars:
                 exit_reason = "timeout_long"
-        else:
-            # Short position exit criteria
-            if close <= vwap:
-                exit_reason = "vwap_target_short"
-            elif bars_held >= self.max_position_bars:
-                exit_reason = "timeout_short"
+        # Short position exit criteria
+        elif close <= vwap:
+            exit_reason = "vwap_target_short"
+        elif bars_held >= self.max_position_bars:
+            exit_reason = "timeout_short"
 
         stop_price = self.position_stop_prices.get(symbol)
         target_price = self.position_targets.get(symbol)

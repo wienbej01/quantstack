@@ -1,7 +1,5 @@
 """Tests for hash_sip_map function."""
 
-import pytest
-
 from qx_core.hashers import hash_sip_map
 
 

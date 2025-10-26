@@ -10,8 +10,9 @@ sys.path.insert(0, str(Path(__file__).parent / "qx-core" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-features" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.policies.regime_aligned import AVWAPMomentumPolicy
 
@@ -29,19 +30,23 @@ def create_simple_test_data():
         high = price + abs(np.random.randn() * 0.2)
         low = price - abs(np.random.randn() * 0.2)
 
-        data.append({
-            'ts': 1_000_000_000_000_000_000 + i * 60_000_000_000,  # 1-min intervals
-            'symbol': 'AAPL',
-            'open': price,
-            'high': high,
-            'low': low,
-            'close': price,
-            'volume': np.random.randint(1000, 5000),
-            'f__warmup_ok': i > 20,  # Warmup after 20 bars
-            'f__regime__current': 'BULL' if i > 20 and np.random.random() > 0.5 else 'SIDEWAYS',
-            'f__anchor__session_avwap': base_price,
-            'f__vol__atr_14': 0.5,
-        })
+        data.append(
+            {
+                "ts": 1_000_000_000_000_000_000 + i * 60_000_000_000,  # 1-min intervals
+                "symbol": "AAPL",
+                "open": price,
+                "high": high,
+                "low": low,
+                "close": price,
+                "volume": np.random.randint(1000, 5000),
+                "f__warmup_ok": i > 20,  # Warmup after 20 bars
+                "f__regime__current": (
+                    "BULL" if i > 20 and np.random.random() > 0.5 else "SIDEWAYS"
+                ),
+                "f__anchor__session_avwap": base_price,
+                "f__vol__atr_14": 0.5,
+            }
+        )
 
     return pd.DataFrame(data)
 
@@ -78,7 +83,7 @@ def test_policy_engine_attachment():
             bars_processed += 1
 
             # Check if any orders were generated
-            if hasattr(engine, 'orders') and len(engine.orders) > orders_generated:
+            if hasattr(engine, "orders") and len(engine.orders) > orders_generated:
                 orders_generated = len(engine.orders)
 
         except Exception as e:

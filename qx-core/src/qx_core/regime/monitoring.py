@@ -5,9 +5,8 @@ Provides metrics for tracking regime behavior, stability, and performance impact
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from datetime import datetime
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -27,8 +26,8 @@ class RegimeStateMetrics:
     avg_duration_bars: float = 0.0
     max_duration_bars: int = 0
     min_duration_bars: int = float("inf")
-    first_entry_time: Optional[datetime] = None
-    last_exit_time: Optional[datetime] = None
+    first_entry_time: datetime | None = None
+    last_exit_time: datetime | None = None
 
     def update_entry(self, timestamp: datetime) -> None:
         """Record regime entry."""
@@ -56,7 +55,7 @@ class RegimeStateMetrics:
         if self.exit_count > 0:
             self.avg_duration_bars = self.total_duration_bars / self.exit_count
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary dictionary of regime state metrics."""
         return {
             "regime_type": self.regime_type.value,
@@ -82,7 +81,7 @@ class RegimeStateMetrics:
 class RegimeTransitionMetrics:
     """Metrics for tracking regime transitions and stability."""
 
-    transition_matrix: Dict[Tuple[RegimeType, RegimeType], int] = field(
+    transition_matrix: dict[tuple[RegimeType, RegimeType], int] = field(
         default_factory=dict
     )
     total_transitions: int = 0
@@ -95,12 +94,12 @@ class RegimeTransitionMetrics:
     min_time_between_flips: float("inf") = float("inf")
 
     # Last flip tracking
-    last_flip_time: Optional[datetime] = None
-    last_regime: Optional[RegimeType] = None
+    last_flip_time: datetime | None = None
+    last_regime: RegimeType | None = None
 
     def record_transition(
         self,
-        from_regime: Optional[RegimeType],
+        from_regime: RegimeType | None,
         to_regime: RegimeType,
         timestamp: datetime,
     ) -> None:
@@ -156,7 +155,7 @@ class RegimeTransitionMetrics:
 
         return pd.DataFrame(matrix_data).set_index("from_regime")
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary dictionary of transition metrics."""
         return {
             "total_transitions": self.total_transitions,
@@ -182,19 +181,19 @@ class RegimeTransitionMetrics:
 class RegimePerformanceMetrics:
     """Metrics for tracking regime impact on trading performance."""
 
-    regime_returns: Dict[RegimeType, List[float]] = field(default_factory=dict)
-    regime_trades: Dict[RegimeType, int] = field(default_factory=dict)
-    regime_win_rate: Dict[RegimeType, float] = field(default_factory=dict)
-    regime_pnl: Dict[RegimeType, float] = field(default_factory=dict)
-    regime_sharpe: Dict[RegimeType, float] = field(default_factory=dict)
+    regime_returns: dict[RegimeType, list[float]] = field(default_factory=dict)
+    regime_trades: dict[RegimeType, int] = field(default_factory=dict)
+    regime_win_rate: dict[RegimeType, float] = field(default_factory=dict)
+    regime_pnl: dict[RegimeType, float] = field(default_factory=dict)
+    regime_sharpe: dict[RegimeType, float] = field(default_factory=dict)
 
     # Drawdown metrics by regime
-    regime_drawdowns: Dict[RegimeType, List[float]] = field(default_factory=dict)
-    regime_max_drawdown: Dict[RegimeType, float] = field(default_factory=dict)
+    regime_drawdowns: dict[RegimeType, list[float]] = field(default_factory=dict)
+    regime_max_drawdown: dict[RegimeType, float] = field(default_factory=dict)
 
     # Performance attribution
     total_return: float = 0.0
-    regime_attribution: Dict[RegimeType, float] = field(default_factory=dict)
+    regime_attribution: dict[RegimeType, float] = field(default_factory=dict)
 
     def update_trade(
         self, regime: RegimeType, trade_return: float, is_win: bool
@@ -243,7 +242,7 @@ class RegimePerformanceMetrics:
                 pnl / abs(total_pnl) if total_pnl != 0 else 0.0
             )
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get summary dictionary of performance metrics."""
         summary = {"total_return": round(self.total_return, 4), "regime_breakdown": {}}
 
@@ -268,10 +267,10 @@ class RegimeMonitoringMetrics:
 
     symbol: str
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
 
     # Component metrics
-    state_metrics: Dict[RegimeType, RegimeStateMetrics] = field(default_factory=dict)
+    state_metrics: dict[RegimeType, RegimeStateMetrics] = field(default_factory=dict)
     transition_metrics: RegimeTransitionMetrics = field(
         default_factory=RegimeTransitionMetrics
     )
@@ -282,7 +281,7 @@ class RegimeMonitoringMetrics:
     # Overall statistics
     total_bars: int = 0
     regime_changes: int = 0
-    unique_regimes_seen: Set[RegimeType] = field(default_factory=set)
+    unique_regimes_seen: set[RegimeType] = field(default_factory=set)
 
     # Health indicators
     data_quality_score: float = 1.0
@@ -300,7 +299,7 @@ class RegimeMonitoringMetrics:
         timestamp: datetime,
         current_regime: RegimeType,
         confidence: float = 1.0,
-        bar_data: Optional[Dict] = None,
+        bar_data: dict | None = None,
     ) -> None:
         """Update metrics with new regime state."""
         self.total_bars += 1
@@ -339,7 +338,7 @@ class RegimeMonitoringMetrics:
 
         return round(health_score, 4)
 
-    def get_comprehensive_summary(self) -> Dict[str, Any]:
+    def get_comprehensive_summary(self) -> dict[str, Any]:
         """Get comprehensive summary of all regime metrics."""
         return {
             "metadata": {
@@ -370,8 +369,8 @@ class RegimeMonitor:
     def __init__(self, symbol: str):
         self.symbol = symbol
         self.metrics = RegimeMonitoringMetrics(symbol=symbol, start_time=datetime.now())
-        self._current_regime: Optional[RegimeType] = None
-        self._regime_start_time: Optional[datetime] = None
+        self._current_regime: RegimeType | None = None
+        self._regime_start_time: datetime | None = None
         self._regime_bar_count: int = 0
 
     def update(
@@ -379,7 +378,7 @@ class RegimeMonitor:
         timestamp: datetime,
         regime: RegimeType,
         confidence: float = 1.0,
-        bar_data: Optional[Dict] = None,
+        bar_data: dict | None = None,
     ) -> None:
         """Update monitor with new regime detection."""
         # Record regime state change
@@ -418,7 +417,7 @@ class RegimeMonitor:
         self.metrics.finalize_session(datetime.now())
         return self.metrics
 
-    def get_real_time_summary(self) -> Dict[str, Any]:
+    def get_real_time_summary(self) -> dict[str, Any]:
         """Get real-time summary of current monitoring session."""
         if self._current_regime is None:
             return {"status": "No regime data available"}

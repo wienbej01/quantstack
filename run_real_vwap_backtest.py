@@ -7,7 +7,7 @@ NO SIMULATED OR FAKE DATA - ONLY REAL MARKET DATA
 import json
 import pathlib
 import sys
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 
@@ -203,8 +203,8 @@ def validate_gold_data_availability() -> bool:
     try:
         df_feb = pd.read_parquet(feb_2024_path)
         print(f"✅ February 2024 data loaded: {len(df_feb)} records")
-        date_min = pd.to_datetime(df_feb['ts'], unit='ns', utc=True).min()
-        date_max = pd.to_datetime(df_feb['ts'], unit='ns', utc=True).max()
+        date_min = pd.to_datetime(df_feb["ts"], unit="ns", utc=True).min()
+        date_max = pd.to_datetime(df_feb["ts"], unit="ns", utc=True).max()
         print(f"📊 Date range: {date_min} to {date_max}")
         print(
             f"📈 Price range: ${df_feb['close'].min():.2f} - ${df_feb['close'].max():.2f}"
@@ -458,8 +458,7 @@ def simulate_realistic_trades_from_signals(
 
             position_value = 2000
             quantity = int(position_value / entry_price / 100) * 100
-            if quantity < 100:
-                quantity = 100
+            quantity = max(quantity, 100)
 
             # For short: profit when price goes down
             pnl_per_share = entry_price - exit_price

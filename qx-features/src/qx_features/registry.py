@@ -20,9 +20,7 @@ from qx_features.regime.features import (
     stress_metrics,
     variance_ratio,
 )
-from qx_features.regime_enhanced import (
-    compute_all_regime_enhanced_features,
-)
+from qx_features.regime_enhanced import compute_all_regime_enhanced_features
 from qx_features.vpa import compute_vpa_features
 
 
@@ -261,7 +259,9 @@ def _apply_vpa_patterns(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFram
     return compute_vpa_features(df, **params)
 
 
-def _apply_regime_enhanced_features(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
+def _apply_regime_enhanced_features(
+    df: pd.DataFrame, params: dict[str, Any]
+) -> pd.DataFrame:
     """Apply regime enhanced features using optimized pipeline."""
     return compute_all_regime_enhanced_features(df, config=params)
 

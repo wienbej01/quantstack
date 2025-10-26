@@ -1,5 +1,4 @@
 # tests/test_entry_ab_daily_hmm.py
-import pytest
 
 from qx_screener.hmm_sip import HMMSIPConfig
 

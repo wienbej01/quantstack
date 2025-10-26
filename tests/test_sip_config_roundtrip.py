@@ -5,7 +5,6 @@ import pathlib
 import tempfile
 
 import pandas as pd
-import pytest
 import yaml
 
 from qx_cli.exp.entry_ab import deep_merge

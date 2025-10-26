@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Focused test with limited data for daily HMM_SIP."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -32,7 +31,7 @@ def main():
     config_path = (
         Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
     )
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Use smaller dataset for testing
@@ -214,7 +213,7 @@ def main():
         print("✓ Backtest completed successfully!")
 
         # Display results
-        print(f"\nBacktest Results:")
+        print("\nBacktest Results:")
         print(f"  Total Return: {result.total_return:.2%}")
         print(f"  Total Trades: {result.total_trades}")
         print(f"  Win Rate: {result.win_rate:.2%}")
@@ -222,7 +221,7 @@ def main():
 
         if result.trades_history:
             trades_df = pd.DataFrame(result.trades_history)
-            print(f"  Trade Count by Symbol:")
+            print("  Trade Count by Symbol:")
             symbol_counts = trades_df.groupby("symbol").size()
             for symbol, count in symbol_counts.items():
                 print(f"    {symbol}: {count} trades")
