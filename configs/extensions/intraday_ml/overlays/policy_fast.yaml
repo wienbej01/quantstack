@@ -1,0 +1,21 @@
+# Fast trading variant overlay
+
+policy:
+  vwap_window: 10
+  deviation_threshold: 0.015
+  position_size_method: "atr_based"
+
+features:
+  config:
+    vwap_window: 10
+    rvol_window: 15
+    atr_window: 7
+
+screener:
+  top_n: 5
+  min_relative_volume: 1.0
+
+risk:
+  max_risk_frac: 0.015
+  atr_mult: 1.5
+  atr_window: 7

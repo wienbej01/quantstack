@@ -1,0 +1,14 @@
+{
+  "strategy": "Value_Rotation",
+  "timestamp": "2025-10-28T03:33:21.344647+00:00",
+  "total_bars_processed": 87033,
+  "rejections": {
+    "regime_gating": 77383,
+    "warmup": 0,
+    "rotation_state": 0,
+    "poc_levels": 0,
+    "atr_too_low": 0,
+    "risk_reward": 0,
+    "total_entry_checks": 9650
+  }
+}

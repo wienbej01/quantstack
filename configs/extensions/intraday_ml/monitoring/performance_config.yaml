@@ -1,0 +1,154 @@
+# Performance monitoring configuration
+monitoring_config:
+  name: "intraday_ml_performance_monitor"
+  description: "Monitor ML model performance for intraday trading"
+
+# Model monitoring settings
+models:
+  include_models: ["regression_20241028_000000", "classification_20241028_000000"]
+  monitor_frequency: "daily"  # daily, weekly, monthly
+  performance_window: 30  # days
+  min_predictions_per_period: 100
+
+# Performance metrics to track
+metrics:
+  regression:
+    primary: ["mse", "mae", "r2"]
+    secondary: ["explained_variance", "max_error"]
+    rolling_windows: [7, 14, 30]  # days
+
+  classification:
+    primary: ["accuracy", "precision", "recall", "f1"]
+    secondary: ["roc_auc", "confusion_matrix"]
+    rolling_windows: [7, 14, 30]  # days
+
+# Drift detection settings
+drift_detection:
+  enable: true
+  methods: ["ks_test", "kl_divergence", "population_stability_index"]
+  features:
+    monitor_all: false
+    custom_features: ["f__vwap_30", "f__rel_volume_30", "f__atr_14", "close"]
+  thresholds:
+    ks_test: 0.05
+    kl_divergence: 0.1
+    psi: 0.25
+
+  target_drift:
+    enable: true
+    method: "distribution_shift"
+    threshold: 0.1
+
+# Alert configuration
+alerts:
+  enable: true
+  channels: ["log", "email"]  # log, email, slack
+  thresholds:
+    performance_degradation: 0.1  # 10% degradation
+    drift_detected: true
+    low_confidence_threshold: 0.6
+    prediction_rate_min: 0.8  # 80% of bars should have predictions
+
+  email:
+    recipients: ["trader@company.com"]
+    subject_prefix: "[ML Alert]"
+
+  # Custom alert rules
+  custom_rules:
+    - name: "high_volatility_periods"
+      condition: "volatility > 2 * rolling_std"
+      action: "log_warning"
+
+    - name: "low_feature_coverage"
+      condition: "feature_coverage < 0.9"
+      action: "send_alert"
+
+# Data quality monitoring
+data_quality:
+  enable: true
+  checks:
+    - check: "missing_values"
+      threshold: 0.05  # 5% max missing values
+    - check: "outliers"
+      method: "iqr"
+      threshold: 3.0
+    - check: "data_freshness"
+      max_age_hours: 24
+    - check: "feature_correlation"
+      threshold: 0.95
+
+# Reporting settings
+reporting:
+  generate_daily_report: true
+  generate_weekly_report: true
+  generate_monthly_report: true
+
+  daily_report:
+    include_performance_summary: true
+    include_drift_analysis: true
+    include_alerts: true
+    include_feature_analysis: false
+
+  weekly_report:
+    include_performance_trends: true
+    include_feature_importance: true
+    include_model_comparison: true
+    include_recommendations: true
+
+# Dashboard configuration
+dashboard:
+  enable: true
+  refresh_interval: 300  # seconds
+  charts:
+    - chart_type: "performance_over_time"
+      metrics: ["accuracy", "f1", "r2"]
+    - chart_type: "feature_drift"
+      features: ["f__vwap_30", "f__rel_volume_30"]
+    - chart_type: "prediction_distribution"
+      bins: 50
+    - chart_type: "feature_importance"
+      top_n: 15
+
+# Model retraining triggers
+retraining:
+  enable: true
+  triggers:
+    - trigger: "performance_degradation"
+      threshold: 0.15
+      consecutive_periods: 3
+    - trigger: "drift_detected"
+      threshold: 0.2
+      features: ["f__vwap_30", "f__rel_volume_30"]
+    - trigger: "data_drift"
+      threshold: 0.15
+    - trigger: "scheduled"
+      frequency: "monthly"
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/ml_monitoring.log"
+  max_size_mb: 100
+  backup_count: 5
+
+# Performance monitoring
+performance:
+  track_latency: true
+  track_memory_usage: true
+  track_prediction_time: true
+  latency_threshold_ms: 100  # Alert if prediction takes longer than 100ms
+
+# Integration settings
+integrations:
+  model_registry:
+    enabled: true
+    endpoint: "http://model-registry:8080"
+
+  data_store:
+    enabled: true
+    connection_string: "postgresql://user:pass@localhost/mlmonitoring"
+
+  notification_service:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"

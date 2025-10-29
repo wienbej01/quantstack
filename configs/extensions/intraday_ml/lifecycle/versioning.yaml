@@ -1,0 +1,222 @@
+# Model versioning and lifecycle management configuration
+versioning:
+  # Version strategy
+  strategy: "semantic"  # "semantic", "timestamp", "hash"
+  version_format: "v{major}.{minor}.{patch}"  # for semantic
+
+  # Version number generation
+  auto_increment:
+    patch: true
+    minor_on_breaking_change: true
+    major_on_api_change: false
+
+  # Version retention
+  retention:
+    max_versions_per_model: 50
+    keep_production_versions: true
+    keep_staging_versions: 5
+    cleanup_interval_hours: 24
+    archive_old_versions: true
+
+# Model lifecycle stages
+lifecycle_stages:
+  training:
+    name: "training"
+    description: "Model is being trained"
+    max_duration_hours: 24
+    auto_promotion: false
+
+  validation:
+    name: "validation"
+    description: "Model is being validated"
+    required_metrics:
+      - "accuracy"
+      - "precision"
+      - "recall"
+    min_validation_score: 0.8
+    validation_timeout_hours: 2
+
+  staging:
+    name: "staging"
+    description: "Model is in staging environment"
+    shadow_traffic_percentage: 10
+    staging_duration_hours: 4
+    performance_thresholds:
+      max_latency_ms: 100
+      max_error_rate: 0.02
+      min_throughput_rps: 100
+
+  production:
+    name: "production"
+    description: "Model is in production"
+    health_check_interval_seconds: 30
+    performance_monitoring: true
+    auto_rollback_thresholds:
+      error_rate: 0.05
+      latency_p99_ms: 500
+      accuracy_drop: 0.1
+
+  deprecated:
+    name: "deprecated"
+    description: "Model is deprecated but still available"
+    grace_period_days: 7
+    redirect_to_new_version: true
+
+  archived:
+    name: "archived"
+    description: "Model is archived and not available"
+    archive_after_deprecation_days: 7
+    compress_archive: true
+
+# Automated promotion criteria
+promotion_criteria:
+  training_to_validation:
+    min_training_score: 0.75
+    min_training_samples: 1000
+    convergence_achieved: true
+
+  validation_to_staging:
+    min_validation_score: 0.8
+    min_validation_samples: 500
+    no_overfitting: true
+    drift_check_passed: true
+
+  staging_to_production:
+    min_staging_score: 0.85
+    max_latency_ms: 100
+    max_error_rate: 0.02
+    stability_duration_hours: 2
+    business_approval_required: true
+
+# Rollback configuration
+rollback:
+  automatic:
+    enabled: true
+    triggers:
+      - error_rate > 0.05 for 5 minutes
+      - latency_p99 > 500ms for 10 minutes
+      - accuracy_drop > 0.1 for 15 minutes
+      - model_crashes > 3 times in 1 hour
+
+  manual:
+    require_approval: true
+    approval_roles: ["ml-engineer", "risk-manager"]
+    rollback_reason_required: true
+
+  rollback_strategy:
+    type: "blue_green"  # "immediate", "blue_green", "canary"
+    warm_up_new_version: true
+    traffic_switch_duration_seconds: 300
+
+# Model comparison and A/B testing
+ab_testing:
+  enabled: true
+  default_duration_hours: 4
+  min_sample_size: 1000
+  confidence_level: 0.95
+  statistical_tests:
+    - "t_test"
+    - "mann_whitney"
+    - "bootstrap"
+
+  traffic_allocation:
+    control_percentage: 50
+    treatment_percentage: 50
+    gradual_rollout: true
+    rollout_steps: [10, 25, 50, 75, 100]
+
+# Validation configuration
+validation:
+  # Data validation
+  data_validation:
+    check_data_quality: true
+    check_feature_drift: true
+    min_data_quality_score: 0.9
+    max_drift_score: 0.1
+
+  # Performance validation
+  performance_validation:
+    latency_thresholds:
+      p50: 50
+      p95: 100
+      p99: 500
+    throughput_threshold_rps: 100
+    memory_threshold_mb: 512
+
+  # Business validation
+  business_validation:
+    min_expected_roi: 0.05
+    max_risk_limit: 0.02
+    regulatory_compliance_check: true
+
+# Monitoring and alerting
+monitoring:
+  metrics_collection:
+    interval_seconds: 30
+    retention_days: 90
+    detailed_logging: true
+
+  alerts:
+    model_degradation:
+      accuracy_drop_threshold: 0.1
+      latency_increase_threshold: 0.2
+      error_rate_threshold: 0.02
+
+    lifecycle_events:
+      version_created: true
+      version_promoted: true
+      version_rolled_back: true
+      version_deprecated: true
+
+# Integration with external systems
+integrations:
+  model_registry:
+    enabled: true
+    endpoint: "http://model-registry:8080"
+    authentication:
+      type: "api_key"
+      header_name: "X-API-Key"
+
+  cicd_pipeline:
+    enabled: true
+    platform: "jenkins"  # "jenkins", "gitlab", "github"
+    auto_trigger_on_training_complete: true
+
+  monitoring_system:
+    enabled: true
+    platform: "prometheus"  # "prometheus", "datadog", "newrelic"
+    dashboards:
+      - "model-lifecycle-overview"
+      - "version-performance"
+      - "rollback-events"
+
+# Security and compliance
+security:
+  version_signing:
+    enabled: true
+    algorithm: "RSA-SHA256"
+    key_rotation_days: 90
+
+  access_control:
+    require_authentication: true
+    role_based_access: true
+    audit_logging: true
+
+  compliance:
+    data_privacy: true
+    model_explainability: true
+    audit_trail_retention_days: 365
+
+# Backup and disaster recovery
+backup:
+  automatic:
+    enabled: true
+    schedule: "0 2 * * *"  # Daily at 2 AM
+    retention_days: 90
+    storage_location: "s3://ml-models-backup"
+
+  disaster_recovery:
+    enabled: true
+    rpo_hours: 4  # Recovery Point Objective
+    rto_minutes: 30  # Recovery Time Objective
+    failover_regions: ["us-west-2", "eu-west-1"]

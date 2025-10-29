@@ -1,0 +1,22 @@
+# Configuration for ML regression trading policy
+policy_class: "MLRegressionPolicy"
+model_id: "regression_20241028_000000"  # Will be updated after training
+
+# Policy parameters
+prediction_threshold: 0.008  # 0.8% minimum predicted return
+volatility_scaling: true
+volatility_window: 20
+
+# Position sizing
+position_size_method: "volatility"
+position_size_value: 2000.0
+max_positions: 3
+
+# Feature requirements
+features_required: null  # Will auto-detect from model
+
+# Risk management
+risk_params:
+  max_risk_frac: 0.025
+  atr_mult: 1.5
+  stop_loss_bars: 8

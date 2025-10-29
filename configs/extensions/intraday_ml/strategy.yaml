@@ -1,0 +1,56 @@
+# Base strategy configuration for intraday ML experiments
+
+# Data configuration
+data:
+  symbols: ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+  dates: ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"]
+  gold_root: "/home/jacobw/gcs-mount"
+  family: "equities"
+
+# Feature engineering configuration
+features:
+  feature_pack: "core_basics"
+  config:
+    vwap_window: 20
+    rvol_window: 30
+    atr_window: 14
+
+# Screener configuration
+screener:
+  top_n: 3
+  min_relative_volume: 1.2
+  min_price: 10.0
+  max_price: 1000.0
+  min_dollar_volume: 500000
+
+# Policy configuration
+policy:
+  vwap_window: 20
+  deviation_threshold: 0.02
+  position_size_method: "atr_based"
+
+# Risk management configuration
+risk:
+  max_risk_frac: 0.02
+  atr_mult: 2.0
+  atr_window: 14
+  equity: 1000000.0
+
+# Backtest configuration
+backtest:
+  initial_cash: 1000000.0
+  write_artifacts: true
+  costs:
+    bps: 0.001
+    per_share: 0.003
+    slippage_ticks: 1
+    tick_size: 0.01
+  intraday_constraints:
+    next_bar_execution: true
+    flat_eod_time: "15:59:59"
+    no_overnight_positions: true
+    eod_buffer_minutes: 5
+
+# Experiment configuration
+seed: 42
+reference_date: "2024-01-05"

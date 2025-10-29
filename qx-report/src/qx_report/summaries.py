@@ -337,3 +337,24 @@ class LeaderboardGenerator:
             lines.append(row_str)
 
         return "\n".join(lines)
+
+
+class TradeAnalysis:
+    """Generates detailed trade list reports."""
+
+    @staticmethod
+    def generate_trade_list(
+        run_id: str, runs_dir: str = "runs"
+    ) -> pd.DataFrame | None:
+        """Generate a detailed list of trades from a run.
+
+        Args:
+            run_id: Unique identifier for the run
+            runs_dir: Base directory containing runs
+
+        Returns:
+            DataFrame with detailed trade information
+        """
+        reader = RunReader(run_id, runs_dir)
+        trades_df = reader.trades
+        return trades_df

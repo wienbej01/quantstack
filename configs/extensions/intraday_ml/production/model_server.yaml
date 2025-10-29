@@ -1,0 +1,80 @@
+# Production ML model server configuration
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  log_level: "INFO"
+  enable_metrics: true
+  metrics_port: 8001
+  enable_cors: true
+
+# Model serving configuration
+models:
+  cache_size: 10
+  cache_ttl_seconds: 3600
+  max_concurrent_predictions: 100
+  prediction_timeout_seconds: 30
+  warmup_models: []
+
+  # Model validation
+  validation:
+    check_features: true
+    require_confidence: false
+    max_prediction_value: 1.0
+    min_prediction_value: -1.0
+
+# Performance optimization
+performance:
+  enable_jit_compilation: true
+  batch_processing: true
+  max_batch_size: 100
+  batch_timeout_ms: 50
+  enable_model_quantization: false
+
+# Resource limits
+resources:
+  max_memory_mb: 2048
+  max_cpu_percent: 80
+  gc_threshold_mb: 1024
+  enable_memory_monitoring: true
+
+# Monitoring and alerts
+monitoring:
+  enable_prometheus: true
+  prometheus_port: 9090
+  metrics_collection_interval_seconds: 30
+  health_check_interval_seconds: 10
+
+  alerts:
+    error_rate_threshold: 0.05
+    latency_threshold_ms: 1000
+    cpu_threshold_percent: 80
+    memory_threshold_mb: 1536
+
+# Security
+security:
+  enable_api_key_auth: false
+  enable_rate_limiting: true
+  rate_limit_requests_per_minute: 1000
+  enable_request_logging: true
+
+# Deployment settings
+deployment:
+  environment: "production"
+  auto_restart: true
+  graceful_shutdown_timeout_seconds: 30
+  max_restart_attempts: 3
+
+  # Health checks
+  health:
+    enabled: true
+    endpoint: "/health"
+    interval_seconds: 30
+    timeout_seconds: 5
+
+  # Readiness checks
+  readiness:
+    enabled: true
+    endpoint: "/ready"
+    initial_delay_seconds: 60
+    period_seconds: 10

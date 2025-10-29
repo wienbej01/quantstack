@@ -4,6 +4,7 @@
 import argparse
 import os
 import sys
+import traceback
 
 import numpy as np
 import pandas as pd
@@ -43,13 +44,20 @@ def load_test_data():
 
     # Use existing gold data loader - MUST use real data
     symbols = ["AAPL"]  # Use just one symbol for faster testing
-    dates = [
+    trade_dates = [
         "2024-04-01",
         "2024-04-02",
         "2024-04-03",
         "2024-04-04",
         "2024-04-05",
     ]  # Multiple days for regime patterns
+
+    # Include prior-day data to seed warmup features if available
+    first_trade_date = pd.to_datetime(trade_dates[0])
+    warmup_seed_dates = [
+        (first_trade_date - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    ]
+    dates = warmup_seed_dates + trade_dates
 
     # Check if gold data exists in the expected location
     gold_root = "/home/jacobw/gcs-mount"  # From project contract
@@ -83,6 +91,7 @@ def load_test_data():
                         flush=True,
                     )
                     sys.stdout.flush()
+                    symbol_data["_loaded_date"] = date
                     all_data.append(symbol_data)
                 else:
                     print(f"[LOAD] ✗ No data found for {symbol} {date}", flush=True)
@@ -100,6 +109,13 @@ def load_test_data():
     df = pd.concat(all_data, ignore_index=True)
     # Sort by [symbol, ts] as required by feature computation
     df = df.sort_values(["symbol", "ts"]).reset_index(drop=True)
+
+    # Flag prior-day warmup rows so they can be discarded post-feature prep
+    session_start = pd.Timestamp(
+        f"{trade_dates[0]} 09:30:00", tz="America/New_York"
+    ).tz_convert("UTC")
+    df_ts = pd.to_datetime(df["ts"], unit="ns", utc=True)
+    df["is_warmup_seed"] = df_ts < session_start
     print(
         f"[LOAD] ✓ Successfully loaded {len(df)} bars for {len(symbols)} symbols",
         flush=True,
@@ -141,13 +157,14 @@ def prepare_features(df, verbose=False):
     print(f"Enhanced features computed ({time.time()-start:.1f}s)", flush=True)
 
     # Unify warmup flags: drop existing and create one authoritative flag
-    # based on the longest lookback window (100 for volume profile).
+    # Warmup horizon reduced to 45 bars; prepend prior-session bars when available
+    # so the regular session starts with warmed features.
     print("Creating final warmup flag for all features...")
     for flag in ["f__warmup_ok", "f__regime__warmup_ok"]:
         if flag in df.columns:
             df.drop(columns=[flag], inplace=True)
 
-    max_lookback = 100  # From compute_intraday_volume_profile
+    max_lookback = 45
     df["f__warmup_ok"] = df.groupby("symbol").cumcount() >= max_lookback
 
     # Verify required regime columns are present
@@ -282,6 +299,15 @@ def create_regime_detector():
     return create_default_detector()
 
 
+def _create_strategy_func(policy):
+    """Create a strategy function that captures the given policy."""
+
+    def strategy_func(engine, bar):
+        policy.process_bar(bar)
+
+    return strategy_func
+
+
 def test_policies(df, detector):
     """Test regime-aligned policies with proper engine integration."""
     print("\n=== Testing Regime-Aligned Policies ====")
@@ -348,12 +374,15 @@ def test_policies(df, detector):
             if len(symbol_data) == 0:
                 continue
 
-            # Simple strategy function - use proper function to avoid loop variable binding
-            def strategy_func(engine, bar, p=policy):
-                p.process_bar(bar)
+            # Create strategy function and run backtest
+            strategy_func = _create_strategy_func(policy)
 
+            import logging
+
+            # logging.debug(f"Calling engine.run for {name} policy")
             # Run backtest through engine (handles regime detection automatically)
             result = engine.run(symbol_data, strategy_func)
+            # logging.debug(f"engine.run for {name} policy finished")
 
             # Call policy lifecycle method to get diagnostic output
             policy.on_end()
@@ -392,6 +421,7 @@ def test_policies(df, detector):
 
         except Exception as e:
             print(f"Error in {name} policy: {e}")
+            traceback.print_exc()
             results[name] = {"error": str(e)}
 
     return results
@@ -528,6 +558,8 @@ def parse_args():
 
 def main():
     """Main pilot test function."""
+    import logging
+    # logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
     args = parse_args()
 
     print("Regime-Aligned Strategy Pilot Test")
@@ -543,6 +575,11 @@ def main():
 
     # Prepare features
     df_features = prepare_features(df, verbose=verbose)
+
+    # Drop prior-session warmup seed rows before diagnostics/backtest
+    if "is_warmup_seed" in df_features.columns:
+        df_features = df_features[df_features["is_warmup_seed"] == False].copy()
+        df_features.drop(columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore")
 
     # Create regime detector
     detector = create_regime_detector()
@@ -597,6 +634,9 @@ def main():
     print("Enhanced features pipeline operational")
     print("Regime detector compatibility verified")
     print("CLI and diagnostics refinement completed")
+
+    # import logging
+    # logging.shutdown()
 
 
 if __name__ == "__main__":
