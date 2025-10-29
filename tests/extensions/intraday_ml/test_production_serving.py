@@ -1,24 +1,47 @@
 """Tests for production ML serving infrastructure."""
 
-import pytest
-import pandas as pd
-import numpy as np
 import asyncio
 import time
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
+from extensions.intraday_ml_serving.deployment import (
+    DeploymentConfig,
+    DeploymentManager,
+    DeploymentStatus,
+)
+from extensions.intraday_ml_serving.inference_engine import (
+    InferenceEngine,
+    InferenceRequest,
+    InferenceResponse,
+)
+from extensions.intraday_ml_serving.model_server import (
+    ModelServer,
+    PredictionRequest,
+    PredictionResponse,
+)
+from extensions.intraday_ml_serving.monitoring import (
+    AlertConfig,
+    MonitoringMetrics,
+    ProductionMonitor,
+)
+
 # from fastapi.testclient import TestClient  # Commented out for compatibility
 
-from extensions.intraday_ml_serving.model_server import ModelServer, PredictionRequest, PredictionResponse
-from extensions.intraday_ml_serving.inference_engine import InferenceEngine, InferenceRequest, InferenceResponse
-from extensions.intraday_ml_serving.deployment import DeploymentManager, DeploymentConfig, DeploymentStatus
-from extensions.intraday_ml_serving.monitoring import ProductionMonitor, MonitoringMetrics, AlertConfig
 
 
 @pytest.fixture
 def sample_model_metadata():
     """Create sample model metadata."""
-    from extensions.intraday_ml_models.schemas import ModelMetadata, ModelType, FeatureImportance
+    from extensions.intraday_ml_models.schemas import (
+        FeatureImportance,
+        ModelMetadata,
+        ModelType,
+    )
 
     return ModelMetadata(
         model_id="test_model",
@@ -39,18 +62,14 @@ def sample_model_metadata():
         ],
         random_seed=42,
         data_hash="test_hash",
-        model_hash="model_hash"
+        model_hash="model_hash",
     )
 
 
 @pytest.fixture
 def sample_features():
     """Create sample features for prediction."""
-    return {
-        "f__vwap_30": 150.5,
-        "f__rel_volume_30": 1.2,
-        "f__atr_14": 2.1
-    }
+    return {"f__vwap_30": 150.5, "f__rel_volume_30": 1.2, "f__atr_14": 2.1}
 
 
 class TestModelServer:
@@ -58,7 +77,7 @@ class TestModelServer:
 
     def setup_method(self):
         """Set up test environment."""
-        with patch('extensions.intraday_ml_serving.model_server.MLModelRegistry'):
+        with patch("extensions.intraday_ml_serving.model_server.MLModelRegistry"):
             self.server = ModelServer(cache_size=5)
 
     def test_server_initialization(self):
@@ -77,12 +96,14 @@ class TestModelServer:
 
         metrics = self.server.metrics.get_metrics()
         assert metrics["total_predictions"] == 3
-        assert metrics["error_rate"] == 1/3
+        assert metrics["error_rate"] == 1 / 3
         assert metrics["avg_latency_ms"] == 75.0  # (50+75+100)/3
 
-    @patch('extensions.intraday_ml_serving.model_server.MLPredictor')
-    @patch('extensions.intraday_ml_serving.model_server.MLModelRegistry')
-    def test_model_loading(self, mock_registry_class, mock_predictor_class, sample_model_metadata):
+    @patch("extensions.intraday_ml_serving.model_server.MLPredictor")
+    @patch("extensions.intraday_ml_serving.model_server.MLModelRegistry")
+    def test_model_loading(
+        self, mock_registry_class, mock_predictor_class, sample_model_metadata
+    ):
         """Test model loading from registry."""
         # Setup mocks
         mock_registry = Mock()
@@ -112,13 +133,17 @@ class TestModelServer:
         retrieved_model = cache.get("test_model")
         assert retrieved_model is mock_model
 
-    @patch('extensions.intraday_ml_serving.model_server.MLPredictor')
-    @patch('extensions.intraday_ml_serving.model_server.MLModelRegistry')
-    async def test_prediction_endpoint(self, mock_registry_class, mock_predictor_class, sample_features):
+    @patch("extensions.intraday_ml_serving.model_server.MLPredictor")
+    @patch("extensions.intraday_ml_serving.model_server.MLModelRegistry")
+    async def test_prediction_endpoint(
+        self, mock_registry_class, mock_predictor_class, sample_features
+    ):
         """Test prediction endpoint via FastAPI."""
         # Setup mocks
         mock_registry = Mock()
-        mock_registry.get_metadata.return_value = Mock(features=list(sample_features.keys()))
+        mock_registry.get_metadata.return_value = Mock(
+            features=list(sample_features.keys())
+        )
         mock_registry_class.return_value = mock_registry
 
         mock_result = Mock()
@@ -133,10 +158,7 @@ class TestModelServer:
         client = TestClient(self.server.app)
 
         # Test prediction request
-        request_data = {
-            "features": sample_features,
-            "model_id": "test_model"
-        }
+        request_data = {"features": sample_features, "model_id": "test_model"}
 
         response = client.post("/predict", json=request_data)
         assert response.status_code == 200
@@ -174,7 +196,7 @@ class TestInferenceEngine:
 
     def setup_method(self):
         """Set up test environment."""
-        with patch('extensions.intraday_ml_serving.inference_engine.MLModelRegistry'):
+        with patch("extensions.intraday_ml_serving.inference_engine.MLModelRegistry"):
             self.engine = InferenceEngine(cache_size=5, batch_size=10)
 
     def test_engine_initialization(self):
@@ -189,7 +211,9 @@ class TestInferenceEngine:
         features = {"feature1": 1.0, "feature2": 2.0}
         model_id = "test_model"
 
-        with patch('extensions.intraday_ml_serving.inference_engine.MLPredictor') as mock_predictor_class:
+        with patch(
+            "extensions.intraday_ml_serving.inference_engine.MLPredictor"
+        ) as mock_predictor_class:
             # Setup mock predictor
             mock_predictor = Mock()
             mock_result = Mock()
@@ -206,11 +230,13 @@ class TestInferenceEngine:
         """Test batch prediction."""
         features_list = [
             {"feature1": 1.0, "feature2": 2.0},
-            {"feature1": 1.5, "feature2": 2.5}
+            {"feature1": 1.5, "feature2": 2.5},
         ]
         model_ids = ["test_model"]
 
-        with patch('extensions.intraday_ml_serving.inference_engine.MLPredictor') as mock_predictor_class:
+        with patch(
+            "extensions.intraday_ml_serving.inference_engine.MLPredictor"
+        ) as mock_predictor_class:
             # Setup mock predictor
             mock_predictor = Mock()
             mock_result = Mock()
@@ -231,7 +257,9 @@ class TestInferenceEngine:
         # Test empty cache
         assert cache.get("test_model") is None
 
-        with patch('extensions.intraday_ml_serving.inference_engine.MLPredictor') as mock_predictor_class:
+        with patch(
+            "extensions.intraday_ml_serving.inference_engine.MLPredictor"
+        ) as mock_predictor_class:
             mock_predictor = Mock()
             mock_predictor_class.return_value = mock_predictor
 
@@ -258,7 +286,10 @@ class TestInferenceEngine:
     def test_concurrent_prediction_limiting(self):
         """Test concurrent prediction limiting."""
         # Test semaphore is created
-        assert self.engine.prediction_semaphore._value == self.engine.max_concurrent_predictions
+        assert (
+            self.engine.prediction_semaphore._value
+            == self.engine.max_concurrent_predictions
+        )
 
 
 class TestDeploymentManager:
@@ -266,7 +297,7 @@ class TestDeploymentManager:
 
     def setup_method(self):
         """Set up test environment."""
-        with patch('extensions.intraday_ml_serving.deployment.MLModelRegistry'):
+        with patch("extensions.intraday_ml_serving.deployment.MLModelRegistry"):
             self.manager = DeploymentManager(deployment_type="docker")
 
     def test_deployment_config_creation(self):
@@ -276,7 +307,7 @@ class TestDeploymentManager:
             model_id="test_model",
             replicas=2,
             cpu_limit="500m",
-            memory_limit="1Gi"
+            memory_limit="1Gi",
         )
 
         assert config.deployment_name == "test-deployment"
@@ -288,12 +319,13 @@ class TestDeploymentManager:
     def test_deployment_config_creation(self):
         """Test deployment configuration creation."""
         from extensions.intraday_ml_serving.deployment import DeploymentConfig
+
         config = DeploymentConfig(
             deployment_name="test-deployment",
             model_id="test_model",
             replicas=2,
             cpu_limit="500m",
-            memory_limit="1Gi"
+            memory_limit="1Gi",
         )
 
         assert config.deployment_name == "test-deployment"
@@ -305,13 +337,14 @@ class TestDeploymentManager:
     def test_deployment_status_creation(self):
         """Test deployment status creation."""
         from extensions.intraday_ml_serving.deployment import DeploymentStatus
+
         status = DeploymentStatus(
             deployment_name="test-deployment",
             status="running",
             replicas=3,
             ready_replicas=3,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
 
         assert status.deployment_name == "test-deployment"
@@ -322,12 +355,13 @@ class TestDeploymentManager:
     def test_deployment_config_validation(self):
         """Test deployment configuration validation."""
         from extensions.intraday_ml_serving.deployment import DeploymentConfig
+
         config = DeploymentConfig(
             deployment_name="test-deployment",
             model_id="test_model",
             replicas=2,
             cpu_limit="500m",
-            memory_limit="1Gi"
+            memory_limit="1Gi",
         )
 
         # Test required fields
@@ -363,7 +397,7 @@ class TestProductionMonitor:
             threshold=0.05,
             operator="gt",
             duration_minutes=5,
-            severity="warning"
+            severity="warning",
         )
 
         assert alert_config.metric_name == "error_rate"
@@ -374,6 +408,7 @@ class TestProductionMonitor:
 
         # Test risk levels
         from extensions.intraday_ml_risk.ml_risk_manager import RiskLevel
+
         assert RiskLevel.LOW.value == "low"
         assert RiskLevel.MEDIUM.value == "medium"
         assert RiskLevel.HIGH.value == "high"
@@ -383,6 +418,7 @@ class TestProductionMonitor:
         """Test metrics tracking concepts."""
         # Test that metrics can be created
         from extensions.intraday_ml_serving.monitoring import MonitoringMetrics
+
         metrics = MonitoringMetrics(
             timestamp=datetime.now(),
             model_id="test_model",
@@ -391,7 +427,7 @@ class TestProductionMonitor:
             successful_requests=95,
             failed_requests=5,
             avg_latency_ms=50.0,
-            requests_per_second=10.0
+            requests_per_second=10.0,
         )
 
         assert metrics.model_id == "test_model"
@@ -411,9 +447,11 @@ class TestProductionIntegration:
 
     def setup_method(self):
         """Set up test environment."""
-        with patch('extensions.intraday_ml_serving.model_server.MLModelRegistry'), \
-             patch('extensions.intraday_ml_serving.inference_engine.MLModelRegistry'), \
-             patch('extensions.intraday_ml_serving.monitoring.MLModelRegistry'):
+        with (
+            patch("extensions.intraday_ml_serving.model_server.MLModelRegistry"),
+            patch("extensions.intraday_ml_serving.inference_engine.MLModelRegistry"),
+            patch("extensions.intraday_ml_serving.monitoring.MLModelRegistry"),
+        ):
 
             self.server = ModelServer(cache_size=3)
             self.engine = InferenceEngine(cache_size=3)
@@ -427,7 +465,7 @@ class TestProductionIntegration:
         model_id = "test_model"
 
         # Mock the model loading and prediction
-        with patch.object(self.engine, 'predict_single') as mock_predict:
+        with patch.object(self.engine, "predict_single") as mock_predict:
             mock_predict.return_value = (0.5, 0.8)
 
             prediction, confidence = self.engine.predict_single(features, model_id)
@@ -447,11 +485,13 @@ class TestProductionIntegration:
             prediction=0.5,
             confidence=0.8,
             features={"feature1": 1.0},
-            latency_ms=50.0
+            latency_ms=50.0,
         )
 
         # Check that monitoring captured the data
-        performance_metrics = self.monitor.performance_monitor.get_performance_metrics("test_model")
+        performance_metrics = self.monitor.performance_monitor.get_performance_metrics(
+            "test_model"
+        )
         assert performance_metrics is not None
         assert performance_metrics.total_requests == 1
 

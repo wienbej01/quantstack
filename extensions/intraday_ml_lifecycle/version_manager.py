@@ -3,21 +3,22 @@
 import hashlib
 import json
 import logging
-import time
-from typing import Dict, Any, List, Optional, Set
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
-from pathlib import Path
 import sqlite3
 import threading
+import time
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
-from extensions.intraday_ml_models.schemas import ModelMetadata, ModelType
 from extensions.intraday_ml_models.registry import MLModelRegistry
+from extensions.intraday_ml_models.schemas import ModelMetadata, ModelType
 
 
 class ModelStatus(Enum):
     """Model lifecycle status."""
+
     TRAINING = "training"
     VALIDATING = "validating"
     STAGING = "staging"
@@ -30,6 +31,7 @@ class ModelStatus(Enum):
 @dataclass
 class ModelVersion:
     """Model version information."""
+
     model_id: str
     version: str
     model_type: ModelType
@@ -87,7 +89,8 @@ class VersionDatabase:
             cursor = conn.cursor()
 
             # Create model_versions table
-            cursor.execute("""
+            cursor.execute(
+                """
                 CREATE TABLE IF NOT EXISTS model_versions (
                     model_id TEXT NOT NULL,
                     version TEXT NOT NULL,
@@ -110,12 +113,19 @@ class VersionDatabase:
                     notes TEXT,
                     PRIMARY KEY (model_id, version)
                 )
-            """)
+            """
+            )
 
             # Create indexes
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_status ON model_versions (status)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_created_at ON model_versions (created_at)")
-            cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_updated_at ON model_versions (updated_at)")
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_model_status ON model_versions (status)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_model_created_at ON model_versions (created_at)"
+            )
+            cursor.execute(
+                "CREATE INDEX IF NOT EXISTS idx_model_updated_at ON model_versions (updated_at)"
+            )
 
             conn.commit()
             conn.close()
@@ -134,14 +144,17 @@ class VersionDatabase:
             data["child_versions"] = json.dumps(version.child_versions)
 
             # UPSERT operation
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR REPLACE INTO model_versions VALUES (
                     :model_id, :version, :model_type, :status, :created_at, :updated_at,
                     :created_by, :metadata, :file_path, :file_hash, :config_hash, :data_hash,
                     :training_metrics, :validation_metrics, :production_metrics,
                     :parent_version, :child_versions, :tags, :notes
                 )
-            """, data)
+            """,
+                data,
+            )
 
             conn.commit()
             conn.close()
@@ -154,9 +167,12 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM model_versions WHERE model_id = ? AND version = ?
-            """, (model_id, version))
+            """,
+                (model_id, version),
+            )
 
             row = cursor.fetchone()
             conn.close()
@@ -171,12 +187,15 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM model_versions
                 WHERE model_id = ?
                 ORDER BY created_at DESC
                 LIMIT 1
-            """, (model_id,))
+            """,
+                (model_id,),
+            )
 
             row = cursor.fetchone()
             conn.close()
@@ -191,9 +210,12 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM model_versions WHERE status = ? ORDER BY created_at DESC
-            """, (status.value,))
+            """,
+                (status.value,),
+            )
 
             rows = cursor.fetchall()
             conn.close()
@@ -210,11 +232,14 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM model_versions
                 WHERE parent_version = ?
                 ORDER BY created_at DESC
-            """, (f"{model_id}:{version}",))
+            """,
+                (f"{model_id}:{version}",),
+            )
 
             rows = cursor.fetchall()
             conn.close()
@@ -227,11 +252,14 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE model_versions
                 SET status = ?, updated_at = ?
                 WHERE model_id = ? AND version = ?
-            """, (new_status.value, datetime.now().isoformat(), model_id, version))
+            """,
+                (new_status.value, datetime.now().isoformat(), model_id, version),
+            )
 
             conn.commit()
             conn.close()
@@ -244,9 +272,12 @@ class VersionDatabase:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 DELETE FROM model_versions WHERE model_id = ? AND version = ?
-            """, (model_id, version))
+            """,
+                (model_id, version),
+            )
 
             conn.commit()
             conn.close()
@@ -274,7 +305,7 @@ class VersionDatabase:
             parent_version=row[15],
             child_versions=json.loads(row[16]) if row[16] else [],
             tags=set(json.loads(row[17])) if row[17] else set(),
-            notes=row[18] or ""
+            notes=row[18] or "",
         )
 
 
@@ -284,7 +315,7 @@ class VersionManager:
     def __init__(
         self,
         registry: Optional[MLModelRegistry] = None,
-        storage_path: str = "model_versions.db"
+        storage_path: str = "model_versions.db",
     ):
         self.registry = registry or MLModelRegistry()
         self.db = VersionDatabase(storage_path)
@@ -299,7 +330,7 @@ class VersionManager:
         training_data_hash: str,
         created_by: str,
         parent_version: Optional[str] = None,
-        notes: str = ""
+        notes: str = "",
     ) -> ModelVersion:
         """Create a new model version."""
         self.logger.info(f"Creating new version for model {model_id}")
@@ -338,7 +369,7 @@ class VersionManager:
             config_hash=config_hash,
             data_hash=training_data_hash,
             parent_version=parent_version,
-            notes=notes
+            notes=notes,
         )
 
         # Save to database
@@ -360,7 +391,7 @@ class VersionManager:
         model_id: str,
         version: str,
         new_status: ModelStatus,
-        metrics: Optional[Dict[str, float]] = None
+        metrics: Optional[Dict[str, float]] = None,
     ):
         """Update version status and optionally metrics."""
         version_obj = self.db.get_version(model_id, version)
@@ -382,18 +413,24 @@ class VersionManager:
 
             self.db.save_version(version_obj)
 
-    def promote_to_production(self, model_id: str, version: str, metrics: Dict[str, float]):
+    def promote_to_production(
+        self, model_id: str, version: str, metrics: Dict[str, float]
+    ):
         """Promote model version to production."""
         # Check if model is in staging
         current_version = self.db.get_version(model_id, version)
         if not current_version or current_version.status != ModelStatus.STAGING:
-            raise ValueError(f"Model {model_id}:{version} must be in staging before production")
+            raise ValueError(
+                f"Model {model_id}:{version} must be in staging before production"
+            )
 
         # Demote current production version if exists
         current_production = self.db.get_production_versions()
         for prod_version in current_production:
             if prod_version.model_id == model_id:
-                self.update_version_status(model_id, prod_version.version, ModelStatus.DEPRECATED)
+                self.update_version_status(
+                    model_id, prod_version.version, ModelStatus.DEPRECATED
+                )
                 break
 
         # Promote new version
@@ -414,7 +451,9 @@ class VersionManager:
 
         if current_production:
             # Demote current production
-            self.update_version_status(model_id, current_production.version, ModelStatus.DEPRECATED)
+            self.update_version_status(
+                model_id, current_production.version, ModelStatus.DEPRECATED
+            )
 
         # Promote target version
         self.update_version_status(model_id, target_version, ModelStatus.PRODUCTION)
@@ -428,11 +467,14 @@ class VersionManager:
             conn = sqlite3.connect(self.db.db_path)
             cursor = conn.cursor()
 
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM model_versions
                 WHERE model_id = ?
                 ORDER BY created_at DESC
-            """, (model_id,))
+            """,
+                (model_id,),
+            )
 
             rows = cursor.fetchall()
             conn.close()
@@ -443,7 +485,9 @@ class VersionManager:
         """Get all models currently in production."""
         return self.db.get_production_versions()
 
-    def compare_versions(self, model_id: str, version1: str, version2: str) -> Dict[str, Any]:
+    def compare_versions(
+        self, model_id: str, version1: str, version2: str
+    ) -> Dict[str, Any]:
         """Compare two model versions."""
         v1 = self.db.get_version(model_id, version1)
         v2 = self.db.get_version(model_id, version2)
@@ -457,21 +501,23 @@ class VersionManager:
                 "created_at": v1.created_at,
                 "status": v1.status.value,
                 "training_metrics": v1.training_metrics,
-                "validation_metrics": v1.validation_metrics
+                "validation_metrics": v1.validation_metrics,
             },
             "version2": {
                 "version": v2.version,
                 "created_at": v2.created_at,
                 "status": v2.status.value,
                 "training_metrics": v2.training_metrics,
-                "validation_metrics": v2.validation_metrics
-            }
+                "validation_metrics": v2.validation_metrics,
+            },
         }
 
         # Calculate metric differences
         for metric_name in v1.training_metrics:
             if metric_name in v2.training_metrics:
-                diff = v2.training_metrics[metric_name] - v1.training_metrics[metric_name]
+                diff = (
+                    v2.training_metrics[metric_name] - v1.training_metrics[metric_name]
+                )
                 comparison[f"{metric_name}_difference"] = diff
 
         return comparison
@@ -495,7 +541,9 @@ class VersionManager:
         # Delete old versions
         for version in versions_to_delete:
             self.db.delete_version(version.model_id, version.version)
-            self.logger.info(f"Deleted old version {version.model_id}:{version.version}")
+            self.logger.info(
+                f"Deleted old version {version.model_id}:{version.version}"
+            )
 
         return len(versions_to_delete)
 
@@ -517,14 +565,14 @@ class VersionManager:
         versions = self.get_version_history(model_id)
         data = [version.to_dict() for version in versions]
 
-        with open(output_path, 'w') as f:
+        with open(output_path, "w") as f:
             json.dump(data, f, indent=2, default=str)
 
         self.logger.info(f"Exported {len(versions)} versions to {output_path}")
 
     def import_versions(self, input_path: str):
         """Import version history from JSON file."""
-        with open(input_path, 'r') as f:
+        with open(input_path, "r") as f:
             data = json.load(f)
 
         imported_count = 0

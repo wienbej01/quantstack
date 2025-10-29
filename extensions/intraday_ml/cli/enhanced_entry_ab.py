@@ -1,11 +1,12 @@
 """Enhanced entry A/B testing command with improved fairness validation."""
 
 import pathlib
+
 import typer
 from rich.console import Console
 
-from .orchestration import ABOrchestrator
 from .fairness import FairnessConfig
+from .orchestration import ABOrchestrator
 
 app = typer.Typer()
 console = Console()
@@ -24,7 +25,9 @@ def enhanced_entry_ab(
         False, "--force", help="Force run even if checksums differ"
     ),
     allow_unfair: bool = typer.Option(
-        False, "--allow-unfair", help="Allow experiment to proceed despite fairness violations"
+        False,
+        "--allow-unfair",
+        help="Allow experiment to proceed despite fairness violations",
     ),
 ) -> None:
     """Run enhanced entry A/B test with improved fairness validation."""
@@ -32,9 +35,12 @@ def enhanced_entry_ab(
 
     # Parse variant files
     if "," in variants:
-        variant_files = [pathlib.Path(f.strip()) for f in variants.split(",") if f.strip()]
+        variant_files = [
+            pathlib.Path(f.strip()) for f in variants.split(",") if f.strip()
+        ]
     else:
         import glob
+
         variant_files = [pathlib.Path(f) for f in sorted(glob.glob(variants))]
 
     if not variant_files:
@@ -59,22 +65,24 @@ def enhanced_entry_ab(
         console.print(f"Experiment ID: {result['experiment_name']}")
         console.print(f"Runs created: {len(result['run_results'])}")
 
-        if result['fairness_result']:
-            fairness = result['fairness_result']
+        if result["fairness_result"]:
+            fairness = result["fairness_result"]
             if fairness.is_fair:
                 console.print("✅ Fairness validation passed", style="green")
             else:
                 console.print(f"⚠️  Fairness issues: {fairness.reason}", style="yellow")
             if fairness.warnings:
-                console.print(f"Warnings: {', '.join(fairness.warnings)}", style="yellow")
+                console.print(
+                    f"Warnings: {', '.join(fairness.warnings)}", style="yellow"
+                )
 
         # Print performance summary
         console.print("\nPerformance Summary:")
-        for run_result in result['run_results']:
-            run_id = run_result['run_id']
-            metrics = run_result['metrics']
-            trading = metrics.get('trading', {})
-            performance = metrics.get('performance', {})
+        for run_result in result["run_results"]:
+            run_id = run_result["run_id"]
+            metrics = run_result["metrics"]
+            trading = metrics.get("trading", {})
+            performance = metrics.get("performance", {})
 
             console.print(f"  {run_id}:")
             console.print(

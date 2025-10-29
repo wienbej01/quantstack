@@ -34,7 +34,7 @@ def intraday_ml_run_backtest(
         Dictionary with Sprint 6 artifacts
     """
     # Load existing qx-backtest engine
-    from qx_backtest.engine import BacktestEngine, BacktestConfig
+    from qx_backtest.engine import BacktestConfig, BacktestEngine
     from qx_backtest.fill import DefaultFiller
 
     # Load and merge configuration
@@ -45,9 +45,14 @@ def intraday_ml_run_backtest(
 
     # Apply intraday preprocessing if required
     if enforce_intraday_compliance:
-        processed_bars, processed_orders = _apply_intraday_constraints(bars, orders, config)
+        processed_bars, processed_orders = _apply_intraday_constraints(
+            bars, orders, config
+        )
     else:
-        processed_bars, processed_orders = bars, orders
+        processed_bars, processed_orders = bars.copy(), orders.copy()
+
+    # Ensure data is properly sorted by timestamp (required by engine)
+    processed_bars = processed_bars.sort_values(['ts', 'symbol']).reset_index(drop=True)
 
     # Configure engine with existing interfaces
     engine_config = BacktestConfig(
@@ -62,12 +67,14 @@ def intraday_ml_run_backtest(
     engine = BacktestEngine(engine_config)
 
     # Configure filler with intraday costs
-    costs = config["costs"]
+    costs = config.get("costs", {})
     filler = DefaultFiller(
-        bps=costs["bps"],
-        per_share=costs["per_share"],
-        slippage_ticks=costs["slippage_ticks"],
-        tick_size=costs["tick_size"],
+        commission_per_share=costs.get("per_share", 0.0035),
+        commission_min=costs.get("commission_min", 0.35),
+        slippage_bps=costs.get("bps", 5),
+        partial_fill_probability=costs.get("partial_fill_probability", 0.3),
+        max_partial_fill_ratio=costs.get("max_partial_fill_ratio", 0.5),
+        fill_probability=costs.get("fill_probability", 0.95),
     )
     engine.filler = filler
 
@@ -106,7 +113,9 @@ def intraday_ml_get_backtest_hash(
     return hash_dict(input_data)
 
 
-def _load_and_merge_config(cfg: dict[str, Any], config_path: str | None) -> dict[str, Any]:
+def _load_and_merge_config(
+    cfg: dict[str, Any], config_path: str | None
+) -> dict[str, Any]:
     """Load configuration from file and merge with input."""
     # Default configuration
     default_config = {
@@ -131,7 +140,7 @@ def _load_and_merge_config(cfg: dict[str, Any], config_path: str | None) -> dict
     if config_path:
         config_file = Path(config_path)
         if config_file.exists():
-            with open(config_file, 'r') as f:
+            with open(config_file, "r") as f:
                 file_config = yaml.safe_load(f)
             default_config.update(file_config)
 
@@ -161,7 +170,9 @@ def _validate_inputs(bars: pd.DataFrame, orders: pd.DataFrame) -> None:
 
     if not orders.empty:
         required_order_cols = ["ts", "symbol", "side", "qty"]
-        missing_orders = [col for col in required_order_cols if col not in orders.columns]
+        missing_orders = [
+            col for col in required_order_cols if col not in orders.columns
+        ]
         if missing_orders:
             raise ValueError(f"Missing required order columns: {missing_orders}")
 
@@ -211,7 +222,7 @@ def _filter_eod_violations(
     orders: pd.DataFrame, bars: pd.DataFrame, constraints: dict[str, Any]
 ) -> pd.DataFrame:
     """Filter orders that would violate EOD flat constraint."""
-    from datetime import time, datetime, timedelta
+    from datetime import datetime, time, timedelta
 
     eod_time = time(15, 59, 59)
     buffer_minutes = constraints["eod_buffer_minutes"]
@@ -233,7 +244,9 @@ def _filter_eod_violations(
             eod_datetime = datetime.combine(last_bar["date"], eod_time)
             eod_datetime = eod_datetime.replace(tzinfo=last_bar["datetime_et"].tzinfo)
             cutoff = eod_datetime - eod_cutoff
-            cutoff_times.add((last_bar["symbol"], cutoff.timestamp() * 1_000_000))  # Convert to ns
+            cutoff_times.add(
+                (last_bar["symbol"], cutoff.timestamp() * 1_000_000)
+            )  # Convert to ns
 
     # Filter orders
     valid_orders = []
@@ -245,15 +258,62 @@ def _filter_eod_violations(
 
 
 def _create_strategy_wrapper(orders: pd.DataFrame):
-    """Create strategy function wrapper for pre-sized orders."""
-    def strategy(bars: pd.DataFrame) -> pd.DataFrame:
-        if orders.empty:
-            return pd.DataFrame()
+    """Create strategy function wrapper for pre-sized orders with position management."""
 
-        # Return orders matching available bar timestamps
-        available_timestamps = set(bars["ts"])
-        matching_orders = orders[orders["ts"].isin(available_timestamps)]
-        return matching_orders.copy()
+    def strategy(engine, bar_dict: dict) -> None:
+        """Strategy function with proper LONG/SHORT handling and position management."""
+        if orders.empty:
+            return
+
+        # Get current bar timestamp
+        current_ts = bar_dict.get("ts")
+        if current_ts is None:
+            return
+
+        # Find orders matching current timestamp
+        matching_orders = orders[orders["ts"] == current_ts]
+
+        # Submit matching orders to engine
+        from qx_backtest.order import Order, OrderSide, OrderType, OrderStatus
+        import uuid
+
+        for idx, (_, order) in enumerate(matching_orders.iterrows()):
+            # Convert order to engine format and submit
+            order_id = f"ml_order_{current_ts}_{idx}"
+
+            # Determine order side - handle both LONG and SHORT
+            side = OrderSide.BUY if order["side"] == "buy" else OrderSide.SELL
+
+            # Create order with proper risk management
+            order_obj = Order(
+                order_id=order_id,
+                symbol=order["symbol"],
+                side=side,
+                quantity=int(order["qty"]),
+                order_type=OrderType.MARKET,
+                timestamp=current_ts
+            )
+
+            # Add stop-loss and take-profit if available
+            if 'stop_loss_pct' in order:
+                # Calculate stop loss price based on order side
+                if side == OrderSide.BUY:  # LONG position
+                    stop_loss_price = order["close"] * (1 - order["stop_loss_pct"])
+                else:  # SHORT position
+                    stop_loss_price = order["close"] * (1 + order["stop_loss_pct"])
+
+                order_obj.stop_loss = stop_loss_price
+
+            if 'take_profit_pct' in order:
+                # Calculate take profit price based on order side
+                if side == OrderSide.BUY:  # LONG position
+                    take_profit_price = order["close"] * (1 + order["take_profit_pct"])
+                else:  # SHORT position
+                    take_profit_price = order["close"] * (1 - order["take_profit_pct"])
+
+                order_obj.take_profit = take_profit_price
+
+            engine.submit_order(order_obj)
 
     return strategy
 
@@ -263,15 +323,31 @@ def _convert_result_to_artifacts(result: Any, config: dict[str, Any]) -> dict[st
     artifacts = {}
 
     # Extract data based on result type
-    if hasattr(result, '__dict__'):
-        # Object with attributes
+    if hasattr(result, "__dict__"):
+        # Object with attributes (BacktestResult)
+        # Convert lists to DataFrames where needed
+        trades_history = getattr(result, "trades_history", [])
+        orders_history = getattr(result, "orders_history", [])
+        positions_history = getattr(result, "positions_history", [])
+
+        # Create proper trades DataFrame from unique trades only
+        unique_trades = _deduplicate_trades(trades_history) if trades_history else pd.DataFrame()
+
+        # Create fills DataFrame from unique fills (subset of trades)
+        unique_fills = _create_fills_from_trades(unique_trades) if not unique_trades.empty else pd.DataFrame()
+
+        # First create artifacts without metrics
+        temp_artifacts = {
+            "equity": getattr(result, "equity_curve", pd.DataFrame()),
+            "positions": pd.DataFrame(positions_history) if positions_history else pd.DataFrame(),
+            "trades": unique_trades,
+            "orders": pd.DataFrame(orders_history) if orders_history else pd.DataFrame(),
+            "fills": unique_fills,
+        }
+
         artifacts = {
-            "metrics": getattr(result, 'metrics', {}),
-            "equity": getattr(result, 'equity_curve', pd.DataFrame()),
-            "positions": getattr(result, 'positions', pd.DataFrame()),
-            "trades": getattr(result, 'trades', pd.DataFrame()),
-            "orders": getattr(result, 'orders', pd.DataFrame()),
-            "fills": getattr(result, 'fills', pd.DataFrame()),
+            "metrics": _extract_metrics_from_result(result, temp_artifacts),
+            **temp_artifacts
         }
     elif isinstance(result, dict):
         artifacts = result.copy()
@@ -281,8 +357,14 @@ def _convert_result_to_artifacts(result: Any, config: dict[str, Any]) -> dict[st
 
     # Ensure all required artifacts exist
     required_artifacts = [
-        "signals", "orders", "fills", "positions", "equity",
-        "trades", "risk_rejects", "allocation_log"
+        "signals",
+        "orders",
+        "fills",
+        "positions",
+        "equity",
+        "trades",
+        "risk_rejects",
+        "allocation_log",
     ]
 
     for artifact_name in required_artifacts:
@@ -305,31 +387,139 @@ def _convert_result_to_artifacts(result: Any, config: dict[str, Any]) -> dict[st
     return artifacts
 
 
+def _deduplicate_trades(trades_history: list[dict[str, Any]]) -> pd.DataFrame:
+    """Remove duplicate trade entries caused by forward-filling in backtest engine."""
+    if not trades_history:
+        return pd.DataFrame()
+
+    # Convert to DataFrame
+    trades_df = pd.DataFrame(trades_history)
+
+    # Group by unique trade identifier (order_id + symbol + entry_timestamp)
+    # and take only the first occurrence (actual trade execution)
+    if 'order_id' in trades_df.columns and 'timestamp' in trades_df.columns:
+        # Sort by timestamp to ensure first occurrence is the actual trade
+        trades_df = trades_df.sort_values(['order_id', 'timestamp', 'symbol'])
+        # Drop duplicates keeping the first (actual) trade
+        unique_trades = trades_df.drop_duplicates(subset=['order_id', 'symbol'], keep='first')
+    else:
+        # Fallback: drop exact duplicates
+        unique_trades = trades_df.drop_duplicates()
+
+    return unique_trades.reset_index(drop=True)
+
+
+def _create_fills_from_trades(trades_df: pd.DataFrame) -> pd.DataFrame:
+    """Create fills DataFrame from trades (subset of trade data)."""
+    if trades_df.empty:
+        return pd.DataFrame()
+
+    # Fills are a subset of trade data with fill-specific columns
+    fill_columns = ['timestamp', 'symbol', 'side', 'quantity', 'price', 'commission', 'total_cost', 'order_id']
+    available_columns = [col for col in fill_columns if col in trades_df.columns]
+
+    return trades_df[available_columns].copy()
+
+
+def _extract_metrics_from_result(result: Any, artifacts: dict[str, Any] = None) -> dict[str, Any]:
+    """Extract metrics from BacktestResult object, but prioritize calculated metrics."""
+    metrics = {}
+
+    # Extract performance metrics from BacktestResult (excluding trade counts)
+    metric_fields = [
+        "total_return", "annualized_return", "volatility", "sharpe_ratio",
+        "max_drawdown", "max_drawdown_duration", "total_commissions",
+        "total_slippage", "fill_rate"
+    ]
+
+    for field in metric_fields:
+        if hasattr(result, field):
+            metrics[field] = getattr(result, field)
+
+    # Override trade-related metrics with our calculations from artifacts
+    if artifacts and "trades" in artifacts and not artifacts["trades"].empty:
+        calculated_metrics = _calculate_metrics(artifacts)
+        trade_fields = ["total_trades", "trades", "win_rate", "avg_R", "total_pnl", "fees_total"]
+        for field in trade_fields:
+            if field in calculated_metrics:
+                metrics[field] = calculated_metrics[field]
+    else:
+        # Fallback to BacktestResult trade metrics (but they're usually 0)
+        trade_fields = ["total_trades", "win_rate", "profit_factor", "winning_trades", "losing_trades"]
+        for field in trade_fields:
+            if hasattr(result, field):
+                metrics[field] = getattr(result, field)
+
+    return metrics
+
+
 def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
     """Calculate basic metrics from artifacts."""
     metrics = {
-        "trades": 0,
+        "total_trades": 0,
         "avg_R": 0.0,
         "fees_total": 0.0,
         "total_pnl": 0.0,
         "win_rate": 0.0,
+        "trades": 0,  # For backward compatibility
     }
 
     # Calculate from trades if available
     if "trades" in artifacts and not artifacts["trades"].empty:
         trades_df = artifacts["trades"]
-        metrics["trades"] = len(trades_df)
 
-        if "pnl" in trades_df.columns:
-            metrics["total_pnl"] = trades_df["pnl"].sum()
-            metrics["avg_R"] = trades_df["pnl"].mean()
-            metrics["win_rate"] = (trades_df["pnl"] > 0).sum() / len(trades_df)
+        # Count unique completed trades (pairs of entry/exit)
+        # Each complete trade should have both entry and exit
+        trade_count = len(trades_df) // 2  # Assuming 2 legs per complete trade
+        metrics["total_trades"] = trade_count
+        metrics["trades"] = trade_count  # Backward compatibility
+
+        # Calculate P&L from total_cost if available
+        if "total_cost" in trades_df.columns:
+            # For short positions, negative total_cost represents profit
+            # For long positions, positive total_cost represents investment
+            metrics["total_pnl"] = -trades_df["total_cost"].sum()  # Negative because cost is cash outflow
+
+        # Calculate from commission if available (proxy for trading activity)
+        if "commission" in trades_df.columns:
+            metrics["fees_total"] = trades_df["commission"].sum()
+
+        # Calculate win rate based on direction and P&L - group by symbol to count complete trades
+        if "side" in trades_df.columns and "total_cost" in trades_df.columns:
+            wins = 0
+            # Group trades by symbol and count complete round-trips
+            for symbol in trades_df["symbol"].unique():
+                symbol_trades = trades_df[trades_df["symbol"] == symbol].sort_values("timestamp")
+
+                # Calculate P&L for each complete trade (entry+exit pair)
+                i = 0
+                while i < len(symbol_trades):
+                    if i + 1 < len(symbol_trades):
+                        entry_trade = symbol_trades.iloc[i]
+                        exit_trade = symbol_trades.iloc[i + 1]
+
+                        # Calculate P&L for this complete trade
+                        if entry_trade["side"] == "SELL":  # Short position
+                            pnl = -(entry_trade["total_cost"] + exit_trade["total_cost"])
+                        else:  # LONG position
+                            pnl = entry_trade["total_cost"] + exit_trade["total_cost"]
+
+                        if pnl > 0:
+                            wins += 1
+
+                    i += 2  # Move to next trade pair
+
+            metrics["win_rate"] = wins / trade_count if trade_count > 0 else 0.0
+
+        # Calculate average return per trade
+        if metrics["total_pnl"] != 0:
+            metrics["avg_R"] = metrics["total_pnl"] / trade_count
 
     # Calculate fees from fills if available
     if "fills" in artifacts and not artifacts["fills"].empty:
         fills_df = artifacts["fills"]
-        if "fees" in fills_df.columns:
-            metrics["fees_total"] = fills_df["fees"].sum()
+        if "commission" in fills_df.columns:
+            metrics["fees_total"] = fills_df["commission"].sum()
 
     return metrics
 
@@ -346,7 +536,7 @@ def _write_artifacts(artifacts: dict[str, Any], config: dict[str, Any]) -> None:
 
     # Write metrics as JSON
     if "metrics" in artifacts:
-        with open(artifacts_dir / "metrics.json", 'w') as f:
+        with open(artifacts_dir / "metrics.json", "w") as f:
             json.dump(artifacts["metrics"], f, indent=2, default=str)
 
 

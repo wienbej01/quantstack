@@ -2,44 +2,51 @@
 
 import asyncio
 import logging
+import multiprocessing as mp
+import queue
 import time
-from typing import Dict, Any, List, Optional, Callable, Union
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from threading import Lock, Event, Semaphore
-import queue
-import multiprocessing as mp
+from threading import Event, Lock, Semaphore
+from typing import Any, Callable, Dict, List, Optional, Union
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 try:
     from numba import jit, prange
+
     NUMBA_AVAILABLE = True
 except ImportError:
     NUMBA_AVAILABLE = False
+
     def jit(func=None, *args, **kwargs):
         if func is None:
             return lambda f: f
         return func
+
     def prange(range_obj):
         return range(range_obj)
 
+
 try:
     import psutil
+
     PSUTIL_AVAILABLE = True
 except ImportError:
     PSUTIL_AVAILABLE = False
     psutil = None
 
+from extensions.intraday_ml_features.pipeline import FeaturePipeline
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
-from extensions.intraday_ml_features.pipeline import FeaturePipeline
 
 
 @dataclass
 class InferenceRequest:
     """Request for batch inference."""
+
     features: List[Dict[str, float]]
     model_ids: List[str]
     request_id: str
@@ -50,6 +57,7 @@ class InferenceRequest:
 @dataclass
 class InferenceResponse:
     """Response from batch inference."""
+
     predictions: List[float]
     confidences: List[Optional[float]]
     model_ids: List[str]
@@ -62,6 +70,7 @@ class InferenceResponse:
 @dataclass
 class InferenceMetrics:
     """Inference engine performance metrics."""
+
     total_requests: int = 0
     total_predictions: int = 0
     avg_processing_time_ms: float = 0.0
@@ -72,7 +81,13 @@ class InferenceMetrics:
     error_rate: float = 0.0
     last_request_time: Optional[datetime] = None
 
-    def update(self, processing_time_ms: float, predictions_count: int, cache_hit: bool, error: bool = False):
+    def update(
+        self,
+        processing_time_ms: float,
+        predictions_count: int,
+        cache_hit: bool,
+        error: bool = False,
+    ):
         """Update metrics with new request."""
         self.total_requests += 1
         self.total_predictions += predictions_count
@@ -84,8 +99,7 @@ class InferenceMetrics:
         else:
             alpha = 0.1  # Smoothing factor
             self.avg_processing_time_ms = (
-                alpha * processing_time_ms +
-                (1 - alpha) * self.avg_processing_time_ms
+                alpha * processing_time_ms + (1 - alpha) * self.avg_processing_time_ms
             )
 
         # Update cache hit rate
@@ -94,19 +108,13 @@ class InferenceMetrics:
                 self.cache_hit_rate = 1.0
             else:
                 alpha = 0.1
-                self.cache_hit_rate = (
-                    alpha * 1.0 +
-                    (1 - alpha) * self.cache_hit_rate
-                )
+                self.cache_hit_rate = alpha * 1.0 + (1 - alpha) * self.cache_hit_rate
         else:
             if self.total_requests == 1:
                 self.cache_hit_rate = 0.0
             else:
                 alpha = 0.1
-                self.cache_hit_rate = (
-                    alpha * 0.0 +
-                    (1 - alpha) * self.cache_hit_rate
-                )
+                self.cache_hit_rate = alpha * 0.0 + (1 - alpha) * self.cache_hit_rate
 
         # Update error rate
         if error:
@@ -114,19 +122,13 @@ class InferenceMetrics:
                 self.error_rate = 1.0
             else:
                 alpha = 0.1
-                self.error_rate = (
-                    alpha * 1.0 +
-                    (1 - alpha) * self.error_rate
-                )
+                self.error_rate = alpha * 1.0 + (1 - alpha) * self.error_rate
         else:
             if self.total_requests == 1:
                 self.error_rate = 0.0
             else:
                 alpha = 0.1
-                self.error_rate = (
-                    alpha * 0.0 +
-                    (1 - alpha) * self.error_rate
-                )
+                self.error_rate = alpha * 0.0 + (1 - alpha) * self.error_rate
 
         # Update system metrics
         if PSUTIL_AVAILABLE:
@@ -141,7 +143,12 @@ class InferenceMetrics:
         if self.avg_processing_time_ms > 0:
             self.throughput_per_second = 1000.0 / self.avg_processing_time_ms
 
-    def record_prediction(self, processing_time_ms: float, predictions_count: int = 1, cache_hit: bool = False):
+    def record_prediction(
+        self,
+        processing_time_ms: float,
+        predictions_count: int = 1,
+        cache_hit: bool = False,
+    ):
         """Record a prediction for metrics tracking (alias for update)."""
         self.update(processing_time_ms, predictions_count, cache_hit, error=False)
 
@@ -182,10 +189,7 @@ class ModelPredictorCache:
             if len(self._cache) >= self.max_size:
                 self._evict_lru()
 
-            self._cache[model_id] = {
-                "predictor": predictor,
-                "timestamp": time.time()
-            }
+            self._cache[model_id] = {"predictor": predictor, "timestamp": time.time()}
             self._access_times[model_id] = time.time()
 
     def _evict_lru(self):
@@ -193,7 +197,9 @@ class ModelPredictorCache:
         if not self._access_times:
             return
 
-        lru_model_id = min(self._access_times.keys(), key=lambda k: self._access_times[k])
+        lru_model_id = min(
+            self._access_times.keys(), key=lambda k: self._access_times[k]
+        )
         del self._cache[lru_model_id]
         del self._access_times[lru_model_id]
 
@@ -207,18 +213,14 @@ class BatchProcessor:
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
 
     def process_batch(
-        self,
-        requests: List[InferenceRequest],
-        predictors: Dict[str, MLPredictor]
+        self, requests: List[InferenceRequest], predictors: Dict[str, MLPredictor]
     ) -> List[InferenceResponse]:
         """Process multiple inference requests in parallel."""
         futures = []
 
         for request in requests:
             future = self.executor.submit(
-                self._process_single_request,
-                request,
-                predictors
+                self._process_single_request, request, predictors
             )
             futures.append(future)
 
@@ -230,22 +232,22 @@ class BatchProcessor:
             except Exception as e:
                 logging.error(f"Batch processing error: {e}")
                 # Create error response
-                responses.append(InferenceResponse(
-                    predictions=[],
-                    confidences=[],
-                    model_ids=[],
-                    request_id="error",
-                    timestamp=datetime.now(),
-                    processing_time_ms=0.0,
-                    throughput_per_second=0.0
-                ))
+                responses.append(
+                    InferenceResponse(
+                        predictions=[],
+                        confidences=[],
+                        model_ids=[],
+                        request_id="error",
+                        timestamp=datetime.now(),
+                        processing_time_ms=0.0,
+                        throughput_per_second=0.0,
+                    )
+                )
 
         return responses
 
     def _process_single_request(
-        self,
-        request: InferenceRequest,
-        predictors: Dict[str, MLPredictor]
+        self, request: InferenceRequest, predictors: Dict[str, MLPredictor]
     ) -> InferenceResponse:
         """Process a single inference request."""
         start_time = time.time()
@@ -266,13 +268,19 @@ class BatchProcessor:
 
                 if len(result.prediction) > 0:
                     predictions.append(result.prediction[0])
-                    confidences.append(result.prediction_probability[0] if result.prediction_probability else None)
+                    confidences.append(
+                        result.prediction_probability[0]
+                        if result.prediction_probability
+                        else None
+                    )
                 else:
                     predictions.append(0.0)
                     confidences.append(None)
 
             processing_time_ms = (time.time() - start_time) * 1000
-            throughput_per_second = len(request.model_ids) / (processing_time_ms / 1000.0)
+            throughput_per_second = len(request.model_ids) / (
+                processing_time_ms / 1000.0
+            )
 
             return InferenceResponse(
                 predictions=predictions,
@@ -281,7 +289,7 @@ class BatchProcessor:
                 request_id=request.request_id,
                 timestamp=request.timestamp,
                 processing_time_ms=processing_time_ms,
-                throughput_per_second=throughput_per_second
+                throughput_per_second=throughput_per_second,
             )
 
         except Exception as e:
@@ -295,7 +303,7 @@ class BatchProcessor:
                 request_id=request.request_id,
                 timestamp=request.timestamp,
                 processing_time_ms=processing_time_ms,
-                throughput_per_second=0.0
+                throughput_per_second=0.0,
             )
 
 
@@ -309,7 +317,7 @@ class InferenceEngine:
         cache_size: int = 50,
         cache_ttl_seconds: int = 1800,
         batch_size: int = 100,
-        enable_async: bool = True
+        enable_async: bool = True,
     ):
         """
         Initialize inference engine.
@@ -368,8 +376,7 @@ class InferenceEngine:
                 try:
                     # Get first request
                     request = await asyncio.wait_for(
-                        self.request_queue.get(),
-                        timeout=0.1
+                        self.request_queue.get(), timeout=0.1
                     )
                     requests.append(request)
 
@@ -377,8 +384,7 @@ class InferenceEngine:
                     for _ in range(self.batch_processor.batch_size - 1):
                         try:
                             additional_request = await asyncio.wait_for(
-                                self.request_queue.get(),
-                                timeout=0.01
+                                self.request_queue.get(), timeout=0.01
                             )
                             requests.append(additional_request)
                         except asyncio.TimeoutError:
@@ -399,10 +405,7 @@ class InferenceEngine:
                 self.logger.error(f"Async processing error: {e}")
 
     async def predict_async(
-        self,
-        features: List[Dict[str, float]],
-        model_ids: List[str],
-        priority: int = 0
+        self, features: List[Dict[str, float]], model_ids: List[str], priority: int = 0
     ) -> InferenceResponse:
         """Make async prediction."""
         if not self.enable_async:
@@ -412,7 +415,7 @@ class InferenceEngine:
             features=features,
             model_ids=model_ids,
             request_id=f"async_{int(time.time() * 1000)}",
-            priority=priority
+            priority=priority,
         )
 
         await self.request_queue.put(request)
@@ -425,7 +428,7 @@ class InferenceEngine:
         self,
         features: List[Dict[str, float]],
         model_ids: List[str],
-        batch_size: Optional[int] = None
+        batch_size: Optional[int] = None,
     ) -> InferenceResponse:
         """Make synchronous prediction."""
         start_time = time.time()
@@ -433,7 +436,7 @@ class InferenceEngine:
         request = InferenceRequest(
             features=features,
             model_ids=model_ids,
-            request_id=f"sync_{int(time.time() * 1000)}"
+            request_id=f"sync_{int(time.time() * 1000)}",
         )
 
         # Load predictors
@@ -458,14 +461,16 @@ class InferenceEngine:
             all_confidences = []
 
             for i in range(0, len(model_ids), batch_size):
-                batch_ids = model_ids[i:i + batch_size]
+                batch_ids = model_ids[i : i + batch_size]
                 batch_request = InferenceRequest(
                     features=features,
                     model_ids=batch_ids,
-                    request_id=f"{request.request_id}_batch_{i // batch_size}"
+                    request_id=f"{request.request_id}_batch_{i // batch_size}",
                 )
 
-                batch_response = self.batch_processor.process_batch([batch_request], predictors)
+                batch_response = self.batch_processor.process_batch(
+                    [batch_request], predictors
+                )
                 if batch_response:
                     batch_result = batch_response[0]
                     all_predictions.extend(batch_result.predictions)
@@ -481,36 +486,36 @@ class InferenceEngine:
                 request_id=request.request_id,
                 timestamp=request.timestamp,
                 processing_time_ms=processing_time_ms,
-                throughput_per_second=throughput_per_second
+                throughput_per_second=throughput_per_second,
             )
 
         else:
             # Process single batch
             responses = self.batch_processor.process_batch([request], predictors)
-            response = responses[0] if responses else InferenceResponse(
-                predictions=[],
-                confidences=[],
-                model_ids=model_ids,
-                request_id=request.request_id,
-                timestamp=request.timestamp,
-                processing_time_ms=0.0,
-                throughput_per_second=0.0
+            response = (
+                responses[0]
+                if responses
+                else InferenceResponse(
+                    predictions=[],
+                    confidences=[],
+                    model_ids=model_ids,
+                    request_id=request.request_id,
+                    timestamp=request.timestamp,
+                    processing_time_ms=0.0,
+                    throughput_per_second=0.0,
+                )
             )
 
         # Update metrics
         cache_hit = cache_hits == len(model_ids)
         self.metrics.update(
-            response.processing_time_ms,
-            len(response.predictions),
-            cache_hit
+            response.processing_time_ms, len(response.predictions), cache_hit
         )
 
         return response
 
     def predict_single(
-        self,
-        features: Dict[str, float],
-        model_id: str
+        self, features: Dict[str, float], model_id: str
     ) -> tuple[float, Optional[float]]:
         """Make single prediction."""
         response = self.predict([features], [model_id])
@@ -532,7 +537,7 @@ class InferenceEngine:
             "error_rate": self.metrics.error_rate,
             "cache_size": len(self.predictor_cache._cache),
             "max_workers": self.batch_processor.max_workers,
-            "batch_size": self.batch_processor.batch_size
+            "batch_size": self.batch_processor.batch_size,
         }
 
     def clear_cache(self):
@@ -555,7 +560,9 @@ class InferenceEngine:
 
 # JIT-compiled functions for performance optimization
 @jit(nopython=True, parallel=True)
-def batch_normalize_features(features: np.ndarray, means: np.ndarray, stds: np.ndarray) -> np.ndarray:
+def batch_normalize_features(
+    features: np.ndarray, means: np.ndarray, stds: np.ndarray
+) -> np.ndarray:
     """Normalize batch of features using JIT compilation."""
     normalized = np.empty_like(features)
     for i in prange(features.shape[0]):

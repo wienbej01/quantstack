@@ -1,16 +1,28 @@
 """Tests for policy selector."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
 
-from extensions.intraday_ml_policies.policy_selector import (
-    PolicySelector, SelectionCriteria, SelectionMethod, SelectionScore
+import numpy as np
+import pandas as pd
+import pytest
+
+from extensions.intraday_ml_policies.base import (
+    BaseMLPolicy,
+    PolicyAction,
+    PolicyDecision,
+    PolicySignal,
 )
-from extensions.intraday_ml_policies.base import BaseMLPolicy, PolicyDecision, PolicySignal, PolicyAction
-from extensions.intraday_ml_policies.performance_tracker import PolicyPerformanceTracker, PerformanceMetrics
+from extensions.intraday_ml_policies.performance_tracker import (
+    PerformanceMetrics,
+    PolicyPerformanceTracker,
+)
+from extensions.intraday_ml_policies.policy_selector import (
+    PolicySelector,
+    SelectionCriteria,
+    SelectionMethod,
+    SelectionScore,
+)
 
 
 class MockPolicy(BaseMLPolicy):
@@ -44,7 +56,7 @@ class MockPolicy(BaseMLPolicy):
             max_drawdown=0.02,
             volatility=0.01,
             total_pnl=1000.0 * self._performance_score,
-            last_updated=datetime.now()
+            last_updated=datetime.now(),
         )
 
 
@@ -57,7 +69,7 @@ class TestPolicySelector:
         self.policies = {
             "policy1": MockPolicy("policy1", 0.8),
             "policy2": MockPolicy("policy2", 0.6),
-            "policy3": MockPolicy("policy3", 0.4)
+            "policy3": MockPolicy("policy3", 0.4),
         }
 
         # Create performance tracker
@@ -85,7 +97,7 @@ class TestPolicySelector:
             min_executions=10,
             weight_success_rate=0.4,
             weight_sharpe_ratio=0.3,
-            weight_return=0.3
+            weight_return=0.3,
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -101,12 +113,11 @@ class TestPolicySelector:
         self.performance_tracker.regime_performance = {
             "policy1": {MarketRegime.TRENDING_UP: SelectionScore(0.9, 0.7, 0.8)},
             "policy2": {MarketRegime.TRENDING_UP: SelectionScore(0.7, 0.5, 0.6)},
-            "policy3": {MarketRegime.TRENDING_UP: SelectionScore(0.5, 0.3, 0.4)}
+            "policy3": {MarketRegime.TRENDING_UP: SelectionScore(0.5, 0.3, 0.4)},
         }
 
         criteria = SelectionCriteria(
-            method=SelectionMethod.REGIME_BASED,
-            current_regime=MarketRegime.TRENDING_UP
+            method=SelectionMethod.REGIME_BASED, current_regime=MarketRegime.TRENDING_UP
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -119,7 +130,7 @@ class TestPolicySelector:
         criteria = SelectionCriteria(
             method=SelectionMethod.ENSEMBLE,
             top_k=2,
-            ensemble_weights={"success_rate": 0.5, "sharpe_ratio": 0.5}
+            ensemble_weights={"success_rate": 0.5, "sharpe_ratio": 0.5},
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -139,8 +150,7 @@ class TestPolicySelector:
         self.performance_tracker.policy_metrics["low_data"] = low_data_metrics
 
         criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE,
-            min_executions=10
+            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -158,8 +168,7 @@ class TestPolicySelector:
             metrics.total_executions = 5
 
         criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE,
-            min_executions=10
+            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -172,9 +181,7 @@ class TestPolicySelector:
         metrics = self.policies["policy1"].get_performance_metrics()
 
         criteria = SelectionCriteria(
-            weight_success_rate=0.4,
-            weight_sharpe_ratio=0.3,
-            weight_return=0.3
+            weight_success_rate=0.4, weight_sharpe_ratio=0.3, weight_return=0.3
         )
 
         score = self.selector._calculate_selection_score(metrics, criteria)
@@ -191,8 +198,7 @@ class TestPolicySelector:
     def test_get_policy_rankings(self):
         """Test policy ranking functionality."""
         criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE,
-            min_executions=10
+            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
         )
 
         rankings = self.selector.get_policy_rankings(self.policies, criteria)
@@ -210,11 +216,7 @@ class TestPolicySelector:
 
     def test_update_selection_weights(self):
         """Test updating selection weights."""
-        new_weights = {
-            "success_rate": 0.6,
-            "sharpe_ratio": 0.2,
-            "return": 0.2
-        }
+        new_weights = {"success_rate": 0.6, "sharpe_ratio": 0.2, "return": 0.2}
 
         self.selector.update_selection_weights(new_weights)
 
@@ -241,11 +243,12 @@ class TestPolicySelector:
         self.policies["custom_policy"] = custom_policy
 
         criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE,
-            required_tags={"momentum"}
+            method=SelectionMethod.BEST_PERFORMANCE, required_tags={"momentum"}
         )
 
-        filtered_policies = self.selector._filter_policies_by_criteria(self.policies, criteria)
+        filtered_policies = self.selector._filter_policies_by_criteria(
+            self.policies, criteria
+        )
 
         # Should only include policies with required tags
         assert "custom_policy" in filtered_policies
@@ -259,33 +262,32 @@ class TestPolicySelector:
         self.performance_tracker.regime_performance = {
             "policy1": {
                 MarketRegime.TRENDING_UP: SelectionScore(0.9, 0.7, 0.8),
-                MarketRegime.SIDEWAYS: SelectionScore(0.5, 0.3, 0.4)
+                MarketRegime.SIDEWAYS: SelectionScore(0.5, 0.3, 0.4),
             },
             "policy2": {
                 MarketRegime.TRENDING_UP: SelectionScore(0.6, 0.4, 0.5),
-                MarketRegime.SIDEWAYS: SelectionScore(0.8, 0.6, 0.7)
-            }
+                MarketRegime.SIDEWAYS: SelectionScore(0.8, 0.6, 0.7),
+            },
         }
 
         # Test trending regime
         criteria = SelectionCriteria(
-            method=SelectionMethod.REGIME_BASED,
-            current_regime=MarketRegime.TRENDING_UP
+            method=SelectionMethod.REGIME_BASED, current_regime=MarketRegime.TRENDING_UP
         )
 
-        best_policy = self.selector.select_best_policy({
-            "policy1": self.policies["policy1"],
-            "policy2": self.policies["policy2"]
-        }, criteria)
+        best_policy = self.selector.select_best_policy(
+            {"policy1": self.policies["policy1"], "policy2": self.policies["policy2"]},
+            criteria,
+        )
 
         assert best_policy == "policy1"  # Better in trending
 
         # Test sideways regime
         criteria.current_regime = MarketRegime.SIDEWAYS
-        best_policy = self.selector.select_best_policy({
-            "policy1": self.policies["policy1"],
-            "policy2": self.policies["policy2"]
-        }, criteria)
+        best_policy = self.selector.select_best_policy(
+            {"policy1": self.policies["policy1"], "policy2": self.policies["policy2"]},
+            criteria,
+        )
 
         assert best_policy == "policy2"  # Better in sideways
 
@@ -294,7 +296,7 @@ class TestPolicySelector:
         criteria = SelectionCriteria(
             method=SelectionMethod.ENSEMBLE,
             top_k=2,
-            ensemble_weights={"success_rate": 0.8, "sharpe_ratio": 0.2}
+            ensemble_weights={"success_rate": 0.8, "sharpe_ratio": 0.2},
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -315,7 +317,7 @@ class TestPolicySelector:
         criteria = SelectionCriteria(
             method=SelectionMethod.REGIME_BASED,
             current_regime=MarketRegime.TRENDING_UP,
-            fallback_to_overall=True
+            fallback_to_overall=True,
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -331,8 +333,7 @@ class TestPolicySelector:
         self.performance_tracker.policy_metrics["policy2"] = old_metrics
 
         criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE,
-            performance_decay_half_life_days=5
+            method=SelectionMethod.BEST_PERFORMANCE, performance_decay_half_life_days=5
         )
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
@@ -347,15 +348,13 @@ class TestPolicySelector:
             SelectionCriteria(
                 weight_success_rate=0.8,
                 weight_sharpe_ratio=0.8,  # Sum > 1.0
-                weight_return=0.1
+                weight_return=0.1,
             )
 
         # Test negative weights
         with pytest.raises(ValueError):
             SelectionCriteria(
-                weight_success_rate=-0.1,
-                weight_sharpe_ratio=0.6,
-                weight_return=0.5
+                weight_success_rate=-0.1, weight_sharpe_ratio=0.6, weight_return=0.5
             )
 
     def test_edge_cases(self):

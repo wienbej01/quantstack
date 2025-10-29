@@ -9,13 +9,13 @@ import pandas as pd
 import yaml
 from rich.console import Console
 
+from qx_cli.exp.entry_ab import deep_merge
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply_feature_packs
-from qx_cli.exp.entry_ab import deep_merge
 
-from .fairness import ChecksumValidator, FairnessConfig
 from ..utils.checksums import compute_input_checksums
 from ..utils.validation import validate_config, validate_data_slice
+from .fairness import ChecksumValidator, FairnessConfig
 
 console = Console()
 
@@ -119,21 +119,21 @@ class ABOrchestrator:
         df_with_features = apply_feature_packs(bars_df, config["features"])
 
         # Compute variant-specific checksums
-        variant_checksums = compute_input_checksums(
-            bars_df, df_with_features, config
-        )
+        variant_checksums = compute_input_checksums(bars_df, df_with_features, config)
 
         # Validate base checksums match
         mismatches = []
         for key in ["bars_norm_hash", "features_hash"]:
             if base_checksums[key] != variant_checksums[key]:
-                mismatches.append(f"{key}: base={base_checksums[key]}, variant={variant_checksums[key]}")
+                mismatches.append(
+                    f"{key}: base={base_checksums[key]}, variant={variant_checksums[key]}"
+                )
 
         if mismatches:
             raise ValueError(f"Checksum mismatch for {variant_path}: {mismatches}")
 
         # Run backtest using existing engine
-        from qx_backtest.engine import BacktestEngine, BacktestConfig
+        from qx_backtest.engine import BacktestConfig, BacktestEngine
         from qx_backtest.fill import DefaultFiller
         from qx_backtest.policies.vwap_revert import VwapRevertPolicy
 
@@ -161,7 +161,9 @@ class ABOrchestrator:
             policy.process_bar(bar)
 
         # Execute backtest
-        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
+        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(
+            drop=True
+        )
         result = engine.run(bars_for_engine, strategy_fn)
         policy.on_end()
 
@@ -186,6 +188,7 @@ class ABOrchestrator:
         """Persist run artifacts."""
         # Generate signals using policy
         from qx_backtest.policies.vwap_revert import generate_signals
+
         signals_df = generate_signals(df_with_features, policy_params)
 
         # Extract results

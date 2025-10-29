@@ -5,20 +5,27 @@ based on detected market regimes and changing conditions.
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import numpy as np
-from collections import deque
+import pandas as pd
 
-from .base import BaseMLPolicy, PolicyDecision, PolicySignal, PolicyAction, PolicyMetrics
+from .base import (
+    BaseMLPolicy,
+    PolicyAction,
+    PolicyDecision,
+    PolicyMetrics,
+    PolicySignal,
+)
 
 
 class MarketRegime(Enum):
     """Market regime types."""
+
     TRENDING_UP = "trending_up"
     TRENDING_DOWN = "trending_down"
     SIDEWAYS = "sideways"
@@ -29,6 +36,7 @@ class MarketRegime(Enum):
 @dataclass
 class RegimeConfig:
     """Configuration for market regime detection."""
+
     # Trend detection parameters
     trend_lookback_periods: List[int] = field(default_factory=lambda: [10, 20, 50])
     trend_threshold: float = 0.02  # 2% threshold for trend detection
@@ -38,7 +46,9 @@ class RegimeConfig:
     # Regime stability parameters
     min_regime_duration_bars: int = 20
     regime_confirmation_periods: int = 3
-    regime_detection_method: str = "combined"  # "trend", "volatility", "volume", "combined"
+    regime_detection_method: str = (
+        "combined"  # "trend", "volatility", "volume", "combined"
+    )
 
     # Adaptive parameters
     enable_regime_memory: bool = True
@@ -49,6 +59,7 @@ class RegimeConfig:
 @dataclass
 class RegimeState:
     """Current market regime state."""
+
     current_regime: MarketRegime
     confidence: float
     duration_bars: int
@@ -69,7 +80,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         model_id: str,
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize adaptive ML policy.
@@ -83,53 +94,53 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         super().__init__(model_id, registry, feature_pipeline, config)
 
         # Regime detection configuration
-        self.regime_config = RegimeConfig(**self.config.get('regime_config', {}))
+        self.regime_config = RegimeConfig(**self.config.get("regime_config", {}))
 
         # Regime state
         self.regime_state = RegimeState(
             current_regime=MarketRegime.SIDEWAYS,
             confidence=0.5,
             duration_bars=0,
-            last_change_time=datetime.now()
+            last_change_time=datetime.now(),
         )
 
         # Regime-specific parameters
         self.regime_parameters = {
             MarketRegime.TRENDING_UP: {
-                'signal_multiplier': 1.2,
-                'confidence_threshold': 0.5,
-                'position_size_multiplier': 1.1,
-                'stop_loss_multiplier': 1.5,
-                'take_profit_multiplier': 2.0
+                "signal_multiplier": 1.2,
+                "confidence_threshold": 0.5,
+                "position_size_multiplier": 1.1,
+                "stop_loss_multiplier": 1.5,
+                "take_profit_multiplier": 2.0,
             },
             MarketRegime.TRENDING_DOWN: {
-                'signal_multiplier': 1.3,
-                'confidence_threshold': 0.6,
-                'position_size_multiplier': 0.9,
-                'stop_loss_multiplier': 1.3,
-                'take_profit_multiplier': 1.8
+                "signal_multiplier": 1.3,
+                "confidence_threshold": 0.6,
+                "position_size_multiplier": 0.9,
+                "stop_loss_multiplier": 1.3,
+                "take_profit_multiplier": 1.8,
             },
             MarketRegime.SIDEWAYS: {
-                'signal_multiplier': 0.8,
-                'confidence_threshold': 0.7,
-                'position_size_multiplier': 0.7,
-                'stop_loss_multiplier': 1.0,
-                'take_profit_multiplier': 1.2
+                "signal_multiplier": 0.8,
+                "confidence_threshold": 0.7,
+                "position_size_multiplier": 0.7,
+                "stop_loss_multiplier": 1.0,
+                "take_profit_multiplier": 1.2,
             },
             MarketRegime.VOLATILE: {
-                'signal_multiplier': 0.6,
-                'confidence_threshold': 0.8,
-                'position_size_multiplier': 0.5,
-                'stop_loss_multiplier': 0.8,
-                'take_profit_multiplier': 1.5
+                "signal_multiplier": 0.6,
+                "confidence_threshold": 0.8,
+                "position_size_multiplier": 0.5,
+                "stop_loss_multiplier": 0.8,
+                "take_profit_multiplier": 1.5,
             },
             MarketRegime.QUIET: {
-                'signal_multiplier': 0.9,
-                'confidence_threshold': 0.6,
-                'position_size_multiplier': 0.8,
-                'stop_loss_multiplier': 1.2,
-                'take_profit_multiplier': 1.3
-            }
+                "signal_multiplier": 0.9,
+                "confidence_threshold": 0.6,
+                "position_size_multiplier": 0.8,
+                "stop_loss_multiplier": 1.2,
+                "take_profit_multiplier": 1.3,
+            },
         }
 
         # Market data history for regime detection
@@ -148,7 +159,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         self,
         features: Dict[str, float],
         current_position: float,
-        market_data: pd.DataFrame
+        market_data: pd.DataFrame,
     ) -> PolicySignal:
         """
         Generate adaptive trading signal based on current market regime.
@@ -165,10 +176,14 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         self._update_market_regime(market_data)
 
         # Get base signal from parent class or ML model
-        base_signal = self._generate_base_signal(features, current_position, market_data)
+        base_signal = self._generate_base_signal(
+            features, current_position, market_data
+        )
 
         # Apply regime-specific adjustments
-        adjusted_signal = self._apply_regime_adjustments(base_signal, features, current_position)
+        adjusted_signal = self._apply_regime_adjustments(
+            base_signal, features, current_position
+        )
 
         return adjusted_signal
 
@@ -177,7 +192,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         signal: PolicySignal,
         confidence: float,
         volatility: float,
-        account_value: float
+        account_value: float,
     ) -> float:
         """
         Calculate position size with regime-specific adjustments.
@@ -192,14 +207,19 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             Adjusted position size
         """
         # Get base position size
-        base_position_size = super().calculate_position_size(signal, confidence, volatility, account_value)
+        base_position_size = super().calculate_position_size(
+            signal, confidence, volatility, account_value
+        )
 
         # Apply regime-specific multiplier
         regime_params = self.regime_parameters[self.regime_state.current_regime]
-        position_multiplier = regime_params['position_size_multiplier']
+        position_multiplier = regime_params["position_size_multiplier"]
 
         # Additional adjustments based on regime stability
-        if self.regime_state.duration_bars < self.regime_config.min_regime_duration_bars:
+        if (
+            self.regime_state.duration_bars
+            < self.regime_config.min_regime_duration_bars
+        ):
             # Reduce position size during regime transitions
             position_multiplier *= 0.7
 
@@ -235,7 +255,9 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         elif self.regime_config.regime_detection_method == "volume":
             return self._regime_from_volume_signal(volume_signal)
         else:  # combined
-            return self._regime_from_combined_signals(trend_signal, volatility_signal, volume_signal)
+            return self._regime_from_combined_signals(
+                trend_signal, volatility_signal, volume_signal
+            )
 
     def get_regime_state(self) -> RegimeState:
         """Get current regime state."""
@@ -246,9 +268,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         return self.regime_parameters.get(regime, {}).copy()
 
     def update_regime_parameters(
-        self,
-        regime: MarketRegime,
-        parameters: Dict[str, float]
+        self, regime: MarketRegime, parameters: Dict[str, float]
     ) -> None:
         """Update parameters for a specific regime."""
         if regime in self.regime_parameters:
@@ -263,9 +283,12 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             confidence = self._calculate_regime_confidence(market_data, new_regime)
 
             # Check if regime change is warranted
-            if (new_regime != self.regime_state.current_regime and
-                confidence >= self.regime_config.min_confidence_for_regime_switch and
-                self.regime_state.duration_bars >= self.regime_config.min_regime_duration_bars):
+            if (
+                new_regime != self.regime_state.current_regime
+                and confidence >= self.regime_config.min_confidence_for_regime_switch
+                and self.regime_state.duration_bars
+                >= self.regime_config.min_regime_duration_bars
+            ):
 
                 # Record regime change
                 self._record_regime_change(new_regime, confidence)
@@ -288,13 +311,13 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         self,
         features: Dict[str, float],
         current_position: float,
-        market_data: pd.DataFrame
+        market_data: pd.DataFrame,
     ) -> PolicySignal:
         """Generate base trading signal."""
         # Use parent class implementation or ML model prediction
         # This is a simplified implementation
-        if 'close' in features and 'vwap' in features:
-            price_to_vwap = features['close'] / features['vwap']
+        if "close" in features and "vwap" in features:
+            price_to_vwap = features["close"] / features["vwap"]
             if price_to_vwap > 1.02:  # 2% above VWAP
                 return PolicySignal.BUY
             elif price_to_vwap < 0.98:  # 2% below VWAP
@@ -306,11 +329,11 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         self,
         base_signal: PolicySignal,
         features: Dict[str, float],
-        current_position: float
+        current_position: float,
     ) -> PolicySignal:
         """Apply regime-specific adjustments to signal."""
         regime_params = self.regime_parameters[self.regime_state.current_regime]
-        signal_multiplier = regime_params['signal_multiplier']
+        signal_multiplier = regime_params["signal_multiplier"]
 
         # Convert signal to numeric strength for adjustment
         signal_strength = self._signal_to_strength(base_signal)
@@ -326,7 +349,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
 
         # Calculate returns for different lookback periods
         trend_signals = []
-        close_prices = market_data['close'].values
+        close_prices = market_data["close"].values
 
         for period in self.regime_config.trend_lookback_periods:
             if len(close_prices) >= period:
@@ -348,7 +371,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         if len(market_data) < 20:
             return 0.0
 
-        close_prices = market_data['close'].values
+        close_prices = market_data["close"].values
         returns = np.diff(close_prices) / close_prices[:-1]
 
         # Calculate rolling volatility
@@ -364,12 +387,14 @@ class AdaptiveMLPolicy(BaseMLPolicy):
 
     def _calculate_volume_signal(self, market_data: pd.DataFrame) -> float:
         """Calculate volume signal from market data."""
-        if 'volume' not in market_data.columns or len(market_data) < 20:
+        if "volume" not in market_data.columns or len(market_data) < 20:
             return 0.0
 
-        volumes = market_data['volume'].values
+        volumes = market_data["volume"].values
         recent_volume = volumes[-1]
-        avg_volume = np.mean(volumes[-20:-1]) if len(volumes) >= 21 else np.mean(volumes)
+        avg_volume = (
+            np.mean(volumes[-20:-1]) if len(volumes) >= 21 else np.mean(volumes)
+        )
 
         if avg_volume > 0:
             volume_ratio = recent_volume / avg_volume
@@ -406,10 +431,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             return MarketRegime.QUIET
 
     def _regime_from_combined_signals(
-        self,
-        trend_signal: float,
-        volatility_signal: float,
-        volume_signal: float
+        self, trend_signal: float, volatility_signal: float, volume_signal: float
     ) -> MarketRegime:
         """Determine regime from combined signals."""
         # Priority: trend > volatility > volume
@@ -423,9 +445,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             return MarketRegime.SIDEWAYS
 
     def _calculate_regime_confidence(
-        self,
-        market_data: pd.DataFrame,
-        regime: MarketRegime
+        self, market_data: pd.DataFrame, regime: MarketRegime
     ) -> float:
         """Calculate confidence in regime detection."""
         # Base confidence on signal strength and consistency
@@ -433,29 +453,40 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         volatility_signal = self._calculate_volatility_signal(market_data)
 
         if regime == MarketRegime.TRENDING_UP:
-            confidence = min(1.0, abs(trend_signal) / self.regime_config.trend_threshold)
+            confidence = min(
+                1.0, abs(trend_signal) / self.regime_config.trend_threshold
+            )
         elif regime == MarketRegime.TRENDING_DOWN:
-            confidence = min(1.0, abs(trend_signal) / self.regime_config.trend_threshold)
+            confidence = min(
+                1.0, abs(trend_signal) / self.regime_config.trend_threshold
+            )
         elif regime == MarketRegime.VOLATILE:
             confidence = min(1.0, volatility_signal / 2.0)
         else:
             confidence = 0.5  # Default confidence
 
         # Boost confidence if regime has been stable
-        if self.regime_state.duration_bars > self.regime_config.min_regime_duration_bars:
+        if (
+            self.regime_state.duration_bars
+            > self.regime_config.min_regime_duration_bars
+        ):
             confidence = min(1.0, confidence * 1.2)
 
         return confidence
 
-    def _record_regime_change(self, new_regime: MarketRegime, confidence: float) -> None:
+    def _record_regime_change(
+        self, new_regime: MarketRegime, confidence: float
+    ) -> None:
         """Record a regime change."""
         # Store old regime in history
-        self.regime_state.historical_regimes.append({
-            'regime': self.regime_state.current_regime,
-            'duration_bars': self.regime_state.duration_bars,
-            'change_time': self.regime_state.last_change_time,
-            'confidence': self.regime_state.confidence
-        })
+        self.regime_state.historical_regimes.append(
+            {
+                "regime": self.regime_state.current_regime,
+                "duration_bars": self.regime_state.duration_bars,
+                "change_time": self.regime_state.last_change_time,
+                "confidence": self.regime_state.confidence,
+            }
+        )
 
         # Update current regime
         self.regime_state.current_regime = new_regime
@@ -491,15 +522,18 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         # Normalize probabilities
         total_prob = sum(probabilities.values())
         if total_prob > 0:
-            probabilities = {regime: prob / total_prob for regime, prob in probabilities.items()}
+            probabilities = {
+                regime: prob / total_prob for regime, prob in probabilities.items()
+            }
 
         # Apply memory decay
         if self.regime_config.enable_regime_memory:
             for regime in probabilities:
                 old_prob = self.regime_state.regime_probabilities.get(regime, 0.2)
                 probabilities[regime] = (
-                    self.regime_config.regime_memory_decay * old_prob +
-                    (1 - self.regime_config.regime_memory_decay) * probabilities[regime]
+                    self.regime_config.regime_memory_decay * old_prob
+                    + (1 - self.regime_config.regime_memory_decay)
+                    * probabilities[regime]
                 )
 
         self.regime_state.regime_probabilities = probabilities
@@ -513,7 +547,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             PolicySignal.NEUTRAL: 0.0,
             PolicySignal.WEAK_SELL: -0.3,
             PolicySignal.SELL: -0.7,
-            PolicySignal.STRONG_SELL: -1.0
+            PolicySignal.STRONG_SELL: -1.0,
         }
         return signal_map.get(signal, 0.0)
 

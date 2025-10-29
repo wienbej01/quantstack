@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
@@ -18,7 +18,7 @@ from sklearn.svm import SVC, SVR
 from qx_core.hashers import hash_dataframe
 
 from .registry import MLModelRegistry
-from .schemas import ModelConfig, ModelMetadata, FeatureImportance, ModelType
+from .schemas import FeatureImportance, ModelConfig, ModelMetadata, ModelType
 
 
 class MLModelTrainer:
@@ -46,7 +46,7 @@ class MLModelTrainer:
         self,
         bars: pd.DataFrame,
         config: ModelConfig,
-        target_column: Optional[str] = None
+        target_column: Optional[str] = None,
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """Prepare training data with proper feature/target alignment.
 
@@ -85,10 +85,7 @@ class MLModelTrainer:
         return features_df, target_series
 
     def _create_forward_target(
-        self,
-        bars: pd.DataFrame,
-        target_column: str,
-        horizon_bars: int
+        self, bars: pd.DataFrame, target_column: str, horizon_bars: int
     ) -> pd.Series:
         """Create forward-looking target variable.
 
@@ -103,10 +100,10 @@ class MLModelTrainer:
         # Group by symbol to avoid look-ahead across symbols
         targets = []
 
-        for symbol, group in bars.groupby('symbol'):
-            group_sorted = group.sort_values('ts')
+        for symbol, group in bars.groupby("symbol"):
+            group_sorted = group.sort_values("ts")
 
-            if target_column == 'close' or target_column in ['open', 'high', 'low']:
+            if target_column == "close" or target_column in ["open", "high", "low"]:
                 # Price-based target: forward return
                 current_price = group_sorted[target_column].values
                 future_price = group_sorted[target_column].shift(-horizon_bars).values
@@ -115,7 +112,7 @@ class MLModelTrainer:
                 target_series = pd.Series(
                     forward_return,
                     index=group_sorted.index,
-                    name=f'{target_column}_forward_{horizon_bars}_ret'
+                    name=f"{target_column}_forward_{horizon_bars}_ret",
                 )
             else:
                 # Generic forward target
@@ -131,7 +128,7 @@ class MLModelTrainer:
         bars: pd.DataFrame,
         config: ModelConfig,
         model_id: Optional[str] = None,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> ModelMetadata:
         """Train an ML model according to configuration.
 
@@ -164,17 +161,13 @@ class MLModelTrainer:
             train_df = pd.DataFrame(
                 scaler.fit_transform(train_df),
                 index=train_df.index,
-                columns=train_df.columns
+                columns=train_df.columns,
             )
             val_df = pd.DataFrame(
-                scaler.transform(val_df),
-                index=val_df.index,
-                columns=val_df.columns
+                scaler.transform(val_df), index=val_df.index, columns=val_df.columns
             )
             test_df = pd.DataFrame(
-                scaler.transform(test_df),
-                index=test_df.index,
-                columns=test_df.columns
+                scaler.transform(test_df), index=test_df.index, columns=test_df.columns
             )
 
         # Get model class and instantiate
@@ -220,7 +213,7 @@ class MLModelTrainer:
             random_seed=config.random_seed,
             data_hash=hash_dataframe(bars[config.features + [config.target_column]]),
             model_hash=self._hash_model(model),
-            description=description
+            description=description,
         )
 
         # Save scaler with model if used
@@ -237,8 +230,10 @@ class MLModelTrainer:
         features: pd.DataFrame,
         target: pd.Series,
         test_split: float,
-        val_split: float
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
+        val_split: float,
+    ) -> Tuple[
+        pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series
+    ]:
         """Split data into train/val/test with time series awareness."""
         n_samples = len(features)
 
@@ -264,7 +259,7 @@ class MLModelTrainer:
         y_train: pd.Series,
         X_val: pd.DataFrame,
         y_val: pd.Series,
-        config: ModelConfig
+        config: ModelConfig,
     ) -> BaseEstimator:
         """Train model with hyperparameter tuning using time series CV."""
         # Create base model
@@ -278,9 +273,13 @@ class MLModelTrainer:
             base_model,
             config.hyperparameters,
             cv=tscv,
-            scoring='accuracy' if config.model_type.value == "classification" else 'neg_mean_squared_error',
+            scoring=(
+                "accuracy"
+                if config.model_type.value == "classification"
+                else "neg_mean_squared_error"
+            ),
             n_jobs=-1,
-            verbose=0
+            verbose=0,
         )
 
         # Fit on combined train+val data for CV
@@ -292,11 +291,7 @@ class MLModelTrainer:
         return grid_search.best_estimator_
 
     def _evaluate_model(
-        self,
-        model: BaseEstimator,
-        X: pd.DataFrame,
-        y: pd.Series,
-        model_type: ModelType
+        self, model: BaseEstimator, X: pd.DataFrame, y: pd.Series, model_type: ModelType
     ) -> float:
         """Evaluate model performance."""
         y_pred = model.predict(X)
@@ -307,22 +302,21 @@ class MLModelTrainer:
             return r2_score(y, y_pred)
 
     def _calculate_feature_importance(
-        self,
-        model: BaseEstimator,
-        feature_names: List[str],
-        model_type: ModelType
+        self, model: BaseEstimator, feature_names: List[str], model_type: ModelType
     ) -> List[FeatureImportance]:
         """Calculate feature importance."""
         importance_scores = []
 
-        if hasattr(model, 'feature_importances_'):
+        if hasattr(model, "feature_importances_"):
             # Tree-based models
             importance_scores = model.feature_importances_
-        elif hasattr(model, 'coef_'):
+        elif hasattr(model, "coef_"):
             # Linear models
             importance_scores = np.abs(model.coef_)
             if len(importance_scores.shape) > 1:
-                importance_scores = importance_scores[0]  # Take first class for multi-class
+                importance_scores = importance_scores[
+                    0
+                ]  # Take first class for multi-class
         else:
             # Default: equal importance
             importance_scores = np.ones(len(feature_names)) / len(feature_names)
@@ -332,9 +326,7 @@ class MLModelTrainer:
         for i, (feature, score) in enumerate(zip(feature_names, importance_scores)):
             feature_importance.append(
                 FeatureImportance(
-                    feature_name=feature,
-                    importance=float(score),
-                    rank=i + 1
+                    feature_name=feature, importance=float(score), rank=i + 1
                 )
             )
 
@@ -351,15 +343,15 @@ class MLModelTrainer:
         """Create hash of model for integrity checking."""
         # Hash model parameters and state
         model_state = {
-            'class': model.__class__.__name__,
-            'params': model.get_params(),
+            "class": model.__class__.__name__,
+            "params": model.get_params(),
         }
 
-        if hasattr(model, 'feature_importances_'):
-            model_state['feature_importances_'] = model.feature_importances_.tolist()
+        if hasattr(model, "feature_importances_"):
+            model_state["feature_importances_"] = model.feature_importances_.tolist()
 
-        if hasattr(model, 'coef_'):
-            model_state['coef_'] = model.coef_.tolist()
+        if hasattr(model, "coef_"):
+            model_state["coef_"] = model.coef_.tolist()
 
         model_str = json.dumps(model_state, sort_keys=True)
         return hashlib.sha256(model_str.encode()).hexdigest()[:16]

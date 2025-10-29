@@ -1,12 +1,13 @@
 """Ensemble model methods for improved prediction accuracy."""
 
 import logging
+import threading
 import time
-from typing import Dict, Any, List, Optional, Union, Tuple
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,7 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 @dataclass
 class EnsembleConfig:
     """Configuration for ensemble methods."""
+
     method: str = "voting"  # "voting", "stacking", "blending", "bagging"
     weights: Optional[List[float]] = None
     voting_strategy: str = "soft"  # "soft", "hard"
@@ -29,6 +31,7 @@ class EnsembleConfig:
 @dataclass
 class EnsemblePrediction:
     """Ensemble prediction result."""
+
     prediction: float
     confidence: float
     individual_predictions: List[float]
@@ -47,7 +50,7 @@ class EnsembleModel:
         self,
         model_ids: List[str],
         registry: Optional[MLModelRegistry] = None,
-        config: Optional[EnsembleConfig] = None
+        config: Optional[EnsembleConfig] = None,
     ):
         """
         Initialize ensemble model.
@@ -116,20 +119,26 @@ class EnsembleModel:
             model_ids=list(individual_results.keys()),
             prediction_time_ms=prediction_time_ms,
             consensus_score=ensemble_result.get("consensus_score"),
-            variance=ensemble_result.get("variance")
+            variance=ensemble_result.get("variance"),
         )
 
-    def _get_individual_predictions(self, features: Dict[str, float]) -> Dict[str, Dict[str, float]]:
+    def _get_individual_predictions(
+        self, features: Dict[str, float]
+    ) -> Dict[str, Dict[str, float]]:
         """Get predictions from all models."""
         results = {}
 
         with ThreadPoolExecutor(max_workers=len(self.predictors)) as executor:
             future_to_model = {
-                executor.submit(self._predict_single, model_id, predictor, features): model_id
+                executor.submit(
+                    self._predict_single, model_id, predictor, features
+                ): model_id
                 for model_id, predictor in self.predictors.items()
             }
 
-            for future in as_completed(future_to_model, timeout=self.config.timeout_seconds):
+            for future in as_completed(
+                future_to_model, timeout=self.config.timeout_seconds
+            ):
                 model_id = future_to_model[future]
                 try:
                     result = future.result()
@@ -141,19 +150,27 @@ class EnsembleModel:
 
         return results
 
-    def _predict_single(self, model_id: str, predictor: MLPredictor, features: Dict[str, float]) -> Dict[str, float]:
+    def _predict_single(
+        self, model_id: str, predictor: MLPredictor, features: Dict[str, float]
+    ) -> Dict[str, float]:
         """Get prediction from single model."""
         try:
             result = predictor.predict(features)
             return {
                 "prediction": float(result.prediction),
-                "confidence": float(result.prediction_probability) if hasattr(result, 'prediction_probability') else 0.5
+                "confidence": (
+                    float(result.prediction_probability)
+                    if hasattr(result, "prediction_probability")
+                    else 0.5
+                ),
             }
         except Exception as e:
             self.logger.error(f"Single prediction failed for {model_id}: {e}")
             raise
 
-    def _voting_ensemble(self, individual_results: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    def _voting_ensemble(
+        self, individual_results: Dict[str, Dict[str, float]]
+    ) -> Dict[str, float]:
         """Voting ensemble method."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -170,17 +187,23 @@ class EnsembleModel:
             avg_confidence = positive_votes / len(predictions)
 
         # Calculate consensus score
-        consensus_score = 1.0 - np.std(predictions) / (np.mean(np.abs(predictions)) + 1e-8)
+        consensus_score = 1.0 - np.std(predictions) / (
+            np.mean(np.abs(predictions)) + 1e-8
+        )
         variance = np.var(predictions)
 
         return {
             "prediction": weighted_prediction,
             "confidence": avg_confidence,
             "consensus_score": consensus_score,
-            "variance": variance
+            "variance": variance,
         }
 
-    def _stacking_ensemble(self, features: Dict[str, float], individual_results: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    def _stacking_ensemble(
+        self,
+        features: Dict[str, float],
+        individual_results: Dict[str, Dict[str, float]],
+    ) -> Dict[str, float]:
         """Stacking ensemble method."""
         if not self.config.stacking_model:
             # Fallback to voting if no stacking model specified
@@ -188,9 +211,7 @@ class EnsembleModel:
 
         try:
             # Create meta-features from individual predictions
-            meta_features = {
-                "original_" + k: v for k, v in features.items()
-            }
+            meta_features = {"original_" + k: v for k, v in features.items()}
 
             # Add individual predictions as features
             for model_id, result in individual_results.items():
@@ -203,17 +224,27 @@ class EnsembleModel:
                 stacking_result = stacking_predictor.predict(meta_features)
                 return {
                     "prediction": float(stacking_result.prediction),
-                    "confidence": float(stacking_result.prediction_probability) if hasattr(stacking_result, 'prediction_probability') else 0.5
+                    "confidence": (
+                        float(stacking_result.prediction_probability)
+                        if hasattr(stacking_result, "prediction_probability")
+                        else 0.5
+                    ),
                 }
             else:
-                self.logger.warning(f"Stacking model {self.config.stacking_model} not found, using voting")
+                self.logger.warning(
+                    f"Stacking model {self.config.stacking_model} not found, using voting"
+                )
                 return self._voting_ensemble(individual_results)
 
         except Exception as e:
             self.logger.error(f"Stacking ensemble failed: {e}")
             return self._voting_ensemble(individual_results)
 
-    def _blending_ensemble(self, features: Dict[str, float], individual_results: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    def _blending_ensemble(
+        self,
+        features: Dict[str, float],
+        individual_results: Dict[str, Dict[str, float]],
+    ) -> Dict[str, float]:
         """Blending ensemble method."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -226,10 +257,12 @@ class EnsembleModel:
         return {
             "prediction": blended_prediction,
             "confidence": blended_confidence,
-            "variance": np.var(predictions)
+            "variance": np.var(predictions),
         }
 
-    def _bagging_ensemble(self, individual_results: Dict[str, Dict[str, float]]) -> Dict[str, float]:
+    def _bagging_ensemble(
+        self, individual_results: Dict[str, Dict[str, float]]
+    ) -> Dict[str, float]:
         """Bagging ensemble method (bootstrap aggregation)."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -244,15 +277,19 @@ class EnsembleModel:
             bootstrapped_predictions.append(np.mean(sample_predictions))
 
         bagged_prediction = np.mean(bootstrapped_predictions)
-        bagged_confidence = 1.0 - np.std(bootstrapped_predictions) / (np.abs(bagged_prediction) + 1e-8)
+        bagged_confidence = 1.0 - np.std(bootstrapped_predictions) / (
+            np.abs(bagged_prediction) + 1e-8
+        )
 
         return {
             "prediction": bagged_prediction,
             "confidence": min(max(bagged_confidence, 0.0), 1.0),  # Clamp to [0,1]
-            "variance": np.var(bootstrapped_predictions)
+            "variance": np.var(bootstrapped_predictions),
         }
 
-    def evaluate_ensemble(self, test_features: List[Dict[str, float]], test_targets: List[float]) -> Dict[str, float]:
+    def evaluate_ensemble(
+        self, test_features: List[Dict[str, float]], test_targets: List[float]
+    ) -> Dict[str, float]:
         """
         Evaluate ensemble performance.
 
@@ -281,7 +318,9 @@ class EnsembleModel:
         rmse = np.sqrt(mse)
 
         # Correlation
-        correlation = np.corrcoef(predictions, targets)[0, 1] if len(predictions) > 1 else 0.0
+        correlation = (
+            np.corrcoef(predictions, targets)[0, 1] if len(predictions) > 1 else 0.0
+        )
 
         # Confidence calibration
         confidence_error = np.mean(np.abs(confidences - np.abs(predictions - targets)))
@@ -292,7 +331,12 @@ class EnsembleModel:
             "rmse": float(rmse),
             "correlation": float(correlation) if not np.isnan(correlation) else 0.0,
             "confidence_error": float(confidence_error),
-            "avg_prediction_time_ms": np.mean([r.prediction_time_ms for r in [self.predict(f) for f in test_features[:10]]])
+            "avg_prediction_time_ms": np.mean(
+                [
+                    r.prediction_time_ms
+                    for r in [self.predict(f) for f in test_features[:10]]
+                ]
+            ),
         }
 
     def update_config(self, new_config: EnsembleConfig):

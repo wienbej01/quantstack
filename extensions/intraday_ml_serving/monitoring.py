@@ -1,20 +1,28 @@
 """Production monitoring for ML model deployments."""
 
 import asyncio
+import json
 import logging
+import queue
+import threading
 import time
-from typing import Dict, Any, List, Optional, Callable
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from collections import defaultdict, deque
-import threading
-import queue
-import json
+from typing import Any, Callable, Dict, List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 try:
-    from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, start_http_server
+    from prometheus_client import (
+        CollectorRegistry,
+        Counter,
+        Gauge,
+        Histogram,
+        start_http_server,
+    )
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -26,13 +34,21 @@ except ImportError:
 
 try:
     import requests
+
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
     requests = None
 
 try:
-    from sklearn.metrics import accuracy_score, precision_recall_fscore_support, mean_squared_error, mean_absolute_error, r2_score
+    from sklearn.metrics import (
+        accuracy_score,
+        mean_absolute_error,
+        mean_squared_error,
+        precision_recall_fscore_support,
+        r2_score,
+    )
+
     SKLEARN_AVAILABLE = True
 except ImportError:
     SKLEARN_AVAILABLE = False
@@ -49,6 +65,7 @@ from extensions.intraday_ml_serving.inference_engine import InferenceEngine
 @dataclass
 class MonitoringMetrics:
     """Comprehensive monitoring metrics for ML deployments."""
+
     timestamp: datetime
     model_id: str
     deployment_id: str
@@ -97,6 +114,7 @@ class MonitoringMetrics:
 @dataclass
 class AlertConfig:
     """Configuration for monitoring alerts."""
+
     metric_name: str
     threshold: float
     operator: str  # "gt", "lt", "eq"
@@ -123,7 +141,9 @@ class MetricsCollector:
         if self._collection_thread is not None:
             return
 
-        self._collection_thread = threading.Thread(target=self._collection_loop, daemon=True)
+        self._collection_thread = threading.Thread(
+            target=self._collection_loop, daemon=True
+        )
         self._collection_thread.start()
         self.logger.info("Metrics collection started")
 
@@ -170,19 +190,23 @@ class MetricsCollector:
             disk_io = psutil.disk_io_counters()
             disk_io_mb_per_sec = 0.0
             if disk_io:
-                disk_io_mb_per_sec = (disk_io.read_bytes + disk_io.write_bytes) / (1024 * 1024)
+                disk_io_mb_per_sec = (disk_io.read_bytes + disk_io.write_bytes) / (
+                    1024 * 1024
+                )
 
             # Network I/O metrics
             network_io = psutil.net_io_counters()
             network_io_mb_per_sec = 0.0
             if network_io:
-                network_io_mb_per_sec = (network_io.bytes_sent + network_io.bytes_recv) / (1024 * 1024)
+                network_io_mb_per_sec = (
+                    network_io.bytes_sent + network_io.bytes_recv
+                ) / (1024 * 1024)
 
             return {
                 "cpu_usage_percent": cpu_percent,
                 "memory_usage_mb": memory_usage_mb,
                 "disk_io_mb_per_sec": disk_io_mb_per_sec,
-                "network_io_mb_per_sec": network_io_mb_per_sec
+                "network_io_mb_per_sec": network_io_mb_per_sec,
             }
 
         except Exception as e:
@@ -206,7 +230,7 @@ class MetricsCollector:
         self,
         metric_name: str,
         start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None
+        end_time: Optional[datetime] = None,
     ) -> List[tuple]:
         """Get metrics history for a specific metric."""
         with self._metrics_lock:
@@ -230,7 +254,9 @@ class MetricsCollector:
         with self._metrics_lock:
             for metric_name, history in self.metrics_history.items():
                 if history:
-                    latest_metrics[metric_name] = history[-1][1]  # Get value from latest tuple
+                    latest_metrics[metric_name] = history[-1][
+                        1
+                    ]  # Get value from latest tuple
         return latest_metrics
 
 
@@ -260,13 +286,15 @@ class AlertManager:
                 continue
 
             # Check if threshold is breached
-            breached = self._check_threshold(current_value, config.threshold, config.operator)
+            breached = self._check_threshold(
+                current_value, config.threshold, config.operator
+            )
 
             if metric_name not in self._alert_states:
                 self._alert_states[metric_name] = {
                     "breached": False,
                     "first_breached": None,
-                    "notifications_sent": 0
+                    "notifications_sent": 0,
                 }
 
             state = self._alert_states[metric_name]
@@ -282,9 +310,12 @@ class AlertManager:
                 state["notifications_sent"] = 0
 
             # Check if we should send notification
-            if (state["breached"] and
-                state["first_breached"] and
-                (timestamp - state["first_breached"]) >= timedelta(minutes=config.duration_minutes)):
+            if (
+                state["breached"]
+                and state["first_breached"]
+                and (timestamp - state["first_breached"])
+                >= timedelta(minutes=config.duration_minutes)
+            ):
 
                 if state["notifications_sent"] == 0:  # Only send once per breach
                     self._send_alert(metric_name, current_value, config, timestamp)
@@ -301,7 +332,9 @@ class AlertManager:
         else:
             return False
 
-    def _send_alert(self, metric_name: str, value: float, config: AlertConfig, timestamp: datetime):
+    def _send_alert(
+        self, metric_name: str, value: float, config: AlertConfig, timestamp: datetime
+    ):
         """Send alert notification."""
         alert_data = {
             "metric_name": metric_name,
@@ -310,7 +343,7 @@ class AlertManager:
             "operator": config.operator,
             "severity": config.severity,
             "timestamp": timestamp.isoformat(),
-            "message": f"Alert: {metric_name} is {value} (threshold: {config.threshold})"
+            "message": f"Alert: {metric_name} is {value} (threshold: {config.threshold})",
         }
 
         self.logger.warning(f"Alert triggered: {alert_data['message']}")
@@ -330,7 +363,7 @@ class PerformanceMonitor:
         self,
         model_registry: Optional[MLModelRegistry] = None,
         inference_engine: Optional[InferenceEngine] = None,
-        window_size_minutes: int = 60
+        window_size_minutes: int = 60,
     ):
         self.model_registry = model_registry or MLModelRegistry()
         self.inference_engine = inference_engine
@@ -351,7 +384,7 @@ class PerformanceMonitor:
         features: Dict[str, float],
         actual: Optional[float] = None,
         latency_ms: float = 0.0,
-        timestamp: Optional[datetime] = None
+        timestamp: Optional[datetime] = None,
     ):
         """Record a prediction for performance monitoring."""
         if timestamp is None:
@@ -363,7 +396,7 @@ class PerformanceMonitor:
             "confidence": confidence,
             "features": features,
             "actual": actual,
-            "latency_ms": latency_ms
+            "latency_ms": latency_ms,
         }
 
         self.predictions_buffer[model_id].append(prediction_data)
@@ -374,14 +407,19 @@ class PerformanceMonitor:
         # Update metrics
         self._update_performance_metrics(model_id, deployment_id)
 
-    def record_actual(self, model_id: str, actual: float, timestamp: Optional[datetime] = None):
+    def record_actual(
+        self, model_id: str, actual: float, timestamp: Optional[datetime] = None
+    ):
         """Record actual value for a previous prediction."""
         if timestamp is None:
             timestamp = datetime.now()
 
         # Find matching prediction and update it
         for prediction_data in reversed(self.predictions_buffer[model_id]):
-            if prediction_data["actual"] is None and prediction_data["timestamp"] <= timestamp:
+            if (
+                prediction_data["actual"] is None
+                and prediction_data["timestamp"] <= timestamp
+            ):
                 prediction_data["actual"] = actual
                 break
 
@@ -389,8 +427,7 @@ class PerformanceMonitor:
         """Remove old predictions outside the monitoring window."""
         cutoff_time = datetime.now() - self.window_size
         self.predictions_buffer[model_id] = [
-            p for p in self.predictions_buffer[model_id]
-            if p["timestamp"] > cutoff_time
+            p for p in self.predictions_buffer[model_id] if p["timestamp"] > cutoff_time
         ]
 
     def _update_performance_metrics(self, model_id: str, deployment_id: str):
@@ -412,7 +449,9 @@ class PerformanceMonitor:
 
         # Calculate requests per second
         if len(predictions) >= 2:
-            time_span = (predictions[-1]["timestamp"] - predictions[0]["timestamp"]).total_seconds()
+            time_span = (
+                predictions[-1]["timestamp"] - predictions[0]["timestamp"]
+            ).total_seconds()
             requests_per_second = total_requests / time_span if time_span > 0 else 0.0
         else:
             requests_per_second = 0.0
@@ -441,14 +480,16 @@ class PerformanceMonitor:
                 self.logger.error(f"Performance calculation failed: {e}")
 
         # Confidence distribution
-        confidences = [p["confidence"] for p in predictions if p["confidence"] is not None]
+        confidences = [
+            p["confidence"] for p in predictions if p["confidence"] is not None
+        ]
         confidence_distribution = {}
         if confidences:
             confidence_distribution = {
                 "mean": np.mean(confidences),
                 "std": np.std(confidences),
                 "min": np.min(confidences),
-                "max": np.max(confidences)
+                "max": np.max(confidences),
             }
 
         # Create metrics object
@@ -467,7 +508,7 @@ class PerformanceMonitor:
             prediction_mse=prediction_mse,
             prediction_mae=prediction_mae,
             prediction_r2=prediction_r2,
-            confidence_distribution=confidence_distribution
+            confidence_distribution=confidence_distribution,
         )
 
         self.performance_metrics[model_id] = metrics
@@ -500,12 +541,13 @@ class PerformanceMonitor:
 
         try:
             from scipy import stats
+
             ks_statistic, p_value = stats.ks_2samp(recent_preds, older_preds)
 
             return {
                 "prediction_drift_ks": ks_statistic,
                 "prediction_drift_p_value": p_value,
-                "prediction_drift_detected": p_value < 0.05
+                "prediction_drift_detected": p_value < 0.05,
             }
         except ImportError:
             self.logger.warning("scipy not available for drift calculation")
@@ -523,7 +565,7 @@ class ProductionMonitor:
         model_registry: Optional[MLModelRegistry] = None,
         inference_engine: Optional[InferenceEngine] = None,
         metrics_port: int = 8001,
-        enable_prometheus: bool = True
+        enable_prometheus: bool = True,
     ):
         self.model_registry = model_registry or MLModelRegistry()
         self.inference_engine = inference_engine
@@ -554,65 +596,63 @@ class ProductionMonitor:
                 threshold=0.05,  # 5% error rate
                 operator="gt",
                 duration_minutes=5,
-                severity="warning"
+                severity="warning",
             ),
             AlertConfig(
                 metric_name="avg_latency_ms",
                 threshold=1000,  # 1 second
                 operator="gt",
                 duration_minutes=2,
-                severity="warning"
+                severity="warning",
             ),
             AlertConfig(
                 metric_name="cpu_usage_percent",
                 threshold=80,  # 80% CPU
                 operator="gt",
                 duration_minutes=10,
-                severity="critical"
+                severity="critical",
             ),
             AlertConfig(
                 metric_name="memory_usage_mb",
                 threshold=8000,  # 8GB
                 operator="gt",
                 duration_minutes=5,
-                severity="warning"
+                severity="warning",
             ),
             AlertConfig(
                 metric_name="prediction_accuracy",
                 threshold=0.7,  # 70% accuracy
                 operator="lt",
                 duration_minutes=15,
-                severity="warning"
-            )
+                severity="warning",
+            ),
         ]
 
     def _setup_prometheus_metrics(self):
         """Setup Prometheus metrics."""
         self.prom_requests_total = Counter(
-            'ml_inference_requests_total',
-            'Total number of inference requests',
-            ['model_id', 'status'],
-            registry=self.registry
+            "ml_inference_requests_total",
+            "Total number of inference requests",
+            ["model_id", "status"],
+            registry=self.registry,
         )
 
         self.prom_latency_seconds = Histogram(
-            'ml_inference_latency_seconds',
-            'Inference latency in seconds',
-            ['model_id'],
-            registry=self.registry
+            "ml_inference_latency_seconds",
+            "Inference latency in seconds",
+            ["model_id"],
+            registry=self.registry,
         )
 
         self.prom_active_models = Gauge(
-            'ml_active_models',
-            'Number of active models',
-            registry=self.registry
+            "ml_active_models", "Number of active models", registry=self.registry
         )
 
         self.prom_model_accuracy = Gauge(
-            'ml_model_accuracy',
-            'Model accuracy score',
-            ['model_id'],
-            registry=self.registry
+            "ml_model_accuracy",
+            "Model accuracy score",
+            ["model_id"],
+            registry=self.registry,
         )
 
     def start_monitoring(self):
@@ -630,7 +670,9 @@ class ProductionMonitor:
 
         # Start monitoring thread
         self._monitoring_active = True
-        self._monitoring_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
+        self._monitoring_thread = threading.Thread(
+            target=self._monitoring_loop, daemon=True
+        )
         self._monitoring_thread.start()
 
         self.logger.info("Production monitoring started")
@@ -682,9 +724,14 @@ class ProductionMonitor:
             self.prom_active_models.set(active_models)
 
             # Update model-specific metrics
-            for model_id, metrics in self.performance_monitor.get_all_performance_metrics().items():
+            for (
+                model_id,
+                metrics,
+            ) in self.performance_monitor.get_all_performance_metrics().items():
                 if metrics.prediction_accuracy is not None:
-                    self.prom_model_accuracy.labels(model_id=model_id).set(metrics.prediction_accuracy)
+                    self.prom_model_accuracy.labels(model_id=model_id).set(
+                        metrics.prediction_accuracy
+                    )
 
         except Exception as e:
             self.logger.error(f"Prometheus metrics update failed: {e}")
@@ -707,7 +754,7 @@ class ProductionMonitor:
         confidence: Optional[float],
         features: Dict[str, float],
         actual: Optional[float] = None,
-        latency_ms: float = 0.0
+        latency_ms: float = 0.0,
     ):
         """Record inference for monitoring."""
         # Update performance monitor
@@ -718,13 +765,15 @@ class ProductionMonitor:
             confidence=confidence,
             features=features,
             actual=actual,
-            latency_ms=latency_ms
+            latency_ms=latency_ms,
         )
 
         # Update Prometheus metrics
         if self.enable_prometheus:
-            self.prom_requests_total.labels(model_id=model_id, status='success').inc()
-            self.prom_latency_seconds.labels(model_id=model_id).observe(latency_ms / 1000.0)
+            self.prom_requests_total.labels(model_id=model_id, status="success").inc()
+            self.prom_latency_seconds.labels(model_id=model_id).observe(
+                latency_ms / 1000.0
+            )
 
     def get_monitoring_dashboard_data(self) -> Dict[str, Any]:
         """Get data for monitoring dashboard."""
@@ -734,6 +783,8 @@ class ProductionMonitor:
                 model_id: asdict(metrics)
                 for model_id, metrics in self.performance_monitor.get_all_performance_metrics().items()
             },
-            "active_alerts": len([s for s in self.alert_manager._alert_states.values() if s["breached"]]),
-            "uptime": time.time() if self._monitoring_active else 0
+            "active_alerts": len(
+                [s for s in self.alert_manager._alert_states.values() if s["breached"]]
+            ),
+            "uptime": time.time() if self._monitoring_active else 0,
         }

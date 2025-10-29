@@ -1,18 +1,20 @@
 """Exposure monitoring for ML-powered risk management."""
 
 import logging
-import numpy as np
-import pandas as pd
-from typing import Dict, Any, List, Optional, Tuple
+import queue
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from threading import Lock
 from enum import Enum
-import queue
+from threading import Lock
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 
 class ExposureType(Enum):
     """Types of exposure to monitor."""
+
     GROSS = "gross"
     NET = "net"
     LONG = "long"
@@ -24,6 +26,7 @@ class ExposureType(Enum):
 @dataclass
 class ExposureLimit:
     """Exposure limit configuration."""
+
     name: str
     exposure_type: ExposureType
     limit_value: float
@@ -37,6 +40,7 @@ class ExposureLimit:
 @dataclass
 class ExposureAlert:
     """Exposure alert information."""
+
     timestamp: datetime
     limit_name: str
     exposure_type: ExposureType
@@ -50,6 +54,7 @@ class ExposureAlert:
 @dataclass
 class ExposureMetrics:
     """Current exposure metrics."""
+
     total_exposure: float
     net_exposure: float
     gross_exposure: float
@@ -71,7 +76,7 @@ class ExposureMonitor:
         max_leverage: float = 2.0,
         max_concentration: float = 0.3,
         max_sector_exposure: float = 0.4,
-        alerting_enabled: bool = True
+        alerting_enabled: bool = True,
     ):
         """
         Initialize exposure monitor.
@@ -111,29 +116,29 @@ class ExposureMonitor:
                 exposure_type=ExposureType.GROSS,
                 limit_value=self.total_capital * self.max_leverage,
                 warning_threshold=0.8,
-                critical_threshold=0.95
+                critical_threshold=0.95,
             ),
             "net_exposure": ExposureLimit(
                 name="net_exposure",
                 exposure_type=ExposureType.NET,
                 limit_value=self.total_capital,
                 warning_threshold=0.9,
-                critical_threshold=1.0
+                critical_threshold=1.0,
             ),
             "single_position": ExposureLimit(
                 name="single_position",
                 exposure_type=ExposureType.CONCENTRATION,
                 limit_value=self.total_capital * self.max_concentration,
                 warning_threshold=0.8,
-                critical_threshold=0.95
+                critical_threshold=0.95,
             ),
             "sector_exposure": ExposureLimit(
                 name="sector_exposure",
                 exposure_type=ExposureType.CONCENTRATION,
                 limit_value=self.total_capital * self.max_sector_exposure,
                 warning_threshold=0.8,
-                critical_threshold=0.95
-            )
+                critical_threshold=0.95,
+            ),
         }
 
     def add_position(
@@ -142,7 +147,7 @@ class ExposureMonitor:
         size: float,
         price: float,
         sector: Optional[str] = None,
-        currency: str = "USD"
+        currency: str = "USD",
     ):
         """Add or update position."""
         with self._lock:
@@ -153,7 +158,7 @@ class ExposureMonitor:
                 "exposure": exposure,
                 "sector": sector,
                 "currency": currency,
-                "timestamp": datetime.now()
+                "timestamp": datetime.now(),
             }
 
             if sector:
@@ -200,21 +205,31 @@ class ExposureMonitor:
                     concentration_ratio=0.0,
                     sector_exposures={},
                     currency_exposures={},
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
                 )
 
             # Calculate exposures
-            long_exposure = sum(pos["exposure"] for pos in self.positions.values() if pos["size"] > 0)
-            short_exposure = sum(abs(pos["exposure"]) for pos in self.positions.values() if pos["size"] < 0)
+            long_exposure = sum(
+                pos["exposure"] for pos in self.positions.values() if pos["size"] > 0
+            )
+            short_exposure = sum(
+                abs(pos["exposure"])
+                for pos in self.positions.values()
+                if pos["size"] < 0
+            )
             gross_exposure = long_exposure + short_exposure
             net_exposure = long_exposure - short_exposure
 
             # Calculate leverage
-            leverage_ratio = gross_exposure / self.total_capital if self.total_capital > 0 else 0
+            leverage_ratio = (
+                gross_exposure / self.total_capital if self.total_capital > 0 else 0
+            )
 
             # Calculate concentration (largest position / total capital)
             max_exposure = max(abs(pos["exposure"]) for pos in self.positions.values())
-            concentration_ratio = max_exposure / self.total_capital if self.total_capital > 0 else 0
+            concentration_ratio = (
+                max_exposure / self.total_capital if self.total_capital > 0 else 0
+            )
 
             # Calculate sector exposures
             sector_exposures = {}
@@ -242,7 +257,7 @@ class ExposureMonitor:
                 concentration_ratio=concentration_ratio,
                 sector_exposures=sector_exposures,
                 currency_exposures=currency_exposures,
-                timestamp=datetime.now()
+                timestamp=datetime.now(),
             )
 
     def _check_all_limits(self):
@@ -257,14 +272,18 @@ class ExposureMonitor:
 
         # Check single position concentration
         if self.positions:
-            max_position_exposure = max(abs(pos["exposure"]) for pos in self.positions.values())
+            max_position_exposure = max(
+                abs(pos["exposure"]) for pos in self.positions.values()
+            )
             self._check_limit("single_position", max_position_exposure)
 
         # Check sector exposures
         for sector, exposure in metrics.sector_exposures.items():
             self._check_limit("sector_exposure", exposure, f"sector_{sector}")
 
-    def _check_limit(self, limit_name: str, current_value: float, custom_name: Optional[str] = None):
+    def _check_limit(
+        self, limit_name: str, current_value: float, custom_name: Optional[str] = None
+    ):
         """Check individual exposure limit."""
         if limit_name not in self.limits:
             return
@@ -274,7 +293,9 @@ class ExposureMonitor:
             return
 
         limit.current_value = current_value
-        limit.utilization = current_value / limit.limit_value if limit.limit_value > 0 else 0
+        limit.utilization = (
+            current_value / limit.limit_value if limit.limit_value > 0 else 0
+        )
 
         display_name = custom_name or limit_name
 
@@ -286,7 +307,7 @@ class ExposureMonitor:
                 current_value=current_value,
                 limit_value=limit.limit_value,
                 utilization=limit.utilization,
-                severity="critical"
+                severity="critical",
             )
 
         # Check for warning threshold
@@ -297,7 +318,7 @@ class ExposureMonitor:
                 current_value=current_value,
                 limit_value=limit.limit_value,
                 utilization=limit.utilization,
-                severity="warning"
+                severity="warning",
             )
 
     def _create_alert(
@@ -307,7 +328,7 @@ class ExposureMonitor:
         current_value: float,
         limit_value: float,
         utilization: float,
-        severity: str
+        severity: str,
     ):
         """Create exposure alert."""
         if not self.alerting_enabled:
@@ -322,7 +343,7 @@ class ExposureMonitor:
             utilization=utilization,
             severity=severity,
             message=f"{severity.title()} exposure alert: {limit_name} at {utilization:.1%} utilization "
-                   f"(${current_value:,.0f} / ${limit_value:,.0f})"
+            f"(${current_value:,.0f} / ${limit_value:,.0f})",
         )
 
         # Add to queues
@@ -354,8 +375,15 @@ class ExposureMonitor:
                 "current": limit.current_value,
                 "limit": limit.limit_value,
                 "utilization": limit.utilization,
-                "status": "normal" if limit.utilization < limit.warning_threshold else
-                         "warning" if limit.utilization < limit.critical_threshold else "critical"
+                "status": (
+                    "normal"
+                    if limit.utilization < limit.warning_threshold
+                    else (
+                        "warning"
+                        if limit.utilization < limit.critical_threshold
+                        else "critical"
+                    )
+                ),
             }
 
         # Get recent alerts
@@ -366,12 +394,14 @@ class ExposureMonitor:
         for _ in range(min(10, self.alerts.qsize())):
             try:
                 alert = self.alerts.get_nowait()
-                recent_alerts.append({
-                    "timestamp": alert.timestamp.isoformat(),
-                    "limit_name": alert.limit_name,
-                    "severity": alert.severity,
-                    "message": alert.message
-                })
+                recent_alerts.append(
+                    {
+                        "timestamp": alert.timestamp.isoformat(),
+                        "limit_name": alert.limit_name,
+                        "severity": alert.severity,
+                        "message": alert.message,
+                    }
+                )
                 temp_queue.put(alert)
             except queue.Empty:
                 break
@@ -391,14 +421,14 @@ class ExposureMonitor:
                 "leverage_ratio": metrics.leverage_ratio,
                 "concentration_ratio": metrics.concentration_ratio,
                 "long_exposure": metrics.long_exposure,
-                "short_exposure": metrics.short_exposure
+                "short_exposure": metrics.short_exposure,
             },
             "limits": limits_status,
             "sector_exposures": metrics.sector_exposures,
             "currency_exposures": metrics.currency_exposures,
             "recent_alerts": recent_alerts,
             "total_positions": len(self.positions),
-            "timestamp": metrics.timestamp.isoformat()
+            "timestamp": metrics.timestamp.isoformat(),
         }
 
     def update_limit(self, limit_name: str, new_limit: float):
@@ -432,18 +462,22 @@ class ExposureMonitor:
         with self._lock:
             positions = []
             for symbol, position in self.positions.items():
-                positions.append({
-                    "symbol": symbol,
-                    "size": position["size"],
-                    "price": position["price"],
-                    "exposure": position["exposure"],
-                    "sector": position.get("sector", "Unknown"),
-                    "currency": position.get("currency", "USD"),
-                    "timestamp": position["timestamp"].isoformat()
-                })
+                positions.append(
+                    {
+                        "symbol": symbol,
+                        "size": position["size"],
+                        "price": position["price"],
+                        "exposure": position["exposure"],
+                        "sector": position.get("sector", "Unknown"),
+                        "currency": position.get("currency", "USD"),
+                        "timestamp": position["timestamp"].isoformat(),
+                    }
+                )
             return positions
 
-    def calculate_scenario_exposure(self, price_changes: Dict[str, float]) -> Dict[str, float]:
+    def calculate_scenario_exposure(
+        self, price_changes: Dict[str, float]
+    ) -> Dict[str, float]:
         """Calculate exposure under different price scenarios."""
         scenario_exposures = {}
 

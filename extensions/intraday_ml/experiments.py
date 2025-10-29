@@ -16,16 +16,16 @@ import pandas as pd
 import yaml
 
 from . import (
-    intraday_ml_get_data_hash,
-    intraday_ml_load_bars,
     intraday_ml_apply_features,
-    intraday_ml_get_features_hash,
-    intraday_ml_screen_universe,
-    intraday_ml_get_screener_hash,
-    intraday_ml_size_orders,
-    intraday_ml_get_risk_hash,
-    intraday_ml_run_backtest,
     intraday_ml_get_backtest_hash,
+    intraday_ml_get_data_hash,
+    intraday_ml_get_features_hash,
+    intraday_ml_get_risk_hash,
+    intraday_ml_get_screener_hash,
+    intraday_ml_load_bars,
+    intraday_ml_run_backtest,
+    intraday_ml_screen_universe,
+    intraday_ml_size_orders,
 )
 
 
@@ -47,7 +47,7 @@ def run_entry_ab_experiment(
         Dictionary with experiment results and metadata
     """
     # Load base configuration
-    with open(base_config_path, 'r') as f:
+    with open(base_config_path, "r") as f:
         base_config = yaml.safe_load(f)
 
     # Create experiment directory
@@ -67,7 +67,7 @@ def run_entry_ab_experiment(
         variant_name = pathlib.Path(variant_path).stem
 
         # Merge variant configuration
-        with open(variant_path, 'r') as f:
+        with open(variant_path, "r") as f:
             variant_config = yaml.safe_load(f)
 
         # Deep merge configs
@@ -82,7 +82,7 @@ def run_entry_ab_experiment(
             config=merged_config,
             variant_name=variant_name,
             exp_dir=exp_dir,
-            seed=seed
+            seed=seed,
         )
 
         variant_results[variant_name] = variant_result
@@ -102,12 +102,11 @@ def run_entry_ab_experiment(
         "base_hashes": base_hashes,
         "checksum_validation": checksums_validation,
         "results_summary": {
-            name: result.get("metrics", {})
-            for name, result in variant_results.items()
-        }
+            name: result.get("metrics", {}) for name, result in variant_results.items()
+        },
     }
 
-    with open(exp_dir / "manifest.json", 'w') as f:
+    with open(exp_dir / "manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
 
     # Write inputs checksum
@@ -117,10 +116,10 @@ def run_entry_ab_experiment(
         "sip_hash": base_hashes["screener_hash"],
         "config_hash": base_hashes["config_hash"],
         "seed": seed,
-        "experiment_id": experiment_id
+        "experiment_id": experiment_id,
     }
 
-    with open(exp_dir / "inputs_checksum.json", 'w') as f:
+    with open(exp_dir / "inputs_checksum.json", "w") as f:
         json.dump(inputs_checksum, f, indent=2)
 
     return {
@@ -128,7 +127,7 @@ def run_entry_ab_experiment(
         "experiment_name": experiment_name,
         "variants": variant_results,
         "checksums": checksums_validation,
-        "experiment_dir": str(exp_dir)
+        "experiment_dir": str(exp_dir),
     }
 
 
@@ -148,7 +147,7 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
     if not manifest_path.exists():
         return {"valid": False, "issues": ["manifest.json not found"]}
 
-    with open(manifest_path, 'r') as f:
+    with open(manifest_path, "r") as f:
         manifest = json.load(f)
 
     # Load inputs checksum
@@ -156,7 +155,7 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
     if not checksum_path.exists():
         return {"valid": False, "issues": ["inputs_checksum.json not found"]}
 
-    with open(checksum_path, 'r') as f:
+    with open(checksum_path, "r") as f:
         inputs_checksum = json.load(f)
 
     # Check expected files exist
@@ -171,21 +170,18 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
         return {
             "valid": False,
             "issues": [f"Missing files: {', '.join(missing_files)}"],
-            "checksums": inputs_checksum
+            "checksums": inputs_checksum,
         }
 
     # Validate manifest structure
     required_manifest_keys = ["experiment_id", "base_hashes", "checksum_validation"]
-    missing_keys = [
-        key for key in required_manifest_keys
-        if key not in manifest
-    ]
+    missing_keys = [key for key in required_manifest_keys if key not in manifest]
 
     if missing_keys:
         return {
             "valid": False,
             "issues": [f"Missing manifest keys: {', '.join(missing_keys)}"],
-            "checksums": inputs_checksum
+            "checksums": inputs_checksum,
         }
 
     # Check checksum validation from manifest
@@ -195,14 +191,14 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
             "valid": False,
             "issues": ["Checksum validation failed in original run"],
             "checksums": inputs_checksum,
-            "checksum_validation": checksum_validation
+            "checksum_validation": checksum_validation,
         }
 
     return {
         "valid": True,
         "checksums": inputs_checksum,
         "checksum_validation": checksum_validation,
-        "manifest": manifest
+        "manifest": manifest,
     }
 
 
@@ -214,13 +210,15 @@ def _load_base_data(config: Dict[str, Any]) -> Dict[str, Any]:
         symbols=data_config.get("symbols", []),
         dates=data_config.get("dates", []),
         gold_root=data_config.get("gold_root", "/home/jacobw/gcs-mount"),
-        family=data_config.get("family", "equities")
+        family=data_config.get("family", "equities"),
     )
 
     return {"bars": bars}
 
 
-def _compute_base_hashes(base_data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, str]:
+def _compute_base_hashes(
+    base_data: Dict[str, Any], config: Dict[str, Any]
+) -> Dict[str, str]:
     """Compute hashes for base data and configuration."""
     bars = base_data["bars"]
 
@@ -229,15 +227,13 @@ def _compute_base_hashes(base_data: Dict[str, Any], config: Dict[str, Any]) -> D
     bars_with_features = intraday_ml_apply_features(
         bars,
         feature_config.get("feature_pack", "core_basics"),
-        feature_config.get("config", {})
+        feature_config.get("config", {}),
     )
 
     # Apply screener for hash computation
     screener_config = config.get("screener", {})
     screened_universe = intraday_ml_screen_universe(
-        bars_with_features,
-        screener_config,
-        config.get("reference_date")
+        bars_with_features, screener_config, config.get("reference_date")
     )
 
     return {
@@ -245,19 +241,17 @@ def _compute_base_hashes(base_data: Dict[str, Any], config: Dict[str, Any]) -> D
             config.get("data", {}).get("symbols", []),
             config.get("data", {}).get("dates", []),
             config.get("data", {}).get("gold_root", "/home/jacobw/gcs-mount"),
-            config.get("data", {}).get("family", "equities")
+            config.get("data", {}).get("family", "equities"),
         ),
         "features_hash": intraday_ml_get_features_hash(
             bars,
             feature_config.get("feature_pack", "core_basics"),
-            feature_config.get("config", {})
+            feature_config.get("config", {}),
         ),
         "screener_hash": intraday_ml_get_screener_hash(
-            bars_with_features,
-            screener_config,
-            config.get("reference_date")
+            bars_with_features, screener_config, config.get("reference_date")
         ),
-        "config_hash": _hash_config(config)
+        "config_hash": _hash_config(config),
     }
 
 
@@ -266,10 +260,11 @@ def _run_single_pipeline(
     config: Dict[str, Any],
     variant_name: str,
     exp_dir: pathlib.Path,
-    seed: int
+    seed: int,
 ) -> Dict[str, Any]:
     """Run complete pipeline for a single variant."""
     import numpy as np
+
     np.random.seed(seed)  # Ensure reproducibility
 
     bars = base_data["bars"]
@@ -279,15 +274,13 @@ def _run_single_pipeline(
     bars_with_features = intraday_ml_apply_features(
         bars,
         feature_config.get("feature_pack", "core_basics"),
-        feature_config.get("config", {})
+        feature_config.get("config", {}),
     )
 
     # Step 2: Screen universe
     screener_config = config.get("screener", {})
     screened_universe = intraday_ml_screen_universe(
-        bars_with_features,
-        screener_config,
-        config.get("reference_date")
+        bars_with_features, screener_config, config.get("reference_date")
     )
 
     # Step 3: Generate signals (placeholder - would use actual policy)
@@ -295,11 +288,7 @@ def _run_single_pipeline(
 
     # Step 4: Size orders
     risk_config = config.get("risk", {})
-    sized_orders = intraday_ml_size_orders(
-        signals,
-        bars_with_features,
-        risk_config
-    )
+    sized_orders = intraday_ml_size_orders(signals, bars_with_features, risk_config)
 
     # Step 5: Run backtest
     backtest_config = config.get("backtest", {})
@@ -308,7 +297,7 @@ def _run_single_pipeline(
         sized_orders,
         backtest_config,
         config_path=None,
-        enforce_intraday_compliance=True
+        enforce_intraday_compliance=True,
     )
 
     # Write variant artifacts
@@ -316,10 +305,10 @@ def _run_single_pipeline(
     variant_dir.mkdir(exist_ok=True)
 
     for artifact_name, artifact_data in artifacts.items():
-        if hasattr(artifact_data, 'to_parquet'):
+        if hasattr(artifact_data, "to_parquet"):
             artifact_data.to_parquet(variant_dir / f"{artifact_name}.parquet")
         elif isinstance(artifact_data, dict):
-            with open(variant_dir / f"{artifact_name}.json", 'w') as f:
+            with open(variant_dir / f"{artifact_name}.json", "w") as f:
                 json.dump(artifact_data, f, indent=2)
 
     return {
@@ -327,14 +316,12 @@ def _run_single_pipeline(
         "variant_dir": str(variant_dir),
         "checksum": intraday_ml_get_backtest_hash(
             bars_with_features, sized_orders, backtest_config
-        )
+        ),
     }
 
 
 def _generate_signals(
-    bars: pd.DataFrame,
-    screened_universe: pd.DataFrame,
-    config: Dict[str, Any]
+    bars: pd.DataFrame, screened_universe: pd.DataFrame, config: Dict[str, Any]
 ) -> pd.DataFrame:
     """Generate trading signals (placeholder implementation)."""
     # This is a placeholder - in real implementation, would use specific policy
@@ -356,14 +343,14 @@ def _generate_signals(
 
         # Simple VWAP mean reversion signal
         vwap_window = config.get("policy", {}).get("vwap_window", 20)
-        symbol_data["vwap"] = (
-            (symbol_data["close"] * symbol_data["volume"])
-            .rolling(vwap_window)
-            .sum() / symbol_data["volume"].rolling(vwap_window).sum()
-        )
+        symbol_data["vwap"] = (symbol_data["close"] * symbol_data["volume"]).rolling(
+            vwap_window
+        ).sum() / symbol_data["volume"].rolling(vwap_window).sum()
 
         # Generate signals when price deviates from VWAP
-        symbol_data["deviation"] = (symbol_data["close"] - symbol_data["vwap"]) / symbol_data["vwap"]
+        symbol_data["deviation"] = (
+            symbol_data["close"] - symbol_data["vwap"]
+        ) / symbol_data["vwap"]
 
         # Buy when below VWAP, sell when above
         deviation_threshold = config.get("policy", {}).get("deviation_threshold", 0.02)
@@ -372,32 +359,34 @@ def _generate_signals(
         sell_signals = symbol_data[symbol_data["deviation"] > deviation_threshold]
 
         for _, row in buy_signals.iterrows():
-            signals.append({
-                "ts": row["ts"],
-                "symbol": symbol,
-                "side": "BUY",
-                "close": row["close"],
-                "vwap": row["vwap"],
-                "deviation": row["deviation"]
-            })
+            signals.append(
+                {
+                    "ts": row["ts"],
+                    "symbol": symbol,
+                    "side": "BUY",
+                    "close": row["close"],
+                    "vwap": row["vwap"],
+                    "deviation": row["deviation"],
+                }
+            )
 
         for _, row in sell_signals.iterrows():
-            signals.append({
-                "ts": row["ts"],
-                "symbol": symbol,
-                "side": "SELL",
-                "close": row["close"],
-                "vwap": row["vwap"],
-                "deviation": row["deviation"]
-            })
+            signals.append(
+                {
+                    "ts": row["ts"],
+                    "symbol": symbol,
+                    "side": "SELL",
+                    "close": row["close"],
+                    "vwap": row["vwap"],
+                    "deviation": row["deviation"],
+                }
+            )
 
     return pd.DataFrame(signals)
 
 
 def _validate_variant_checksums(
-    base_hashes: Dict[str, str],
-    variant_results: Dict[str, Any],
-    force: bool
+    base_hashes: Dict[str, str], variant_results: Dict[str, Any], force: bool
 ) -> Dict[str, Any]:
     """Validate checksum consistency across variants."""
     issues = []
@@ -411,11 +400,13 @@ def _validate_variant_checksums(
     return {
         "fair": len(issues) == 0 or force,
         "issues": issues,
-        "base_hashes": base_hashes
+        "base_hashes": base_hashes,
     }
 
 
-def _deep_merge_configs(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[str, Any]:
+def _deep_merge_configs(
+    base: Dict[str, Any], overlay: Dict[str, Any]
+) -> Dict[str, Any]:
     """Deep merge two configuration dictionaries."""
     result = base.copy()
 
@@ -431,4 +422,5 @@ def _deep_merge_configs(base: Dict[str, Any], overlay: Dict[str, Any]) -> Dict[s
 def _hash_config(config: Dict[str, Any]) -> str:
     """Hash configuration dictionary."""
     from qx_core.hashers import hash_dataframe
+
     return hash_dataframe(pd.DataFrame([config]))

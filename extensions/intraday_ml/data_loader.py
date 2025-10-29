@@ -4,11 +4,12 @@ This module wraps existing qx-data functionality while providing
 Sprint 2 interface for loading and normalizing market data.
 """
 
-import pandas as pd
 from typing import Any, Optional
 
-from qx_data.gold_loader import load_bars
+import pandas as pd
+
 from qx_core.hashers import hash_dataframe
+from qx_data.gold_loader import load_bars
 
 
 def intraday_ml_load_bars(

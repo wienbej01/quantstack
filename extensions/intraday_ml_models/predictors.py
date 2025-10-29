@@ -1,9 +1,9 @@
 """ML model inference utilities for intraday trading."""
 
-import numpy as np
-import pandas as pd
 from typing import Any, Dict, List, Optional, Union
 
+import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator
 
 from .registry import MLModelRegistry
@@ -43,7 +43,7 @@ class MLPredictor:
         features: pd.DataFrame,
         timestamps: Optional[pd.Series] = None,
         symbols: Optional[pd.Series] = None,
-        return_probabilities: bool = False
+        return_probabilities: bool = False,
     ) -> List[PredictionResult]:
         """Make predictions using loaded model.
 
@@ -68,11 +68,9 @@ class MLPredictor:
         X = features[metadata.features].copy()
 
         # Apply scaling if model has scaler
-        if hasattr(model, 'scaler'):
+        if hasattr(model, "scaler"):
             X = pd.DataFrame(
-                model.scaler.transform(X),
-                index=X.index,
-                columns=X.columns
+                model.scaler.transform(X), index=X.index, columns=X.columns
             )
 
         # Make predictions
@@ -80,11 +78,11 @@ class MLPredictor:
 
         # Get probabilities if requested and available
         probabilities = None
-        if return_probabilities and hasattr(model, 'predict_proba'):
+        if return_probabilities and hasattr(model, "predict_proba"):
             probabilities = model.predict_proba(X)
             # Use max probability as confidence
             probabilities = np.max(probabilities, axis=1)
-        elif return_probabilities and hasattr(model, 'decision_function'):
+        elif return_probabilities and hasattr(model, "decision_function"):
             # For SVMs, use decision function as confidence score
             probabilities = model.decision_function(X)
             if len(probabilities.shape) > 1:
@@ -94,14 +92,13 @@ class MLPredictor:
         if timestamps is None:
             timestamps = pd.Series(X.index, index=X.index)
         if symbols is None:
-            symbols = pd.Series(['UNKNOWN'] * len(X), index=X.index)
+            symbols = pd.Series(["UNKNOWN"] * len(X), index=X.index)
 
         # Create prediction results
         results = []
         for i, idx in enumerate(X.index):
             feature_values = {
-                feature: float(X.iloc[i][feature])
-                for feature in metadata.features
+                feature: float(X.iloc[i][feature]) for feature in metadata.features
             }
 
             result = PredictionResult(
@@ -110,8 +107,10 @@ class MLPredictor:
                 symbol=str(symbols.iloc[i]),
                 features_used=metadata.features.copy(),
                 prediction=predictions[i],
-                prediction_probability=float(probabilities[i]) if probabilities is not None else None,
-                feature_values=feature_values
+                prediction_probability=(
+                    float(probabilities[i]) if probabilities is not None else None
+                ),
+                feature_values=feature_values,
             )
             results.append(result)
 
@@ -123,7 +122,7 @@ class MLPredictor:
         features: Dict[str, float],
         timestamp: int,
         symbol: str,
-        return_probability: bool = False
+        return_probability: bool = False,
     ) -> PredictionResult:
         """Make prediction for a single observation.
 
@@ -146,12 +145,14 @@ class MLPredictor:
             features=feature_df,
             timestamps=pd.Series([timestamp]),
             symbols=pd.Series([symbol]),
-            return_probabilities=return_probability
+            return_probabilities=return_probability,
         )
 
         return results[0]
 
-    def _validate_features(self, features: pd.DataFrame, expected_features: List[str]) -> None:
+    def _validate_features(
+        self, features: pd.DataFrame, expected_features: List[str]
+    ) -> None:
         """Validate that required features are present."""
         missing_features = [f for f in expected_features if f not in features.columns]
         if missing_features:

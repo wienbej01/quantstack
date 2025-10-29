@@ -781,8 +781,10 @@ def compute_order_flow_vpa(
         group["f__flow__ofi_trend"] = compute_ofi_trend(group["f__flow__ofi"])
 
         # Cast order-flow columns to float and normalise to avoid int→float overflow downstream
-        group['f__flow__ofi'] = group['f__flow__ofi'].astype('float64') / 1e6
-        group['f__flow__ofi_trend'] = group['f__flow__ofi_trend'].astype('float64') / 1e6
+        group["f__flow__ofi"] = group["f__flow__ofi"].astype("float64") / 1e6
+        group["f__flow__ofi_trend"] = (
+            group["f__flow__ofi_trend"].astype("float64") / 1e6
+        )
 
         # VPA Absorption detection
         # High volume with low range and small body suggests absorption
@@ -1087,4 +1089,3 @@ def compute_all_regime_enhanced_features(
         sys.stdout.flush()
 
     return result
-

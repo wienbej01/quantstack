@@ -31,7 +31,7 @@ class MLModelRegistry:
     def _load_registry(self) -> Dict[str, ModelMetadata]:
         """Load existing registry from disk."""
         if self.metadata_file.exists():
-            with open(self.metadata_file, 'r') as f:
+            with open(self.metadata_file, "r") as f:
                 data = json.load(f)
             return {
                 model_id: ModelMetadata(**metadata)
@@ -42,17 +42,13 @@ class MLModelRegistry:
     def _save_registry(self) -> None:
         """Save registry to disk."""
         data = {
-            model_id: metadata.dict()
-            for model_id, metadata in self._registry.items()
+            model_id: metadata.dict() for model_id, metadata in self._registry.items()
         }
-        with open(self.metadata_file, 'w') as f:
+        with open(self.metadata_file, "w") as f:
             json.dump(data, f, indent=2, default=str)
 
     def register_model(
-        self,
-        model: BaseEstimator,
-        metadata: ModelMetadata,
-        overwrite: bool = False
+        self, model: BaseEstimator, metadata: ModelMetadata, overwrite: bool = False
     ) -> None:
         """Register a trained model.
 
@@ -62,11 +58,13 @@ class MLModelRegistry:
             overwrite: Whether to overwrite existing model
         """
         if metadata.model_id in self._registry and not overwrite:
-            raise ValueError(f"Model {metadata.model_id} already exists. Use overwrite=True.")
+            raise ValueError(
+                f"Model {metadata.model_id} already exists. Use overwrite=True."
+            )
 
         # Save model
         model_path = self.models_dir / f"{metadata.model_id}.pkl"
-        with open(model_path, 'wb') as f:
+        with open(model_path, "wb") as f:
             pickle.dump(model, f)
 
         # Update registry
@@ -89,7 +87,7 @@ class MLModelRegistry:
         if not model_path.exists():
             raise FileNotFoundError(f"Model file not found: {model_path}")
 
-        with open(model_path, 'rb') as f:
+        with open(model_path, "rb") as f:
             model = pickle.load(f)
 
         return model
@@ -109,9 +107,7 @@ class MLModelRegistry:
         return self._registry[model_id]
 
     def list_models(
-        self,
-        model_type: Optional[str] = None,
-        tags: Optional[List[str]] = None
+        self, model_type: Optional[str] = None, tags: Optional[List[str]] = None
     ) -> List[ModelMetadata]:
         """List models with optional filtering.
 
@@ -133,9 +129,7 @@ class MLModelRegistry:
         return sorted(models, key=lambda x: x.training_date, reverse=True)
 
     def get_best_model(
-        self,
-        model_type: str,
-        metric: str = "val_score"
+        self, model_type: str, metric: str = "val_score"
     ) -> Optional[ModelMetadata]:
         """Get best model by type and metric.
 
@@ -184,7 +178,7 @@ class MLModelRegistry:
             metadata = self.get_metadata(model_id)
 
             # Simple consistency check - model should have expected attributes
-            if hasattr(model, 'feature_names_in_'):
+            if hasattr(model, "feature_names_in_"):
                 expected_features = set(metadata.features)
                 actual_features = set(model.feature_names_in_)
                 return expected_features == actual_features

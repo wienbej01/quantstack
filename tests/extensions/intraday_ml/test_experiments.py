@@ -10,14 +10,14 @@ import pytest
 import yaml
 
 from extensions.intraday_ml.experiments import (
+    _compute_base_hashes,
+    _deep_merge_configs,
+    _generate_signals,
+    _hash_config,
+    _load_base_data,
+    _run_single_pipeline,
     run_entry_ab_experiment,
     validate_fairness,
-    _load_base_data,
-    _compute_base_hashes,
-    _run_single_pipeline,
-    _generate_signals,
-    _deep_merge_configs,
-    _hash_config
 )
 
 
@@ -32,6 +32,7 @@ class TestExperimentOrchestration:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def _create_test_config(self, **overrides):
@@ -41,29 +42,14 @@ class TestExperimentOrchestration:
                 "symbols": ["AAPL", "MSFT"],
                 "dates": ["2024-01-02", "2024-01-03"],
                 "gold_root": "/tmp/test_gold",
-                "family": "equities"
+                "family": "equities",
             },
-            "features": {
-                "feature_pack": "core_basics",
-                "config": {"vwap_window": 20}
-            },
-            "screener": {
-                "top_n": 2,
-                "min_relative_volume": 1.0
-            },
-            "policy": {
-                "vwap_window": 20,
-                "deviation_threshold": 0.02
-            },
-            "risk": {
-                "max_risk_frac": 0.02,
-                "atr_mult": 2.0
-            },
-            "backtest": {
-                "initial_cash": 1000000.0,
-                "costs": {"bps": 0.001}
-            },
-            "seed": 42
+            "features": {"feature_pack": "core_basics", "config": {"vwap_window": 20}},
+            "screener": {"top_n": 2, "min_relative_volume": 1.0},
+            "policy": {"vwap_window": 20, "deviation_threshold": 0.02},
+            "risk": {"max_risk_frac": 0.02, "atr_mult": 2.0},
+            "backtest": {"initial_cash": 1000000.0, "costs": {"bps": 0.001}},
+            "seed": 42,
         }
 
         base_config.update(overrides)
@@ -71,17 +57,20 @@ class TestExperimentOrchestration:
 
     def _create_test_bars(self):
         """Create test bars DataFrame."""
-        return pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000] * 2,  # 2 timestamps for 2 symbols
-            "symbol": ["AAPL", "AAPL", "MSFT", "MSFT"],
-            "open": [150.0, 151.0, 250.0, 251.0],
-            "high": [152.0, 153.0, 252.0, 253.0],
-            "low": [149.0, 150.0, 249.0, 250.0],
-            "close": [151.0, 152.0, 251.0, 252.0],
-            "volume": [1000000, 1100000, 800000, 850000]
-        })
+        return pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000]
+                * 2,  # 2 timestamps for 2 symbols
+                "symbol": ["AAPL", "AAPL", "MSFT", "MSFT"],
+                "open": [150.0, 151.0, 250.0, 251.0],
+                "high": [152.0, 153.0, 252.0, 253.0],
+                "low": [149.0, 150.0, 249.0, 250.0],
+                "close": [151.0, 152.0, 251.0, 252.0],
+                "volume": [1000000, 1100000, 800000, 850000],
+            }
+        )
 
-    @patch('extensions.intraday_ml.experiments.intraday_ml_load_bars')
+    @patch("extensions.intraday_ml.experiments.intraday_ml_load_bars")
     def test_load_base_data(self, mock_load_bars):
         """Test base data loading."""
         test_bars = self._create_test_bars()
@@ -96,17 +85,21 @@ class TestExperimentOrchestration:
             symbols=config["data"]["symbols"],
             dates=config["data"]["dates"],
             gold_root=config["data"]["gold_root"],
-            family=config["data"]["family"]
+            family=config["data"]["family"],
         )
 
-    @patch('extensions.intraday_ml.experiments.intraday_ml_get_data_hash')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_get_features_hash')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_get_screener_hash')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_apply_features')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_screen_universe')
+    @patch("extensions.intraday_ml.experiments.intraday_ml_get_data_hash")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_get_features_hash")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_get_screener_hash")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_apply_features")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_screen_universe")
     def test_compute_base_hashes(
-        self, mock_screen, mock_features, mock_screener_hash,
-        mock_features_hash, mock_data_hash
+        self,
+        mock_screen,
+        mock_features,
+        mock_screener_hash,
+        mock_features_hash,
+        mock_data_hash,
     ):
         """Test base hash computation."""
         test_bars = self._create_test_bars()
@@ -133,7 +126,9 @@ class TestExperimentOrchestration:
 
         # Add VWAP for signal generation
         test_bars["vwap"] = test_bars["close"]  # Simple VWAP
-        test_bars["deviation"] = (test_bars["close"] - test_bars["vwap"]) / test_bars["vwap"]
+        test_bars["deviation"] = (test_bars["close"] - test_bars["vwap"]) / test_bars[
+            "vwap"
+        ]
 
         screened_universe = pd.DataFrame({"symbol": ["AAPL", "MSFT"]})
         config = self._create_test_config()
@@ -152,13 +147,13 @@ class TestExperimentOrchestration:
         base = {
             "level1": {"level2": {"value": "base"}},
             "list": [1, 2, 3],
-            "simple": "base_value"
+            "simple": "base_value",
         }
 
         overlay = {
             "level1": {"level2": {"new_value": "overlay"}},
             "list": [4, 5],
-            "new_key": "overlay_value"
+            "new_key": "overlay_value",
         }
 
         result = _deep_merge_configs(base, overlay)
@@ -177,12 +172,10 @@ class TestExperimentOrchestration:
         assert isinstance(result, str)
         assert len(result) > 0
 
-    @patch('extensions.intraday_ml.experiments._run_single_pipeline')
-    @patch('extensions.intraday_ml.experiments._compute_base_hashes')
-    @patch('extensions.intraday_ml.experiments._load_base_data')
-    def test_run_entry_ab_experiment(
-        self, mock_load_data, mock_hashes, mock_pipeline
-    ):
+    @patch("extensions.intraday_ml.experiments._run_single_pipeline")
+    @patch("extensions.intraday_ml.experiments._compute_base_hashes")
+    @patch("extensions.intraday_ml.experiments._load_base_data")
+    def test_run_entry_ab_experiment(self, mock_load_data, mock_hashes, mock_pipeline):
         """Test full A/B experiment execution."""
         # Set up mocks
         test_bars = self._create_test_bars()
@@ -191,30 +184,30 @@ class TestExperimentOrchestration:
             "bars_hash": "test_bars",
             "features_hash": "test_features",
             "screener_hash": "test_screener",
-            "config_hash": "test_config"
+            "config_hash": "test_config",
         }
         mock_pipeline.return_value = {
             "metrics": {"trades": 5, "win_rate": 0.6},
             "variant_dir": "/tmp/variant_test",
-            "checksum": "test_checksum"
+            "checksum": "test_checksum",
         }
 
         # Create config files
         base_config = self._create_test_config()
         base_config_path = self.temp_path / "base_config.yaml"
-        with open(base_config_path, 'w') as f:
+        with open(base_config_path, "w") as f:
             yaml.dump(base_config, f)
 
         variant_config = {"policy": {"deviation_threshold": 0.03}}
         variant_path = self.temp_path / "variant.yaml"
-        with open(variant_path, 'w') as f:
+        with open(variant_path, "w") as f:
             yaml.dump(variant_config, f)
 
         # Run experiment
         result = run_entry_ab_experiment(
             base_config_path=str(base_config_path),
             variant_paths=[str(variant_path)],
-            experiment_name="test_experiment"
+            experiment_name="test_experiment",
         )
 
         # Verify results
@@ -231,12 +224,13 @@ class TestExperimentOrchestration:
         manifest_path = exp_dir / "manifest.json"
         assert manifest_path.exists()
 
-        with open(manifest_path, 'r') as f:
+        with open(manifest_path, "r") as f:
             manifest = json.load(f)
         assert manifest["experiment_name"] == "test_experiment"
 
         # Clean up
         import shutil
+
         shutil.rmtree("experiments")
 
     def test_validate_fairness_success(self):
@@ -249,9 +243,9 @@ class TestExperimentOrchestration:
         manifest = {
             "experiment_id": "test_id",
             "base_hashes": {"bars_hash": "test"},
-            "checksum_validation": {"fair": True}
+            "checksum_validation": {"fair": True},
         }
-        with open(exp_dir / "manifest.json", 'w') as f:
+        with open(exp_dir / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         # Create inputs checksum
@@ -260,9 +254,9 @@ class TestExperimentOrchestration:
             "features_hash": "test",
             "sip_hash": "test",
             "config_hash": "test",
-            "seed": 42
+            "seed": 42,
         }
-        with open(exp_dir / "inputs_checksum.json", 'w') as f:
+        with open(exp_dir / "inputs_checksum.json", "w") as f:
             json.dump(inputs_checksum, f)
 
         result = validate_fairness(str(exp_dir))
@@ -287,7 +281,7 @@ class TestExperimentOrchestration:
 
         # Create invalid manifest
         manifest = {"incomplete": "data"}
-        with open(exp_dir / "manifest.json", 'w') as f:
+        with open(exp_dir / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         result = validate_fairness(str(exp_dir))
@@ -306,19 +300,22 @@ class TestPipelineExecution:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def _create_test_pipeline_data(self):
         """Create test data for pipeline execution."""
-        bars = pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000] * 2,
-            "symbol": ["AAPL", "AAPL", "MSFT", "MSFT"],
-            "open": [150.0, 151.0, 250.0, 251.0],
-            "high": [152.0, 153.0, 252.0, 253.0],
-            "low": [149.0, 150.0, 249.0, 250.0],
-            "close": [151.0, 152.0, 251.0, 252.0],
-            "volume": [1000000, 1100000, 800000, 850000]
-        })
+        bars = pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000] * 2,
+                "symbol": ["AAPL", "AAPL", "MSFT", "MSFT"],
+                "open": [150.0, 151.0, 250.0, 251.0],
+                "high": [152.0, 153.0, 252.0, 253.0],
+                "low": [149.0, 150.0, 249.0, 250.0],
+                "close": [151.0, 152.0, 251.0, 252.0],
+                "volume": [1000000, 1100000, 800000, 850000],
+            }
+        )
 
         base_data = {"bars": bars}
         config = {
@@ -326,15 +323,15 @@ class TestPipelineExecution:
             "screener": {"top_n": 2},
             "policy": {"deviation_threshold": 0.02},
             "risk": {"max_risk_frac": 0.02},
-            "backtest": {"initial_cash": 1000000.0}
+            "backtest": {"initial_cash": 1000000.0},
         }
 
         return base_data, config
 
-    @patch('extensions.intraday_ml.experiments.intraday_ml_run_backtest')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_size_orders')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_screen_universe')
-    @patch('extensions.intraday_ml.experiments.intraday_ml_apply_features')
+    @patch("extensions.intraday_ml.experiments.intraday_ml_run_backtest")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_size_orders")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_screen_universe")
+    @patch("extensions.intraday_ml.experiments.intraday_ml_apply_features")
     def test_run_single_pipeline(
         self, mock_features, mock_screen, mock_risk, mock_backtest
     ):
@@ -344,12 +341,14 @@ class TestPipelineExecution:
         # Set up mocks
         mock_features.return_value = base_data["bars"].copy()
         mock_screen.return_value = pd.DataFrame({"symbol": ["AAPL"]})
-        mock_risk.return_value = pd.DataFrame({
-            "ts": [1704230400000000000],
-            "symbol": ["AAPL"],
-            "side": ["BUY"],
-            "qty": [100]
-        })
+        mock_risk.return_value = pd.DataFrame(
+            {
+                "ts": [1704230400000000000],
+                "symbol": ["AAPL"],
+                "side": ["BUY"],
+                "qty": [100],
+            }
+        )
         mock_backtest.return_value = {
             "metrics": {"trades": 1, "win_rate": 1.0},
             "signals": pd.DataFrame(),
@@ -359,7 +358,7 @@ class TestPipelineExecution:
             "equity": pd.DataFrame(),
             "trades": pd.DataFrame(),
             "risk_rejects": pd.DataFrame(),
-            "allocation_log": pd.DataFrame()
+            "allocation_log": pd.DataFrame(),
         }
 
         exp_dir = pathlib.Path(self.temp_dir) / "test_experiment"
@@ -370,7 +369,7 @@ class TestPipelineExecution:
             config=config,
             variant_name="test_variant",
             exp_dir=exp_dir,
-            seed=42
+            seed=42,
         )
 
         assert "metrics" in result

@@ -1,16 +1,21 @@
 """Tests for advanced feature engineering functionality."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
+from unittest.mock import Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from extensions.intraday_ml_features.pipeline import FeaturePipeline
 from extensions.intraday_ml_features.selection import FeatureSelector, SelectionResult
 from extensions.intraday_ml_features.transforms import (
-    LagTransformer, RollingTransformer, DifferenceTransformer,
-    InteractionTransformer, BinningTransformer, TechnicalIndicatorTransformer
+    BinningTransformer,
+    DifferenceTransformer,
+    InteractionTransformer,
+    LagTransformer,
+    RollingTransformer,
+    TechnicalIndicatorTransformer,
 )
 
 
@@ -18,17 +23,19 @@ from extensions.intraday_ml_features.transforms import (
 def sample_feature_data():
     """Create sample feature data."""
     dates = pd.date_range("2024-01-01", periods=100, freq="1min")
-    return pd.DataFrame({
-        "timestamp": dates,
-        "f__vwap_30": np.random.normal(150, 5, 100),
-        "f__rel_volume_30": np.random.normal(1.0, 0.3, 100),
-        "f__atr_14": np.random.normal(2.0, 0.5, 100),
-        "close": np.random.normal(150, 5, 100),
-        "volume": np.random.normal(1000000, 200000, 100),
-        "high": np.random.normal(152, 5, 100),
-        "low": np.random.normal(148, 5, 100),
-        "open": np.random.normal(150, 5, 100)
-    }).set_index("timestamp")
+    return pd.DataFrame(
+        {
+            "timestamp": dates,
+            "f__vwap_30": np.random.normal(150, 5, 100),
+            "f__rel_volume_30": np.random.normal(1.0, 0.3, 100),
+            "f__atr_14": np.random.normal(2.0, 0.5, 100),
+            "close": np.random.normal(150, 5, 100),
+            "volume": np.random.normal(1000000, 200000, 100),
+            "high": np.random.normal(152, 5, 100),
+            "low": np.random.normal(148, 5, 100),
+            "open": np.random.normal(150, 5, 100),
+        }
+    ).set_index("timestamp")
 
 
 @pytest.fixture
@@ -96,6 +103,7 @@ class TestFeaturePipeline:
 
     def test_pipeline_with_custom_transform(self, sample_feature_data):
         """Test pipeline with custom transform function."""
+
         def custom_transform(X):
             return X * 2
 
@@ -123,14 +131,16 @@ class TestFeatureSelector:
         """Set up test environment."""
         self.selector = FeatureSelector()
 
-    def test_select_univariate_regression(self, sample_feature_data, sample_target_data):
+    def test_select_univariate_regression(
+        self, sample_feature_data, sample_target_data
+    ):
         """Test univariate feature selection for regression."""
         result = self.selector.select_univariate(
             X=sample_feature_data,
             y=sample_target_data,
             method="k_best",
             k=3,
-            task_type="regression"
+            task_type="regression",
         )
 
         assert isinstance(result, SelectionResult)
@@ -138,7 +148,9 @@ class TestFeatureSelector:
         assert len(result.feature_scores) == len(sample_feature_data.columns)
         assert result.selection_method == "univariate_k_best"
 
-    def test_select_univariate_classification(self, sample_feature_data, sample_target_data):
+    def test_select_univariate_classification(
+        self, sample_feature_data, sample_target_data
+    ):
         """Test univariate feature selection for classification."""
         # Create binary target
         binary_target = (sample_target_data > 0).astype(int)
@@ -148,7 +160,7 @@ class TestFeatureSelector:
             y=binary_target,
             method="percentile",
             percentile=50,
-            task_type="classification"
+            task_type="classification",
         )
 
         assert isinstance(result, SelectionResult)
@@ -158,10 +170,7 @@ class TestFeatureSelector:
     def test_select_mutual_info(self, sample_feature_data, sample_target_data):
         """Test mutual information feature selection."""
         result = self.selector.select_mutual_info(
-            X=sample_feature_data,
-            y=sample_target_data,
-            k=4,
-            task_type="regression"
+            X=sample_feature_data, y=sample_target_data, k=4, task_type="regression"
         )
 
         assert isinstance(result, SelectionResult)
@@ -174,7 +183,7 @@ class TestFeatureSelector:
             X=sample_feature_data,
             y=sample_target_data,
             n_features=3,
-            task_type="regression"
+            task_type="regression",
         )
 
         assert isinstance(result, SelectionResult)
@@ -184,10 +193,7 @@ class TestFeatureSelector:
     def test_select_lasso(self, sample_feature_data, sample_target_data):
         """Test Lasso feature selection."""
         result = self.selector.select_lasso(
-            X=sample_feature_data,
-            y=sample_target_data,
-            cv=3,
-            max_features=5
+            X=sample_feature_data, y=sample_target_data, cv=3, max_features=5
         )
 
         assert isinstance(result, SelectionResult)
@@ -198,11 +204,12 @@ class TestFeatureSelector:
         """Test correlation-based feature filtering."""
         # Add highly correlated feature
         sample_feature_data = sample_feature_data.copy()
-        sample_feature_data["highly_correlated"] = sample_feature_data["f__vwap_30"] + np.random.normal(0, 0.1, len(sample_feature_data))
+        sample_feature_data["highly_correlated"] = sample_feature_data[
+            "f__vwap_30"
+        ] + np.random.normal(0, 0.1, len(sample_feature_data))
 
         result = self.selector.select_correlation_filter(
-            X=sample_feature_data,
-            threshold=0.95
+            X=sample_feature_data, threshold=0.95
         )
 
         assert isinstance(result, SelectionResult)
@@ -210,14 +217,13 @@ class TestFeatureSelector:
         assert len(result.selected_features) < len(sample_feature_data.columns)
         assert result.selection_method == "correlation_filter"
 
-    def test_transform_with_fitted_selector(self, sample_feature_data, sample_target_data):
+    def test_transform_with_fitted_selector(
+        self, sample_feature_data, sample_target_data
+    ):
         """Test transforming data with fitted selector."""
         # Fit selector
         self.selector.select_univariate(
-            X=sample_feature_data,
-            y=sample_target_data,
-            method="k_best",
-            k=3
+            X=sample_feature_data, y=sample_target_data, method="k_best", k=3
         )
 
         # Transform data
@@ -230,10 +236,7 @@ class TestFeatureSelector:
     def test_get_selected_features(self, sample_feature_data, sample_target_data):
         """Test getting selected feature names."""
         self.selector.select_univariate(
-            X=sample_feature_data,
-            y=sample_target_data,
-            method="k_best",
-            k=3
+            X=sample_feature_data, y=sample_target_data, method="k_best", k=3
         )
 
         selected_features = self.selector.get_selected_features()
@@ -310,14 +313,16 @@ class TestTransformers:
         """Test technical indicator transformer."""
         # Create OHLCV data
         dates = pd.date_range("2024-01-01", periods=100, freq="1min")
-        ohlcv_data = pd.DataFrame({
-            "timestamp": dates,
-            "open": np.random.normal(150, 5, 100),
-            "high": np.random.normal(152, 5, 100),
-            "low": np.random.normal(148, 5, 100),
-            "close": np.random.normal(150, 5, 100),
-            "volume": np.random.normal(1000000, 200000, 100)
-        }).set_index("timestamp")
+        ohlcv_data = pd.DataFrame(
+            {
+                "timestamp": dates,
+                "open": np.random.normal(150, 5, 100),
+                "high": np.random.normal(152, 5, 100),
+                "low": np.random.normal(148, 5, 100),
+                "close": np.random.normal(150, 5, 100),
+                "volume": np.random.normal(1000000, 200000, 100),
+            }
+        ).set_index("timestamp")
 
         transformer = TechnicalIndicatorTransformer(indicators=["rsi", "macd"])
         transformer.fit(ohlcv_data)
@@ -333,10 +338,12 @@ class TestTransformers:
     def test_transformer_with_datetime_index(self):
         """Test that transformers require datetime index."""
         # Create data with non-datetime index
-        data = pd.DataFrame({
-            "feature1": np.random.normal(0, 1, 100),
-            "feature2": np.random.normal(0, 1, 100)
-        })
+        data = pd.DataFrame(
+            {
+                "feature1": np.random.normal(0, 1, 100),
+                "feature2": np.random.normal(0, 1, 100),
+            }
+        )
 
         transformer = LagTransformer(lags=[1])
 

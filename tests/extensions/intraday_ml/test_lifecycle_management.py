@@ -1,18 +1,26 @@
 """Tests for model lifecycle management."""
 
-import pytest
-import pandas as pd
-import numpy as np
-import tempfile
 import sqlite3
-from unittest.mock import Mock, patch, MagicMock
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from extensions.intraday_ml_lifecycle.version_manager import (
-    VersionManager, ModelVersion, ModelStatus, VersionDatabase
+    ModelStatus,
+    ModelVersion,
+    VersionDatabase,
+    VersionManager,
 )
-from extensions.intraday_ml_models.schemas import ModelMetadata, ModelType, FeatureImportance
+from extensions.intraday_ml_models.schemas import (
+    FeatureImportance,
+    ModelMetadata,
+    ModelType,
+)
 
 
 @pytest.fixture
@@ -37,14 +45,14 @@ def sample_model_metadata():
         ],
         random_seed=42,
         data_hash="test_hash",
-        model_hash="model_hash"
+        model_hash="model_hash",
     )
 
 
 @pytest.fixture
 def temp_db():
     """Create temporary database for testing."""
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    db_fd, db_path = tempfile.mkstemp(suffix=".db")
     yield db_path
     Path(db_path).unlink()  # Clean up
 
@@ -66,7 +74,7 @@ class TestModelVersion:
             file_path="/path/to/model.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         assert version.model_id == "test_model"
@@ -87,7 +95,7 @@ class TestModelVersion:
             file_path="/path/to/model.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         data = version.to_dict()
@@ -114,7 +122,7 @@ class TestModelVersion:
             "file_hash": "abc123",
             "config_hash": "def456",
             "data_hash": "ghi789",
-            "tags": ["tag1", "tag2"]
+            "tags": ["tag1", "tag2"],
         }
 
         version = ModelVersion.from_dict(data)
@@ -159,7 +167,7 @@ class TestVersionDatabase:
             file_path="/path/to/model.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         # Save version
@@ -190,7 +198,7 @@ class TestVersionDatabase:
                 file_path="/path/to/model1.pkl",
                 file_hash="abc123",
                 config_hash="def456",
-                data_hash="ghi789"
+                data_hash="ghi789",
             ),
             ModelVersion(
                 model_id="test_model",
@@ -204,8 +212,8 @@ class TestVersionDatabase:
                 file_path="/path/to/model2.pkl",
                 file_hash="xyz789",
                 config_hash="uvw456",
-                data_hash="rst123"
-            )
+                data_hash="rst123",
+            ),
         ]
 
         for version in versions:
@@ -233,7 +241,7 @@ class TestVersionDatabase:
             file_path="/path/to/model.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         # Save version
@@ -265,7 +273,7 @@ class TestVersionDatabase:
                 file_path="/path/to/model_a.pkl",
                 file_hash="abc123",
                 config_hash="def456",
-                data_hash="ghi789"
+                data_hash="ghi789",
             ),
             ModelVersion(
                 model_id="model_b",
@@ -279,7 +287,7 @@ class TestVersionDatabase:
                 file_path="/path/to/model_b.pkl",
                 file_hash="xyz789",
                 config_hash="uvw456",
-                data_hash="rst123"
+                data_hash="rst123",
             ),
             ModelVersion(
                 model_id="model_c",
@@ -293,8 +301,8 @@ class TestVersionDatabase:
                 file_path="/path/to/model_c.pkl",
                 file_hash="pqr456",
                 config_hash="mno789",
-                data_hash="stu123"
-            )
+                data_hash="stu123",
+            ),
         ]
 
         for version in versions:
@@ -326,7 +334,7 @@ class TestVersionDatabase:
             file_path="/path/to/model.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         # Save version
@@ -358,7 +366,7 @@ class TestVersionDatabase:
             file_path="/path/to/model1.pkl",
             file_hash="abc123",
             config_hash="def456",
-            data_hash="ghi789"
+            data_hash="ghi789",
         )
 
         # Create child version
@@ -375,7 +383,7 @@ class TestVersionDatabase:
             file_hash="xyz789",
             config_hash="uvw456",
             data_hash="rst123",
-            parent_version="test_model:1.0.0"
+            parent_version="test_model:1.0.0",
         )
 
         db.save_version(parent)
@@ -393,17 +401,19 @@ class TestVersionManager:
 
     def setup_method(self):
         """Set up test environment."""
-        self.temp_db = tempfile.mktemp(suffix='.db')
-        self.addCleanup(lambda: Path(self.temp_db).unlink() if Path(self.temp_db).exists() else None)
+        self.temp_db = tempfile.mktemp(suffix=".db")
+        self.addCleanup(
+            lambda: Path(self.temp_db).unlink() if Path(self.temp_db).exists() else None
+        )
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_version_manager_initialization(self, mock_registry_class):
         """Test VersionManager initialization."""
         manager = VersionManager(storage_path=self.temp_db)
         assert manager.registry is not None
         assert manager.db is not None
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_create_version(self, mock_registry_class, sample_model_metadata):
         """Test creating a new version."""
         # Setup mock
@@ -414,7 +424,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -425,7 +435,7 @@ class TestVersionManager:
                 file_path=model_file_path,
                 config={"param1": "value1"},
                 training_data_hash="data_hash_123",
-                created_by="test_user"
+                created_by="test_user",
             )
 
             assert version.model_id == "test_model"
@@ -437,8 +447,10 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
-    def test_create_version_with_parent(self, mock_registry_class, sample_model_metadata):
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
+    def test_create_version_with_parent(
+        self, mock_registry_class, sample_model_metadata
+    ):
         """Test creating a version with a parent."""
         # Setup mock
         mock_registry = Mock()
@@ -448,7 +460,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -460,7 +472,7 @@ class TestVersionManager:
                 file_path=model_file_path,
                 config={"param1": "value1"},
                 training_data_hash="data_hash_123",
-                created_by="test_user"
+                created_by="test_user",
             )
 
             # Create child version
@@ -471,7 +483,7 @@ class TestVersionManager:
                 config={"param1": "value2"},
                 training_data_hash="data_hash_456",
                 created_by="test_user",
-                parent_version="test_model:1.0.0"
+                parent_version="test_model:1.0.0",
             )
 
             assert child.parent_version == "test_model:1.0.0"
@@ -479,7 +491,7 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_update_version_status(self, mock_registry_class, sample_model_metadata):
         """Test updating version status."""
         # Setup mock
@@ -490,7 +502,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -502,7 +514,7 @@ class TestVersionManager:
                 file_path=model_file_path,
                 config={"param1": "value1"},
                 training_data_hash="data_hash_123",
-                created_by="test_user"
+                created_by="test_user",
             )
 
             # Update status
@@ -515,7 +527,7 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_promote_to_production(self, mock_registry_class, sample_model_metadata):
         """Test promoting a version to production."""
         # Setup mock
@@ -526,7 +538,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -538,7 +550,7 @@ class TestVersionManager:
                 file_path=model_file_path,
                 config={"param1": "value1"},
                 training_data_hash="data_hash_123",
-                created_by="test_user"
+                created_by="test_user",
             )
 
             # Update to staging first
@@ -554,7 +566,7 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_get_version_history(self, mock_registry_class, sample_model_metadata):
         """Test getting version history."""
         # Setup mock
@@ -565,7 +577,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -578,7 +590,7 @@ class TestVersionManager:
                     file_path=model_file_path,
                     config={"param1": f"value{i}"},
                     training_data_hash=f"data_hash_{i}",
-                    created_by="test_user"
+                    created_by="test_user",
                 )
 
             # Get history
@@ -593,7 +605,7 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_get_production_models(self, mock_registry_class, sample_model_metadata):
         """Test getting production models."""
         # Setup mock
@@ -604,7 +616,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -613,7 +625,7 @@ class TestVersionManager:
             models_data = [
                 ("model_a", ModelStatus.PRODUCTION),
                 ("model_b", ModelStatus.STAGING),
-                ("model_c", ModelStatus.PRODUCTION)
+                ("model_c", ModelStatus.PRODUCTION),
             ]
 
             for model_id, status in models_data:
@@ -623,7 +635,7 @@ class TestVersionManager:
                     file_path=model_file_path,
                     config={"param1": "value1"},
                     training_data_hash="data_hash_123",
-                    created_by="test_user"
+                    created_by="test_user",
                 )
                 manager.update_version_status(model_id, "1.0.0", status)
 
@@ -636,7 +648,7 @@ class TestVersionManager:
         finally:
             Path(model_file_path).unlink()
 
-    @patch('extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
     def test_cleanup_old_versions(self, mock_registry_class, sample_model_metadata):
         """Test cleaning up old versions."""
         # Setup mock
@@ -647,7 +659,7 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         # Create temporary model file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pkl") as f:
             f.write(b"mock model data")
             model_file_path = f.name
 
@@ -660,7 +672,7 @@ class TestVersionManager:
                     file_path=model_file_path,
                     config={"param1": f"value{i}"},
                     training_data_hash=f"data_hash_{i}",
-                    created_by="test_user"
+                    created_by="test_user",
                 )
 
             # Should have 10 versions initially
@@ -694,7 +706,7 @@ class TestVersionManager:
 
             # Verify it's a valid SHA-256 hash (64 hex characters)
             assert len(file_hash) == 64
-            assert all(c in '0123456789abcdef' for c in file_hash)
+            assert all(c in "0123456789abcdef" for c in file_hash)
 
         finally:
             Path(temp_path).unlink()
@@ -704,7 +716,10 @@ class TestVersionManager:
         manager = VersionManager(storage_path=self.temp_db)
 
         config1 = {"param1": "value1", "param2": "value2"}
-        config2 = {"param2": "value2", "param1": "value1"}  # Same content, different order
+        config2 = {
+            "param2": "value2",
+            "param1": "value1",
+        }  # Same content, different order
         config3 = {"param1": "value1", "param2": "value3"}  # Different content
 
         hash1 = manager._calculate_config_hash(config1)
@@ -719,7 +734,7 @@ class TestVersionManager:
 
         # Verify it's a valid SHA-256 hash
         assert len(hash1) == 64
-        assert all(c in '0123456789abcdef' for c in hash1)
+        assert all(c in "0123456789abcdef" for c in hash1)
 
 
 if __name__ == "__main__":

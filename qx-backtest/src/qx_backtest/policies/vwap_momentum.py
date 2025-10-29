@@ -55,7 +55,11 @@ class VwapMomentumPolicy(Policy):
         vwap_col = f"f__ta__vwap_{self.vwap_window}"
         rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
 
-        if vwap_col not in bar or rvol_col not in bar or not bar.get("f__warmup_ok", True):
+        if (
+            vwap_col not in bar
+            or rvol_col not in bar
+            or not bar.get("f__warmup_ok", True)
+        ):
             return
 
         vwap = bar[vwap_col]
@@ -68,19 +72,35 @@ class VwapMomentumPolicy(Policy):
 
         if not self.is_allowed():
             if position and not position.is_flat:
-                self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
+                self._check_exit_signal(
+                    symbol, bar, position, close, vwap, high, low, timestamp
+                )
             return
 
         if position is None or position.is_flat:
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
         else:
-            self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
+            self._check_exit_signal(
+                symbol, bar, position, close, vwap, high, low, timestamp
+            )
 
-    def _check_entry_signal(self, symbol: str, bar: dict[str, Any], close: float, vwap: float, rvol: float, timestamp: int) -> None:
+    def _check_entry_signal(
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        close: float,
+        vwap: float,
+        rvol: float,
+        timestamp: int,
+    ) -> None:
         if symbol in self.trades_today:
             return
 
-        if self.engine and self.engine.portfolio and len(self.engine.portfolio.positions) >= self.max_positions:
+        if (
+            self.engine
+            and self.engine.portfolio
+            and len(self.engine.portfolio.positions) >= self.max_positions
+        ):
             return
 
         if self.get_pending_orders(symbol):
@@ -110,7 +130,17 @@ class VwapMomentumPolicy(Policy):
                 self.submit_order(order)
                 self.position_entry_times[symbol] = timestamp
 
-    def _check_exit_signal(self, symbol: str, bar: dict[str, Any], position: Position, close: float, vwap: float, high: float, low: float, timestamp: int) -> None:
+    def _check_exit_signal(
+        self,
+        symbol: str,
+        bar: dict[str, Any],
+        position: Position,
+        close: float,
+        vwap: float,
+        high: float,
+        low: float,
+        timestamp: int,
+    ) -> None:
         if symbol not in self.position_entry_times:
             self.position_entry_times[symbol] = timestamp
 

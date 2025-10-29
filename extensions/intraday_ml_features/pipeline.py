@@ -1,12 +1,18 @@
 """Feature engineering pipeline for intraday ML."""
 
-import pandas as pd
-import numpy as np
-from typing import Dict, Any, Optional, List
 from dataclasses import dataclass
-from sklearn.preprocessing import StandardScaler, RobustScaler, MinMaxScaler, QuantileTransformer
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+import pandas as pd
 from sklearn.decomposition import PCA
 from sklearn.pipeline import Pipeline as SklearnPipeline
+from sklearn.preprocessing import (
+    MinMaxScaler,
+    QuantileTransformer,
+    RobustScaler,
+    StandardScaler,
+)
 
 from .selection import FeatureSelector
 
@@ -41,13 +47,14 @@ class FeaturePipeline:
         else:
             raise ValueError(f"Unknown scaling method: {method}")
 
-        self.steps["scaling"] = {
-            "method": method,
-            "scaler": scaler,
-            "params": kwargs
-        }
+        self.steps["scaling"] = {"method": method, "scaler": scaler, "params": kwargs}
 
-    def add_pca_step(self, n_components: Optional[int] = None, explained_variance_ratio: float = 0.95, **kwargs):
+    def add_pca_step(
+        self,
+        n_components: Optional[int] = None,
+        explained_variance_ratio: float = 0.95,
+        **kwargs,
+    ):
         """
         Add PCA dimensionality reduction step.
 
@@ -59,7 +66,7 @@ class FeaturePipeline:
         self.steps["pca"] = {
             "n_components": n_components,
             "explained_variance_ratio": explained_variance_ratio,
-            "params": kwargs
+            "params": kwargs,
         }
 
     def add_feature_selection_step(self, method: str = "mutual_info", **kwargs):
@@ -70,10 +77,7 @@ class FeaturePipeline:
             method: Selection method ('mutual_info', 'univariate', 'rfe', 'lasso')
             **kwargs: Additional parameters for feature selector
         """
-        self.steps["feature_selection"] = {
-            "method": method,
-            "params": kwargs
-        }
+        self.steps["feature_selection"] = {"method": method, "params": kwargs}
 
     def add_custom_transform(self, transform_func, name: str, **kwargs):
         """
@@ -84,10 +88,7 @@ class FeaturePipeline:
             name: Name of the transformation step
             **kwargs: Additional parameters
         """
-        self.steps[name] = {
-            "transform_func": transform_func,
-            "params": kwargs
-        }
+        self.steps[name] = {"transform_func": transform_func, "params": kwargs}
 
     def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "FeaturePipeline":
         """
@@ -109,7 +110,7 @@ class FeaturePipeline:
             X_transformed = pd.DataFrame(
                 scaler.fit_transform(X_transformed),
                 columns=X_transformed.columns,
-                index=X_transformed.index
+                index=X_transformed.index,
             )
             self.scalers["scaling"] = scaler
 
@@ -130,7 +131,7 @@ class FeaturePipeline:
             X_transformed = pd.DataFrame(
                 self.pca.fit_transform(X_transformed),
                 columns=[f"PC{i+1}" for i in range(n_components)],
-                index=X_transformed.index
+                index=X_transformed.index,
             )
 
         # Apply feature selection step
@@ -142,9 +143,13 @@ class FeaturePipeline:
             self.feature_selector = FeatureSelector()
 
             if method == "mutual_info":
-                result = self.feature_selector.select_mutual_info(X_transformed, y, **params)
+                result = self.feature_selector.select_mutual_info(
+                    X_transformed, y, **params
+                )
             elif method == "univariate":
-                result = self.feature_selector.select_univariate(X_transformed, y, **params)
+                result = self.feature_selector.select_univariate(
+                    X_transformed, y, **params
+                )
             elif method == "rfe":
                 result = self.feature_selector.select_rfe(X_transformed, y, **params)
             elif method == "lasso":
@@ -184,7 +189,7 @@ class FeaturePipeline:
             X_transformed = pd.DataFrame(
                 scaler.transform(X_transformed),
                 columns=X_transformed.columns,
-                index=X_transformed.index
+                index=X_transformed.index,
             )
 
         # Apply PCA
@@ -192,7 +197,7 @@ class FeaturePipeline:
             X_transformed = pd.DataFrame(
                 self.pca.transform(X_transformed),
                 columns=[f"PC{i+1}" for i in range(self.pca.n_components_)],
-                index=X_transformed.index
+                index=X_transformed.index,
             )
 
         # Apply feature selection
@@ -207,7 +212,9 @@ class FeaturePipeline:
 
         return X_transformed
 
-    def fit_transform(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> pd.DataFrame:
+    def fit_transform(
+        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+    ) -> pd.DataFrame:
         """
         Fit pipeline and transform data.
 

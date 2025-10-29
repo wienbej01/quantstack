@@ -4,9 +4,10 @@ Provides Typer-based CLI for ML model training, inference, and A/B testing.
 """
 
 import pathlib
+from typing import Optional
+
 import typer
 from rich.console import Console
-from typing import Optional
 
 from .enhanced_entry_ab import enhanced_entry_ab
 from .fairness import validate_fairness
@@ -25,11 +26,17 @@ def version():
 @app.command("entry-ab")
 def entry_ab(
     cfg: pathlib.Path = typer.Option(..., "--cfg", help="Base config file"),
-    variants: str = typer.Option(..., "--variants", help="Variant overlay files pattern"),
+    variants: str = typer.Option(
+        ..., "--variants", help="Variant overlay files pattern"
+    ),
     name: str = typer.Option(..., "--name", help="Experiment name"),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Show what would be done without executing"
+    ),
     force: bool = typer.Option(False, "--force", help="Force run even with issues"),
-    allow_unfair: bool = typer.Option(False, "--allow-unfair", help="Allow unfair experiments"),
+    allow_unfair: bool = typer.Option(
+        False, "--allow-unfair", help="Allow unfair experiments"
+    ),
 ):
     """Run entry/exit A/B testing experiment."""
     if not cfg.exists():
@@ -38,6 +45,7 @@ def entry_ab(
 
     # Parse variant files
     import glob
+
     variant_files = [pathlib.Path(f) for f in sorted(glob.glob(variants))]
 
     if not variant_files:
@@ -55,8 +63,8 @@ def entry_ab(
     console.print(f"Running entry-ab experiment: {name}")
 
     # Import and run the actual experiment
-    from .orchestration import ABOrchestrator
     from .fairness import FairnessConfig
+    from .orchestration import ABOrchestrator
 
     fairness_config = FairnessConfig(
         allow_unfair=allow_unfair,
@@ -73,15 +81,17 @@ def entry_ab(
         console.print(f"Runs: {len(result['run_results'])}")
 
         # Print performance summary
-        for run_result in result['run_results']:
-            metrics = run_result['metrics']
-            trading = metrics.get('trading', {})
-            performance = metrics.get('performance', {})
+        for run_result in result["run_results"]:
+            metrics = run_result["metrics"]
+            trading = metrics.get("trading", {})
+            performance = metrics.get("performance", {})
 
-            console.print(f"  {run_result['run_id'][:8]}: "
-                         f"Trades: {trading.get('total_trades', 0)} | "
-                         f"Win Rate: {performance.get('win_rate', 0):.1%} | "
-                         f"Return: {performance.get('total_return', 0):.2%}")
+            console.print(
+                f"  {run_result['run_id'][:8]}: "
+                f"Trades: {trading.get('total_trades', 0)} | "
+                f"Win Rate: {performance.get('win_rate', 0):.1%} | "
+                f"Return: {performance.get('total_return', 0):.2%}"
+            )
 
     except Exception as e:
         console.print(f"Experiment failed: {e}", style="red")
@@ -90,7 +100,9 @@ def entry_ab(
 
 @app.command("validate")
 def validate(
-    exp_dir: pathlib.Path = typer.Option(..., "--exp-dir", help="Experiment directory to validate"),
+    exp_dir: pathlib.Path = typer.Option(
+        ..., "--exp-dir", help="Experiment directory to validate"
+    ),
 ):
     """Validate experiment fairness and checksums."""
     if not exp_dir.exists():
@@ -102,7 +114,10 @@ def validate(
         if result.get("valid", False):
             console.print("Experiment validation passed", style="green")
         else:
-            console.print(f"Experiment validation failed: {result.get('message', 'Unknown error')}", style="red")
+            console.print(
+                f"Experiment validation failed: {result.get('message', 'Unknown error')}",
+                style="red",
+            )
             raise typer.Exit(1)
 
     except Exception as e:
@@ -117,8 +132,8 @@ def main():
 
 def run_entry_ab_experiment(cfg_path, variant_paths, experiment_name):
     """Function for testing entry-ab experiments."""
-    from .orchestration import ABOrchestrator
     from .fairness import FairnessConfig
+    from .orchestration import ABOrchestrator
 
     fairness_config = FairnessConfig(allow_unfair=False)
     orchestrator = ABOrchestrator(fairness_config)
@@ -126,7 +141,7 @@ def run_entry_ab_experiment(cfg_path, variant_paths, experiment_name):
     return orchestrator.run_experiment(
         pathlib.Path(cfg_path),
         [pathlib.Path(p) for p in variant_paths],
-        experiment_name
+        experiment_name,
     )
 
 

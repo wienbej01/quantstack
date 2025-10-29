@@ -2,19 +2,21 @@
 
 import asyncio
 import logging
-import time
-from typing import Dict, Any, List, Optional, Callable
-from dataclasses import dataclass, asdict
-from datetime import datetime, timedelta
-import threading
 import queue
+import threading
+import time
+from dataclasses import asdict, dataclass
+from datetime import datetime, timedelta
+from typing import Any, Callable, Dict, List, Optional
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+
 try:
-    from fastapi import FastAPI, HTTPException, BackgroundTasks
-    from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
+    from fastapi import BackgroundTasks, FastAPI, HTTPException
+    from fastapi.middleware.cors import CORSMiddleware
+
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -26,14 +28,15 @@ except ImportError:
 
 from pydantic import BaseModel, Field
 
+from extensions.intraday_ml_features.pipeline import FeaturePipeline
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
-from extensions.intraday_ml_features.pipeline import FeaturePipeline
 
 
 @dataclass
 class PredictionRequest:
     """Request for model prediction."""
+
     features: Dict[str, float]
     model_id: str
     request_id: Optional[str] = None
@@ -43,6 +46,7 @@ class PredictionRequest:
 @dataclass
 class PredictionResponse:
     """Response from model prediction."""
+
     prediction: float
     confidence: Optional[float]
     model_id: str
@@ -82,7 +86,8 @@ class PredictionMetrics:
 
             # Keep only last minute of predictions
             self._recent_predictions = [
-                (t, l) for t, l in self._recent_predictions
+                (t, l)
+                for t, l in self._recent_predictions
                 if now - t < timedelta(minutes=1)
             ]
 
@@ -103,7 +108,11 @@ class PredictionMetrics:
                 "avg_latency_ms": self.avg_latency_ms,
                 "error_rate": self.error_rate,
                 "predictions_per_minute": self.predictions_per_minute,
-                "last_prediction_time": self.last_prediction_time.isoformat() if self.last_prediction_time else None
+                "last_prediction_time": (
+                    self.last_prediction_time.isoformat()
+                    if self.last_prediction_time
+                    else None
+                ),
             }
 
 
@@ -144,10 +153,7 @@ class ModelCache:
             if len(self._cache) >= self.max_size:
                 self._evict_lru()
 
-            self._cache[model_id] = {
-                "model": model,
-                "loaded_at": datetime.now()
-            }
+            self._cache[model_id] = {"model": model, "loaded_at": datetime.now()}
             self._access_times[model_id] = datetime.now()
 
     def _evict_lru(self):
@@ -155,7 +161,9 @@ class ModelCache:
         if not self._access_times:
             return
 
-        lru_model_id = min(self._access_times.keys(), key=lambda k: self._access_times[k])
+        lru_model_id = min(
+            self._access_times.keys(), key=lambda k: self._access_times[k]
+        )
         del self._cache[lru_model_id]
         del self._access_times[lru_model_id]
 
@@ -168,7 +176,7 @@ class ModelServer:
         registry: Optional[MLModelRegistry] = None,
         cache_size: int = 10,
         cache_ttl_seconds: int = 3600,
-        max_concurrent_predictions: int = 100
+        max_concurrent_predictions: int = 100,
     ):
         """
         Initialize model server.
@@ -195,7 +203,7 @@ class ModelServer:
             self.app = FastAPI(
                 title="Intraday ML Model Server",
                 description="Production ML serving for intraday trading",
-                version="1.0.0"
+                version="1.0.0",
             )
 
             # Add CORS middleware
@@ -237,7 +245,9 @@ class ModelServer:
                 metadata = self.registry.get_metadata(model_id)
                 return asdict(metadata)
             except Exception as e:
-                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Model {model_id} not found"
+                )
 
         @self.app.get("/metrics")
         async def get_metrics() -> Dict[str, float]:
@@ -245,7 +255,9 @@ class ModelServer:
             return self.metrics.get_metrics()
 
         @self.app.post("/models/{model_id}/reload")
-        async def reload_model(model_id: str, background_tasks: BackgroundTasks) -> Dict[str, str]:
+        async def reload_model(
+            model_id: str, background_tasks: BackgroundTasks
+        ) -> Dict[str, str]:
             """Reload model in background."""
             background_tasks.add_task(self._reload_model_background, model_id)
             return {"message": f"Model {model_id} reload started"}
@@ -267,7 +279,9 @@ class ModelServer:
                 # Load model (from cache or registry)
                 model = self._load_model(request.model_id)
                 if model is None:
-                    raise HTTPException(status_code=404, detail=f"Model {request.model_id} not found")
+                    raise HTTPException(
+                        status_code=404, detail=f"Model {request.model_id} not found"
+                    )
 
                 # Make prediction
                 prediction, confidence = await self._make_prediction(
@@ -289,8 +303,10 @@ class ModelServer:
                     latency_ms=latency_ms,
                     metadata={
                         "server_timestamp": datetime.now().isoformat(),
-                        "model_version": model.get("metadata", {}).get("version", "unknown")
-                    }
+                        "model_version": model.get("metadata", {}).get(
+                            "version", "unknown"
+                        ),
+                    },
                 )
 
         except Exception as e:
@@ -316,7 +332,7 @@ class ModelServer:
             model = {
                 "predictor": predictor,
                 "metadata": metadata,
-                "loaded_at": datetime.now()
+                "loaded_at": datetime.now(),
             }
 
             # Cache the model
@@ -328,10 +344,7 @@ class ModelServer:
             return None
 
     async def _make_prediction(
-        self,
-        model: Dict[str, Any],
-        features: Dict[str, float],
-        model_id: str
+        self, model: Dict[str, Any], features: Dict[str, float], model_id: str
     ) -> tuple[float, Optional[float]]:
         """Make prediction with loaded model."""
         predictor = model["predictor"]
@@ -373,19 +386,9 @@ class ModelServer:
         except Exception as e:
             self.logger.error(f"Failed to reload model {model_id}: {e}")
 
-    def run(
-        self,
-        host: str = "0.0.0.0",
-        port: int = 8000,
-        log_level: str = "info"
-    ):
+    def run(self, host: str = "0.0.0.0", port: int = 8000, log_level: str = "info"):
         """Run the model server."""
-        uvicorn.run(
-            self.app,
-            host=host,
-            port=port,
-            log_level=log_level
-        )
+        uvicorn.run(self.app, host=host, port=port, log_level=log_level)
 
     def get_status(self) -> Dict[str, Any]:
         """Get server status."""
@@ -393,5 +396,5 @@ class ModelServer:
             "cache_size": len(self.model_cache._cache),
             "metrics": self.metrics.get_metrics(),
             "available_models": len(self.registry.list_models()),
-            "max_concurrent_predictions": self.max_concurrent_predictions
+            "max_concurrent_predictions": self.max_concurrent_predictions,
         }

@@ -15,6 +15,7 @@ from rich.table import Table
 
 from qx_report.readers import ExperimentReader, RunReader
 from qx_report.summaries import ABDiffTables, LeaderboardGenerator, PerRunSummaries
+
 from . import __version__
 
 console = Console()
@@ -23,16 +24,22 @@ app = typer.Typer(help=f"Intraday ML Reporting v{__version__}")
 
 @app.command("experiment")
 def experiment_report(
-    experiment_dir: pathlib.Path = typer.Option(..., "--exp-dir", help="Experiment directory"),
+    experiment_dir: pathlib.Path = typer.Option(
+        ..., "--exp-dir", help="Experiment directory"
+    ),
     output_format: str = typer.Option(
-        "console", "--format", help="Output format (console, dict, json)",
+        "console",
+        "--format",
+        help="Output format (console, dict, json)",
     ),
     output_file: pathlib.Path = typer.Option(
         None, "--output", help="Output file (for json/dict formats only)"
     ),
 ) -> None:
     """Generate report from experiment artifacts."""
-    console.print(f"[bold blue]Experiment Report Generation[/bold blue]: {experiment_dir}")
+    console.print(
+        f"[bold blue]Experiment Report Generation[/bold blue]: {experiment_dir}"
+    )
 
     if not experiment_dir.exists():
         console.print(f"[red]Experiment directory not found: {experiment_dir}[/red]")
@@ -40,8 +47,7 @@ def experiment_report(
 
     try:
         report_data = generate_experiment_report(
-            str(experiment_dir),
-            output_format=output_format
+            str(experiment_dir), output_format=output_format
         )
 
         # Display results
@@ -50,11 +56,12 @@ def experiment_report(
         # Write to file if specified
         if output_file and output_format != "console":
             import json
+
             if output_format == "json":
-                with open(output_file, 'w') as f:
+                with open(output_file, "w") as f:
                     json.dump(report_data, f, indent=2, default=str)
             elif output_format == "dict":
-                with open(output_file, 'w') as f:
+                with open(output_file, "w") as f:
                     f.write(str(report_data))
 
     except Exception as e:
@@ -66,7 +73,9 @@ def experiment_report(
 def run_metrics(
     run_dir: pathlib.Path = typer.Option(..., "--run-dir", help="Run directory"),
     output_format: str = typer.Option(
-        "console", "--format", help="Output format (console, dict, json)",
+        "console",
+        "--format",
+        help="Output format (console, dict, json)",
     ),
     output_file: pathlib.Path = typer.Option(
         None, "--output", help="Output file (for json/dict formats only)"
@@ -88,11 +97,12 @@ def run_metrics(
         # Write to file if specified
         if output_file and output_format != "console":
             import json
+
             if output_format == "json":
-                with open(output_file, 'w') as f:
+                with open(output_file, "w") as f:
                     json.dump(metrics, f, indent=2, default=str)
             elif output_format == "dict":
-                with open(output_file, 'w') as f:
+                with open(output_file, "w") as f:
                     f.write(str(metrics))
 
     except Exception as e:
@@ -102,17 +112,25 @@ def run_metrics(
 
 @app.command("compare")
 def compare_experiments(
-    baseline_dir: pathlib.Path = typer.Option(..., "--baseline", help="Baseline experiment directory"),
-    variant_dir: pathlib.Path = typer.Option(..., "--variant", help="Variant experiment directory"),
+    baseline_dir: pathlib.Path = typer.Option(
+        ..., "--baseline", help="Baseline experiment directory"
+    ),
+    variant_dir: pathlib.Path = typer.Option(
+        ..., "--variant", help="Variant experiment directory"
+    ),
     output_format: str = typer.Option(
-        "console", "--format", help="Output format (console, dict, json)",
+        "console",
+        "--format",
+        help="Output format (console, dict, json)",
     ),
     output_file: pathlib.Path = typer.Option(
         None, "--output", help="Output file (for json/dict formats only)"
     ),
 ) -> None:
     """Compare baseline and variant experiment results."""
-    console.print(f"[bold blue]Experiment Comparison[/bold blue]: {baseline_dir} vs {variant_dir}")
+    console.print(
+        f"[bold blue]Experiment Comparison[/bold blue]: {baseline_dir} vs {variant_dir}"
+    )
 
     if not baseline_dir.exists():
         console.print(f"[red]Baseline directory not found: {baseline_dir}[/red]")
@@ -125,8 +143,12 @@ def compare_experiments(
     try:
         # This would implement a more complex comparison across different experiments
         # For Sprint 8 minimal implementation, show placeholder
-        console.print("[yellow]Experiment comparison requires full implementation[/yellow]")
-        console.print("[yellow]This is a placeholder for Sprint 8 functionality[/yellow]")
+        console.print(
+            "[yellow]Experiment comparison requires full implementation[/yellow]"
+        )
+        console.print(
+            "[yellow]This is a placeholder for Sprint 8 functionality[/yellow]"
+        )
 
     except Exception as e:
         console.print(f"[red]Comparison failed: {e}[/red]")
@@ -176,11 +198,12 @@ def _display_report_results(report_data: Dict[str, Any]) -> None:
         if not isinstance(comparison, dict):
             # Convert dict to DataFrame for display
             import pandas as pd
+
             comparison_df = pd.DataFrame([comparison])
         else:
             comparison_df = comparison
 
-        if hasattr(comparison_df, 'to_parquet'):
+        if hasattr(comparison_df, "to_parquet"):
             table = Table(title="Variant Metrics")
             table.add_column("Variant", style="cyan")
             for col in comparison_df.columns:
@@ -190,7 +213,13 @@ def _display_report_results(report_data: Dict[str, Any]) -> None:
             for _, row in comparison_df.iterrows():
                 variant_name = row.get("variant", "Unknown")
                 other_cols = {k: v for k, v in row.items() if k != "variant"}
-                table.add_row(variant_name, *[f"{v:.3f}" if isinstance(v, (int, float)) else str(v) for v in other_cols.values()])
+                table.add_row(
+                    variant_name,
+                    *[
+                        f"{v:.3f}" if isinstance(v, (int, float)) else str(v)
+                        for v in other_cols.values()
+                    ],
+                )
 
             console.print(table)
 
@@ -236,7 +265,7 @@ def _display_run_metrics(metrics: Dict[str, Any]) -> None:
     for section_name, section_metrics in [
         ("Basic Performance", basic_metrics),
         ("Risk Metrics", risk_metrics),
-        ("Execution Metrics", execution_metrics)
+        ("Execution Metrics", execution_metrics),
     ]:
         if any(v for _, v in section_metrics if v != 0):
             console.print(f"\n[cyan]{section_name}[/cyan]")

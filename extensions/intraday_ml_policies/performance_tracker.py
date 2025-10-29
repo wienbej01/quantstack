@@ -4,21 +4,22 @@ This module provides comprehensive performance tracking and analytics for ML tra
 including risk-adjusted metrics, regime-specific performance, and trend analysis.
 """
 
-import logging
 import json
-from typing import Dict, Any, List, Optional, Set
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timedelta
-from collections import defaultdict, deque
-from enum import Enum
+import logging
 import statistics
+from collections import defaultdict, deque
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Dict, List, Optional, Set
 
-from extensions.intraday_ml_policies.base import PolicyDecision
 from extensions.intraday_ml_policies.adaptive_policy import MarketRegime
+from extensions.intraday_ml_policies.base import PolicyDecision
 
 
 class PerformancePeriod(Enum):
     """Performance tracking periods."""
+
     DAILY = "daily"
     WEEKLY = "weekly"
     MONTHLY = "monthly"
@@ -28,6 +29,7 @@ class PerformancePeriod(Enum):
 @dataclass
 class TradeRecord:
     """Record of a single trade."""
+
     policy_id: str
     symbol: str
     entry_time: datetime
@@ -45,6 +47,7 @@ class TradeRecord:
 @dataclass
 class PerformanceMetrics:
     """Comprehensive performance metrics for a policy."""
+
     total_executions: int = 0
     successful_executions: int = 0
     failed_executions: int = 0
@@ -66,13 +69,14 @@ class PerformanceMetrics:
         """Convert to dictionary."""
         data = asdict(self)
         if self.last_updated:
-            data['last_updated'] = self.last_updated.isoformat()
+            data["last_updated"] = self.last_updated.isoformat()
         return data
 
 
 @dataclass
 class RegimePerformance:
     """Performance metrics for a specific market regime."""
+
     regime: MarketRegime
     total_trades: int = 0
     winning_trades: int = 0
@@ -96,7 +100,7 @@ class PolicyPerformanceTracker:
         self,
         max_history_days: int = 365,
         regime_tracking: bool = True,
-        detailed_logging: bool = True
+        detailed_logging: bool = True,
     ):
         """
         Initialize performance tracker.
@@ -111,19 +115,23 @@ class PolicyPerformanceTracker:
         self.detailed_logging = detailed_logging
 
         # Core metrics storage
-        self.policy_metrics: Dict[str, PerformanceMetrics] = defaultdict(PerformanceMetrics)
-        self.execution_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.policy_metrics: Dict[str, PerformanceMetrics] = defaultdict(
+            PerformanceMetrics
+        )
+        self.execution_history: Dict[str, deque] = defaultdict(
+            lambda: deque(maxlen=1000)
+        )
         self.trade_history: Dict[str, List[TradeRecord]] = defaultdict(list)
 
         # Regime-specific performance
-        self.regime_performance: Dict[str, Dict[MarketRegime, RegimePerformance]] = defaultdict(
-            lambda: defaultdict(RegimePerformance)
+        self.regime_performance: Dict[str, Dict[MarketRegime, RegimePerformance]] = (
+            defaultdict(lambda: defaultdict(RegimePerformance))
         )
 
         # Time-based performance
-        self.period_performance: Dict[str, Dict[PerformancePeriod, PerformanceMetrics]] = defaultdict(
-            lambda: defaultdict(PerformanceMetrics)
-        )
+        self.period_performance: Dict[
+            str, Dict[PerformancePeriod, PerformanceMetrics]
+        ] = defaultdict(lambda: defaultdict(PerformanceMetrics))
 
         # Performance trends
         self.performance_trends: Dict[str, Dict[str, deque]] = defaultdict(
@@ -140,7 +148,7 @@ class PolicyPerformanceTracker:
         policy_id: str,
         decision: PolicyDecision,
         execution_time_ms: float,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Record a policy decision."""
         # Update basic metrics
@@ -159,8 +167,7 @@ class PolicyPerformanceTracker:
         else:
             alpha = 0.1
             metrics.avg_execution_time_ms = (
-                alpha * execution_time_ms +
-                (1 - alpha) * metrics.avg_execution_time_ms
+                alpha * execution_time_ms + (1 - alpha) * metrics.avg_execution_time_ms
             )
 
         # Update success rate
@@ -168,24 +175,22 @@ class PolicyPerformanceTracker:
 
         # Record in history
         if self.detailed_logging:
-            self.execution_history[policy_id].append({
-                'timestamp': datetime.now(),
-                'decision': decision,
-                'execution_time_ms': execution_time_ms,
-                'metadata': metadata or {}
-            })
+            self.execution_history[policy_id].append(
+                {
+                    "timestamp": datetime.now(),
+                    "decision": decision,
+                    "execution_time_ms": execution_time_ms,
+                    "metadata": metadata or {},
+                }
+            )
 
         # Update trends
-        self.performance_trends[policy_id]['execution_time'].append(execution_time_ms)
-        self.performance_trends[policy_id]['success_rate'].append(metrics.success_rate)
+        self.performance_trends[policy_id]["execution_time"].append(execution_time_ms)
+        self.performance_trends[policy_id]["success_rate"].append(metrics.success_rate)
 
         self.logger.debug(f"Recorded decision for policy {policy_id}")
 
-    def record_trade(
-        self,
-        policy_id: str,
-        trade: TradeRecord
-    ) -> None:
+    def record_trade(self, policy_id: str, trade: TradeRecord) -> None:
         """Record a completed trade."""
         # Add to trade history
         self.trade_history[policy_id].append(trade)
@@ -201,11 +206,11 @@ class PolicyPerformanceTracker:
 
         # Update win/loss statistics
         if trade.pnl > 0:
-            if not hasattr(metrics, 'winning_trades'):
+            if not hasattr(metrics, "winning_trades"):
                 metrics.winning_trades = 0
             metrics.winning_trades += 1
         else:
-            if not hasattr(metrics, 'losing_trades'):
+            if not hasattr(metrics, "losing_trades"):
                 metrics.losing_trades = 0
             metrics.losing_trades += 1
 
@@ -230,7 +235,9 @@ class PolicyPerformanceTracker:
             metrics.profit_factor = total_wins / total_losses
 
         # Update trade duration
-        durations = [t.bars_held for t in self.trade_history[policy_id] if t.bars_held > 0]
+        durations = [
+            t.bars_held for t in self.trade_history[policy_id] if t.bars_held > 0
+        ]
         if durations:
             metrics.avg_trade_duration_bars = sum(durations) / len(durations)
 
@@ -245,8 +252,8 @@ class PolicyPerformanceTracker:
         self._update_period_performance(policy_id, trade)
 
         # Update trends
-        self.performance_trends[policy_id]['pnl'].append(trade.pnl)
-        self.performance_trends[policy_id]['return'].append(trade.return_pct)
+        self.performance_trends[policy_id]["pnl"].append(trade.pnl)
+        self.performance_trends[policy_id]["return"].append(trade.return_pct)
 
         self.logger.debug(f"Recorded trade for policy {policy_id}: PnL={trade.pnl:.4f}")
 
@@ -255,17 +262,13 @@ class PolicyPerformanceTracker:
         return self.policy_metrics.get(policy_id)
 
     def get_regime_performance(
-        self,
-        policy_id: str,
-        regime: MarketRegime
+        self, policy_id: str, regime: MarketRegime
     ) -> Optional[RegimePerformance]:
         """Get regime-specific performance for a policy."""
         return self.regime_performance.get(policy_id, {}).get(regime)
 
     def get_period_performance(
-        self,
-        policy_id: str,
-        period: PerformancePeriod
+        self, policy_id: str, period: PerformancePeriod
     ) -> Optional[PerformanceMetrics]:
         """Get period-specific performance for a policy."""
         return self.period_performance.get(policy_id, {}).get(period)
@@ -281,34 +284,40 @@ class PolicyPerformanceTracker:
 
         # Recent performance (last 30 days)
         recent_trades = [
-            t for t in self.trade_history[policy_id]
+            t
+            for t in self.trade_history[policy_id]
             if t.entry_time > datetime.now() - timedelta(days=30)
         ]
 
         if recent_trades:
             recent_pnl = sum(t.pnl for t in recent_trades)
             recent_return = statistics.mean([t.return_pct for t in recent_trades])
-            recent_win_rate = sum(1 for t in recent_trades if t.pnl > 0) / len(recent_trades)
+            recent_win_rate = sum(1 for t in recent_trades if t.pnl > 0) / len(
+                recent_trades
+            )
 
-            summary['recent_30_days'] = {
-                'total_trades': len(recent_trades),
-                'total_pnl': recent_pnl,
-                'avg_return': recent_return,
-                'win_rate': recent_win_rate
+            summary["recent_30_days"] = {
+                "total_trades": len(recent_trades),
+                "total_pnl": recent_pnl,
+                "avg_return": recent_return,
+                "win_rate": recent_win_rate,
             }
 
         # Regime breakdown
         if self.regime_tracking:
             regime_breakdown = {}
-            for regime, regime_perf in self.regime_performance.get(policy_id, {}).items():
+            for regime, regime_perf in self.regime_performance.get(
+                policy_id, {}
+            ).items():
                 if regime_perf.total_trades > 0:
                     regime_breakdown[regime.value] = {
-                        'trades': regime_perf.total_trades,
-                        'win_rate': regime_perf.winning_trades / regime_perf.total_trades,
-                        'avg_return': regime_perf.avg_return,
-                        'sharpe_ratio': regime_perf.sharpe_ratio
+                        "trades": regime_perf.total_trades,
+                        "win_rate": regime_perf.winning_trades
+                        / regime_perf.total_trades,
+                        "avg_return": regime_perf.avg_return,
+                        "sharpe_ratio": regime_perf.sharpe_ratio,
                     }
-            summary['regime_breakdown'] = regime_breakdown
+            summary["regime_breakdown"] = regime_breakdown
 
         # Performance trends
         trends = {}
@@ -323,34 +332,30 @@ class PolicyPerformanceTracker:
                 sum_xy = sum(x[i] * y[i] for i in range(n))
                 sum_x2 = sum(x[i] ** 2 for i in range(n))
 
-                if n * sum_x2 - sum_x ** 2 != 0:
-                    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x ** 2)
+                if n * sum_x2 - sum_x**2 != 0:
+                    slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x**2)
                     trends[metric_name] = {
-                        'slope': slope,
-                        'current': values[-1],
-                        'trend': 'improving' if slope > 0 else 'declining'
+                        "slope": slope,
+                        "current": values[-1],
+                        "trend": "improving" if slope > 0 else "declining",
                     }
 
-        summary['trends'] = trends
+        summary["trends"] = trends
 
         # Risk metrics
-        summary['risk_metrics'] = self.risk_metrics.get(policy_id, {})
+        summary["risk_metrics"] = self.risk_metrics.get(policy_id, {})
 
         return summary
 
     def compare_policies(self, policy_ids: List[str]) -> Dict[str, Any]:
         """Compare performance across multiple policies."""
-        comparison = {
-            'policies': {},
-            'ranking': [],
-            'summary': {}
-        }
+        comparison = {"policies": {}, "ranking": [], "summary": {}}
 
         # Collect metrics for all policies
         for policy_id in policy_ids:
             metrics = self.policy_metrics.get(policy_id)
             if metrics:
-                comparison['policies'][policy_id] = metrics.to_dict()
+                comparison["policies"][policy_id] = metrics.to_dict()
 
         # Rank policies by composite score
         policy_scores = []
@@ -359,25 +364,25 @@ class PolicyPerformanceTracker:
             if metrics and metrics.total_executions > 0:
                 # Simple composite score (can be enhanced)
                 score = (
-                    0.4 * metrics.success_rate +
-                    0.3 * min(2.0, max(0.0, metrics.sharpe_ratio)) / 2.0 +
-                    0.2 * min(1.0, max(0.0, metrics.win_rate)) +
-                    0.1 * min(1.0, max(-1.0, metrics.avg_return * 100))
+                    0.4 * metrics.success_rate
+                    + 0.3 * min(2.0, max(0.0, metrics.sharpe_ratio)) / 2.0
+                    + 0.2 * min(1.0, max(0.0, metrics.win_rate))
+                    + 0.1 * min(1.0, max(-1.0, metrics.avg_return * 100))
                 )
                 policy_scores.append((policy_id, score))
 
         # Sort by score
         policy_scores.sort(key=lambda x: x[1], reverse=True)
-        comparison['ranking'] = policy_scores
+        comparison["ranking"] = policy_scores
 
         # Summary statistics
         if policy_scores:
             scores = [score for _, score in policy_scores]
-            comparison['summary'] = {
-                'best_policy': policy_scores[0][0],
-                'worst_policy': policy_scores[-1][0],
-                'avg_score': statistics.mean(scores),
-                'score_std': statistics.stdev(scores) if len(scores) > 1 else 0.0
+            comparison["summary"] = {
+                "best_policy": policy_scores[0][0],
+                "worst_policy": policy_scores[-1][0],
+                "avg_score": statistics.mean(scores),
+                "score_std": statistics.stdev(scores) if len(scores) > 1 else 0.0,
             }
 
         return comparison
@@ -389,37 +394,39 @@ class PolicyPerformanceTracker:
         # Clean trade history
         for policy_id in self.trade_history:
             self.trade_history[policy_id] = [
-                trade for trade in self.trade_history[policy_id]
+                trade
+                for trade in self.trade_history[policy_id]
                 if trade.entry_time > cutoff_date
             ]
 
         # Clean execution history
         for policy_id in self.execution_history:
-            while (self.execution_history[policy_id] and
-                   self.execution_history[policy_id][0]['timestamp'] < cutoff_date):
+            while (
+                self.execution_history[policy_id]
+                and self.execution_history[policy_id][0]["timestamp"] < cutoff_date
+            ):
                 self.execution_history[policy_id].popleft()
 
         self.logger.info("Cleaned up old performance data")
 
     def export_metrics(self, filepath: str) -> None:
         """Export performance metrics to file."""
-        export_data = {
-            'timestamp': datetime.now().isoformat(),
-            'policies': {}
-        }
+        export_data = {"timestamp": datetime.now().isoformat(), "policies": {}}
 
         for policy_id, metrics in self.policy_metrics.items():
-            export_data['policies'][policy_id] = {
-                'metrics': metrics.to_dict(),
-                'regime_performance': {
+            export_data["policies"][policy_id] = {
+                "metrics": metrics.to_dict(),
+                "regime_performance": {
                     regime.value: asdict(regime_perf)
-                    for regime, regime_perf in self.regime_performance.get(policy_id, {}).items()
+                    for regime, regime_perf in self.regime_performance.get(
+                        policy_id, {}
+                    ).items()
                 },
-                'trade_count': len(self.trade_history.get(policy_id, [])),
-                'execution_count': metrics.total_executions
+                "trade_count": len(self.trade_history.get(policy_id, [])),
+                "execution_count": metrics.total_executions,
             }
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(export_data, f, indent=2, default=str)
 
         self.logger.info(f"Exported performance metrics to {filepath}")
@@ -462,16 +469,16 @@ class PolicyPerformanceTracker:
 
             if return_std > 0:
                 # Annualized Sharpe ratio (assuming daily returns)
-                sharpe = (avg_return * 252) / (return_std * (252 ** 0.5))
+                sharpe = (avg_return * 252) / (return_std * (252**0.5))
                 self.policy_metrics[policy_id].sharpe_ratio = sharpe
 
         # Store additional risk metrics
         self.risk_metrics[policy_id] = {
-            'var_95': self._calculate_var(returns, 0.95),
-            'var_99': self._calculate_var(returns, 0.99),
-            'cvar_95': self._calculate_cvar(returns, 0.95),
-            'skewness': self._calculate_skewness(returns),
-            'kurtosis': self._calculate_kurtosis(returns)
+            "var_95": self._calculate_var(returns, 0.95),
+            "var_99": self._calculate_var(returns, 0.99),
+            "cvar_95": self._calculate_cvar(returns, 0.95),
+            "skewness": self._calculate_skewness(returns),
+            "kurtosis": self._calculate_kurtosis(returns),
         }
 
     def _calculate_var(self, returns: List[float], confidence: float) -> float:
@@ -540,12 +547,14 @@ class PolicyPerformanceTracker:
             else:
                 alpha = 0.1
                 regime_perf.avg_duration_bars = (
-                    alpha * trade.bars_held +
-                    (1 - alpha) * regime_perf.avg_duration_bars
+                    alpha * trade.bars_held
+                    + (1 - alpha) * regime_perf.avg_duration_bars
                 )
 
         # Calculate regime-specific risk metrics
-        regime_trades = [t for t in self.trade_history[policy_id] if t.regime == trade.regime]
+        regime_trades = [
+            t for t in self.trade_history[policy_id] if t.regime == trade.regime
+        ]
         if len(regime_trades) >= 2:
             returns = [t.return_pct for t in regime_trades]
             regime_perf.volatility = statistics.stdev(returns)

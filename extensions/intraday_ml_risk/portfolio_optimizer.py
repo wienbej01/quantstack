@@ -1,14 +1,16 @@
 """ML-powered portfolio optimization for intraday trading."""
 
 import logging
-import numpy as np
-import pandas as pd
-from typing import Dict, Any, List, Optional, Tuple
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import warnings
-warnings.filterwarnings('ignore')
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
+
+warnings.filterwarnings("ignore")
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
@@ -16,6 +18,7 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 
 class OptimizationMethod(Enum):
     """Portfolio optimization methods."""
+
     EQUAL_WEIGHT = "equal_weight"
     MEAN_VARIANCE = "mean_variance"
     RISK_PARITY = "risk_parity"
@@ -26,6 +29,7 @@ class OptimizationMethod(Enum):
 @dataclass
 class PortfolioMetrics:
     """Portfolio performance metrics."""
+
     expected_return: float
     volatility: float
     sharpe_ratio: float
@@ -38,6 +42,7 @@ class PortfolioMetrics:
 @dataclass
 class OptimizationResult:
     """Portfolio optimization result."""
+
     weights: Dict[str, float]
     expected_return: float
     volatility: float
@@ -58,7 +63,7 @@ class PortfolioOptimizer:
         max_weight: float = 0.3,
         min_weight: float = 0.0,
         ml_model_id: Optional[str] = None,
-        registry: Optional[MLModelRegistry] = None
+        registry: Optional[MLModelRegistry] = None,
     ):
         """
         Initialize portfolio optimizer.
@@ -83,7 +88,9 @@ class PortfolioOptimizer:
         if ml_model_id and optimization_method == OptimizationMethod.ML_ENHANCED:
             try:
                 self.ml_predictor = MLPredictor(ml_model_id, self.registry)
-                self.logger.info(f"Loaded ML model for portfolio optimization: {ml_model_id}")
+                self.logger.info(
+                    f"Loaded ML model for portfolio optimization: {ml_model_id}"
+                )
             except Exception as e:
                 self.logger.error(f"Failed to load ML model {ml_model_id}: {e}")
 
@@ -92,7 +99,7 @@ class PortfolioOptimizer:
         expected_returns: Dict[str, float],
         covariance_matrix: pd.DataFrame,
         current_weights: Optional[Dict[str, float]] = None,
-        additional_features: Optional[Dict[str, Dict[str, float]]] = None
+        additional_features: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> OptimizationResult:
         """
         Optimize portfolio weights.
@@ -111,11 +118,15 @@ class PortfolioOptimizer:
         if self.optimization_method == OptimizationMethod.EQUAL_WEIGHT:
             result = self._equal_weight_optimization(assets)
         elif self.optimization_method == OptimizationMethod.MEAN_VARIANCE:
-            result = self._mean_variance_optimization(expected_returns, covariance_matrix, assets)
+            result = self._mean_variance_optimization(
+                expected_returns, covariance_matrix, assets
+            )
         elif self.optimization_method == OptimizationMethod.RISK_PARITY:
             result = self._risk_parity_optimization(covariance_matrix, assets)
         elif self.optimization_method == OptimizationMethod.HIERARCHICAL:
-            result = self._hierarchical_optimization(expected_returns, covariance_matrix, assets)
+            result = self._hierarchical_optimization(
+                expected_returns, covariance_matrix, assets
+            )
         elif self.optimization_method == OptimizationMethod.ML_ENHANCED:
             result = self._ml_enhanced_optimization(
                 expected_returns, covariance_matrix, assets, additional_features
@@ -134,7 +145,9 @@ class PortfolioOptimizer:
             metrics.turnover = turnover
 
         # Check constraints
-        constraints_satisfied, warnings = self._check_constraints(result.weights, expected_returns)
+        constraints_satisfied, warnings = self._check_constraints(
+            result.weights, expected_returns
+        )
 
         return OptimizationResult(
             weights=result.weights,
@@ -144,7 +157,7 @@ class PortfolioOptimizer:
             metrics=metrics,
             optimization_method=self.optimization_method,
             constraints_satisfied=constraints_satisfied,
-            warnings=warnings
+            warnings=warnings,
         )
 
     def _equal_weight_optimization(self, assets: List[str]) -> OptimizationResult:
@@ -169,17 +182,17 @@ class PortfolioOptimizer:
                 sharpe_ratio=sharpe_ratio,
                 max_drawdown=0.2,
                 var_95=0.05,
-                diversification_ratio=1.0
+                diversification_ratio=1.0,
             ),
             optimization_method=self.optimization_method,
-            constraints_satisfied=True
+            constraints_satisfied=True,
         )
 
     def _mean_variance_optimization(
         self,
         expected_returns: Dict[str, float],
         covariance_matrix: pd.DataFrame,
-        assets: List[str]
+        assets: List[str],
     ) -> OptimizationResult:
         """Mean-variance optimization (Markowitz)."""
         # Convert to numpy arrays
@@ -208,9 +221,15 @@ class PortfolioOptimizer:
             # Calculate metrics
             expected_return = np.dot(weights, mu)
             volatility = np.sqrt(np.dot(weights.T, np.dot(sigma, weights)))
-            sharpe_ratio = (expected_return - self.risk_free_rate) / volatility if volatility > 0 else 0
+            sharpe_ratio = (
+                (expected_return - self.risk_free_rate) / volatility
+                if volatility > 0
+                else 0
+            )
 
-            weights_dict = {asset: float(weight) for asset, weight in zip(assets, weights)}
+            weights_dict = {
+                asset: float(weight) for asset, weight in zip(assets, weights)
+            }
 
             return OptimizationResult(
                 weights=weights_dict,
@@ -223,10 +242,10 @@ class PortfolioOptimizer:
                     sharpe_ratio=float(sharpe_ratio),
                     max_drawdown=0.2,
                     var_95=0.05,
-                    diversification_ratio=1.0
+                    diversification_ratio=1.0,
                 ),
                 optimization_method=self.optimization_method,
-                constraints_satisfied=True
+                constraints_satisfied=True,
             )
 
         except Exception as e:
@@ -234,9 +253,7 @@ class PortfolioOptimizer:
             return self._equal_weight_optimization(assets)
 
     def _risk_parity_optimization(
-        self,
-        covariance_matrix: pd.DataFrame,
-        assets: List[str]
+        self, covariance_matrix: pd.DataFrame, assets: List[str]
     ) -> OptimizationResult:
         """Risk parity optimization."""
         try:
@@ -263,7 +280,9 @@ class PortfolioOptimizer:
             volatility = np.sqrt(np.dot(weights.T, np.dot(sigma, weights)))
             sharpe_ratio = (expected_return - self.risk_free_rate) / volatility
 
-            weights_dict = {asset: float(weight) for asset, weight in zip(assets, weights)}
+            weights_dict = {
+                asset: float(weight) for asset, weight in zip(assets, weights)
+            }
 
             return OptimizationResult(
                 weights=weights_dict,
@@ -276,10 +295,10 @@ class PortfolioOptimizer:
                     sharpe_ratio=float(sharpe_ratio),
                     max_drawdown=0.15,
                     var_95=0.04,
-                    diversification_ratio=1.2
+                    diversification_ratio=1.2,
                 ),
                 optimization_method=self.optimization_method,
-                constraints_satisfied=True
+                constraints_satisfied=True,
             )
 
         except Exception as e:
@@ -290,7 +309,7 @@ class PortfolioOptimizer:
         self,
         expected_returns: Dict[str, float],
         covariance_matrix: pd.DataFrame,
-        assets: List[str]
+        assets: List[str],
     ) -> OptimizationResult:
         """Hierarchical risk parity optimization."""
         # Simplified HRP implementation
@@ -304,13 +323,17 @@ class PortfolioOptimizer:
             linkage = self._simple_linkage(distance.values)
 
             # Recursive bisection
-            weights = self._recursive_bisection(expected_returns, covariance_matrix, linkage, assets)
+            weights = self._recursive_bisection(
+                expected_returns, covariance_matrix, linkage, assets
+            )
 
             # Calculate metrics
             mu = np.array([expected_returns[asset] for asset in assets])
             sigma = covariance_matrix.loc[assets, assets].values
             expected_return = np.dot(list(weights.values()), mu)
-            volatility = np.sqrt(np.dot(list(weights.values()), np.dot(sigma, list(weights.values()))))
+            volatility = np.sqrt(
+                np.dot(list(weights.values()), np.dot(sigma, list(weights.values())))
+            )
             sharpe_ratio = (expected_return - self.risk_free_rate) / volatility
 
             return OptimizationResult(
@@ -324,10 +347,10 @@ class PortfolioOptimizer:
                     sharpe_ratio=float(sharpe_ratio),
                     max_drawdown=0.18,
                     var_95=0.045,
-                    diversification_ratio=1.3
+                    diversification_ratio=1.3,
                 ),
                 optimization_method=self.optimization_method,
-                constraints_satisfied=True
+                constraints_satisfied=True,
             )
 
         except Exception as e:
@@ -339,12 +362,14 @@ class PortfolioOptimizer:
         expected_returns: Dict[str, float],
         covariance_matrix: pd.DataFrame,
         assets: List[str],
-        additional_features: Optional[Dict[str, Dict[str, float]]] = None
+        additional_features: Optional[Dict[str, Dict[str, float]]] = None,
     ) -> OptimizationResult:
         """ML-enhanced portfolio optimization."""
         if not self.ml_predictor:
             self.logger.warning("ML model not available, falling back to mean-variance")
-            return self._mean_variance_optimization(expected_returns, covariance_matrix, assets)
+            return self._mean_variance_optimization(
+                expected_returns, covariance_matrix, assets
+            )
 
         try:
             # Get ML predictions for each asset
@@ -353,10 +378,16 @@ class PortfolioOptimizer:
                 features = {
                     "expected_return": expected_returns[asset],
                     "volatility": np.sqrt(covariance_matrix.loc[asset, asset]),
-                    "market_beta": additional_features.get(asset, {}).get("market_beta", 1.0),
+                    "market_beta": additional_features.get(asset, {}).get(
+                        "market_beta", 1.0
+                    ),
                     "momentum": additional_features.get(asset, {}).get("momentum", 0.0),
-                    "volume_ratio": additional_features.get(asset, {}).get("volume_ratio", 1.0),
-                    "liquidity_score": additional_features.get(asset, {}).get("liquidity_score", 0.5)
+                    "volume_ratio": additional_features.get(asset, {}).get(
+                        "volume_ratio", 1.0
+                    ),
+                    "liquidity_score": additional_features.get(asset, {}).get(
+                        "liquidity_score", 0.5
+                    ),
                 }
 
                 result = self.ml_predictor.predict(features)
@@ -368,15 +399,16 @@ class PortfolioOptimizer:
                 ml_weights = {k: abs(v) / ml_weight_sum for k, v in ml_weights.items()}
 
             # Blend with traditional mean-variance
-            mv_result = self._mean_variance_optimization(expected_returns, covariance_matrix, assets)
+            mv_result = self._mean_variance_optimization(
+                expected_returns, covariance_matrix, assets
+            )
             blend_factor = 0.6  # 60% ML, 40% traditional
 
             final_weights = {}
             for asset in assets:
-                final_weights[asset] = (
-                    blend_factor * ml_weights.get(asset, 0) +
-                    (1 - blend_factor) * mv_result.weights.get(asset, 0)
-                )
+                final_weights[asset] = blend_factor * ml_weights.get(asset, 0) + (
+                    1 - blend_factor
+                ) * mv_result.weights.get(asset, 0)
 
             # Normalize final weights
             total_weight = sum(final_weights.values())
@@ -384,7 +416,10 @@ class PortfolioOptimizer:
                 final_weights = {k: v / total_weight for k, v in final_weights.items()}
 
             # Apply bounds
-            final_weights = {k: min(max(v, self.min_weight), self.max_weight) for k, v in final_weights.items()}
+            final_weights = {
+                k: min(max(v, self.min_weight), self.max_weight)
+                for k, v in final_weights.items()
+            }
             total_weight = sum(final_weights.values())
             final_weights = {k: v / total_weight for k, v in final_weights.items()}
 
@@ -407,15 +442,17 @@ class PortfolioOptimizer:
                     sharpe_ratio=float(sharpe_ratio),
                     max_drawdown=0.16,
                     var_95=0.042,
-                    diversification_ratio=1.25
+                    diversification_ratio=1.25,
                 ),
                 optimization_method=self.optimization_method,
-                constraints_satisfied=True
+                constraints_satisfied=True,
             )
 
         except Exception as e:
             self.logger.error(f"ML-enhanced optimization failed: {e}")
-            return self._mean_variance_optimization(expected_returns, covariance_matrix, assets)
+            return self._mean_variance_optimization(
+                expected_returns, covariance_matrix, assets
+            )
 
     def _simple_linkage(self, distance_matrix: np.ndarray) -> np.ndarray:
         """Simple hierarchical linkage clustering."""
@@ -425,7 +462,7 @@ class PortfolioOptimizer:
 
         while len(clusters) > 1:
             # Find closest clusters
-            min_dist = float('inf')
+            min_dist = float("inf")
             merge_i, merge_j = -1, -1
 
             for i in range(len(clusters)):
@@ -433,7 +470,9 @@ class PortfolioOptimizer:
                     # Calculate distance between clusters
                     cluster_i = clusters[i]
                     cluster_j = clusters[j]
-                    dist = np.mean([distance_matrix[a, b] for a in cluster_i for b in cluster_j])
+                    dist = np.mean(
+                        [distance_matrix[a, b] for a in cluster_i for b in cluster_j]
+                    )
 
                     if dist < min_dist:
                         min_dist = dist
@@ -441,7 +480,9 @@ class PortfolioOptimizer:
 
             # Merge clusters
             new_cluster = clusters[merge_i] + clusters[merge_j]
-            clusters = [c for idx, c in enumerate(clusters) if idx not in [merge_i, merge_j]]
+            clusters = [
+                c for idx, c in enumerate(clusters) if idx not in [merge_i, merge_j]
+            ]
             clusters.append(new_cluster)
             linkage.append([merge_i, merge_j, min_dist, len(new_cluster)])
 
@@ -452,7 +493,7 @@ class PortfolioOptimizer:
         expected_returns: Dict[str, float],
         covariance_matrix: pd.DataFrame,
         linkage: np.ndarray,
-        assets: List[str]
+        assets: List[str],
     ) -> Dict[str, float]:
         """Recursive bisection for HRP."""
         if len(assets) == 1:
@@ -467,7 +508,7 @@ class PortfolioOptimizer:
         self,
         weights: Dict[str, float],
         expected_returns: Dict[str, float],
-        covariance_matrix: pd.DataFrame
+        covariance_matrix: pd.DataFrame,
     ) -> PortfolioMetrics:
         """Calculate portfolio metrics."""
         assets = list(weights.keys())
@@ -480,12 +521,18 @@ class PortfolioOptimizer:
         volatility = np.sqrt(np.dot(weights_array.T, np.dot(cov_matrix, weights_array)))
 
         # Sharpe ratio
-        sharpe_ratio = (expected_return - self.risk_free_rate) / volatility if volatility > 0 else 0
+        sharpe_ratio = (
+            (expected_return - self.risk_free_rate) / volatility
+            if volatility > 0
+            else 0
+        )
 
         # Simplified metrics
         max_drawdown = 0.2  # Assumed
         var_95 = volatility * 1.65  # 95% VaR
-        diversification_ratio = 1.0 / (np.sum(weights_array ** 2))  # Inverse Herfindahl index
+        diversification_ratio = 1.0 / (
+            np.sum(weights_array**2)
+        )  # Inverse Herfindahl index
 
         return PortfolioMetrics(
             expected_return=float(expected_return),
@@ -493,10 +540,12 @@ class PortfolioOptimizer:
             sharpe_ratio=float(sharpe_ratio),
             max_drawdown=max_drawdown,
             var_95=float(var_95),
-            diversification_ratio=float(diversification_ratio)
+            diversification_ratio=float(diversification_ratio),
         )
 
-    def _calculate_turnover(self, current_weights: Dict[str, float], new_weights: Dict[str, float]) -> float:
+    def _calculate_turnover(
+        self, current_weights: Dict[str, float], new_weights: Dict[str, float]
+    ) -> float:
         """Calculate portfolio turnover."""
         all_assets = set(current_weights.keys()) | set(new_weights.keys())
         turnover = 0.0
@@ -508,7 +557,9 @@ class PortfolioOptimizer:
 
         return turnover / 2.0  # Divide by 2 for standard turnover definition
 
-    def _check_constraints(self, weights: Dict[str, float], expected_returns: Dict[str, float]) -> Tuple[bool, List[str]]:
+    def _check_constraints(
+        self, weights: Dict[str, float], expected_returns: Dict[str, float]
+    ) -> Tuple[bool, List[str]]:
         """Check portfolio constraints."""
         warnings = []
         constraints_satisfied = True
@@ -516,10 +567,14 @@ class PortfolioOptimizer:
         # Check weight bounds
         for asset, weight in weights.items():
             if weight < self.min_weight - 1e-6:
-                warnings.append(f"Weight for {asset} ({weight:.3f}) below minimum ({self.min_weight})")
+                warnings.append(
+                    f"Weight for {asset} ({weight:.3f}) below minimum ({self.min_weight})"
+                )
                 constraints_satisfied = False
             if weight > self.max_weight + 1e-6:
-                warnings.append(f"Weight for {asset} ({weight:.3f}) above maximum ({self.max_weight})")
+                warnings.append(
+                    f"Weight for {asset} ({weight:.3f}) above maximum ({self.max_weight})"
+                )
                 constraints_satisfied = False
 
         # Check sum of weights
@@ -531,11 +586,15 @@ class PortfolioOptimizer:
         # Check for concentrated positions
         max_concentration = max(weights.values())
         if max_concentration > 0.25:
-            warnings.append(f"High concentration: {max_concentration:.1%} in single asset")
+            warnings.append(
+                f"High concentration: {max_concentration:.1%} in single asset"
+            )
 
         return constraints_satisfied, warnings
 
-    def update_optimization_method(self, new_method: OptimizationMethod, ml_model_id: Optional[str] = None):
+    def update_optimization_method(
+        self, new_method: OptimizationMethod, ml_model_id: Optional[str] = None
+    ):
         """Update optimization method."""
         self.optimization_method = new_method
 

@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 
-from .readers import ExperimentReader
+from .readers import ExperimentReader, RunReader
 
 
 class PerRunSummaries:
@@ -343,9 +343,7 @@ class TradeAnalysis:
     """Generates detailed trade list reports."""
 
     @staticmethod
-    def generate_trade_list(
-        run_id: str, runs_dir: str = "runs"
-    ) -> pd.DataFrame | None:
+    def generate_trade_list(run_id: str, runs_dir: str = "runs") -> pd.DataFrame | None:
         """Generate a detailed list of trades from a run.
 
         Args:

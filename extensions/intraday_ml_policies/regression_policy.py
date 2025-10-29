@@ -16,7 +16,7 @@ class MLRegressionPolicy(BaseMLPolicy):
         prediction_threshold: float = 0.01,
         volatility_scaling: bool = True,
         volatility_window: int = 20,
-        **kwargs
+        **kwargs,
     ):
         """Initialize regression policy.
 
@@ -62,11 +62,16 @@ class MLRegressionPolicy(BaseMLPolicy):
 
         # Keep only recent history
         if len(self.price_history[symbol]) > self.volatility_window * 2:
-            self.price_history[symbol] = self.price_history[symbol][-self.volatility_window * 2:]
+            self.price_history[symbol] = self.price_history[symbol][
+                -self.volatility_window * 2 :
+            ]
 
         # Calculate dynamic threshold if volatility scaling is enabled
         threshold = self.prediction_threshold
-        if self.volatility_scaling and len(self.price_history[symbol]) >= self.volatility_window:
+        if (
+            self.volatility_scaling
+            and len(self.price_history[symbol]) >= self.volatility_window
+        ):
             prices = np.array(self.price_history[symbol])
             returns = np.diff(prices) / prices[:-1]
             volatility = np.std(returns)

@@ -1,12 +1,13 @@
 """ML-powered risk management for intraday trading."""
 
 import logging
+import threading
 import time
-from typing import Dict, Any, List, Optional, Tuple, Set
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-import threading
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 import numpy as np
 import pandas as pd
 
@@ -16,6 +17,7 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 
 class RiskLevel(Enum):
     """Risk level classification."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -25,6 +27,7 @@ class RiskLevel(Enum):
 @dataclass
 class RiskMetrics:
     """Risk metrics for a position or portfolio."""
+
     timestamp: datetime
     position_id: Optional[str]  # None for portfolio-level metrics
     symbol: str
@@ -47,6 +50,7 @@ class RiskMetrics:
 @dataclass
 class RiskLimit:
     """Risk limit configuration."""
+
     name: str
     metric_name: str
     threshold: float
@@ -87,9 +91,7 @@ class RiskModelManager:
             return False
 
     def predict_risk_metrics(
-        self,
-        model_id: str,
-        features: Dict[str, float]
+        self, model_id: str, features: Dict[str, float]
     ) -> Optional[Dict[str, float]]:
         """Predict risk metrics using ML model."""
         if model_id not in self.models:
@@ -105,9 +107,13 @@ class RiskModelManager:
             if result.prediction and len(result.prediction) > 0:
                 return {
                     "risk_score": float(result.prediction[0]),
-                    "confidence": float(result.prediction_probability[0]) if result.prediction_probability else 0.5,
+                    "confidence": (
+                        float(result.prediction_probability[0])
+                        if result.prediction_probability
+                        else 0.5
+                    ),
                     "model_id": model_id,
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
 
         except Exception as e:
@@ -134,7 +140,7 @@ class PositionRiskMonitor:
         entry_price: float,
         current_price: float,
         features: Optional[Dict[str, float]] = None,
-        risk_model_id: Optional[str] = None
+        risk_model_id: Optional[str] = None,
     ) -> RiskMetrics:
         """Update position and calculate current risk metrics."""
         with self._lock:
@@ -146,7 +152,7 @@ class PositionRiskMonitor:
                 "current_price": current_price,
                 "features": features or {},
                 "risk_model_id": risk_model_id,
-                "last_updated": datetime.now()
+                "last_updated": datetime.now(),
             }
 
             # Calculate risk metrics
@@ -176,7 +182,9 @@ class PositionRiskMonitor:
         position_value = size * current_price
 
         # Calculate volatility (simplified - would use historical data in production)
-        volatility = abs(current_price - entry_price) / entry_price * np.sqrt(252)  # Annualized
+        volatility = (
+            abs(current_price - entry_price) / entry_price * np.sqrt(252)
+        )  # Annualized
 
         # Calculate VaR (simplified)
         var_95 = abs(position_value * volatility * 1.65)  # 95% VaR
@@ -188,17 +196,27 @@ class PositionRiskMonitor:
         # Calculate Sharpe ratio (simplified)
         risk_free_rate = 0.02  # 2% annual risk-free rate
         excess_return = pnl_pct / 100 - risk_free_rate / 252  # Daily excess return
-        sharpe_ratio = excess_return / (volatility / np.sqrt(252)) if volatility > 0 else 0
+        sharpe_ratio = (
+            excess_return / (volatility / np.sqrt(252)) if volatility > 0 else 0
+        )
 
         # Calculate Sortino ratio (simplified)
-        downside_deviation = volatility * np.sqrt(max(0, -excess_return) / abs(excess_return)) if excess_return != 0 else volatility
-        sortino_ratio = excess_return / downside_deviation if downside_deviation > 0 else 0
+        downside_deviation = (
+            volatility * np.sqrt(max(0, -excess_return) / abs(excess_return))
+            if excess_return != 0
+            else volatility
+        )
+        sortino_ratio = (
+            excess_return / downside_deviation if downside_deviation > 0 else 0
+        )
 
         # Calculate beta (simplified - would use market data in production)
         beta = 1.0  # Default beta
 
         # Calculate risk scores
-        correlation_risk = min(1.0, abs(beta - 1.0) * 2)  # Higher if beta deviates from 1
+        correlation_risk = min(
+            1.0, abs(beta - 1.0) * 2
+        )  # Higher if beta deviates from 1
         concentration_risk = min(1.0, abs(size) / 10000)  # Higher for larger positions
         liquidity_risk = 0.3  # Simplified liquidity risk
 
@@ -206,21 +224,20 @@ class PositionRiskMonitor:
         ml_risk_score = 0.5
         if position_data["risk_model_id"] and position_data["features"]:
             ml_prediction = self.risk_model_manager.predict_risk_metrics(
-                position_data["risk_model_id"],
-                position_data["features"]
+                position_data["risk_model_id"], position_data["features"]
             )
             if ml_prediction:
                 ml_risk_score = ml_prediction["risk_score"]
 
         # Calculate total risk score (0-1)
         total_risk_score = (
-            0.3 * min(1.0, volatility * 10) +
-            0.2 * min(1.0, var_95 / position_value if position_value > 0 else 0) +
-            0.15 * min(1.0, max_drawdown / 10) +
-            0.1 * correlation_risk +
-            0.1 * concentration_risk +
-            0.1 * liquidity_risk +
-            0.05 * ml_risk_score
+            0.3 * min(1.0, volatility * 10)
+            + 0.2 * min(1.0, var_95 / position_value if position_value > 0 else 0)
+            + 0.15 * min(1.0, max_drawdown / 10)
+            + 0.1 * correlation_risk
+            + 0.1 * concentration_risk
+            + 0.1 * liquidity_risk
+            + 0.05 * ml_risk_score
         )
 
         # Determine risk level
@@ -247,7 +264,7 @@ class PositionRiskMonitor:
             "volatility": volatility,
             "var_95_ratio": var_95 / position_value if position_value > 0 else 0,
             "drawdown": max_drawdown,
-            "ml_risk": ml_risk_score
+            "ml_risk": ml_risk_score,
         }
 
         return RiskMetrics(
@@ -267,7 +284,7 @@ class PositionRiskMonitor:
             liquidity_risk=liquidity_risk,
             total_risk_score=total_risk_score,
             risk_factors=risk_factors,
-            recommendations=recommendations
+            recommendations=recommendations,
         )
 
     def get_position_risk(self, position_id: str) -> Optional[RiskMetrics]:
@@ -349,7 +366,12 @@ class PortfolioRiskMonitor:
             correlation_risk = min(1.0, len(position_risks) * 0.1)
 
             # Concentration risk (simplified)
-            max_position_size = max(len(self.position_monitor.position_data.get(pid, {}).get("features", {})) for pid in positions)
+            max_position_size = max(
+                len(
+                    self.position_monitor.position_data.get(pid, {}).get("features", {})
+                )
+                for pid in positions
+            )
             concentration_risk = min(1.0, max_position_size / 100)
 
             # Liquidity risk (average)
@@ -357,12 +379,12 @@ class PortfolioRiskMonitor:
 
             # Total risk score
             total_risk_score = (
-                0.3 * min(1.0, avg_volatility * 10) +
-                0.2 * min(1.0, total_var_95 / 100000) +  # Normalize by portfolio value
-                0.15 * min(1.0, max_drawdown / 10) +
-                0.15 * correlation_risk +
-                0.1 * concentration_risk +
-                0.1 * liquidity_risk
+                0.3 * min(1.0, avg_volatility * 10)
+                + 0.2 * min(1.0, total_var_95 / 100000)  # Normalize by portfolio value
+                + 0.15 * min(1.0, max_drawdown / 10)
+                + 0.15 * correlation_risk
+                + 0.1 * concentration_risk
+                + 0.1 * liquidity_risk
             )
 
             # Determine risk level
@@ -378,11 +400,15 @@ class PortfolioRiskMonitor:
             # Generate recommendations
             recommendations = []
             if total_risk_score > 0.7:
-                recommendations.append("Portfolio risk is high - consider reducing exposure")
+                recommendations.append(
+                    "Portfolio risk is high - consider reducing exposure"
+                )
             if correlation_risk > 0.6:
                 recommendations.append("High correlation risk - diversify positions")
             if concentration_risk > 0.5:
-                recommendations.append("High concentration risk - reduce large positions")
+                recommendations.append(
+                    "High concentration risk - reduce large positions"
+                )
 
             portfolio_risk = RiskMetrics(
                 timestamp=datetime.now(),
@@ -400,7 +426,7 @@ class PortfolioRiskMonitor:
                 concentration_risk=concentration_risk,
                 liquidity_risk=liquidity_risk,
                 total_risk_score=total_risk_score,
-                recommendations=recommendations
+                recommendations=recommendations,
             )
 
             # Store in history
@@ -427,7 +453,7 @@ class PortfolioRiskMonitor:
             correlation_risk=0.0,
             concentration_risk=0.0,
             liquidity_risk=0.0,
-            total_risk_score=0.0
+            total_risk_score=0.0,
         )
 
     def get_portfolio_risk_history(self, limit: int = 100) -> List[RiskMetrics]:
@@ -442,7 +468,7 @@ class MLRiskManager:
     def __init__(
         self,
         registry: Optional[MLModelRegistry] = None,
-        risk_limits: Optional[List[RiskLimit]] = None
+        risk_limits: Optional[List[RiskLimit]] = None,
     ):
         self.registry = registry or MLModelRegistry()
         self.risk_model_manager = RiskModelManager(registry)
@@ -464,29 +490,29 @@ class MLRiskManager:
                 metric_name="total_risk_score",
                 threshold=0.8,
                 operator="lt",
-                action="reduce"
+                action="reduce",
             ),
             RiskLimit(
                 name="max_portfolio_var",
                 metric_name="var_95",
                 threshold=50000,
                 operator="lt",
-                action="warn"
+                action="warn",
             ),
             RiskLimit(
                 name="max_drawdown",
                 metric_name="max_drawdown",
                 threshold=10.0,
                 operator="lt",
-                action="close"
+                action="close",
             ),
             RiskLimit(
                 name="min_sharpe_ratio",
                 metric_name="sharpe_ratio",
                 threshold=-1.0,
                 operator="gt",
-                action="warn"
-            )
+                action="warn",
+            ),
         ]
 
     def add_position(
@@ -497,11 +523,17 @@ class MLRiskManager:
         entry_price: float,
         current_price: float,
         features: Optional[Dict[str, float]] = None,
-        risk_model_id: Optional[str] = None
+        risk_model_id: Optional[str] = None,
     ) -> RiskMetrics:
         """Add a position to risk monitoring."""
         risk_metrics = self.position_monitor.update_position(
-            position_id, symbol, size, entry_price, current_price, features, risk_model_id
+            position_id,
+            symbol,
+            size,
+            entry_price,
+            current_price,
+            features,
+            risk_model_id,
         )
 
         # Check risk limits
@@ -513,7 +545,7 @@ class MLRiskManager:
         self,
         position_id: str,
         current_price: float,
-        features: Optional[Dict[str, float]] = None
+        features: Optional[Dict[str, float]] = None,
     ) -> RiskMetrics:
         """Update existing position with new price."""
         position_data = self.position_monitor.position_data.get(position_id)
@@ -527,7 +559,7 @@ class MLRiskManager:
             position_data["entry_price"],
             current_price,
             features or position_data["features"],
-            position_data["risk_model_id"]
+            position_data["risk_model_id"],
         )
 
     def remove_position(self, position_id: str):
@@ -559,7 +591,9 @@ class MLRiskManager:
             # Check cooldown
             limit_key = f"{position_id}:{limit.name}"
             if limit_key in self.limit_cooldowns:
-                if datetime.now() - self.limit_cooldowns[limit_key] < timedelta(minutes=limit.cooldown_minutes):
+                if datetime.now() - self.limit_cooldowns[limit_key] < timedelta(
+                    minutes=limit.cooldown_minutes
+                ):
                     continue
 
             # Check limit violation
@@ -567,16 +601,20 @@ class MLRiskManager:
             if metric_value is None:
                 continue
 
-            violation = self._check_limit_violation(metric_value, limit.threshold, limit.operator)
+            violation = self._check_limit_violation(
+                metric_value, limit.threshold, limit.operator
+            )
             if violation:
-                violations.append({
-                    "limit_name": limit.name,
-                    "metric_name": limit.metric_name,
-                    "current_value": metric_value,
-                    "threshold": limit.threshold,
-                    "action": limit.action,
-                    "timestamp": datetime.now()
-                })
+                violations.append(
+                    {
+                        "limit_name": limit.name,
+                        "metric_name": limit.metric_name,
+                        "current_value": metric_value,
+                        "threshold": limit.threshold,
+                        "action": limit.action,
+                        "timestamp": datetime.now(),
+                    }
+                )
 
                 # Set cooldown
                 self.limit_cooldowns[limit_key] = datetime.now()
@@ -600,7 +638,9 @@ class MLRiskManager:
             # Check cooldown
             limit_key = f"portfolio:{limit.name}"
             if limit_key in self.limit_cooldowns:
-                if datetime.now() - self.limit_cooldowns[limit_key] < timedelta(minutes=limit.cooldown_minutes):
+                if datetime.now() - self.limit_cooldowns[limit_key] < timedelta(
+                    minutes=limit.cooldown_minutes
+                ):
                     continue
 
             # Check limit violation
@@ -608,16 +648,20 @@ class MLRiskManager:
             if metric_value is None:
                 continue
 
-            violation = self._check_limit_violation(metric_value, limit.threshold, limit.operator)
+            violation = self._check_limit_violation(
+                metric_value, limit.threshold, limit.operator
+            )
             if violation:
-                violations.append({
-                    "limit_name": limit.name,
-                    "metric_name": limit.metric_name,
-                    "current_value": metric_value,
-                    "threshold": limit.threshold,
-                    "action": limit.action,
-                    "timestamp": datetime.now()
-                })
+                violations.append(
+                    {
+                        "limit_name": limit.name,
+                        "metric_name": limit.metric_name,
+                        "current_value": metric_value,
+                        "threshold": limit.threshold,
+                        "action": limit.action,
+                        "timestamp": datetime.now(),
+                    }
+                )
 
                 # Set cooldown
                 self.limit_cooldowns[limit_key] = datetime.now()
@@ -630,7 +674,9 @@ class MLRiskManager:
             # Handle portfolio-level violations
             self._handle_risk_violations("portfolio", violations)
 
-    def _check_limit_violation(self, current_value: float, threshold: float, operator: str) -> bool:
+    def _check_limit_violation(
+        self, current_value: float, threshold: float, operator: str
+    ) -> bool:
         """Check if a limit is violated."""
         if operator == "lt":
             return current_value >= threshold
@@ -658,7 +704,9 @@ class MLRiskManager:
                 pass
             elif action == "reduce":
                 # Signal position reduction (would be handled by trading system)
-                self.logger.info(f"Recommendation: Reduce position size for {entity_id}")
+                self.logger.info(
+                    f"Recommendation: Reduce position size for {entity_id}"
+                )
             elif action == "close":
                 # Signal position closure (would be handled by trading system)
                 self.logger.warning(f"Recommendation: Close position {entity_id}")
@@ -671,7 +719,9 @@ class MLRiskManager:
         portfolio_risk = self.portfolio_monitor.calculate_portfolio_risk()
         position_risks = {}
         for position_id in self.position_monitor.position_data.keys():
-            position_risks[position_id] = self.position_monitor.get_position_risk(position_id)
+            position_risks[position_id] = self.position_monitor.get_position_risk(
+                position_id
+            )
 
         # Count positions by risk level
         risk_level_counts = {level.value: 0 for level in RiskLevel}
@@ -683,7 +733,8 @@ class MLRiskManager:
         recent_violations = {}
         for entity_id, violations in self.limit_violations.items():
             recent_violations[entity_id] = [
-                v for v in violations
+                v
+                for v in violations
                 if datetime.now() - v["timestamp"] < timedelta(hours=1)
             ]
 
@@ -692,7 +743,9 @@ class MLRiskManager:
             "position_count": len(position_risks),
             "risk_level_distribution": risk_level_counts,
             "active_violations": recent_violations,
-            "total_violations_last_hour": sum(len(v) for v in recent_violations.values()),
+            "total_violations_last_hour": sum(
+                len(v) for v in recent_violations.values()
+            ),
             "risk_model_status": {
                 model_id: model_id in self.risk_model_manager.models
                 for model_id in set(
@@ -700,7 +753,7 @@ class MLRiskManager:
                     for pos in self.position_monitor.position_data.values()
                     if pos.get("risk_model_id")
                 )
-            }
+            },
         }
 
     def load_risk_model(self, model_id: str) -> bool:
