@@ -4,10 +4,9 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import pandas as pd
-from pydantic import BaseModel
 
 
 @dataclass
@@ -17,12 +16,12 @@ class ExperimentConfig:
     # Experiment metadata
     name: str
     description: str = ""
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # Data parameters
-    symbols: List[str] = field(default_factory=list)
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    symbols: list[str] = field(default_factory=list)
+    start_date: str | None = None
+    end_date: str | None = None
 
     # Output parameters
     output_dir: str = "runs"
@@ -32,7 +31,7 @@ class ExperimentConfig:
     parallel: bool = False
     max_workers: int = 4
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return {
             "name": self.name,
@@ -48,7 +47,7 @@ class ExperimentConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ExperimentConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ExperimentConfig":
         """Create config from dictionary."""
         return cls(**data)
 
@@ -61,21 +60,21 @@ class ExperimentResult:
     experiment_id: str
     config: ExperimentConfig
     start_time: datetime
-    end_time: Optional[datetime] = None
+    end_time: datetime | None = None
 
     # Results data
-    results: Dict[str, Any] = field(default_factory=dict)
-    artifacts: Dict[str, str] = field(default_factory=dict)  # file paths
+    results: dict[str, Any] = field(default_factory=dict)
+    artifacts: dict[str, str] = field(default_factory=dict)  # file paths
 
     # Status
     status: str = "pending"  # pending, running, completed, failed
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Performance metrics
     duration_seconds: float = 0.0
     memory_usage_mb: float = 0.0
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert result to dictionary."""
         return {
             "experiment_id": self.experiment_id,
@@ -197,7 +196,7 @@ class BaseExperiment(ABC):
 
     def _log_success(self) -> None:
         """Log successful completion."""
-        print(f"✓ Experiment completed successfully")
+        print("✓ Experiment completed successfully")
 
     def _log_error(self, error: Exception) -> None:
         """Log experiment error."""

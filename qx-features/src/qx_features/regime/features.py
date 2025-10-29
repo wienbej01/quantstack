@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+
 def mod_normalized_volatility(
     df: pd.DataFrame, lookback_m: int = 30, min_periods: int = 5
 ) -> pd.Series:
@@ -56,16 +57,12 @@ def mod_normalized_volatility(
         avg_vol_tod = tod_cumsum.divide(tod_counts.replace(0, np.nan))
 
         # Symbol-level expanding average as fallback (also past-only)
-        symbol_counts = pd.Series(
-            np.arange(len(group)), index=group.index, dtype=int
-        )
+        symbol_counts = pd.Series(np.arange(len(group)), index=group.index, dtype=int)
         symbol_cumsum = volatility.cumsum() - volatility
         avg_vol_symbol = symbol_cumsum.divide(symbol_counts.replace(0, np.nan))
 
         # Combine averages, using forward fill to propagate last known values
-        avg_vol_for_time = (
-            avg_vol_tod.fillna(avg_vol_symbol).ffill().replace(0, np.nan)
-        )
+        avg_vol_for_time = avg_vol_tod.fillna(avg_vol_symbol).ffill().replace(0, np.nan)
 
         mod_normalized = rolling_vol.divide(avg_vol_for_time)
 
@@ -390,25 +387,25 @@ def compute_all_regime_features(
     start_time = time.time()
 
     # Compute features
-    print(f"  Computing MoD-normalized volatility...")
+    print("  Computing MoD-normalized volatility...")
     result[mod_normalized_volatility(df, volatility_window).name] = (
         mod_normalized_volatility(df, volatility_window)
     )
 
-    print(f"  Computing variance ratio...")
+    print("  Computing variance ratio...")
     result[variance_ratio(df, variance_short, variance_long).name] = variance_ratio(
         df, variance_short, variance_long
     )
 
-    print(f"  Computing ADX proxy...")
+    print("  Computing ADX proxy...")
     result[adx_proxy(df, adx_window).name] = adx_proxy(df, adx_window)
 
-    print(f"  Computing band position...")
+    print("  Computing band position...")
     result[band_position(df, band_window, band_std).name] = band_position(
         df, band_window, band_std
     )
 
-    print(f"  Computing stress metrics...")
+    print("  Computing stress metrics...")
     result[
         stress_metrics(
             df,

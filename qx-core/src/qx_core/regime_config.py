@@ -51,12 +51,12 @@ class RegimeConfig(BaseModel):
     # Detector thresholds
     detector_params: dict[str, Any] = Field(
         default_factory=lambda: {
-            "variance_ratio_bull": 2.0,
-            "variance_ratio_bear": 0.5,
-            "adx_trend_threshold": 15.0,
+            "variance_ratio_bull": 1.2,
+            "variance_ratio_bear": 0.8,
+            "adx_trend_threshold": 20.0,
             "volatility_stress_threshold": 2.0,
-            "volatility_high_threshold": 1.5,
-            "volatility_low_threshold": 0.7,
+            "volatility_high_threshold": 1.6,
+            "volatility_low_threshold": 0.8,
             "stress_vol_threshold": 2.0,
             "stress_volume_threshold": 3.0,
             "sideways_band_min": 0.2,

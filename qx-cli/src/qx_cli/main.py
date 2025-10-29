@@ -191,5 +191,34 @@ def list_experiments(
         typer.echo(f"  {exp_dir.name}")
 
 
+@app.command()
+def model_list() -> None:
+    """List available regime models."""
+
+    from qx_core.schemas import RegimeType
+
+    typer.echo("Available regime models:")
+    for regime in RegimeType:
+        typer.echo(f"  - {regime.value}")
+
+
+if __name__ == "__main__":
+    app()
+
+    from qx_core.schemas import RegimeType
+
+    typer.echo("Available regime models:")
+    for regime in RegimeType:
+        typer.echo(f"  - {regime.value}")
+
+
+if __name__ == "__main__":
+    app()
+
+    typer.echo("Available regime models:")
+    for regime in RegimeType:
+        typer.echo(f"  - {regime.value}")
+
+
 if __name__ == "__main__":
     app()

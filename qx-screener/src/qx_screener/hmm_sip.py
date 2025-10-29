@@ -244,7 +244,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
                 return cached_symbols
 
         # Cache miss - discover symbols
-        print(f"  [CACHE MISS] Discovering Gold symbols...")
+        print("  [CACHE MISS] Discovering Gold symbols...")
         gold_root = "/home/jacobw/gcs-mount"
         stocks_path = os.path.join(gold_root, "stocks")
 

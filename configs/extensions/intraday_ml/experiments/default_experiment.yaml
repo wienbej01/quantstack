@@ -1,0 +1,115 @@
+# Default ML experiment configuration
+experiment_name: "intraday_ml_default"
+experiment_type: "model_comparison"
+description: "Compare regression and classification models for intraday trading"
+
+# Data configuration
+data:
+  symbols: ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "JPM", "V", "WMT"]
+  start_date: "2023-01-01"
+  end_date: "2023-12-31"
+  feature_pack: "core_basics"
+  target_column: "close"
+  prediction_horizon_bars: 3
+
+# Model configurations to test
+models:
+  regression_1:
+    model_type: "regression"
+    model_class: "RandomForestRegressor"
+    hyperparameters:
+      n_estimators: 100
+      max_depth: 10
+      min_samples_split: 5
+      min_samples_leaf: 2
+      random_state: 42
+    feature_selection:
+      method: "mutual_info"
+      n_features: 15
+    feature_engineering:
+      enable_lags: true
+      lag_periods: [1, 2]
+      enable_rolling: true
+      rolling_windows: [5, 10]
+      rolling_functions: ["mean", "std"]
+
+  regression_2:
+    model_type: "regression"
+    model_class: "GradientBoostingRegressor"
+    hyperparameters:
+      n_estimators: 100
+      learning_rate: 0.1
+      max_depth: 6
+      random_state: 42
+    feature_selection:
+      method: "rfe"
+      n_features: 20
+    feature_engineering:
+      enable_interactions: true
+      max_interactions: 10
+
+  classification_1:
+    model_type: "classification"
+    model_class: "RandomForestClassifier"
+    hyperparameters:
+      n_estimators: 100
+      max_depth: 10
+      min_samples_split: 5
+      min_samples_leaf: 2
+      random_state: 42
+    target_config:
+      target_threshold: 0.01  # 1% return threshold
+      neutral_zone: 0.005
+    feature_selection:
+      method: "univariate"
+      method_type: "k_best"
+      k: 12
+
+  classification_2:
+    model_type: "classification"
+    model_class: "LogisticRegression"
+    hyperparameters:
+      C: 1.0
+      max_iter: 1000
+      random_state: 42
+    target_config:
+      target_threshold: 0.008  # 0.8% return threshold
+      neutral_zone: 0.003
+    feature_selection:
+      method: "lasso"
+      cv: 5
+
+# Training configuration
+training:
+  train_test_split: 0.2
+  train_val_split: 0.2
+  cross_validation_folds: 5
+  random_seed: 42
+  scale_features: true
+  feature_selection: true
+  feature_importance_threshold: 0.01
+
+# Evaluation configuration
+evaluation:
+  metrics:
+    regression: ["mse", "mae", "r2", "explained_variance"]
+    classification: ["accuracy", "precision", "recall", "f1", "roc_auc"]
+  confidence_level: 0.95
+  statistical_tests: true
+  feature_importance_analysis: true
+
+# Experiment execution
+execution:
+  parallel_models: true
+  max_workers: 4
+  save_predictions: true
+  save_feature_importance: true
+  save_model_artifacts: true
+
+# Output configuration
+output:
+  base_dir: "runs/intraday_ml_experiments"
+  create_subdir: true
+  save_results: true
+  save_plots: true
+  save_models: true

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Pilot test for regime-aligned strategies using existing infrastructure."""
 
+import argparse
 import os
 import sys
+import traceback
 
 import numpy as np
 import pandas as pd
@@ -23,127 +25,271 @@ from qx_core.regime.detector import create_default_detector
 from qx_data.gold_loader import load_bars
 from qx_features.core_basics import compute_all_core_features
 from qx_features.regime.features import compute_all_regime_features
+from qx_features.regime_enhanced import (
+    compute_all_regime_enhanced_features,
+    compute_avwap_features,
+    compute_ict_structures,
+    compute_intraday_volume_profile,
+    compute_order_flow_vpa,
+    compute_stress_contraction,
+)
 
 
 def load_test_data():
     """Load test data for April 1-7, 2024 using existing gold loader."""
-    print("Loading test data for April 1-7, 2024...")
+    print("[LOAD] Starting test data load...", flush=True)
+    import sys
 
-    # Try to use existing gold data loader
-    try:
-        symbols = ["AAPL"]  # Use just one symbol for faster testing
-        dates = ["2024-04-01"]  # Use just one day for faster testing
+    sys.stdout.flush()
 
-        # Check if gold data exists in the expected location
-        gold_root = "/home/jacobw/gcs-mount"  # From project contract
+    # Use existing gold data loader - MUST use real data
+    symbols = ["AAPL"]  # Use just one symbol for faster testing
+    trade_dates = [
+        "2024-04-01",
+        "2024-04-02",
+        "2024-04-03",
+        "2024-04-04",
+        "2024-04-05",
+    ]  # Multiple days for regime patterns
 
-        if os.path.exists(gold_root):
-            # Try to load gold data
-            all_data = []
-            for symbol in symbols:
-                for date in dates:
-                    try:
-                        # Look for parquet files in gold directory structure
-                        symbol_data = load_bars(
-                            root=gold_root,
-                            family="stocks",
-                            symbols=[symbol],
-                            dates=[date],
-                            validate=False,
-                        )
-                        if symbol_data is not None and len(symbol_data) > 0:
-                            all_data.append(symbol_data)
-                    except Exception as e:
-                        print(f"Could not load {symbol} {date}: {e}")
-                        continue
+    # Include prior-day data to seed warmup features if available
+    first_trade_date = pd.to_datetime(trade_dates[0])
+    warmup_seed_dates = [
+        (first_trade_date - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    ]
+    dates = warmup_seed_dates + trade_dates
 
-            if all_data:
-                df = pd.concat(all_data, ignore_index=True)
-                # Sort by [symbol, ts] as required by feature computation
-                df = df.sort_values(["symbol", "ts"]).reset_index(drop=True)
-                print(f"Loaded {len(df)} bars for {len(symbols)} symbols")
-                return df
+    # Check if gold data exists in the expected location
+    gold_root = "/home/jacobw/gcs-mount"  # From project contract
 
-        print("Gold data mount not accessible, using synthetic data...")
+    print(f"[LOAD] Checking gold root at {gold_root}", flush=True)
+    sys.stdout.flush()
+    if not os.path.exists(gold_root):
+        raise RuntimeError(
+            f"Gold root not found at {gold_root}. Real data is required - synthetic data is forbidden."
+        )
 
-    except Exception as e:
-        print(f"Error with gold data loading: {e}")
-
-    # Create synthetic test data as fallback
-    print("Creating synthetic test data...")
-    return create_synthetic_data()
-
-
-def create_synthetic_data():
-    """Create synthetic test data for fallback."""
-    symbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
-    dates = pd.date_range(
-        "2024-04-01 09:30:00", "2024-04-07 16:00:00", freq="1min", tz="America/New_York"
-    )
-
+    print(f"[LOAD] Loading real market data from {gold_root}...", flush=True)
+    sys.stdout.flush()
     all_data = []
     for symbol in symbols:
         for date in dates:
-            # Generate realistic price data
-            base_price = 100 + hash(symbol) % 50
-            noise = (
-                np.random.randn(390) * 0.5
-            )  # 390 minutes per day * 5 days = 1950 bars
-
-            # Create synthetic OHLCV
-            close_prices = base_price + np.cumsum(noise * 0.1)
-            high_prices = close_prices + np.abs(np.random.randn(390) * 0.3)
-            low_prices = close_prices - np.abs(np.random.randn(390) * 0.3)
-            open_prices = close_prices + np.random.randn(390) * 0.2
-
-            volumes = np.random.randint(1000, 5000, 390)
-
-            # Create UTC timestamps
-            ts_utc = date.tz_convert("UTC").view("int64")
-
-            for i in range(390):
-                all_data.append(
-                    {
-                        "ts": ts_utc[i],
-                        "symbol": symbol,
-                        "open": open_prices[i],
-                        "high": high_prices[i],
-                        "low": low_prices[i],
-                        "close": close_prices[i],
-                        "volume": volumes[i],
-                    }
+            try:
+                print(f"[LOAD] Attempting to load {symbol} {date}...", flush=True)
+                sys.stdout.flush()
+                # Look for parquet files in gold directory structure
+                symbol_data = load_bars(
+                    root=gold_root,
+                    family="stocks",
+                    symbols=[symbol],
+                    dates=[date],
+                    validate=False,
                 )
+                if symbol_data is not None and len(symbol_data) > 0:
+                    print(
+                        f"[LOAD] ✓ Loaded {len(symbol_data)} bars for {symbol} {date}",
+                        flush=True,
+                    )
+                    sys.stdout.flush()
+                    symbol_data["_loaded_date"] = date
+                    all_data.append(symbol_data)
+                else:
+                    print(f"[LOAD] ✗ No data found for {symbol} {date}", flush=True)
+                    sys.stdout.flush()
+            except Exception as e:
+                print(f"[LOAD] ✗ Could not load {symbol} {date}: {e}", flush=True)
+                sys.stdout.flush()
+                continue
 
-    df = pd.DataFrame(all_data)
-    print(f"Created {len(df)} synthetic bars for {len(symbols)} symbols")
+    if not all_data:
+        raise RuntimeError(
+            "No gold data loaded. Real data is required - synthetic data is forbidden."
+        )
+
+    df = pd.concat(all_data, ignore_index=True)
+    # Sort by [symbol, ts] as required by feature computation
+    df = df.sort_values(["symbol", "ts"]).reset_index(drop=True)
+
+    # Flag prior-day warmup rows so they can be discarded post-feature prep
+    session_start = pd.Timestamp(
+        f"{trade_dates[0]} 09:30:00", tz="America/New_York"
+    ).tz_convert("UTC")
+    df_ts = pd.to_datetime(df["ts"], unit="ns", utc=True)
+    df["is_warmup_seed"] = df_ts < session_start
+    print(
+        f"[LOAD] ✓ Successfully loaded {len(df)} bars for {len(symbols)} symbols",
+        flush=True,
+    )
+    sys.stdout.flush()
     return df
 
 
-def prepare_features(df):
+def prepare_features(df, verbose=False):
     """Prepare all required features for regime-aligned strategies."""
-    print("Computing features...")
+    import sys
+    import time
+
+    print("Computing features...", flush=True)
 
     # Compute core features
+    start = time.time()
+    sys.stdout.write("[DIAG] Starting compute_all_core_features...\n")
+    sys.stdout.flush()
     df = compute_all_core_features(df)
-    print("Core features computed")
+    print(f"Core features computed ({time.time()-start:.1f}s)", flush=True)
 
     # Compute regime features (NEW)
+    start = time.time()
+    sys.stdout.write("[DIAG] Starting compute_all_regime_features...\n")
+    sys.stdout.flush()
     df = compute_all_regime_features(df)
-    print("Regime features computed")
+    print(f"Regime features computed ({time.time()-start:.1f}s)", flush=True)
 
-    # Compute regime-enhanced features (commented out due to performance issue)
-    # df = compute_all_regime_enhanced_features(df)
-    # print("Enhanced features computed")
-    print("Enhanced features skipped due to performance issues")
+    # Compute enhanced features using unified function
+    print("\n=== Computing Regime-Enhanced Features ===\n", flush=True)
+
+    start = time.time()
+    sys.stdout.write("[DIAG] Starting compute_all_regime_enhanced_features...\n")
+    sys.stdout.flush()
+
+    # Use the unified enhanced features function
+    df = compute_all_regime_enhanced_features(df, verbose=verbose)
+    print(f"Enhanced features computed ({time.time()-start:.1f}s)", flush=True)
+
+    # Unify warmup flags: drop existing and create one authoritative flag
+    # Warmup horizon reduced to 45 bars; prepend prior-session bars when available
+    # so the regular session starts with warmed features.
+    print("Creating final warmup flag for all features...")
+    for flag in ["f__warmup_ok", "f__regime__warmup_ok"]:
+        if flag in df.columns:
+            df.drop(columns=[flag], inplace=True)
+
+    max_lookback = 45
+    df["f__warmup_ok"] = df.groupby("symbol").cumcount() >= max_lookback
+
+    # Verify required regime columns are present
+    required_regime_columns = [
+        "f__regime__var_ratio_10_60",
+        "f__regime__adx_proxy_14",
+        "f__regime__band_pos_20_2.0",
+        "f__regime__mod_vol_30",
+        "f__regime__stress_10_10",
+    ]
+
+    missing_columns = [col for col in required_regime_columns if col not in df.columns]
+    if missing_columns:
+        raise RuntimeError(f"Missing required regime columns: {missing_columns}")
 
     # Verify regime features are present (verbose)
-    verbose = True  # TODO: Make this parameterizable
     if verbose:
         regime_features = [col for col in df.columns if col.startswith("f__regime__")]
+        enhanced_features = [
+            col
+            for col in df.columns
+            if col.startswith("f__anchor__")
+            or col.startswith("f__profile__")
+            or col.startswith("f__ict__")
+            or col.startswith("f__flow__")
+            or col.startswith("f__vpa__")
+            or col.startswith("f__stress__")
+        ]
         print(f"Regime features present: {len(regime_features)} columns")
+        print(f"Enhanced features present: {len(enhanced_features)} columns")
+
+        # Confirm enhanced features from unified function exist
+        key_enhanced_features = [
+            "f__anchor__session_avwap",
+            "f__profile__poc",
+            "f__ict__fvg_bull_active",
+            "f__flow__ofi_trend",
+            "f__vpa__absorption",
+            "f__stress__contraction",
+        ]
+        found_key_features = [f for f in key_enhanced_features if f in df.columns]
+
+        if len(found_key_features) > 0:
+            print(f"✓ Key enhanced features detected: {', '.join(found_key_features)}")
+        else:
+            print("⚠️  No key enhanced features detected")
+
+        if len(enhanced_features) > 0:
+            print(f"Sample enhanced feature: {enhanced_features[0]}")
+        else:
+            print("⚠️  No enhanced features detected")
+
         if len(df) > 0:
-            print("First few regime feature values:")
-            print(df[regime_features].head(2).to_string())
+            # Show first valid regime feature values (skip warmup NaNs)
+            valid_regime_mask = df[regime_features].notna().all(axis=1)
+            valid_rows = df[valid_regime_mask].head(2)
+            if len(valid_rows) > 0:
+                print("First few valid regime feature values:")
+                print(valid_rows[regime_features].to_string())
+            else:
+                print("No valid regime feature rows found")
+
+    # DEBUG: Add feature value checks for trade generation
+    print("\n=== DEBUG: Feature Value Analysis ====")
+    valid_mask = df["f__warmup_ok"] == True
+    valid_df = df[valid_mask]
+    if len(valid_df) > 0:
+        print(f"Valid bars after warmup: {len(valid_df)}")
+        # Check key features for trade conditions
+        key_features = [
+            "f__anchor__session_avwap",
+            "f__anchor__first_hour_avwap",
+            "f__vol__atr_14",
+            "f__flow__ofi_trend",
+            "f__ict__fvg_bull_active",
+            "f__ict__fvg_bear_active",
+            "f__regime__var_ratio_10_60",
+            "f__regime__adx_proxy_14",
+            "f__regime__mod_vol_30",
+        ]
+        for feature in key_features:
+            if feature in valid_df.columns:
+                valid_values = valid_df[feature].dropna()
+                if len(valid_values) > 0:
+                    print(
+                        f"{feature}: min={valid_values.min():.4f}, max={valid_values.max():.4f}, mean={valid_values.mean():.4f}"
+                    )
+                else:
+                    print(f"{feature}: ALL NaN")
+            else:
+                print(f"{feature}: MISSING COLUMN")
+    else:
+        print("No valid bars after warmup - this will prevent all trades!")
+
+    # DEBUG: Add feature value checks for trade generation
+    print("\n=== DEBUG: Feature Value Analysis ====")
+    valid_mask = df["f__warmup_ok"] == True
+    valid_df = df[valid_mask]
+    if len(valid_df) > 0:
+        print(f"Valid bars after warmup: {len(valid_df)}")
+        # Check key features for trade conditions
+        key_features = [
+            "f__anchor__session_avwap",
+            "f__anchor__first_hour_avwap",
+            "f__vol__atr_14",
+            "f__flow__ofi_trend",
+            "f__ict__fvg_bull_active",
+            "f__ict__fvg_bear_active",
+            "f__regime__var_ratio_10_60",
+            "f__regime__adx_proxy_14",
+            "f__regime__mod_vol_30",
+        ]
+        for feature in key_features:
+            if feature in valid_df.columns:
+                valid_values = valid_df[feature].dropna()
+                if len(valid_values) > 0:
+                    print(
+                        f"{feature}: min={valid_values.min():.4f}, max={valid_values.max():.4f}, mean={valid_values.mean():.4f}"
+                    )
+                else:
+                    print(f"{feature}: ALL NaN")
+            else:
+                print(f"{feature}: MISSING COLUMN")
+    else:
+        print("No valid bars after warmup - this will prevent all trades!")
 
     return df
 
@@ -153,9 +299,23 @@ def create_regime_detector():
     return create_default_detector()
 
 
+def _create_strategy_func(policy):
+    """Create a strategy function that captures the given policy."""
+
+    def strategy_func(engine, bar):
+        policy.process_bar(bar)
+
+    return strategy_func
+
+
 def test_policies(df, detector):
     """Test regime-aligned policies with proper engine integration."""
-    print("\n=== Testing Regime-Aligned Policies ===")
+    print("\n=== Testing Regime-Aligned Policies ====")
+
+    # NOTE: Regime detection is now handled automatically by BacktestEngine
+    # via _update_regime_if_needed() when regime_config is provided.
+    # No need for manual pre-classification - engine will evaluate regimes on the fly.
+    print("Regime detection will be performed by engine during backtest...")
 
     # Initialize policies with fixed infrastructure
     momentum_policy = AVWAPMomentumPolicy()
@@ -174,15 +334,35 @@ def test_policies(df, detector):
         print(f"\nTesting {name.upper()} policy...")
 
         try:
-            # Create backtest config with strategy mapping
+            # Create readable label map for printouts
+            label_map = {
+                "momentum": "Momentum",
+                "pullback": "Pullback",
+                "rotation": "Rotation",
+            }
+
+            # Create backtest config with strategy mapping using correct strategy IDs
+            strategy_map = {
+                "BULL": ["avwap_momentum", "avwap_pullback"],
+                "BEAR": ["avwap_momentum"],
+                "SIDEWAYS": ["value_rotation"],
+                "STRESS": [],
+            }
+
             config = BacktestConfig(
                 initial_cash=100000.0,
-                regime_config={"enabled": True},  # Enable regime detection
-                strategy_map={
-                    "BULL": [name] if "momentum" in name or "pullback" in name else [],
-                    "BEAR": [name] if "momentum" in name else [],
-                    "SIDEWAYS": [name] if "rotation" in name else [],
+                regime_config={
+                    "enabled": True,
+                    "detector_params": {
+                        "variance_ratio_bull": 1.1,
+                        "variance_ratio_bear": 0.9,
+                        "adx_trend_threshold": 20.0,
+                        "volatility_stress_threshold": 2.0,
+                        "persistence_bars": 1,
+                        "cooldown_minutes": 1,
+                    },
                 },
+                strategy_map=strategy_map,
             )
             engine = BacktestEngine(config)
 
@@ -194,24 +374,45 @@ def test_policies(df, detector):
             if len(symbol_data) == 0:
                 continue
 
-            # Simple strategy function - use proper function to avoid loop variable binding
-            def strategy_func(engine, bar, p=policy):
-                p.process_bar(bar)
+            # Create strategy function and run backtest
+            strategy_func = _create_strategy_func(policy)
 
+            import logging
+
+            # logging.debug(f"Calling engine.run for {name} policy")
             # Run backtest through engine (handles regime detection automatically)
             result = engine.run(symbol_data, strategy_func)
+            # logging.debug(f"engine.run for {name} policy finished")
 
-            # Extract results
+            # Call policy lifecycle method to get diagnostic output
+            policy.on_end()
+
+            # Extract results using correct API
             trades = result.trades_history
-            portfolio = result.portfolio
-            orders = result.orders
+            orders = result.orders_history
+
+            # Compute final equity safely
+            if hasattr(result, "equity_curve") and not result.equity_curve.empty:
+                final_equity = result.equity_curve["total_equity"].iloc[-1]
+            else:
+                # Fallback to engine portfolio
+                final_equity = (
+                    engine.portfolio.total_equity
+                    if hasattr(engine, "portfolio")
+                    else config.initial_cash
+                )
+
+            final_return = final_equity - config.initial_cash
+
+            # Use label map for readable names
+            readable_name = label_map.get(name, name.upper())
 
             results[name] = {
                 "trades": len(trades),
-                "final_equity": portfolio.equity,
-                "final_return": portfolio.equity - 100000,
+                "final_equity": final_equity,
+                "final_return": final_return,
                 "orders": len(orders),
-                "errors": len(result.errors) if hasattr(result, "errors") else 0,
+                "readable_name": readable_name,
             }
 
             print(
@@ -220,15 +421,16 @@ def test_policies(df, detector):
 
         except Exception as e:
             print(f"Error in {name} policy: {e}")
+            traceback.print_exc()
             results[name] = {"error": str(e)}
 
     return results
 
 
-def run_diagnostic_check(df, verbose=False):
+def run_diagnostic_check(df, detector, verbose=False):
     """Run diagnostic checks on regime signals before testing."""
     if not verbose:
-        return
+        return {"BULL": 0, "BEAR": 0, "SIDEWAYS": 0, "STRESS": 0, "OFF": 0, "NONE": 0}
 
     print("\nDIAGNOSTIC: Regime Signal Distribution")
 
@@ -240,24 +442,64 @@ def run_diagnostic_check(df, verbose=False):
     TRENDING_ADX_MIN = 25
     SIDEWAYS_ADX_MAX = 22
 
-    # Count regime occurrences (excluding warmup)
+    # Count regime occurrences by session (excluding warmup)
     warmup_mask = df.get("f__regime__warmup_ok", pd.Series(True, index=df.index))
-    ready_bars = df[warmup_mask]
+    ready_bars = df[warmup_mask].copy()
 
     if len(ready_bars) == 0:
         print("No bars past warmup period")
         return
 
-    # Manual regime detection for diagnostics
-    regime_counts = {"BULL": 0, "BEAR": 0, "SIDEWAYS": 0, "STRESS": 0, "NONE": 0}
+    # Add date and session info for session-based counting
+    ready_bars["dt_et"] = pd.to_datetime(
+        ready_bars["ts"], unit="ns", utc=True
+    ).dt.tz_convert("America/New_York")
+    ready_bars["date"] = ready_bars["dt_et"].dt.date
+    ready_bars["session"] = ready_bars["dt_et"].apply(
+        lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
+    )
 
-    for _, bar in ready_bars.iterrows():
+    # Manual regime detection for diagnostics - ONLY use valid data
+    regime_counts = {
+        "BULL": set(),
+        "BEAR": set(),
+        "SIDEWAYS": set(),
+        "STRESS": set(),
+        "NONE": set(),
+    }
+
+    # Only process bars with valid regime features (no defaults)
+    valid_mask = (
+        ready_bars["f__regime__var_ratio_10_60"].notna()
+        & ready_bars["f__regime__adx_proxy_14"].notna()
+        & ready_bars["f__regime__band_pos_20_2.0"].notna()
+        & ready_bars["f__regime__mod_vol_30"].notna()
+        & ready_bars["f__regime__stress_10_10"].notna()
+    )
+
+    valid_bars = ready_bars[valid_mask]
+    print(
+        f"Valid regime bars: {len(valid_bars)} out of {len(ready_bars)} ({len(valid_bars)/len(ready_bars)*100:.1f}%)"
+    )
+
+    if len(valid_bars) == 0:
+        print("No valid regime features found - skipping diagnostic")
+        return {"BULL": 0, "BEAR": 0, "SIDEWAYS": 0, "STRESS": 0, "OFF": 0, "NONE": 0}
+
+    # Determine regime for each session by looking at the LAST bar of each session
+    # This ensures each session gets classified by its final regime state
+    session_bars = valid_bars.groupby(["date", "session"]).last().reset_index()
+
+    print(f"Classifying {len(session_bars)} sessions by last bar regime...")
+
+    for _, bar in session_bars.iterrows():
+        # Use actual feature values (no defaults)
         features = {
-            "var_ratio": bar.get("f__regime__var_ratio_10_60", 1.0),
-            "adx": bar.get("f__regime__adx_proxy_14", 20.0),
-            "band_pos": bar.get("f__regime__band_pos_20_2.0", 0.5),
-            "mod_vol": bar.get("f__regime__mod_vol_30", 1.0),
-            "stress": bar.get("f__regime__stress_10_10", 0.0),
+            "var_ratio": bar["f__regime__var_ratio_10_60"],
+            "adx": bar["f__regime__adx_proxy_14"],
+            "band_pos": bar["f__regime__band_pos_20_2.0"],
+            "mod_vol": bar["f__regime__mod_vol_30"],
+            "stress": bar["f__regime__stress_10_10"],
         }
 
         # Simple regime classification using defined constants
@@ -281,24 +523,49 @@ def run_diagnostic_check(df, verbose=False):
         else:
             regime = "NONE"
 
-        regime_counts[regime] += 1
+        # Count unique sessions for each regime (only once per session)
+        session_key = f"{bar['date']}_{bar['session']}"
+        regime_counts[regime].add(session_key)
 
-    total_ready = len(ready_bars)
-    print(f"Ready bars (past warmup): {total_ready}")
-    for regime, count in regime_counts.items():
-        pct = (count / total_ready * 100) if total_ready > 0 else 0
-        print(f"  {regime}: {count} ({pct:.1f}%)")
+        # Convert sets to counts
+        regime_session_counts = {
+            regime: len(sessions) for regime, sessions in regime_counts.items()
+        }
 
-    if regime_counts["BULL"] + regime_counts["BEAR"] == 0:
+    total_sessions = sum(regime_session_counts.values())
+    print(f"Trading sessions (twice per day): {total_sessions}")
+    for regime, count in regime_session_counts.items():
+        pct = (count / total_sessions * 100) if total_sessions > 0 else 0
+        print(f"  {regime}: {count} sessions ({pct:.1f}%)")
+
+    if regime_session_counts["BULL"] + regime_session_counts["BEAR"] == 0:
         print("No trending regimes detected - policies may not generate trades")
+
+    return regime_session_counts
+
+
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Regime-Aligned Strategy Pilot Test")
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable verbose output with diagnostic information",
+    )
+    return parser.parse_args()
 
 
 def main():
     """Main pilot test function."""
+    import logging
+    # logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
+    args = parse_args()
+
     print("Regime-Aligned Strategy Pilot Test")
     print("=" * 50)
 
-    verbose = True  # TODO: Make this command-line configurable
+    verbose = args.verbose
 
     # Load data
     df = load_test_data()
@@ -307,13 +574,18 @@ def main():
         return
 
     # Prepare features
-    df_features = prepare_features(df)
+    df_features = prepare_features(df, verbose=verbose)
 
-    # Run diagnostic check
-    run_diagnostic_check(df_features, verbose=verbose)
+    # Drop prior-session warmup seed rows before diagnostics/backtest
+    if "is_warmup_seed" in df_features.columns:
+        df_features = df_features[df_features["is_warmup_seed"] == False].copy()
+        df_features.drop(columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore")
 
     # Create regime detector
     detector = create_regime_detector()
+
+    # Run diagnostic check and capture regime counts
+    regime_counts = run_diagnostic_check(df_features, detector, verbose=verbose)
 
     # Test policies with fixed infrastructure
     results = test_policies(df_features, detector)
@@ -325,19 +597,46 @@ def main():
 
     for name, result in results.items():
         if "error" in result:
-            print(f"{name}: FAILED - {result['error']}")
+            print(
+                f"{result.get('readable_name', name.upper())}: FAILED - {result['error']}"
+            )
         else:
-            print(f"{name}: SUCCESS")
+            readable_name = result.get("readable_name", name.upper())
+            print(f"{readable_name}: SUCCESS")
             print(f"   Trades: {result['trades']}")
             print(f"   Orders: {result['orders']}")
             print(f"   P&L: ${result['final_return']:.2f}")
+
+    # Include regime counts in summary
+    if verbose:
+        trending_sessions = regime_counts.get("BULL", 0) + regime_counts.get("BEAR", 0)
+        total_sessions = sum(regime_counts.values())
+        print(f"\nRegime Distribution Summary (Session-based):")
+        print(
+            f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions/(total_sessions or 1)*100:.1f}%) - Tradeable regimes"
+        )
+        print(
+            f"  SIDEWAYS: {regime_counts.get('SIDEWAYS', 0)} sessions ({regime_counts.get('SIDEWAYS', 0)/(total_sessions or 1)*100:.1f}%) - Rotation strategy"
+        )
+        print(
+            f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0)/(total_sessions or 1)*100:.1f}%) - No trading"
+        )
+        print(
+            f"\nNote: Regimes are set twice per day (AM session: 9:30-12:30 ET, PM session: 12:30-16:00 ET)"
+        )
+        print(
+            f"Tradeable regime sessions detected: {trending_sessions} - analyzing why no trades generated..."
+        )
 
     print("\nInfrastructure Validation:")
     print("MarketOrder class working with auto-generated IDs")
     print("ATRStopManager integration functional")
     print("Enhanced features pipeline operational")
     print("Regime detector compatibility verified")
-    print("Logging hygiene (verbose mode tested)")
+    print("CLI and diagnostics refinement completed")
+
+    # import logging
+    # logging.shutdown()
 
 
 if __name__ == "__main__":

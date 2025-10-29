@@ -3,9 +3,8 @@
 Extract AAPL data from GOLD parquet file for 2024-01-09 09:00-10:00 ET
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 
-import numpy as np
 import pandas as pd
 import pytz
 
@@ -50,18 +49,18 @@ def extract_aapl_data():
         start_utc = start_et.astimezone(pytz.UTC)
         end_utc = end_et.astimezone(pytz.UTC)
 
-        print(f"\n🎯 Extracting data for:")
+        print("\n🎯 Extracting data for:")
         print(f"   Date: {target_date}")
-        print(f"   Requested: 09:15-09:25 ET")
+        print("   Requested: 09:15-09:25 ET")
         print(
             f"   Available: {start_time_et} - {end_time_et} (closest possible in GOLD dataset)"
         )
         print(f"   Time Range (UTC): {start_utc} - {end_utc}")
         print(
-            f"\n📝 IMPORTANT: GOLD dataset only contains regular trading hours (09:30-15:59 ET)"
+            "\n📝 IMPORTANT: GOLD dataset only contains regular trading hours (09:30-15:59 ET)"
         )
         print(
-            f"   No pre-market (04:00-09:30 ET) or after-hours (16:00-20:00 ET) data available"
+            "   No pre-market (04:00-09:30 ET) or after-hours (16:00-20:00 ET) data available"
         )
 
         # Convert df['ts'] to datetime for comparison
@@ -112,7 +111,7 @@ def extract_aapl_data():
         print("=" * 100)
 
         # Summary statistics
-        print(f"\n📈 Summary Statistics:")
+        print("\n📈 Summary Statistics:")
         print(
             f"   Price Range: ${display_df['Low'].min():.2f} - ${display_df['High'].max():.2f}"
         )
@@ -125,7 +124,7 @@ def extract_aapl_data():
         print(f"   Avg Volume: {display_df['Volume'].mean():,.0f}")
 
         # Save to CSV
-        output_file = f"aapl_2024-01-09_0930-0945_et.csv"
+        output_file = "aapl_2024-01-09_0930-0945_et.csv"
         display_df.to_csv(output_file, index=False)
         print(f"\n💾 Data saved to: {output_file}")
 

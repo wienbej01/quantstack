@@ -1,0 +1,36 @@
+# Configuration for classification model training
+model_type: "classification"
+model_class: "RandomForestClassifier"
+hyperparameters:
+  n_estimators: 100
+  max_depth: 10
+  min_samples_split: 5
+  min_samples_leaf: 2
+  random_state: 42
+
+features:
+  - "f__vwap_30"
+  - "f__rel_volume_30"
+  - "f__atr_14"
+  - "f__vwap_distance"
+  - "f__price_position"
+
+target_column: "close"
+prediction_horizon_bars: 5
+train_test_split: 0.2
+train_val_split: 0.2
+random_seed: 42
+cross_validation_folds: 5
+feature_selection: false
+feature_importance_threshold: 0.01
+scale_features: true
+
+# Training data configuration
+training_config:
+  symbols: ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+  dates: ["2023-01", "2023-02", "2023-03", "2023-04", "2023-05"]
+  feature_pack: "core_basics"
+
+  # Target creation for classification
+  target_threshold: 0.01  # 1% return threshold for binary classification
+  neutral_zone: 0.005     # Neutral zone to avoid weak signals

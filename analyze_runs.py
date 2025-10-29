@@ -4,7 +4,6 @@ Comprehensive analysis of all test runs in /home/jacobw/quantstack/runs/
 """
 
 import json
-import os
 import statistics
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -40,7 +39,7 @@ def extract_run_data(runs_dir):
         metrics_file = run_dir / "metrics.json"
         if metrics_file.exists():
             try:
-                with open(metrics_file, "r") as f:
+                with open(metrics_file) as f:
                     run_info["metrics"] = json.load(f)
             except Exception as e:
                 run_info["metrics_error"] = str(e)
@@ -49,7 +48,7 @@ def extract_run_data(runs_dir):
         checksum_file = run_dir / "inputs_checksum.json"
         if checksum_file.exists():
             try:
-                with open(checksum_file, "r") as f:
+                with open(checksum_file) as f:
                     run_info["checksums"] = json.load(f)
             except Exception as e:
                 run_info["checksums_error"] = str(e)
@@ -300,7 +299,7 @@ def main():
 
     if "trade_stats" in performance_analysis:
         ts = performance_analysis["trade_stats"]
-        print(f"\nTrade Statistics:")
+        print("\nTrade Statistics:")
         print(f"  Total trades across all runs: {ts['total_trades']}")
         print(f"  Average trades per run: {ts['avg_trades_per_run']:.1f}")
         print(f"  Median trades per run: {ts['median_trades']}")
@@ -309,7 +308,7 @@ def main():
 
     if "return_stats" in performance_analysis:
         rs = performance_analysis["return_stats"]
-        print(f"\nReturn Statistics:")
+        print("\nReturn Statistics:")
         print(f"  Mean return: {rs['mean_return']:.4f} ({rs['mean_return']*100:.2f}%)")
         print(
             f"  Median return: {rs['median_return']:.4f} ({rs['median_return']*100:.2f}%)"
@@ -320,7 +319,7 @@ def main():
             f"  Positive returns: {rs['positive_returns']}/{len(runs_data)} ({rs['positive_returns']/len(runs_data)*100:.1f}%)"
         )
 
-    print(f"\nHash Analysis:")
+    print("\nHash Analysis:")
     print(f"  Unique bar data hashes: {hash_analysis['unique_bar_hashes']}")
     print(f"  Unique feature hashes: {hash_analysis['unique_feature_hashes']}")
     print(f"  Unique SIP hashes: {hash_analysis['unique_sip_hashes']}")
@@ -331,12 +330,12 @@ def main():
         print(f"  Unique seeds: {ss['unique_seeds']}")
         print(f"  Seed range: {ss['min_seed']} - {ss['max_seed']}")
 
-    print(f"\nRun Types:")
+    print("\nRun Types:")
     for run_type, count in patterns["run_types"].items():
         print(f"  {run_type}: {count}")
 
     if patterns["best_performing_runs"]:
-        print(f"\nTop 5 Performing Runs:")
+        print("\nTop 5 Performing Runs:")
         for run_id, return_pct, metrics in patterns["best_performing_runs"]:
             print(
                 f"  {run_id}: {return_pct:.4f} ({return_pct*100:.2f}%) - {metrics.get('trades', 0)} trades"
@@ -349,7 +348,7 @@ def main():
         if len(patterns["zero_trade_runs"]) > 10:
             print(f"  ... and {len(patterns['zero_trade_runs']) - 10} more")
 
-    print(f"\nDetailed report saved to: /home/jacobw/quantstack/runs_analysis.json")
+    print("\nDetailed report saved to: /home/jacobw/quantstack/runs_analysis.json")
 
     return report
 

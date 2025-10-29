@@ -382,7 +382,7 @@ def test_documentation_and_examples():
     ), "Comparison config should exist"
 
     # Test documentation content
-    with open("docs/vwap_momentum_guide.md", "r") as f:
+    with open("docs/vwap_momentum_guide.md") as f:
         doc_content = f.read()
         assert (
             "VwapMomentumPolicy" in doc_content
@@ -393,7 +393,7 @@ def test_documentation_and_examples():
         assert "ATR" in doc_content, "Documentation should mention enhanced features"
 
     # Test example script is runnable
-    with open("examples/vwap_momentum_example.py", "r") as f:
+    with open("examples/vwap_momentum_example.py") as f:
         example_content = f.read()
         assert (
             "VwapMomentumPolicy" in example_content
@@ -865,7 +865,7 @@ def test_comprehensive_final_system_validation():
         print(f"  Signal changes: {scenario_results['signal_changes']}")
 
     # Comprehensive validation assertions
-    print(f"\n=== COMPREHENSIVE VALIDATION SUMMARY ===")
+    print("\n=== COMPREHENSIVE VALIDATION SUMMARY ===")
 
     total_bars = sum(r["bars_processed"] for r in all_results.values())
     total_basic_orders = sum(r["basic_orders"] for r in all_results.values())

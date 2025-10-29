@@ -1,3 +1,4 @@
-# Variant B: Aggressive rvol_min = 1.5
+# Policy B overlay - more restrictive RVOL
 policy_params:
-  rvol_min: 1.5
+  min_rvol: 1.5
+  vwap_lookback_m: 10

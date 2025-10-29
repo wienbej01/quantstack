@@ -15,19 +15,18 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.order import OrderSide, OrderType
-from qx_core.regime_config import RegimeConfig, validate_regime_config
+from qx_core.regime_config import validate_regime_config
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply
 
@@ -39,7 +38,7 @@ class RegimePerformanceAnalyzer:
         self.results = {}
         self.comparison_data = {}
 
-    def load_configuration(self, config_path: str) -> Dict[str, Any]:
+    def load_configuration(self, config_path: str) -> dict[str, Any]:
         """Load and validate configuration from YAML/JSON file."""
         config_path = Path(config_path)
         if not config_path.exists():
@@ -47,14 +46,14 @@ class RegimePerformanceAnalyzer:
 
         try:
             # Try JSON first
-            with open(config_path, "r") as f:
+            with open(config_path) as f:
                 config_dict = json.load(f)
         except json.JSONDecodeError:
             # Try YAML (requires pyyaml)
             try:
                 import yaml
 
-                with open(config_path, "r") as f:
+                with open(config_path) as f:
                     config_dict = yaml.safe_load(f)
             except ImportError:
                 raise ImportError(
@@ -69,7 +68,7 @@ class RegimePerformanceAnalyzer:
         return config_dict
 
     def generate_sample_data(
-        self, symbols: List[str], start_date: str, end_date: str
+        self, symbols: list[str], start_date: str, end_date: str
     ) -> pd.DataFrame:
         """Generate sample market data for testing."""
         dates = pd.date_range(start=start_date, end=end_date, freq="B")  # Business days
@@ -114,8 +113,8 @@ class RegimePerformanceAnalyzer:
         return pd.DataFrame(data)
 
     def run_backtest(
-        self, config: Dict[str, Any], data: pd.DataFrame, experiment_name: str
-    ) -> Dict[str, Any]:
+        self, config: dict[str, Any], data: pd.DataFrame, experiment_name: str
+    ) -> dict[str, Any]:
         """Run single backtest with given configuration."""
         print(f"Running backtest: {experiment_name}")
 
@@ -231,10 +230,10 @@ class RegimePerformanceAnalyzer:
 
     def compare_performance(
         self,
-        enabled_config: Dict[str, Any],
-        disabled_config: Dict[str, Any],
+        enabled_config: dict[str, Any],
+        disabled_config: dict[str, Any],
         data: pd.DataFrame,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare performance between regime-enabled and disabled configurations."""
 
         # Run both backtests
@@ -314,7 +313,7 @@ class RegimePerformanceAnalyzer:
 
         return comparison
 
-    def generate_report(self, comparison: Dict[str, Any], output_path: str):
+    def generate_report(self, comparison: dict[str, Any], output_path: str):
         """Generate comprehensive performance comparison report."""
         report = {
             "analysis_date": datetime.now().isoformat(),
@@ -334,7 +333,7 @@ class RegimePerformanceAnalyzer:
         # Print summary
         self._print_summary(report)
 
-    def _generate_summary(self, comparison: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_summary(self, comparison: dict[str, Any]) -> dict[str, Any]:
         """Generate executive summary."""
         return {
             "total_return_improvement": comparison.get("return_improvement_pct", 0),
@@ -347,8 +346,8 @@ class RegimePerformanceAnalyzer:
         }
 
     def _generate_performance_comparison(
-        self, comparison: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, comparison: dict[str, Any]
+    ) -> dict[str, Any]:
         """Generate detailed performance comparison."""
         return {
             "returns": {
@@ -379,7 +378,7 @@ class RegimePerformanceAnalyzer:
             },
         }
 
-    def _generate_regime_analysis(self, comparison: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_regime_analysis(self, comparison: dict[str, Any]) -> dict[str, Any]:
         """Generate regime detection analysis."""
         stats = comparison["regime_enabled_stats"]
 
@@ -394,7 +393,7 @@ class RegimePerformanceAnalyzer:
             "current_regime": stats.get("current_regime"),
         }
 
-    def _generate_trade_analysis(self, comparison: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_trade_analysis(self, comparison: dict[str, Any]) -> dict[str, Any]:
         """Generate trade analysis by regime."""
         enabled_trades = comparison["trades_by_regime_enabled"]
         disabled_trades = comparison["trades_by_regime_disabled"]
@@ -430,8 +429,8 @@ class RegimePerformanceAnalyzer:
         return analysis
 
     def _generate_recommendations(
-        self, comparison: Dict, improvement_pct: float
-    ) -> List[str]:
+        self, comparison: dict, improvement_pct: float
+    ) -> list[str]:
         """Generate actionable recommendations based on analysis."""
         recommendations = []
 
@@ -475,7 +474,7 @@ class RegimePerformanceAnalyzer:
 
         return recommendations
 
-    def _print_summary(self, report: Dict[str, Any]):
+    def _print_summary(self, report: dict[str, Any]):
         """Print executive summary to console."""
         print("\n" + "=" * 60)
         print("REGIME PERFORMANCE ANALYSIS SUMMARY")
@@ -507,7 +506,7 @@ class RegimePerformanceAnalyzer:
 
         print("\n" + "=" * 60)
 
-    def create_visualizations(self, comparison: Dict[str, Any], output_dir: str):
+    def create_visualizations(self, comparison: dict[str, Any], output_dir: str):
         """Create visualization charts for the analysis."""
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
@@ -529,7 +528,7 @@ class RegimePerformanceAnalyzer:
 
         print(f"Visualizations saved to: {output_path}")
 
-    def _create_performance_chart(self, comparison: Dict[str, Any], output_path: Path):
+    def _create_performance_chart(self, comparison: dict[str, Any], output_path: Path):
         """Create performance comparison bar chart."""
         metrics = ["total_return", "sharpe_ratio", "max_drawdown", "win_rate"]
         enabled_vals = [comparison["enabled_performance"][metric] for metric in metrics]
@@ -583,7 +582,7 @@ class RegimePerformanceAnalyzer:
         plt.close()
 
     def _create_regime_distribution_chart(
-        self, comparison: Dict[str, Any], output_path: Path
+        self, comparison: dict[str, Any], output_path: Path
     ):
         """Create regime distribution pie chart."""
         stats = comparison["regime_enabled_stats"]
@@ -609,7 +608,7 @@ class RegimePerformanceAnalyzer:
         plt.close()
 
     def _create_trade_timeline_chart(
-        self, comparison: Dict[str, Any], output_path: Path
+        self, comparison: dict[str, Any], output_path: Path
     ):
         """Create trade timeline chart showing trades by regime."""
         enabled_trades = comparison["trades_by_regime_enabled"]

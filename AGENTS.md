@@ -1,37 +1,21 @@
-# Repository Guidelines
-
-## Project Structure & Module Organization
-- `qx-core/src`, `qx-data/src`, `qx-backtest/src`: domain modules; keep shared abstractions in `qx-core`, data adapters in `qx-data`, and simulation logic in `qx-backtest`.
-- `qx-cli`: CLI wiring and experiment launchers; examples under `examples/`.
-- `scripts/`: reusable utilities; prefer parametrized Python scripts over ad-hoc shell.
-- `tests/`: integration and regression suites; scenario assets live in `test_config/`.
-- `docs/` and `docs/features/`: reference guides; `experiments/` holds playbooks for VWAP/SIP workflows.
-
-## Build, Test, and Development Commands
-- `make install`: installs all `qx-*` packages in editable mode via `uv pip`.
-- `make lint`: runs Ruff static analysis; address warnings before committing.
-- `make format`: applies Ruff formatting to staged files; run after large edits.
-- `make check-types`: invokes mypy across `qx-*` trees.
-- `make test`: executes the full pytest suite; for focused checks use `pytest -k <pattern>`.
-- `python examples/daily_hmm_sip_example.py` or `qx-cli exp entry-ab experiments/vwap_daily_hmm/strategy.yaml`: exercise representative pipelines.
-
-## Coding Style & Naming Conventions
-- Python 3.11, Ruff-managed style with 100-character lines, f-strings, and explicit imports.
-- Modules and folders use `snake_case`; exported classes follow `CapWords`.
-- Annotate public functions, keep configuration files deterministic, avoid unused code (ruff `E`, `F`, `B`, `SIM` enforced).
-
-## Testing Guidelines
-- Pytest drives unit/integration coverage; colocate new tests near the relevant package.
-- Name files `test_<feature>.py` and functions `test_<scenario>`.
-- Validate portfolio P&L, fills, SIP scores for workflow tests; extend `tests/test_daily_hmm_end_to_end.py` when broad coverage is needed.
-- Regression smoke: `make test-daily-hmm`.
-
-## Commit & Pull Request Guidelines
-- Use Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`); imperative subjects, add context lines when touching multiple packages.
-- Before PRs, squash/rebase, note strategy impact, link configurations or experiments, and share CLI/pytest output for substantive changes.
-- Review JSON/YAML diffs carefully; keep broker credentials and data extracts out of Git.
-
-## Security & Configuration Tips
-- Load secrets via environment variables or ignored `.env` files.
-- Store large market data in `runs/` or external storage; only anonymized samples (e.g., AAPL CSVs) belong in-repo.
-- Audit experiment configs for unintended parameter drift before merging.
+# AGENTS GUIDE
+1. Repo uses Python 3.11 with Ruff-managed style; keep edits deterministic.
+2. Install workspace once via `make install`; use UV-managed editable packages.
+3. Lint with `make lint`; format targeted files using `make format`.
+4. Type-check using `make check-types` (mypy across all qx-* packages).
+5. Run full tests with `make test`; prefer focused runs when iterating.
+6. Single test: `pytest tests/path/to_file.py::test_case` or `pytest -k keyword`.
+7. Daily HMM smoke: `make test-daily-hmm`; use for SIP regression sanity.
+8. CLI smoke: `python examples/daily_hmm_sip_example.py` for pipeline validation.
+9. Keep modules in domain packages (core/data/backtest/cli/screener) per existing layout.
+10. Enforce 100-character lines, snake_case modules, CapWords classes, explicit imports.
+11. Favor pure functions; annotate public APIs and configs with precise types.
+12. Validate inputs early; raise `ValueError`/`RuntimeError` with actionable messages.
+13. Avoid silent excepts; log via existing logging utilities when context matters.
+14. Use f-strings, no wildcard imports, import standard libs, third-party, local (in that order).
+15. Configuration-first: prefer toggles/YAML updates before touching strategy logic.
+16. Keep tests colocated; add fixtures under `tests/fixtures`, never leak synthetic data elsewhere.
+17. Respect existing Makefile targets; do not invent ad-hoc scripts without review.
+18. No additional Cursor or Copilot rules are defined in this repo.
+19. Before large changes, review `.pre-commit-config.yaml` and run required hooks locally.
+20. Share proofs (logs, metrics) when modifying trading logic; document run commands.

@@ -3,9 +3,10 @@
 from .ab_testing import ABTestConfig, ABTestResult, EntryExitABTest
 from .engine import BacktestConfig, BacktestEngine, BacktestResult
 from .fill import DefaultFiller, Fill, Filler
-from .order import Order, OrderStatus, OrderType
+from .order import MarketOrder, Order, OrderStatus, OrderType
 from .policies.vwap_revert import VwapRevertPolicy
 from .portfolio import Portfolio, Position
+from .risk import ATRStopManager
 
 __version__ = "0.1.0"
 
@@ -18,6 +19,7 @@ __all__ = [
     "Portfolio",
     "Position",
     # Order management
+    "MarketOrder",
     "Order",
     "OrderType",
     "OrderStatus",
@@ -27,6 +29,8 @@ __all__ = [
     "DefaultFiller",
     # Trading policies
     "VwapRevertPolicy",
+    # Risk management
+    "ATRStopManager",
     # AB testing framework
     "EntryExitABTest",
     "ABTestConfig",

@@ -1,9 +1,17 @@
 """Event-driven backtesting engine."""
 
+from __future__ import annotations
+
+# import logging
+# logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
+
+# def log_debug(msg):
+#     logging.debug(msg)
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any, Optional
+from datetime import date
+from typing import Any
 
 import pandas as pd
 
@@ -230,6 +238,8 @@ class BacktestEngine:
         # Regime detection
         self._regime_detector = None
         self._current_regime = RegimeType.OFF if REGIME_DETECTION_AVAILABLE else None
+        self._current_segment: str | None = None
+        self._current_session_date: str | None = None
         self._regime_history: list[RegimeSignal] = []
         raw_strategy_map: dict[str, list[str]] = config.strategy_map or {}
         if not raw_strategy_map and config.regime_config:
@@ -237,7 +247,9 @@ class BacktestEngine:
         self._strategy_map = {}
         for regime, strategies in raw_strategy_map.items():
             if isinstance(strategies, (list, tuple, set)):
-                self._strategy_map[regime] = [str(strategy).lower() for strategy in strategies]
+                self._strategy_map[regime] = [
+                    str(strategy).lower() for strategy in strategies
+                ]
             else:
                 # Allow single string values for convenience
                 self._strategy_map[regime] = [str(strategies).lower()]
@@ -265,12 +277,18 @@ class BacktestEngine:
         # Validate data
         self._validate_data(data)
 
+        # Reset segment context for run
+        if REGIME_DETECTION_AVAILABLE:
+            self._current_segment = None
+            self._current_session_date = None
+
         # Process data bar by bar
         total_bars = len(data.groupby("ts"))
 
         for processed_bars, (timestamp, group) in enumerate(
             data.groupby("ts"), start=1
         ):
+            # log_debug(f"Processing bar {processed_bars}/{total_bars} at {timestamp}")
             self.current_time = timestamp
 
             # Update portfolio market values
@@ -291,6 +309,13 @@ class BacktestEngine:
 
                 # Update regime detection if enabled
                 self._update_regime_if_needed(group)
+
+                if self._current_regime is not None:
+                    bar_dict["f__regime__current"] = self._current_regime
+                if self._current_segment is not None:
+                    bar_dict["f__regime__segment"] = self._current_segment
+                if self._current_session_date is not None:
+                    bar_dict["f__regime__session_date"] = self._current_session_date
 
                 strategy_func(self, bar_dict)
 
@@ -323,24 +348,23 @@ class BacktestEngine:
             raise ValueError("Data must be sorted by timestamp")
 
     def _process_pending_orders(self, bars: pd.DataFrame) -> None:
+        # log_debug(f"Processing {len(self.pending_orders)} pending orders.")
         """Process pending orders against current bars."""
-        orders_to_remove = []
-
+        
+        remaining_orders = []
         for order in self.pending_orders:
             symbol_bars = bars[bars["symbol"] == order.symbol]
             if not symbol_bars.empty:
                 bar_data = symbol_bars.iloc[0].to_dict()
                 self._process_order(order, bar_data)
 
-                if not order.is_active:
-                    orders_to_remove.append(order)
+            if order.is_active:
+                remaining_orders.append(order)
 
-        # Remove filled/cancelled orders
-        for order in orders_to_remove:
-            if order in self.pending_orders:
-                self.pending_orders.remove(order)
+        self.pending_orders = remaining_orders
 
     def _process_order(self, order: Order, bar_data: dict[str, Any]) -> None:
+        # log_debug(f"Processing order {order.order_id} for {order.symbol}")
         """Process an order against bar data."""
         if not order.is_active:
             return
@@ -377,6 +401,7 @@ class BacktestEngine:
             "commission": fill.commission,
             "total_cost": fill.total_cost,
             "order_id": order.order_id,
+            "strategy_id": getattr(order, "strategy_id", None),
         }
         self.trades_history.append(trade_info)
 
@@ -644,13 +669,15 @@ class BacktestEngine:
             # Evaluate regime for current timestamp
             regime_signal = self._regime_detector.evaluate(group, self.current_time)
             self._current_regime = regime_signal.regime
+            self._current_segment = regime_signal.segment
+            self._current_session_date = regime_signal.session_date
             self._regime_history.append(regime_signal)
 
         except Exception as e:
             # Log error but continue with last known regime
             print(f"Warning: Regime detection failed at {self.current_time}: {e}")
 
-    def get_current_regime(self) -> Optional[RegimeType]:
+    def get_current_regime(self) -> RegimeType | None:
         """Get current market regime.
 
         Returns:
@@ -703,9 +730,10 @@ class BacktestEngine:
         stats["current_regime"] = (
             self._current_regime.value if self._current_regime else None
         )
+        stats["current_segment"] = self._current_segment
+        stats["current_session_date"] = self._current_session_date
 
-        # Note: Removed confusing minute-level regime_distribution
-        # For daily regime detection, we focus on regime_changes and cache_hit_rate
+        # Segment-level distribution now reflects AM/PM cached regimes
 
         return stats
 

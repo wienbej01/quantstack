@@ -9,6 +9,14 @@ from .core_basics import (
     validate_feature_inputs,
     vwap_m,
 )
+from .regime_enhanced import (
+    compute_all_regime_enhanced_features,
+    compute_avwap_features,
+    compute_ict_structures,
+    compute_intraday_volume_profile,
+    compute_order_flow_vpa,
+    compute_stress_contraction,
+)
 from .registry import (
     FeatureRegistry,
     apply,
@@ -29,6 +37,13 @@ __all__ = [
     "compute_warmup_masks",
     "validate_feature_inputs",
     "get_feature_name",
+    # Regime-enhanced features
+    "compute_all_regime_enhanced_features",
+    "compute_avwap_features",
+    "compute_ict_structures",
+    "compute_intraday_volume_profile",
+    "compute_order_flow_vpa",
+    "compute_stress_contraction",
     # Registry and application
     "FeatureRegistry",
     "apply",

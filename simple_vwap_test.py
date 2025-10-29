@@ -3,9 +3,7 @@
 Simple VWAP backtest to validate the optimized system works
 """
 
-import os
 import sys
-from datetime import datetime
 
 import pandas as pd
 
@@ -110,9 +108,9 @@ def run_simple_vwap_test():
 
     if result.total_trades > 0:
         print(f"\n✅ SUCCESS: Generated {result.total_trades} trades")
-        print(f"✅ System is working properly!")
+        print("✅ System is working properly!")
     else:
-        print(f"\n⚠️  No trades generated - may need parameter tuning")
+        print("\n⚠️  No trades generated - may need parameter tuning")
 
     print("\n" + "=" * 80)
     print("SIMPLE VWAP TEST COMPLETED")

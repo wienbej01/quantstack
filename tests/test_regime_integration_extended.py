@@ -4,8 +4,6 @@ Tests stress overrides, day-level regime lock, midday pivots,
 and complex multi-regime scenarios.
 """
 
-from unittest.mock import MagicMock, patch
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,7 +12,6 @@ from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_core.regime.detector import RegimeDetectorConfig, RegimeDetectorRules
 from qx_core.regime_config import RegimeConfig
 from qx_core.schemas import RegimeSignal, RegimeType
-from qx_features.registry import apply
 from qx_risk.atr_stop import (
     get_regime_risk_context,
     reject_order_for_regime,
@@ -604,8 +601,8 @@ class TestRegimeDetectionPerformance:
         assert stats["evaluations"] == 1000
         assert stats["regime_changes"] >= 0
 
-        # Memory usage should be reasonable
-        assert len(detector._regime_history) == 1000
+        # Memory usage should remain bounded (two segment histories)
+        assert 0 < len(detector._regime_history) <= 4
 
     def test_regime_detection_statistics_tracking(self):
         """Test that regime detection properly tracks statistics."""
@@ -637,6 +634,7 @@ class TestRegimeDetectionPerformance:
         assert "change_rate" in stats
         assert "avg_persistence" in stats
         assert "symbols_tracked" in stats
+        assert "cached_segments" in stats
 
         # Should track symbols even with single symbol
         assert stats["symbols_tracked"] >= 1

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Simple test to check data loading and HMM SIP."""
 
-import os
 import sys
 from pathlib import Path
 
@@ -30,7 +29,7 @@ def main():
     config_path = (
         Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
     )
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     print(f"Testing with {len(config['symbols'])} symbols")

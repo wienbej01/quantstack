@@ -1,0 +1,30 @@
+{
+  "catalog": [
+    {
+      "name": "test_feature",
+      "standardized_name": "f__test__test_feature",
+      "type": "function",
+      "file": "/tmp/test.py",
+      "callable": "test.test_feature",
+      "inputs": [
+        "df"
+      ],
+      "outputs": [
+        "feature_col"
+      ],
+      "feature_names": [
+        "f__test__test_feature"
+      ],
+      "purity_flags": {
+        "idempotent": true,
+        "pure": true
+      },
+      "reuse_count": 1,
+      "content_hash": "hash1",
+      "needs_adapter": false,
+      "docstring": "Test feature"
+    }
+  ],
+  "conforming": [],
+  "needing_adapters": []
+}

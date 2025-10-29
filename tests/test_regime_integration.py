@@ -7,15 +7,13 @@ strategy gating, and risk management.
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
 import pytest
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
-from qx_backtest.order import OrderFactory
-from qx_core.regime.detector import RegimeDetectorConfig, RegimeDetectorRules
+from qx_core.regime.detector import RegimeDetectorConfig
 from qx_core.regime_config import RegimeConfig
 from qx_core.schemas import RegimeSignal, RegimeType
 from qx_features.registry import apply
@@ -164,7 +162,8 @@ class TestRegimeBacktestIntegration:
         # Get regime statistics
         stats = engine.get_regime_statistics()
         assert stats["regime_detection_enabled"] is True
-        assert "regime_distribution" in stats
+        assert "cached_segments" in stats
+        assert "current_segment" in stats
 
     def test_strategy_gating_in_different_regimes(
         self, sample_ohlcv_data, regime_config
@@ -252,7 +251,8 @@ class TestRegimeBacktestIntegration:
         assert "regime_detection_enabled" in stats
         assert stats["regime_detection_enabled"] is True
         assert "current_regime" in stats
-        assert "regime_distribution" in stats
+        assert "cached_segments" in stats
+        assert "current_segment" in stats
         assert "evaluations" in stats
         assert "change_rate" in stats
 
@@ -499,7 +499,6 @@ class TestRegimeCLIIntegration:
 
     def test_regime_sample_configs(self):
         """Test that sample configurations are valid."""
-        from qx_cli.commands.regime import _load_regime_config
 
         config_files = [
             "experiments/regime/strategy_basic.yaml",
@@ -614,7 +613,7 @@ class TestEndToEndRegimeWorkflow:
         assert result.sharpe_ratio is not None
         assert 0 <= result.win_rate <= 1.0
 
-        print(f"End-to-end test completed:")
+        print("End-to-end test completed:")
         print(f"  Regime changes: {stats.get('change_rate', 0):.3f}")
         print(f"  Total trades: {result.total_trades}")
         print(f"  Win rate: {result.win_rate:.2%}")

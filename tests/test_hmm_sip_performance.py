@@ -3,7 +3,6 @@
 import tempfile
 import time
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import pandas as pd
@@ -64,7 +63,7 @@ def create_large_synthetic_dataset(num_symbols: int = 1000) -> pd.DataFrame:
     return pd.DataFrame(bars)
 
 
-def create_external_topk_file(symbols: List[str], temp_dir: Path) -> Path:
+def create_external_topk_file(symbols: list[str], temp_dir: Path) -> Path:
     """Create external Top-K parquet file for testing."""
     scores = np.random.uniform(0.5, 2.0, len(symbols))
     df = pd.DataFrame({"sym": symbols, "score": scores})

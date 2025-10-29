@@ -1,5 +1,6 @@
 """Order management for backtesting engine."""
 
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -185,6 +186,80 @@ class Order:
             "tags": self.tags,
             "fill_count": len(self.fills),
         }
+
+
+@dataclass
+class MarketOrder(Order):
+    """Concrete MarketOrder class to align with policy imports and match test stubs."""
+
+    # Override required fields with defaults to make them optional
+    order_id: str = field(default_factory=lambda: uuid.uuid4().hex)
+    symbol: str = ""
+    side: OrderSide = OrderSide.BUY
+    order_type: OrderType = OrderType.MARKET
+    quantity: int = 0
+
+    # Required fields for MarketOrder per sprint plan
+    ts_submitted: int = field(
+        default_factory=lambda: int(datetime.now().timestamp() * 1e9), init=True
+    )
+
+    def __post_init__(self):
+        """Post-initialization to set order_type and validate."""
+        # Ensure order_type is MARKET
+        self.order_type = OrderType.MARKET
+
+        # Coerce side to OrderSide enum if provided as string
+        if isinstance(self.side, str):
+            try:
+                self.side = OrderSide[self.side.upper()]
+            except KeyError as exc:  # pragma: no cover - defensive guard
+                raise ValueError(f"Invalid order side: {self.side}") from exc
+
+        # Ensure quantity stored as integer lots
+        if isinstance(self.quantity, float):
+            self.quantity = int(self.quantity)
+        elif not isinstance(self.quantity, int):
+            self.quantity = int(self.quantity)
+
+        # Generate unique order_id if not provided (for direct instantiation)
+        if not hasattr(self, "order_id") or self.order_id is None:
+            self.order_id = uuid.uuid4().hex
+
+        import logging
+        logging.debug(f"MarketOrder created for {self.symbol} with quantity {self.quantity}")
+        # Call parent validation
+        super().__post_init__()
+
+    @classmethod
+    def create(
+        cls,
+        symbol: str,
+        quantity: int,
+        side: OrderSide,
+        tags: dict[str, Any] | None = None,
+        strategy_id: str | None = None,
+        ts_submitted: int | None = None,
+    ) -> "MarketOrder":
+        """Create MarketOrder with required fields."""
+        if ts_submitted is None:
+            ts_submitted = int(datetime.now().timestamp() * 1e9)
+
+        if quantity > 1:
+            print(
+                f"[ORDER DEBUG] strategy={strategy_id} submitting quantity={quantity}"
+            )
+
+        return cls(
+            order_id=uuid.uuid4().hex,
+            symbol=symbol,
+            side=side,
+            order_type=OrderType.MARKET,
+            quantity=quantity,
+            ts_submitted=ts_submitted,
+            tags=tags or {},
+            strategy_id=strategy_id,
+        )
 
 
 class OrderFactory:

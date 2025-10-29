@@ -3,9 +3,7 @@
 Check AAPL trading sessions and time ranges available in GOLD data
 """
 
-from datetime import datetime, timezone
 
-import numpy as np
 import pandas as pd
 import pytz
 
@@ -30,7 +28,7 @@ def check_aapl_sessions():
         )
 
         # Check unique session IDs and their time ranges
-        print(f"\n📊 Session Analysis:")
+        print("\n📊 Session Analysis:")
         print(f"   Unique sessions: {df['session_id'].nunique()}")
 
         # Group by session and get time ranges
@@ -40,7 +38,7 @@ def check_aapl_sessions():
             .round()
         )
 
-        print(f"\n🕐 Session Time Ranges (first 10 sessions):")
+        print("\n🕐 Session Time Ranges (first 10 sessions):")
         for i, (session_id, row) in enumerate(session_ranges.head(10).iterrows()):
             et_min = row[("ts_et", "min")]
             et_max = row[("ts_et", "max")]
@@ -52,7 +50,7 @@ def check_aapl_sessions():
         ].copy()
 
         if len(jan_9_data) > 0:
-            print(f"\n📅 January 9, 2024 Analysis:")
+            print("\n📅 January 9, 2024 Analysis:")
             print(f"   First bar: {jan_9_data['ts_et'].min()}")
             print(f"   Last bar: {jan_9_data['ts_et'].max()}")
             print(f"   Total bars: {len(jan_9_data)}")
@@ -67,7 +65,7 @@ def check_aapl_sessions():
                     f"   Pre-market range: {pre_market['ts_et'].min()} to {pre_market['ts_et'].max()}"
                 )
             else:
-                print(f"   Pre-market bars: 0 (no pre-market data)")
+                print("   Pre-market bars: 0 (no pre-market data)")
 
             # Check for post-market data (after 16:00 ET)
             post_market = jan_9_data[
@@ -79,12 +77,12 @@ def check_aapl_sessions():
                     f"   Post-market range: {post_market['ts_et'].min()} to {post_market['ts_et'].max()}"
                 )
             else:
-                print(f"   Post-market bars: 0 (no post-market data)")
+                print("   Post-market bars: 0 (no post-market data)")
         else:
-            print(f"\n❌ No data found for January 9, 2024")
+            print("\n❌ No data found for January 9, 2024")
 
         # Check overall time range in the dataset
-        print(f"\n📊 Overall Dataset Time Range:")
+        print("\n📊 Overall Dataset Time Range:")
         print(f"   Earliest: {df['ts_et'].min()}")
         print(f"   Latest: {df['ts_et'].max()}")
 
@@ -92,7 +90,7 @@ def check_aapl_sessions():
         df["time_only"] = df["ts_et"].dt.time
         unique_times = sorted(df["time_only"].unique())
 
-        print(f"\n🕐 Trading Hours Available:")
+        print("\n🕐 Trading Hours Available:")
         print(f"   Earliest time: {unique_times[0]}")
         print(f"   Latest time: {unique_times[-1]}")
 

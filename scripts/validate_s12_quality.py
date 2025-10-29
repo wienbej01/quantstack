@@ -9,7 +9,6 @@ Validates that S12 implementation meets quality standards for:
 - Code quality standards
 """
 
-import json
 import pathlib
 import subprocess
 import sys
@@ -140,7 +139,11 @@ def test_basic_linting():
     try:
         # Test ruff is working (no --version flag in this version)
         result = subprocess.run(
-            ["ruff", "check", "--help"], capture_output=True, text=True, timeout=10
+            ["ruff", "check", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             print("   ✅ Ruff linter available")
@@ -155,6 +158,7 @@ def test_basic_linting():
     try:
         result = subprocess.run(
             ["ruff", "check", "qx-core/src/", "--select=E,F", "--quiet"],
+            check=False,
             capture_output=True,
             text=True,
             timeout=30,
@@ -207,6 +211,7 @@ def test_makefile_functionality():
         # Test makefile parsing
         result = subprocess.run(
             ["make", "-n", "lint"],
+            check=False,
             capture_output=True,
             text=True,
             timeout=10,

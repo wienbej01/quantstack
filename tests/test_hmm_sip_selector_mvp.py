@@ -1,6 +1,5 @@
 """Tests for HMM SIP Universe Selector MVP."""
 
-import os
 import tempfile
 from pathlib import Path
 
@@ -85,7 +84,7 @@ def create_external_premarket_file(temp_dir, date_str, symbols=None, scores=None
         scores.append(0.5)
 
     data = []
-    for symbol, score in zip(symbols, scores):
+    for symbol, score in zip(symbols, scores, strict=False):
         data.append(
             {
                 "sym": symbol,

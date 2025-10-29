@@ -1,0 +1,70 @@
+{
+  "strategy": "AVWAP_Momentum",
+  "timestamp": "2025-10-23T16:17:29.391532",
+  "performance": {
+    "total_trades": 9,
+    "profitable_trades": 5,
+    "win_rate": 0.5555555555555556,
+    "total_pnl": -1.1670000000000869,
+    "avg_trade": -0.1296666666666763,
+    "best_trade": 0.15000000000000568,
+    "worst_trade": -0.9400000000000546
+  },
+  "regime_attribution": {
+    "UNKNOWN": {
+      "trades": 9,
+      "profitable": 5,
+      "total_pnl": -1.1670000000000869,
+      "win_rate": 0.5555555555555556,
+      "avg_trade": -0.1296666666666763
+    }
+  },
+  "feature_attribution": {
+    "avwap_features": {
+      "trades": 0,
+      "pnl": 0,
+      "participation_rate": 0,
+      "avg_pnl": 0
+    },
+    "volume_profile": {
+      "trades": 0,
+      "pnl": 0,
+      "participation_rate": 0,
+      "avg_pnl": 0
+    },
+    "ict_structures": {
+      "trades": 0,
+      "pnl": 0,
+      "participation_rate": 0,
+      "avg_pnl": 0
+    },
+    "order_flow": {
+      "trades": 0,
+      "pnl": 0,
+      "participation_rate": 0,
+      "avg_pnl": 0
+    },
+    "vpa_patterns": {
+      "trades": 0,
+      "pnl": 0,
+      "participation_rate": 0,
+      "avg_pnl": 0
+    }
+  },
+  "risk_metrics": {
+    "max_drawdown": -0.9400000000000546,
+    "profit_factor": 0.2540747842761569,
+    "avg_win": 0.07950000000001864,
+    "avg_loss": -0.391125000000045,
+    "largest_win": 0.15000000000000568,
+    "largest_loss": -0.9400000000000546,
+    "sharpe_ratio": -0.37789562083202943
+  },
+  "time_metrics": {
+    "avg_hold_time": 35.44444444444444,
+    "max_hold_time": 60,
+    "min_hold_time": 1,
+    "trades_under_30min": 4,
+    "trades_over_2hr": 0
+  }
+}

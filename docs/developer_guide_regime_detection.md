@@ -628,6 +628,40 @@ def analyze_regime_performance(trades_df: pd.DataFrame,
 
 ### 10.1 Common Issues
 
+**Issue: `RuntimeWarning: Mean of empty slice` during feature calculation**
+
+A `RuntimeWarning` from `numpy/lib/_nanfunctions_impl.py` indicates that a `.mean()` or similar aggregation function was called on a pandas Series containing only `NaN` values. This typically occurs for one of two reasons:
+
+1.  **Incomplete Warm-up Period:** A feature with a long lookback window (e.g., 100 bars) may still have `NaN` values even after a shorter, primary warm-up period has passed. The system's authoritative warm-up flag, `f__warmup_ok`, must account for the **longest lookback period of all combined feature sets** (core, regime, and enhanced). Ensure any data pipeline correctly generates a single flag based on the true maximum lookback.
+
+2.  **Unsafe Mean Calculation:** Some features, like `rel_volume_m`, calculate means over slices of data that can be empty under certain conditions (e.g., no prior data for a specific time-of-day on the first day of a backtest). These calculations must be made safe.
+
+**Solution: Refactor Unsafe Mean Calculations**
+
+The `rel_volume_m` feature was refactored to use a more robust `groupby().map()` pattern, which gracefully handles empty data slices and prevents the warning.
+
+*   **Old (unsafe) code:**
+    ```python
+    # Unsafe list comprehension that can call .mean() on an empty slice
+    tod_avg_vol = pd.Series(
+        [
+            group["volume"][np.array(tod_minutes) == minute].mean()
+            for minute in tod_minutes
+        ],
+        index=group.index,
+    )
+    ```
+
+*   **New (safe) code:**
+    ```python
+    # Robust groupby().map() approach
+    group["tod_minutes"] = [d.hour * 60 + d.minute for d in utc_ns_to_datetime(group["ts"].values)]
+    tod_avg_map = group.groupby("tod_minutes")["volume"].mean()
+    tod_avg_vol = group["tod_minutes"].map(tod_avg_map)
+    ```
+
+When debugging similar issues, be aware that `stdout` can be buffered, causing warnings to appear in the log later than when they actually occurred during execution. This can be misleading. A common pattern is for a warning generated during feature calculation to appear during a later stage, such as policy execution.
+
 **Issue: Excessive regime flipping**
 ```python
 # Solution: Increase persistence parameters

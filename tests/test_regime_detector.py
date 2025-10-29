@@ -177,6 +177,61 @@ class TestRegimeDetectorRules:
 
         assert detector.config.persistence_bars == 5
 
+    def test_am_pm_segment_caching(self):
+        """Test that detector only re-evaluates once per session segment."""
+        detector = RegimeDetectorRules()
+
+        def build_features(var_ratio, adx, band_pos, vol, ofi):
+            return pd.DataFrame(
+                {
+                    "symbol": ["AAPL"],
+                    "f__regime__var_ratio_10_60": [var_ratio],
+                    "f__regime__adx_proxy_14": [adx],
+                    "f__regime__band_pos_20_2.0": [band_pos],
+                    "f__regime__mod_vol_30": [vol],
+                    "f__regime__stress_10_10": [0.1],
+                    "f__regime__warmup_ok": [True],
+                    "f__flow__ofi_trend": [ofi],
+                    "f__ict__in_discount": [ofi > 0],
+                    "f__ict__in_premium": [ofi < 0],
+                    "f__profile__value_acceptance": [0.0],
+                }
+            )
+
+        morning_ts = (
+            pd.Timestamp("2024-01-02 10:00:00", tz="America/New_York")
+            .tz_convert("UTC")
+            .value
+        )
+        afternoon_ts = (
+            pd.Timestamp("2024-01-02 14:00:00", tz="America/New_York")
+            .tz_convert("UTC")
+            .value
+        )
+        late_afternoon_ts = (
+            pd.Timestamp("2024-01-02 15:30:00", tz="America/New_York")
+            .tz_convert("UTC")
+            .value
+        )
+
+        morning_features = build_features(1.4, 40.0, 0.7, 1.2, 0.2)
+        afternoon_features = build_features(0.6, 35.0, 0.3, 1.1, -0.2)
+        late_features = build_features(1.5, 45.0, 0.8, 1.0, 0.3)
+
+        morning_signal = detector.evaluate(morning_features, morning_ts)
+        assert morning_signal.regime == RegimeType.BULL
+        assert morning_signal.segment == "AM"
+        assert morning_signal.session_date == "2024-01-02"
+
+        afternoon_signal = detector.evaluate(afternoon_features, afternoon_ts)
+        assert afternoon_signal.regime == RegimeType.BEAR
+        assert afternoon_signal.segment == "PM"
+
+        cached_signal = detector.evaluate(late_features, late_afternoon_ts)
+        assert cached_signal.regime == RegimeType.BEAR
+        assert cached_signal.segment == "PM"
+        assert detector.get_statistics()["cached_segments"] == 2
+
     def test_evaluate_empty_dataframe(self):
         """Test evaluation with empty DataFrame."""
         detector = RegimeDetectorRules()
@@ -656,6 +711,80 @@ class TestEdgeCases:
         # (though confidence might be low for single change)
         assert signal1.persistence_count >= 0
         assert signal2.persistence_count >= 0
+
+
+def test_detector_with_newly_fixed_columns():
+    """Add scenario verifying evaluate() continues working with new features by including newly fixed columns (ensures no KeyError after changes)."""
+    # Create detector with default configuration
+    detector = create_default_detector()
+
+    # Create features including all newly fixed columns from Workstream B
+    features = {
+        # Basic regime features
+        "f__regime__var_ratio_10_60": 1.3,  # Trending market
+        "f__regime__adx_proxy_14": 32.0,  # Strong trend
+        "f__regime__mod_vol_30": 1.1,  # Normal volatility
+        "f__regime__band_pos_20_2.0": 0.85,  # Upper band position
+        "f__regime__stress_10_10": 0.0,  # No stress
+        # NEWLY FIXED COLUMNS from Workstream B:
+        # B1: Previous-Extreme AVWAP Persistence
+        "f__anchor__prev_high_avwap": 150.8,  # Should be computed properly without NaN issues
+        "f__anchor__prev_low_avwap": 149.2,  # Should maintain persistence after touch
+        # B2: ICT FVG Level Stability
+        "f__ict__fvg_bull_lower": 150.3,  # Should be non-null at first detection
+        "f__ict__fvg_bull_upper": 150.7,  # Should be properly set without shift errors
+        "f__ict__fvg_bull_active": True,  # Should correctly track fill status
+        "f__ict__fvg_bear_lower": 149.5,  # Should be non-null at first detection
+        "f__ict__fvg_bear_upper": 149.9,  # Should be properly set without shift errors
+        "f__ict__fvg_bear_active": False,  # Should correctly track fill status
+        # B3: VPA Stopping Volume Robustness
+        "f__vpa__stopping_volume": True,  # Should be computed without int < DataFrame errors
+        "f__vpa__absorption": True,  # Should work properly with fixed logic
+        "f__vpa__climax": False,  # Should work without errors
+        # Additional enhanced features to ensure compatibility
+        "f__anchor__session_avwap": 150.0,
+        "f__anchor__first_hour_avwap": 150.2,
+        "f__profile__poc": 150.1,
+        "f__profile__vah": 150.8,
+        "f__profile__val": 149.4,
+        "f__flow__ofi": 1200.0,
+        "f__flow__ofi_trend": 0.15,
+        "f__ict__in_discount": False,
+        "f__ict__disp_high": 151.0,
+        "f__ict__disp_low": 149.0,
+        "f__stress__contraction": False,
+    }
+
+    ts = 1704067200000000000  # 2024-01-01 00:00:00 UTC in nanoseconds
+
+    # This should not raise any KeyError exceptions
+    try:
+        signal = detector.evaluate_symbol("AAPL", features, ts)
+
+        # Verify signal was created successfully
+        assert signal is not None
+        assert signal.symbol == "AAPL"
+        assert signal.ts == ts
+
+        # With strong trend features, should detect BULL regime
+        assert signal.regime in [
+            RegimeType.BULL,
+            RegimeType.SIDEWAYS,
+        ]  # BULL expected but SIDEWAYS acceptable
+
+        # Should have confidence score
+        assert 0.0 <= signal.confidence <= 1.0
+
+        # Should have segment metadata
+        assert hasattr(signal, "segment")
+        assert hasattr(signal, "session_date")
+
+    except KeyError as e:
+        pytest.fail(
+            f"Detector evaluation failed with KeyError: {e}. This indicates the detector cannot handle newly fixed columns."
+        )
+    except Exception as e:
+        pytest.fail(f"Detector evaluation failed with unexpected error: {e}")
 
 
 if __name__ == "__main__":

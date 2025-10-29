@@ -107,6 +107,9 @@ class RegimeSignal(BaseModel):
     """Regime classification signal for strategy gating."""
 
     ts: int = Field(..., description="UTC nanosecond timestamp")
+    symbol: str | None = Field(
+        None, description="Symbol associated with this regime signal"
+    )
     regime: RegimeType = Field(..., description="Current market regime")
     confidence: float = Field(
         ..., ge=0.0, le=1.0, description="Classification confidence"
@@ -119,6 +122,12 @@ class RegimeSignal(BaseModel):
     )
     model_version: str = Field("rules_v1", description="Detector version")
     src: str = Field("regime", description="Signal source identifier")
+    segment: str | None = Field(
+        None, description="Intraday session segment label (e.g., AM/PM)"
+    )
+    session_date: str | None = Field(
+        None, description="Trading date in America/New_York (YYYY-MM-DD)"
+    )
 
 
 class Order(BaseModel):

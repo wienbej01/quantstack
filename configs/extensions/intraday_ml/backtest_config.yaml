@@ -1,0 +1,18 @@
+# Intraday ML backtest configuration
+initial_cash: 1000000.0
+write_artifacts: true
+artifacts_dir: "artifacts/intraday_ml"
+
+# Trading costs
+costs:
+  bps: 0.001
+  per_share: 0.003
+  slippage_ticks: 1
+  tick_size: 0.01
+
+# Intraday constraints
+intraday_constraints:
+  next_bar_execution: true
+  flat_eod_time: "15:59:59"
+  no_overnight_positions: true
+  eod_buffer_minutes: 5

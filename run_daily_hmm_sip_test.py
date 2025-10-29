@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Run VWAP strategy with daily HMM_SIP for January 2024."""
 
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -34,7 +33,7 @@ except ImportError as e:
 
 def load_config(config_path: Path) -> dict:
     """Load strategy configuration from YAML file."""
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     return config
 
@@ -211,7 +210,7 @@ def analyze_results(result, config):
     print("=" * 60)
 
     # Basic stats
-    print(f"Strategy: VWAP Reversion with Daily HMM_SIP")
+    print("Strategy: VWAP Reversion with Daily HMM_SIP")
     print(f"Date range: {result.start_date} to {result.end_date}")
     print(f"Initial equity: ${config['backtest']['initial_equity']:,.2f}")
     print(f"Final equity: ${result.equity_curve['total_equity'].iloc[-1]:,.2f}")
@@ -285,7 +284,7 @@ def analyze_results(result, config):
         trades_df = pd.DataFrame(result.trades_history)
         trades_df["date"] = pd.to_datetime(trades_df["timestamp"], unit="ns").dt.date
 
-        print(f"\nTrade Analysis by Symbol:")
+        print("\nTrade Analysis by Symbol:")
         symbol_stats = (
             trades_df.groupby("symbol")
             .agg({"quantity": "sum", "total_cost": "sum", "commission": "sum"})

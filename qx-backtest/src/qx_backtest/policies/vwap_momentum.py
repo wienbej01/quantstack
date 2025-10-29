@@ -1,5 +1,6 @@
 """VWAP momentum breakout trading policy."""
 
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -13,14 +14,7 @@ from .base import Policy
 
 
 class VwapMomentumPolicy(Policy):
-    """VWAP momentum breakout trading policy.
-
-    This policy implements a momentum strategy based on VWAP breakouts:
-    - Long Entry: Buy when close > VWAP and breakout strength >= minimum
-    - Long Exit: Sell when close <= VWAP or timeout after maximum bars
-    - Short Entry: Sell when close < VWAP and breakdown strength >= minimum
-    - Short Exit: Buy when close >= VWAP or timeout after maximum bars
-    """
+    """VWAP momentum breakout trading policy."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -34,18 +28,6 @@ class VwapMomentumPolicy(Policy):
         risk_params: dict[str, float] | None = None,
         atr_col: str = "f__vol__atr_14",
     ):
-        """Initialize VWAP momentum policy.
-
-        Args:
-            vwap_window: VWAP lookback window in minutes
-            min_rvol: Minimum relative volume for entry
-            max_position_bars: Maximum bars to hold position
-            position_size_pct: Position size as percentage of equity
-            max_positions: Maximum concurrent positions
-            min_breakout_strength: Minimum breakout strength required
-                (percentage deviation from VWAP)
-            name: Policy name
-        """
         super().__init__(name)
         self.vwap_window = vwap_window
         self.min_rvol = min_rvol
@@ -56,23 +38,24 @@ class VwapMomentumPolicy(Policy):
         self.risk_params = risk_params or {}
         self.atr_col = atr_col
 
-        # Track position entry times
         self.position_entry_times: dict[str, int] = {}
-        self.engine: Any = None  # Will be set by set_engine() method
+        self.trades_today: set[str] = set()
+        self.current_day: datetime.date | None = None
+        self.engine: Any = None
 
     def process_bar(self, bar: dict[str, Any]) -> None:
-        """Process a single bar of data."""
         symbol = bar["symbol"]
         timestamp = bar["ts"]
 
-        # Check required features
+        bar_date = datetime.fromtimestamp(timestamp / 1e9).date()
+        if self.current_day != bar_date:
+            self.current_day = bar_date
+            self.trades_today.clear()
+
         vwap_col = f"f__ta__vwap_{self.vwap_window}"
         rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
 
-        if vwap_col not in bar or rvol_col not in bar:
-            return
-
-        if not bar.get("f__warmup_ok", True):
+        if vwap_col not in bar or rvol_col not in bar or not bar.get("f__warmup_ok", True):
             return
 
         vwap = bar[vwap_col]
@@ -81,206 +64,82 @@ class VwapMomentumPolicy(Policy):
         high = bar["high"]
         low = bar["low"]
 
-        # Get current position
         position = self.get_position(symbol)
 
-        # Respect regime gating: exit positions but block new entries when disallowed
         if not self.is_allowed():
-            if position is not None and not position.is_flat:
-                self._check_exit_signal(
-                    symbol, bar, position, close, vwap, high, low, timestamp
-                )
+            if position and not position.is_flat:
+                self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
             return
 
         if position is None or position.is_flat:
-            # Check for entry signal (both long and short)
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
         else:
-            # Check for exit signal (both long and short)
-            self._check_exit_signal(
-                symbol, bar, position, close, vwap, high, low, timestamp
-            )
+            self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
 
-    def _check_entry_signal(  # noqa: PLR0913
-        self,
-        symbol: str,
-        bar: dict[str, Any],
-        close: float,
-        vwap: float,
-        rvol: float,
-        timestamp: int,
-    ) -> None:
-        """Check for momentum entry signal (both long and short)."""
-        # Check if we have room for more positions
-        if self.engine and self.engine.portfolio:
-            current_positions = len(self.engine.portfolio.positions)
-            if current_positions >= self.max_positions:
-                return
-        else:
+    def _check_entry_signal(self, symbol: str, bar: dict[str, Any], close: float, vwap: float, rvol: float, timestamp: int) -> None:
+        if symbol in self.trades_today:
             return
 
-        # Check if we already have a pending order for this symbol
-        pending_orders = self.get_pending_orders(symbol)
-        if pending_orders:
+        if self.engine and self.engine.portfolio and len(self.engine.portfolio.positions) >= self.max_positions:
             return
 
-        # Calculate VWAP breakout strength
+        if self.get_pending_orders(symbol):
+            return
+
         breakout_strength = (close - vwap) / vwap
         breakout_pct = abs(breakout_strength) * 100
 
-        # Entry criteria for both long and short positions
         if rvol >= self.min_rvol and breakout_pct >= self.min_breakout_strength:
             position_size = self._calculate_position_size(close, bar)
-
             if position_size > 0:
-                if close > vwap:
-                    # Long entry: price above VWAP (momentum breakout)
-                    if self.engine and self.engine.order_factory:
-                        order = self.engine.order_factory.create_market_order(
-                            symbol=symbol,
-                            side=OrderSide.BUY,
-                            quantity=position_size,
-                            tags={
-                                "policy": self.name,
-                                "direction": "LONG",
-                                "entry_price": close,
-                                "vwap": vwap,
-                                "rvol": rvol,
-                                "signal_strength": breakout_strength,
-                                "breakout_pct": breakout_pct,
-                            },
-                        )
-                        self.submit_order(order)
-                        self.position_entry_times[symbol] = timestamp
+                side = OrderSide.BUY if close > vwap else OrderSide.SELL
+                order = self.engine.order_factory.create_market_order(
+                    symbol=symbol,
+                    side=side,
+                    quantity=position_size,
+                    tags={
+                        "policy": self.name,
+                        "direction": "LONG" if side == OrderSide.BUY else "SHORT",
+                        "entry_price": close,
+                        "vwap": vwap,
+                        "rvol": rvol,
+                        "signal_strength": breakout_strength,
+                        "breakout_pct": breakout_pct,
+                    },
+                )
+                self.submit_order(order)
+                self.position_entry_times[symbol] = timestamp
 
-                elif close < vwap and self.engine and self.engine.order_factory:
-                    # Short entry: price below VWAP (momentum breakdown)
-                    order = self.engine.order_factory.create_market_order(
-                        symbol=symbol,
-                        side=OrderSide.SELL,
-                        quantity=position_size,
-                        tags={
-                            "policy": self.name,
-                            "direction": "SHORT",
-                            "entry_price": close,
-                            "vwap": vwap,
-                            "rvol": rvol,
-                            "signal_strength": abs(breakout_strength),
-                            "breakout_pct": breakout_pct,
-                        },
-                    )
-                    self.submit_order(order)
-                    self.position_entry_times[symbol] = timestamp
-
-    def _calculate_position_size(self, price: float, bar: dict[str, Any]) -> int:
-        """Calculate position size based on risk management."""
-        if price <= 0 or self.engine is None or self.engine.portfolio is None:
-            return 0
-
-        current_equity = getattr(self.engine.portfolio, "total_equity", 0.0) or 0.0
-        if current_equity <= 0:
-            return 0
-
-        target_value = current_equity * self.position_size_pct
-        position_size = int(target_value / price) if price > 0 else 0
-
-        atr = bar.get(self.atr_col)
-        if self.risk_params and atr and atr > 0:
-            atr_mult = self.risk_params.get("atr_mult", 1.0)
-            signal_dict = {
-                "entry_hint": price,
-                "stop_hint": price - atr * atr_mult if atr_mult else None,
-            }
-            qty = size_order(signal_dict, current_equity, atr, self.risk_params)
-            if qty:
-                position_size = qty
-
-        if position_size < 1:
-            return 0
-        return position_size
-
-    def on_start(self) -> None:
-        """Called when backtest starts."""
-        self.position_entry_times.clear()
-
-    def on_end(self) -> None:
-        """Called when backtest ends."""
-        # Could log statistics here
-        total_positions_held = len(self.position_entry_times)
-        if total_positions_held > 0:
-            avg_bars_held = (
-                np.mean(list(self.position_entry_times.values()))
-                if self.position_entry_times
-                else 0
-            )
-            print(
-                f"{self.name}: Held {total_positions_held} positions, "
-                f"avg bars held: {avg_bars_held:.1f}"
-            )
-
-    def _check_exit_signal(  # noqa: PLR0913
-        self,
-        symbol: str,
-        bar: dict[str, Any],
-        position: Position,
-        close: float,
-        vwap: float,
-        high: float,
-        low: float,
-        timestamp: int,
-    ) -> None:
-        """Check for momentum exit signal (both long and short positions)."""
-        # Check if position has entry time recorded
+    def _check_exit_signal(self, symbol: str, bar: dict[str, Any], position: Position, close: float, vwap: float, high: float, low: float, timestamp: int) -> None:
         if symbol not in self.position_entry_times:
             self.position_entry_times[symbol] = timestamp
 
         entry_time = self.position_entry_times[symbol]
-        bars_held = self._calculate_bars_held(entry_time, timestamp)
+        bars_held = (timestamp - entry_time) // (60 * 1e9)
 
-        # Determine position direction from position cost basis
-        is_long_position = position.quantity > 0
-
+        is_long = position.quantity > 0
         exit_reason = None
 
-        if is_long_position:
-            # Long position exit criteria (opposite of reversal)
-            if close <= vwap:
-                exit_reason = "vwap_target_long"
-            elif bars_held >= self.max_position_bars:
-                exit_reason = "timeout_long"
-        # Short position exit criteria (opposite of reversal)
-        elif close >= vwap:
-            exit_reason = "vwap_target_short"
-        elif bars_held >= self.max_position_bars:
-            exit_reason = "timeout_short"
+        if is_long and (close <= vwap or bars_held >= self.max_position_bars):
+            exit_reason = "vwap_target_long" if close <= vwap else "timeout_long"
+        elif not is_long and (close >= vwap or bars_held >= self.max_position_bars):
+            exit_reason = "vwap_target_short" if close >= vwap else "timeout_short"
 
         if exit_reason:
-            # Check if we already have a pending exit order
-            pending_orders = self.get_pending_orders(symbol)
-            exit_side = OrderSide.SELL if is_long_position else OrderSide.BUY
-            exit_pending = any(order.side == exit_side for order in pending_orders)
-
-            if not exit_pending and self.engine and self.engine.order_factory:
-                # Create exit order for entire position
+            exit_side = OrderSide.SELL if is_long else OrderSide.BUY
+            if not any(o.side == exit_side for o in self.get_pending_orders(symbol)):
                 order = self.engine.order_factory.create_market_order(
                     symbol=symbol,
                     side=exit_side,
                     quantity=abs(position.quantity),
                     tags={
                         "policy": self.name,
-                        "direction": "EXIT_"
-                        + ("LONG" if is_long_position else "SHORT"),
                         "exit_reason": exit_reason,
                         "bars_held": bars_held,
-                        "entry_price": position.avg_cost,
-                        "exit_price": close,
-                        "vwap": vwap,
-                        "position_side": "LONG" if is_long_position else "SHORT",
                     },
                 )
-
                 self.submit_order(order)
-                self.position_entry_times.pop(symbol, None)
+                self.trades_today.add(symbol)
                 self.position_entry_times.pop(symbol, None)
 
     def _calculate_bars_held(self, entry_time: int, current_time: int) -> int:

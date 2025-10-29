@@ -1,6 +1,6 @@
 """ATR-based stop and sizing with regime-aware risk controls."""
 
-from typing import Any, Dict
+from typing import Any
 
 # Try to import regime types
 try:
@@ -100,7 +100,7 @@ def _apply_regime_risk_adjustments(
     max_risk_frac: float,
     atr_mult: float,
     current_regime: RegimeType,
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> tuple[float, float]:
     """Apply regime-based risk adjustments.
 
@@ -179,7 +179,7 @@ def reject_order_for_regime(signal: dict, current_regime: RegimeType | None) -> 
     return False
 
 
-def get_regime_risk_context(current_regime: RegimeType | None) -> Dict[str, Any]:
+def get_regime_risk_context(current_regime: RegimeType | None) -> dict[str, Any]:
     """Get risk context information for current regime.
 
     Args:
