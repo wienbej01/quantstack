@@ -5,21 +5,28 @@ from multiple ML models using various ensemble methods.
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple, Union
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from collections import defaultdict
-
-import pandas as pd
-import numpy as np
 from statistics import mean, median
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from .base import BaseMLPolicy, PolicyDecision, PolicySignal, PolicyAction, PolicyMetrics
+import numpy as np
+import pandas as pd
+
+from .base import (
+    BaseMLPolicy,
+    PolicyAction,
+    PolicyDecision,
+    PolicyMetrics,
+    PolicySignal,
+)
 
 
 class EnsembleMethod(Enum):
     """Ensemble combination methods."""
+
     VOTING = "voting"
     WEIGHTED_AVERAGE = "weighted_average"
     STACKING = "stacking"
@@ -30,6 +37,7 @@ class EnsembleMethod(Enum):
 @dataclass
 class ModelConfig:
     """Configuration for individual models in ensemble."""
+
     model_id: str
     weight: float = 1.0
     enabled: bool = True
@@ -42,6 +50,7 @@ class ModelConfig:
 @dataclass
 class EnsemblePrediction:
     """Prediction from ensemble of models."""
+
     final_prediction: float
     confidence: float
     individual_predictions: Dict[str, float]
@@ -63,7 +72,7 @@ class EnsemblePolicy(BaseMLPolicy):
         model_ids: List[str],
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize ensemble ML policy.
@@ -81,17 +90,17 @@ class EnsemblePolicy(BaseMLPolicy):
         # Ensemble configuration
         self.model_ids = model_ids
         self.ensemble_method = EnsembleMethod(
-            self.config.get('ensemble_method', 'weighted_average')
+            self.config.get("ensemble_method", "weighted_average")
         )
-        self.consensus_threshold = self.config.get('consensus_threshold', 0.6)
-        self.diversification_bonus = self.config.get('diversification_bonus', 0.1)
+        self.consensus_threshold = self.config.get("consensus_threshold", 0.6)
+        self.diversification_bonus = self.config.get("diversification_bonus", 0.1)
 
         # Model configurations
         self.model_configs: Dict[str, ModelConfig] = {}
         for model_id in model_ids:
             self.model_configs[model_id] = ModelConfig(
                 model_id=model_id,
-                weight=1.0 / len(model_ids)  # Equal weights initially
+                weight=1.0 / len(model_ids),  # Equal weights initially
             )
 
         # Individual model predictors
@@ -100,33 +109,35 @@ class EnsemblePolicy(BaseMLPolicy):
             try:
                 self.predictors[model_id] = type(self.predictor)(self.registry)
             except Exception as e:
-                self.logger.warning(f"Failed to initialize predictor for {model_id}: {e}")
+                self.logger.warning(
+                    f"Failed to initialize predictor for {model_id}: {e}"
+                )
 
         # Performance tracking for individual models
         self.model_performance: Dict[str, Dict[str, float]] = defaultdict(
             lambda: {
-                'accuracy': 0.5,
-                'confidence': 0.5,
-                'prediction_count': 0,
-                'success_count': 0,
-                'last_updated': None
+                "accuracy": 0.5,
+                "confidence": 0.5,
+                "prediction_count": 0,
+                "success_count": 0,
+                "last_updated": None,
             }
         )
 
         # Ensemble performance tracking
         self.ensemble_metrics = {
-            'total_predictions': 0,
-            'successful_predictions': 0,
-            'accuracy': 0.0,
-            'avg_confidence': 0.0,
-            'diversity_score': 0.0,
-            'consensus_rate': 0.0
+            "total_predictions": 0,
+            "successful_predictions": 0,
+            "accuracy": 0.0,
+            "avg_confidence": 0.0,
+            "diversity_score": 0.0,
+            "consensus_rate": 0.0,
         }
 
         # Dynamic adaptation parameters
-        self.performance_window = self.config.get('performance_window', 100)
-        self.weight_learning_rate = self.config.get('weight_learning_rate', 0.01)
-        self.enable_dynamic_weights = self.config.get('enable_dynamic_weights', True)
+        self.performance_window = self.config.get("performance_window", 100)
+        self.weight_learning_rate = self.config.get("weight_learning_rate", 0.01)
+        self.enable_dynamic_weights = self.config.get("enable_dynamic_weights", True)
 
         self.logger = logging.getLogger(__name__)
 
@@ -134,7 +145,7 @@ class EnsemblePolicy(BaseMLPolicy):
         self,
         features: Dict[str, float],
         current_position: float,
-        market_data: pd.DataFrame
+        market_data: pd.DataFrame,
     ) -> PolicySignal:
         """
         Generate ensemble trading signal from multiple models.
@@ -171,7 +182,7 @@ class EnsemblePolicy(BaseMLPolicy):
         signal: PolicySignal,
         confidence: float,
         volatility: float,
-        account_value: float
+        account_value: float,
     ) -> float:
         """
         Calculate position size with ensemble confidence adjustments.
@@ -186,22 +197,33 @@ class EnsemblePolicy(BaseMLPolicy):
             Ensemble-adjusted position size
         """
         # Get base position size
-        base_position_size = super().calculate_position_size(signal, confidence, volatility, account_value)
+        base_position_size = super().calculate_position_size(
+            signal, confidence, volatility, account_value
+        )
 
         # Adjust based on ensemble consensus
         consensus_multiplier = 1.0
-        if self.ensemble_metrics['consensus_rate'] < self.consensus_threshold:
+        if self.ensemble_metrics["consensus_rate"] < self.consensus_threshold:
             consensus_multiplier = 0.7  # Reduce size when models disagree
 
         # Adjust based on model diversity
-        diversity_multiplier = 1.0 + self.diversification_bonus * self.ensemble_metrics['diversity_score']
+        diversity_multiplier = (
+            1.0 + self.diversification_bonus * self.ensemble_metrics["diversity_score"]
+        )
 
         # Adjust based on ensemble accuracy
-        accuracy_multiplier = 0.5 + 0.5 * self.ensemble_metrics['accuracy']
+        accuracy_multiplier = 0.5 + 0.5 * self.ensemble_metrics["accuracy"]
 
-        return base_position_size * consensus_multiplier * diversity_multiplier * accuracy_multiplier
+        return (
+            base_position_size
+            * consensus_multiplier
+            * diversity_multiplier
+            * accuracy_multiplier
+        )
 
-    def get_ensemble_prediction(self, features: Dict[str, float]) -> Optional[EnsemblePrediction]:
+    def get_ensemble_prediction(
+        self, features: Dict[str, float]
+    ) -> Optional[EnsemblePrediction]:
         """
         Get ensemble prediction from all models.
 
@@ -226,14 +248,19 @@ class EnsemblePolicy(BaseMLPolicy):
             try:
                 # Get prediction from model
                 features_df = pd.DataFrame([features])
-                results = predictor.predict(model_id, features_df, return_probabilities=True)
+                results = predictor.predict(
+                    model_id, features_df, return_probabilities=True
+                )
 
                 if results and len(results) > 0:
                     result = results[0]
-                    prediction = float(result.prediction[0]) if result.prediction else 0.0
+                    prediction = (
+                        float(result.prediction[0]) if result.prediction else 0.0
+                    )
                     confidence = (
                         float(result.prediction_probability[0])
-                        if result.prediction_probability and len(result.prediction_probability) > 0
+                        if result.prediction_probability
+                        and len(result.prediction_probability) > 0
                         else 0.5
                     )
 
@@ -282,13 +309,17 @@ class EnsemblePolicy(BaseMLPolicy):
             ensemble_method=self.ensemble_method,
             voting_breakdown=voting_breakdown,
             metadata={
-                'model_count': len(individual_predictions),
-                'prediction_variance': np.var(list(individual_predictions.values())),
-                'agreement_score': self._calculate_agreement_score(individual_predictions)
-            }
+                "model_count": len(individual_predictions),
+                "prediction_variance": np.var(list(individual_predictions.values())),
+                "agreement_score": self._calculate_agreement_score(
+                    individual_predictions
+                ),
+            },
         )
 
-    def update_model_performance(self, model_id: str, actual_outcome: float, predicted: float) -> None:
+    def update_model_performance(
+        self, model_id: str, actual_outcome: float, predicted: float
+    ) -> None:
         """
         Update performance tracking for individual model.
 
@@ -303,17 +334,19 @@ class EnsemblePolicy(BaseMLPolicy):
         perf = self.model_performance[model_id]
 
         # Update prediction count
-        perf['prediction_count'] += 1
+        perf["prediction_count"] += 1
 
         # Update success based on direction accuracy
-        if (actual_outcome > 0 and predicted > 0) or (actual_outcome < 0 and predicted < 0):
-            perf['success_count'] += 1
+        if (actual_outcome > 0 and predicted > 0) or (
+            actual_outcome < 0 and predicted < 0
+        ):
+            perf["success_count"] += 1
 
         # Update accuracy
-        if perf['prediction_count'] > 0:
-            perf['accuracy'] = perf['success_count'] / perf['prediction_count']
+        if perf["prediction_count"] > 0:
+            perf["accuracy"] = perf["success_count"] / perf["prediction_count"]
 
-        perf['last_updated'] = datetime.now()
+        perf["last_updated"] = datetime.now()
 
         # Update model weights if dynamic weighting is enabled
         if self.enable_dynamic_weights:
@@ -333,28 +366,26 @@ class EnsemblePolicy(BaseMLPolicy):
             self.logger.info(f"Updated config for model {model_id}")
 
     def _voting_ensemble(
-        self,
-        predictions: Dict[str, float],
-        confidences: Dict[str, float]
+        self, predictions: Dict[str, float], confidences: Dict[str, float]
     ) -> Tuple[float, float, Dict[str, int]]:
         """Combine predictions using majority voting."""
         # Convert predictions to votes (buy/sell/hold)
-        votes = {'buy': 0, 'sell': 0, 'hold': 0}
-        weighted_votes = {'buy': 0.0, 'sell': 0.0, 'hold': 0.0}
+        votes = {"buy": 0, "sell": 0, "hold": 0}
+        weighted_votes = {"buy": 0.0, "sell": 0.0, "hold": 0.0}
 
         for model_id, prediction in predictions.items():
             confidence = confidences.get(model_id, 0.5)
             weight = self.model_configs[model_id].weight
 
             if prediction > 0.1:
-                votes['buy'] += 1
-                weighted_votes['buy'] += confidence * weight
+                votes["buy"] += 1
+                weighted_votes["buy"] += confidence * weight
             elif prediction < -0.1:
-                votes['sell'] += 1
-                weighted_votes['sell'] += confidence * weight
+                votes["sell"] += 1
+                weighted_votes["sell"] += confidence * weight
             else:
-                votes['hold'] += 1
-                weighted_votes['hold'] += confidence * weight
+                votes["hold"] += 1
+                weighted_votes["hold"] += confidence * weight
 
         # Determine winner
         max_votes = max(votes.values())
@@ -367,9 +398,9 @@ class EnsemblePolicy(BaseMLPolicy):
             winner = max(weighted_votes, key=weighted_votes.get)
 
         # Convert to numeric prediction
-        if winner == 'buy':
+        if winner == "buy":
             final_prediction = max(predictions.values())
-        elif winner == 'sell':
+        elif winner == "sell":
             final_prediction = min(predictions.values())
         else:
             final_prediction = 0.0
@@ -381,9 +412,7 @@ class EnsemblePolicy(BaseMLPolicy):
         return final_prediction, confidence, votes
 
     def _weighted_average_ensemble(
-        self,
-        predictions: Dict[str, float],
-        confidences: Dict[str, float]
+        self, predictions: Dict[str, float], confidences: Dict[str, float]
     ) -> Tuple[float, float]:
         """Combine predictions using weighted average."""
         weighted_sum = 0.0
@@ -409,7 +438,7 @@ class EnsemblePolicy(BaseMLPolicy):
         self,
         predictions: Dict[str, float],
         confidences: Dict[str, float],
-        features: Dict[str, float]
+        features: Dict[str, float],
     ) -> Tuple[float, float]:
         """Combine predictions using stacking (meta-learner)."""
         # This is a simplified stacking implementation
@@ -422,7 +451,7 @@ class EnsemblePolicy(BaseMLPolicy):
         self,
         predictions: Dict[str, float],
         confidences: Dict[str, float],
-        features: Dict[str, float]
+        features: Dict[str, float],
     ) -> Tuple[float, float]:
         """Combine predictions using dynamic method selection."""
         # Choose ensemble method based on current conditions
@@ -431,7 +460,9 @@ class EnsemblePolicy(BaseMLPolicy):
 
         if agreement_score > 0.8:  # High agreement
             # Use simple average
-            return np.mean(list(predictions.values())), np.mean(list(confidences.values()))
+            return np.mean(list(predictions.values())), np.mean(
+                list(confidences.values())
+            )
         elif prediction_variance > 0.5:  # High disagreement
             # Use voting to be more conservative
             final_pred, conf, _ = self._voting_ensemble(predictions, confidences)
@@ -441,9 +472,7 @@ class EnsemblePolicy(BaseMLPolicy):
             return self._weighted_average_ensemble(predictions, confidences)
 
     def _performance_based_ensemble(
-        self,
-        predictions: Dict[str, float],
-        confidences: Dict[str, float]
+        self, predictions: Dict[str, float], confidences: Dict[str, float]
     ) -> Tuple[float, float]:
         """Combine predictions weighted by recent performance."""
         weighted_sum = 0.0
@@ -452,7 +481,7 @@ class EnsemblePolicy(BaseMLPolicy):
 
         for model_id, prediction in predictions.items():
             base_weight = self.model_configs[model_id].weight
-            performance_weight = self.model_performance[model_id]['accuracy']
+            performance_weight = self.model_performance[model_id]["accuracy"]
             confidence = confidences.get(model_id, 0.5)
 
             # Combined weight: base * performance * confidence
@@ -481,37 +510,38 @@ class EnsemblePolicy(BaseMLPolicy):
 
     def _update_ensemble_metrics(self, ensemble_prediction: EnsemblePrediction) -> None:
         """Update ensemble performance metrics."""
-        self.ensemble_metrics['total_predictions'] += 1
+        self.ensemble_metrics["total_predictions"] += 1
 
         # Update diversity score
         if len(ensemble_prediction.individual_predictions) > 1:
-            pred_variance = ensemble_prediction.metadata.get('prediction_variance', 0.0)
-            self.ensemble_metrics['diversity_score'] = min(1.0, pred_variance / 2.0)
+            pred_variance = ensemble_prediction.metadata.get("prediction_variance", 0.0)
+            self.ensemble_metrics["diversity_score"] = min(1.0, pred_variance / 2.0)
 
         # Update consensus rate
-        agreement_score = ensemble_prediction.metadata.get('agreement_score', 0.0)
-        self.ensemble_metrics['consensus_rate'] = agreement_score
+        agreement_score = ensemble_prediction.metadata.get("agreement_score", 0.0)
+        self.ensemble_metrics["consensus_rate"] = agreement_score
 
     def _update_model_weights(self) -> None:
         """Update model weights based on recent performance."""
         # Calculate performance-based weights
         total_performance = sum(
-            self.model_performance[model_id]['accuracy']
+            self.model_performance[model_id]["accuracy"]
             for model_id in self.model_performance
         )
 
         if total_performance > 0:
             for model_id, config in self.model_configs.items():
-                performance = self.model_performance[model_id]['accuracy']
+                performance = self.model_performance[model_id]["accuracy"]
                 target_weight = performance / total_performance
 
                 # Smooth weight update
                 new_weight = (
-                    (1 - self.weight_learning_rate) * config.weight +
-                    self.weight_learning_rate * target_weight
-                )
+                    1 - self.weight_learning_rate
+                ) * config.weight + self.weight_learning_rate * target_weight
 
-                config.weight = max(0.1, min(2.0, new_weight))  # Keep weights reasonable
+                config.weight = max(
+                    0.1, min(2.0, new_weight)
+                )  # Keep weights reasonable
 
     def _prediction_to_signal(self, prediction: float) -> PolicySignal:
         """Convert numeric prediction to policy signal."""

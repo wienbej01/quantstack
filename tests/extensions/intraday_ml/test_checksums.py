@@ -20,7 +20,9 @@ class TestComputeInputChecksums:
     def sample_bars_df(self):
         """Create sample bars DataFrame."""
         np.random.seed(42)
-        timestamps = pd.date_range("2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC")
+        timestamps = pd.date_range(
+            "2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC"
+        )
 
         data = {
             "ts": timestamps.astype(np.int64),
@@ -37,7 +39,9 @@ class TestComputeInputChecksums:
     def sample_features_df(self):
         """Create sample features DataFrame."""
         np.random.seed(42)
-        timestamps = pd.date_range("2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC")
+        timestamps = pd.date_range(
+            "2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC"
+        )
 
         data = {
             "ts": timestamps.astype(np.int64),
@@ -97,12 +101,8 @@ class TestComputeInputChecksums:
         """Test that features hash is deterministic."""
         config = {"test": "config"}
 
-        checksums1 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config
-        )
-        checksums2 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config
-        )
+        checksums1 = compute_input_checksums(sample_bars_df, sample_features_df, config)
+        checksums2 = compute_input_checksums(sample_bars_df, sample_features_df, config)
 
         # Features hash should be identical for same input
         assert checksums1["features_hash"] == checksums2["features_hash"]
@@ -152,9 +152,7 @@ class TestComputeInputChecksums:
         """Test SIP hash computation without universe."""
         config = {"test": "config"}
 
-        checksums = compute_input_checksums(
-            sample_bars_df, sample_features_df, config
-        )
+        checksums = compute_input_checksums(sample_bars_df, sample_features_df, config)
 
         assert "sip_hash" in checksums
         assert len(checksums["sip_hash"]) >= 32  # SIP hash may be different length

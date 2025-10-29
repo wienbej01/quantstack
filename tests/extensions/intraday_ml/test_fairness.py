@@ -2,7 +2,11 @@
 
 import pytest
 
-from extensions.intraday_ml.cli.fairness import ChecksumValidator, FairnessConfig, FairnessResult
+from extensions.intraday_ml.cli.fairness import (
+    ChecksumValidator,
+    FairnessConfig,
+    FairnessResult,
+)
 
 
 @pytest.fixture

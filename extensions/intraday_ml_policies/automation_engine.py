@@ -4,24 +4,28 @@ This module provides automated execution, monitoring, and management of ML tradi
 with support for multiple execution modes and real-time adaptation.
 """
 
+import asyncio
 import logging
-import time
 import threading
-from typing import Dict, Any, List, Optional, Callable
+import time
+from collections import defaultdict, deque
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from concurrent.futures import ThreadPoolExecutor, Future, as_completed
 from enum import Enum
-from collections import defaultdict, deque
-import asyncio
+from typing import Any, Callable, Dict, List, Optional
 
 from extensions.intraday_ml_policies.base import BaseMLPolicy, PolicyDecision
-from extensions.intraday_ml_policies.policy_selector import PolicySelector, SelectionCriteria
 from extensions.intraday_ml_policies.performance_tracker import PolicyPerformanceTracker
+from extensions.intraday_ml_policies.policy_selector import (
+    PolicySelector,
+    SelectionCriteria,
+)
 
 
 class AutomationState(Enum):
     """Automation engine states."""
+
     STOPPED = "stopped"
     STARTING = "starting"
     RUNNING = "running"
@@ -32,15 +36,17 @@ class AutomationState(Enum):
 
 class ExecutionMode(Enum):
     """Policy execution modes."""
-    SINGLE = "single"           # Execute single best policy
-    PARALLEL = "parallel"       # Execute all policies in parallel
-    ENSEMBLE = "ensemble"       # Execute ensemble of policies
-    ADAPTIVE = "adaptive"       # Adaptively select based on conditions
+
+    SINGLE = "single"  # Execute single best policy
+    PARALLEL = "parallel"  # Execute all policies in parallel
+    ENSEMBLE = "ensemble"  # Execute ensemble of policies
+    ADAPTIVE = "adaptive"  # Adaptively select based on conditions
 
 
 @dataclass
 class AutomationConfig:
     """Configuration for policy automation engine."""
+
     execution_mode: ExecutionMode = ExecutionMode.PARALLEL
     update_interval_seconds: int = 60
     max_concurrent_policies: int = 5
@@ -56,6 +62,7 @@ class AutomationConfig:
 @dataclass
 class ExecutionResult:
     """Result of policy execution."""
+
     policy_id: str
     decision: Optional[PolicyDecision]
     execution_time_ms: float
@@ -67,6 +74,7 @@ class ExecutionResult:
 @dataclass
 class AutomationMetrics:
     """Automation engine performance metrics."""
+
     total_executions: int = 0
     successful_executions: int = 0
     failed_executions: int = 0
@@ -89,7 +97,7 @@ class PolicyAutomationEngine:
         policies: Dict[str, BaseMLPolicy],
         config: AutomationConfig,
         policy_selector: Optional[PolicySelector] = None,
-        performance_tracker: Optional[PolicyPerformanceTracker] = None
+        performance_tracker: Optional[PolicyPerformanceTracker] = None,
     ):
         """
         Initialize policy automation engine.
@@ -118,13 +126,15 @@ class PolicyAutomationEngine:
 
         # Metrics and monitoring
         self.metrics = AutomationMetrics()
-        self.execution_statistics: Dict[str, Dict[str, Any]] = defaultdict(lambda: {
-            "total_executions": 0,
-            "successful_executions": 0,
-            "failed_executions": 0,
-            "avg_execution_time_ms": 0.0,
-            "last_execution": None
-        })
+        self.execution_statistics: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {
+                "total_executions": 0,
+                "successful_executions": 0,
+                "failed_executions": 0,
+                "avg_execution_time_ms": 0.0,
+                "last_execution": None,
+            }
+        )
 
         # Callbacks
         self.execution_callbacks: List[Callable[[ExecutionResult], None]] = []
@@ -141,7 +151,9 @@ class PolicyAutomationEngine:
         self.stop_event.clear()
         self.pause_event.clear()
 
-        self.execution_thread = threading.Thread(target=self._execution_loop, daemon=True)
+        self.execution_thread = threading.Thread(
+            target=self._execution_loop, daemon=True
+        )
         self.execution_thread.start()
 
         # Wait for startup
@@ -202,10 +214,7 @@ class PolicyAutomationEngine:
         self.logger.info("Updated automation configuration")
 
     def execute_policies(
-        self,
-        market_data: Any,
-        portfolio: Any,
-        policy_ids: Optional[List[str]] = None
+        self, market_data: Any, portfolio: Any, policy_ids: Optional[List[str]] = None
     ) -> List[ExecutionResult]:
         """Execute policies immediately."""
         if policy_ids is None:
@@ -226,12 +235,18 @@ class PolicyAutomationEngine:
                 "failed_executions": self.metrics.failed_executions,
                 "avg_execution_time_ms": self.metrics.avg_execution_time_ms,
                 "error_rate": self.metrics.error_rate,
-                "uptime_seconds": self.metrics.uptime_seconds
+                "uptime_seconds": self.metrics.uptime_seconds,
             },
-            "last_execution": self.metrics.last_execution_time.isoformat() if self.metrics.last_execution_time else None
+            "last_execution": (
+                self.metrics.last_execution_time.isoformat()
+                if self.metrics.last_execution_time
+                else None
+            ),
         }
 
-    def add_execution_callback(self, callback: Callable[[ExecutionResult], None]) -> None:
+    def add_execution_callback(
+        self, callback: Callable[[ExecutionResult], None]
+    ) -> None:
         """Add callback for execution results."""
         self.execution_callbacks.append(callback)
 
@@ -293,7 +308,9 @@ class PolicyAutomationEngine:
             elif self.config.execution_mode == ExecutionMode.ADAPTIVE:
                 results = self._execute_adaptive(policy_ids)
             else:
-                raise ValueError(f"Unknown execution mode: {self.config.execution_mode}")
+                raise ValueError(
+                    f"Unknown execution mode: {self.config.execution_mode}"
+                )
 
             # Process results
             self._process_execution_results(results)
@@ -309,11 +326,10 @@ class PolicyAutomationEngine:
 
         if self.config.execution_mode == ExecutionMode.SINGLE:
             # Select single best policy
-            criteria = SelectionCriteria(
-                method="best_performance",
-                min_executions=10
+            criteria = SelectionCriteria(method="best_performance", min_executions=10)
+            best_policy = self.policy_selector.select_best_policy(
+                self.policies, criteria
             )
-            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
             return [best_policy] if best_policy else []
 
         elif self.config.execution_mode == ExecutionMode.PARALLEL:
@@ -323,19 +339,19 @@ class PolicyAutomationEngine:
         elif self.config.execution_mode == ExecutionMode.ENSEMBLE:
             # Select top policies for ensemble
             criteria = SelectionCriteria(
-                method="ensemble",
-                top_k=min(3, len(self.policies))
+                method="ensemble", top_k=min(3, len(self.policies))
             )
-            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
+            best_policy = self.policy_selector.select_best_policy(
+                self.policies, criteria
+            )
             return [best_policy] if best_policy else list(self.policies.keys())
 
         elif self.config.execution_mode == ExecutionMode.ADAPTIVE:
             # Adaptively select based on current conditions
-            criteria = SelectionCriteria(
-                method="regime_based",
-                min_executions=5
+            criteria = SelectionCriteria(method="regime_based", min_executions=5)
+            best_policy = self.policy_selector.select_best_policy(
+                self.policies, criteria
             )
-            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
             return [best_policy] if best_policy else list(self.policies.keys())
 
         return list(self.policies.keys())
@@ -358,11 +374,13 @@ class PolicyAutomationEngine:
                 policy_id=policy_id,
                 decision=decision,
                 execution_time_ms=execution_time_ms,
-                success=True
+                success=True,
             )
 
             # Record in performance tracker
-            self.performance_tracker.record_decision(policy_id, decision, execution_time_ms)
+            self.performance_tracker.record_decision(
+                policy_id, decision, execution_time_ms
+            )
 
             return result
 
@@ -375,7 +393,7 @@ class PolicyAutomationEngine:
                 decision=None,
                 execution_time_ms=execution_time_ms,
                 success=False,
-                error_message=str(e)
+                error_message=str(e),
             )
 
     def _execute_parallel(self, policy_ids: List[str]) -> List[ExecutionResult]:
@@ -388,7 +406,9 @@ class PolicyAutomationEngine:
                 futures[future] = policy_id
 
         results = []
-        for future in as_completed(futures, timeout=self.config.max_execution_time_ms / 1000.0):
+        for future in as_completed(
+            futures, timeout=self.config.max_execution_time_ms / 1000.0
+        ):
             try:
                 result = future.result()
                 results.append(result)
@@ -396,13 +416,15 @@ class PolicyAutomationEngine:
                 policy_id = futures[future]
                 self.logger.error(f"Parallel execution failed for {policy_id}: {e}")
 
-                results.append(ExecutionResult(
-                    policy_id=policy_id,
-                    decision=None,
-                    execution_time_ms=0.0,
-                    success=False,
-                    error_message=str(e)
-                ))
+                results.append(
+                    ExecutionResult(
+                        policy_id=policy_id,
+                        decision=None,
+                        execution_time_ms=0.0,
+                        success=False,
+                        error_message=str(e),
+                    )
+                )
 
         return results
 
@@ -415,7 +437,9 @@ class PolicyAutomationEngine:
         successful_results = [r for r in individual_results if r.success and r.decision]
 
         if successful_results:
-            ensemble_decision = self._create_ensemble_decision([r.decision for r in successful_results])
+            ensemble_decision = self._create_ensemble_decision(
+                [r.decision for r in successful_results]
+            )
             ensemble_result = ExecutionResult(
                 policy_id="ensemble",
                 decision=ensemble_decision,
@@ -423,19 +447,21 @@ class PolicyAutomationEngine:
                 success=True,
                 metadata={
                     "ensemble_policies": [r.policy_id for r in successful_results],
-                    "ensemble_size": len(successful_results)
-                }
+                    "ensemble_size": len(successful_results),
+                },
             )
             return [ensemble_result]
         else:
             # No successful executions
-            return [ExecutionResult(
-                policy_id="ensemble",
-                decision=None,
-                execution_time_ms=0.0,
-                success=False,
-                error_message="No successful policy executions"
-            )]
+            return [
+                ExecutionResult(
+                    policy_id="ensemble",
+                    decision=None,
+                    execution_time_ms=0.0,
+                    success=False,
+                    error_message="No successful policy executions",
+                )
+            ]
 
     def _execute_adaptive(self, policy_ids: List[str]) -> List[ExecutionResult]:
         """Execute policies with adaptive selection."""
@@ -444,21 +470,26 @@ class PolicyAutomationEngine:
         if policy_ids:
             return [self._execute_single_policy(policy_ids[0])]
         else:
-            return [ExecutionResult(
-                policy_id="adaptive",
-                decision=None,
-                execution_time_ms=0.0,
-                success=False,
-                error_message="No policies available for adaptive execution"
-            )]
+            return [
+                ExecutionResult(
+                    policy_id="adaptive",
+                    decision=None,
+                    execution_time_ms=0.0,
+                    success=False,
+                    error_message="No policies available for adaptive execution",
+                )
+            ]
 
-    def _create_ensemble_decision(self, decisions: List[PolicyDecision]) -> PolicyDecision:
+    def _create_ensemble_decision(
+        self, decisions: List[PolicyDecision]
+    ) -> PolicyDecision:
         """Create ensemble decision from multiple decisions."""
         if not decisions:
             raise ValueError("No decisions provided for ensemble")
 
         # Simple voting for action
         from collections import Counter
+
         action_votes = Counter(d.action for d in decisions)
         ensemble_action = action_votes.most_common(1)[0][0]
 
@@ -474,8 +505,8 @@ class PolicyAutomationEngine:
             signal_strength=avg_signal,
             metadata={
                 "ensemble_size": len(decisions),
-                "voting_pattern": dict(action_votes)
-            }
+                "voting_pattern": dict(action_votes),
+            },
         )
 
     def _process_execution_results(self, results: List[ExecutionResult]) -> None:
@@ -496,8 +527,8 @@ class PolicyAutomationEngine:
             else:
                 alpha = 0.1
                 self.metrics.avg_execution_time_ms = (
-                    alpha * result.execution_time_ms +
-                    (1 - alpha) * self.metrics.avg_execution_time_ms
+                    alpha * result.execution_time_ms
+                    + (1 - alpha) * self.metrics.avg_execution_time_ms
                 )
 
             # Update policy-specific statistics
@@ -516,8 +547,8 @@ class PolicyAutomationEngine:
             else:
                 alpha = 0.1
                 stats["avg_execution_time_ms"] = (
-                    alpha * result.execution_time_ms +
-                    (1 - alpha) * stats["avg_execution_time_ms"]
+                    alpha * result.execution_time_ms
+                    + (1 - alpha) * stats["avg_execution_time_ms"]
                 )
 
             # Update error rate
@@ -534,10 +565,7 @@ class PolicyAutomationEngine:
                     self.logger.error(f"Error in execution callback: {e}")
 
     def _execute_policies_batch(
-        self,
-        market_data: Any,
-        portfolio: Any,
-        policy_ids: List[str]
+        self, market_data: Any, portfolio: Any, policy_ids: List[str]
     ) -> List[ExecutionResult]:
         """Execute a batch of policies."""
         # For now, use the existing execution methods
@@ -547,5 +575,10 @@ class PolicyAutomationEngine:
         elif self.config.execution_mode == ExecutionMode.ENSEMBLE:
             return self._execute_ensemble(policy_ids)
         else:
-            return [self._execute_single_policy(policy_ids[0]) if policy_ids else
-                   ExecutionResult("", None, 0.0, False, "No policies specified")]
+            return [
+                (
+                    self._execute_single_policy(policy_ids[0])
+                    if policy_ids
+                    else ExecutionResult("", None, 0.0, False, "No policies specified")
+                )
+            ]

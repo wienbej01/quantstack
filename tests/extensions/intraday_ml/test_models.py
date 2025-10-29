@@ -1,15 +1,16 @@
 """Tests for ML model functionality."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch
 from pathlib import Path
+from unittest.mock import Mock, patch
 
-from extensions.intraday_ml_models.registry import MLModelRegistry
-from extensions.intraday_ml_models.trainers import MLModelTrainer
+import numpy as np
+import pandas as pd
+import pytest
+
 from extensions.intraday_ml_models.predictors import MLPredictor
+from extensions.intraday_ml_models.registry import MLModelRegistry
 from extensions.intraday_ml_models.schemas import ModelConfig, ModelType
+from extensions.intraday_ml_models.trainers import MLModelTrainer
 
 
 @pytest.fixture
@@ -19,16 +20,18 @@ def sample_bars():
     n_samples = 1000
 
     data = {
-        'ts': pd.date_range('2024-01-01', periods=n_samples, freq='1min').astype(np.int64),
-        'symbol': ['AAPL'] * n_samples,
-        'open': 150.0 + np.random.randn(n_samples) * 2,
-        'high': 152.0 + np.random.randn(n_samples) * 2,
-        'low': 148.0 + np.random.randn(n_samples) * 2,
-        'close': 150.0 + np.random.randn(n_samples) * 2,
-        'volume': 1000000 + np.random.randn(n_samples) * 100000,
-        'f__vwap_30': 150.0 + np.random.randn(n_samples) * 1,
-        'f__rel_volume_30': 1.0 + np.random.randn(n_samples) * 0.3,
-        'f__atr_14': 2.0 + np.random.randn(n_samples) * 0.5,
+        "ts": pd.date_range("2024-01-01", periods=n_samples, freq="1min").astype(
+            np.int64
+        ),
+        "symbol": ["AAPL"] * n_samples,
+        "open": 150.0 + np.random.randn(n_samples) * 2,
+        "high": 152.0 + np.random.randn(n_samples) * 2,
+        "low": 148.0 + np.random.randn(n_samples) * 2,
+        "close": 150.0 + np.random.randn(n_samples) * 2,
+        "volume": 1000000 + np.random.randn(n_samples) * 100000,
+        "f__vwap_30": 150.0 + np.random.randn(n_samples) * 1,
+        "f__rel_volume_30": 1.0 + np.random.randn(n_samples) * 0.3,
+        "f__atr_14": 2.0 + np.random.randn(n_samples) * 0.5,
     }
 
     return pd.DataFrame(data)
@@ -53,17 +56,21 @@ class TestMLModelRegistry:
     def test_register_and_load_model(self, temp_registry_dir, sample_bars):
         """Test model registration and loading."""
         from sklearn.ensemble import RandomForestClassifier
-        from extensions.intraday_ml_models.schemas import ModelMetadata, FeatureImportance
+
+        from extensions.intraday_ml_models.schemas import (
+            FeatureImportance,
+            ModelMetadata,
+        )
 
         registry = MLModelRegistry(temp_registry_dir)
 
         # Create and train a simple model
         model = RandomForestClassifier(n_estimators=5, random_state=42)
-        features = ['f__vwap_30', 'f__rel_volume_30', 'f__atr_14']
+        features = ["f__vwap_30", "f__rel_volume_30", "f__atr_14"]
         X = sample_bars[features].iloc[:500]
 
         # Create binary target with proper alignment
-        target_series = (sample_bars['close'].pct_change().shift(-5) > 0.01).astype(int)
+        target_series = (sample_bars["close"].pct_change().shift(-5) > 0.01).astype(int)
         y = target_series.iloc[:500].dropna()
         X = X.loc[y.index]  # Align features with target
 
@@ -89,7 +96,7 @@ class TestMLModelRegistry:
             ],
             random_seed=42,
             data_hash="test_hash",
-            model_hash="model_hash"
+            model_hash="model_hash",
         )
 
         # Register model
@@ -144,15 +151,17 @@ class TestMLModelTrainer:
         return ModelConfig(
             model_type=ModelType.CLASSIFICATION,
             model_class="RandomForestClassifier",
-            features=['f__vwap_30', 'f__rel_volume_30', 'f__atr_14'],
+            features=["f__vwap_30", "f__rel_volume_30", "f__atr_14"],
             target_column="close",
             prediction_horizon_bars=5,
-            random_seed=42
+            random_seed=42,
         )
 
     def test_prepare_training_data(self, trainer, sample_bars, sample_config):
         """Test training data preparation."""
-        features_df, target_series = trainer.prepare_training_data(sample_bars, sample_config)
+        features_df, target_series = trainer.prepare_training_data(
+            sample_bars, sample_config
+        )
 
         # Verify features
         assert list(features_df.columns) == sample_config.features
@@ -170,22 +179,24 @@ class TestMLModelTrainer:
         # Add binary classification target for testing
         sample_bars_with_target = sample_bars.copy()
         # Create simple classification target: 1 if price goes up > 1%, 0 otherwise
-        sample_bars_with_target['classification_target'] = (
-            sample_bars['close'].pct_change().shift(-5) > 0.01
+        sample_bars_with_target["classification_target"] = (
+            sample_bars["close"].pct_change().shift(-5) > 0.01
         ).astype(int)
 
         # Update config to use classification target
         classification_config = ModelConfig(
             model_type=ModelType.CLASSIFICATION,
             model_class="RandomForestClassifier",
-            features=['f__vwap_30', 'f__rel_volume_30', 'f__atr_14'],
+            features=["f__vwap_30", "f__rel_volume_30", "f__atr_14"],
             target_column="classification_target",
             prediction_horizon_bars=5,
-            random_seed=42
+            random_seed=42,
         )
 
         # Train model
-        metadata = trainer.train_model(sample_bars_with_target, classification_config, model_id="test_train")
+        metadata = trainer.train_model(
+            sample_bars_with_target, classification_config, model_id="test_train"
+        )
 
         # Verify metadata
         assert metadata.model_id == "test_train"
@@ -214,15 +225,19 @@ class TestMLPredictor:
     def trained_model(self, predictor, sample_bars):
         """Create a trained model for testing."""
         from sklearn.ensemble import RandomForestClassifier
-        from extensions.intraday_ml_models.schemas import ModelMetadata, FeatureImportance
+
+        from extensions.intraday_ml_models.schemas import (
+            FeatureImportance,
+            ModelMetadata,
+        )
 
         # Train simple model
         model = RandomForestClassifier(n_estimators=5, random_state=42)
-        features = ['f__vwap_30', 'f__rel_volume_30', 'f__atr_14']
+        features = ["f__vwap_30", "f__rel_volume_30", "f__atr_14"]
         X = sample_bars[features].iloc[:500]
 
         # Create binary target with proper alignment
-        target_series = (sample_bars['close'].pct_change().shift(-5) > 0.01).astype(int)
+        target_series = (sample_bars["close"].pct_change().shift(-5) > 0.01).astype(int)
         y = target_series.iloc[:500].dropna()
         X = X.loc[y.index]  # Align features with target
 
@@ -248,7 +263,7 @@ class TestMLPredictor:
             ],
             random_seed=42,
             data_hash="test_hash",
-            model_hash="model_hash"
+            model_hash="model_hash",
         )
 
         # Register model
@@ -258,18 +273,14 @@ class TestMLPredictor:
 
     def test_predict_single(self, predictor, sample_bars, trained_model):
         """Test single prediction."""
-        features = {
-            'f__vwap_30': 150.5,
-            'f__rel_volume_30': 1.2,
-            'f__atr_14': 2.1
-        }
+        features = {"f__vwap_30": 150.5, "f__rel_volume_30": 1.2, "f__atr_14": 2.1}
 
         result = predictor.predict_single(
             model_id=trained_model,
             features=features,
             timestamp=1640995200000000000,  # 2022-01-01 00:00:00 UTC in ns
             symbol="AAPL",
-            return_probability=True
+            return_probability=True,
         )
 
         # Verify result structure
@@ -282,14 +293,16 @@ class TestMLPredictor:
     def test_predict_batch(self, predictor, sample_bars, trained_model):
         """Test batch prediction."""
         # Use subset of features for prediction
-        features_df = sample_bars[['f__vwap_30', 'f__rel_volume_30', 'f__atr_14']].iloc[:10]
+        features_df = sample_bars[["f__vwap_30", "f__rel_volume_30", "f__atr_14"]].iloc[
+            :10
+        ]
 
         results = predictor.predict(
             model_id=trained_model,
             features=features_df,
-            timestamps=sample_bars['ts'].iloc[:10],
-            symbols=sample_bars['symbol'].iloc[:10],
-            return_probabilities=True
+            timestamps=sample_bars["ts"].iloc[:10],
+            symbols=sample_bars["symbol"].iloc[:10],
+            return_probabilities=True,
         )
 
         # Verify results
@@ -302,29 +315,25 @@ class TestMLPredictor:
     def test_feature_validation(self, predictor, trained_model):
         """Test feature validation."""
         # Missing features
-        incomplete_features = {'f__vwap_30': 150.5}
+        incomplete_features = {"f__vwap_30": 150.5}
 
         with pytest.raises(ValueError, match="Missing required features"):
             predictor.predict_single(
                 model_id=trained_model,
                 features=incomplete_features,
                 timestamp=1640995200000000000,
-                symbol="AAPL"
+                symbol="AAPL",
             )
 
         # NaN features
-        nan_features = {
-            'f__vwap_30': np.nan,
-            'f__rel_volume_30': 1.2,
-            'f__atr_14': 2.1
-        }
+        nan_features = {"f__vwap_30": np.nan, "f__rel_volume_30": 1.2, "f__atr_14": 2.1}
 
         with pytest.raises(ValueError, match="Features contain NaN"):
             predictor.predict_single(
                 model_id=trained_model,
                 features=nan_features,
                 timestamp=1640995200000000000,
-                symbol="AAPL"
+                symbol="AAPL",
             )
 
 

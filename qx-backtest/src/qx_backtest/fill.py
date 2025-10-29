@@ -1,13 +1,14 @@
 """Fill simulation for backtesting engine."""
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-import logging
 
 def log_debug(msg):
     logging.debug(msg)
+
 
 from .order import Order, OrderSide, OrderType
 

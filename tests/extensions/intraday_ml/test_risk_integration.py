@@ -1,14 +1,20 @@
 """Tests for ML-powered risk management."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from extensions.intraday_ml_risk.ml_risk_manager import (
-    MLRiskManager, RiskMetrics, RiskLevel, RiskLimit,
-    PositionRiskMonitor, PortfolioRiskMonitor, RiskModelManager
+    MLRiskManager,
+    PortfolioRiskMonitor,
+    PositionRiskMonitor,
+    RiskLevel,
+    RiskLimit,
+    RiskMetrics,
+    RiskModelManager,
 )
 
 
@@ -20,7 +26,7 @@ def sample_features():
         "volume_ratio": 1.2,
         "price_momentum": 0.05,
         "market_beta": 1.1,
-        "liquidity_score": 0.8
+        "liquidity_score": 0.8,
     }
 
 
@@ -33,22 +39,22 @@ def sample_risk_limits():
             metric_name="total_risk_score",
             threshold=0.8,
             operator="lt",
-            action="reduce"
+            action="reduce",
         ),
         RiskLimit(
             name="max_drawdown",
             metric_name="max_drawdown",
             threshold=10.0,
             operator="lt",
-            action="close"
+            action="close",
         ),
         RiskLimit(
             name="min_sharpe_ratio",
             metric_name="sharpe_ratio",
             threshold=-1.0,
             operator="gt",
-            action="warn"
-        )
+            action="warn",
+        ),
     ]
 
 
@@ -73,7 +79,7 @@ class TestRiskMetrics:
             correlation_risk=0.3,
             concentration_risk=0.4,
             liquidity_risk=0.2,
-            total_risk_score=0.6
+            total_risk_score=0.6,
         )
 
         assert metrics.position_id == "position_1"
@@ -102,7 +108,7 @@ class TestRiskMetrics:
             correlation_risk=0,
             concentration_risk=0,
             liquidity_risk=0,
-            total_risk_score=0.2  # Low risk
+            total_risk_score=0.2,  # Low risk
         )
 
         medium_risk = RiskMetrics(
@@ -120,7 +126,7 @@ class TestRiskMetrics:
             correlation_risk=0,
             concentration_risk=0,
             liquidity_risk=0,
-            total_risk_score=0.5  # Medium risk
+            total_risk_score=0.5,  # Medium risk
         )
 
         high_risk = RiskMetrics(
@@ -138,7 +144,7 @@ class TestRiskMetrics:
             correlation_risk=0,
             concentration_risk=0,
             liquidity_risk=0,
-            total_risk_score=0.7  # High risk
+            total_risk_score=0.7,  # High risk
         )
 
         critical_risk = RiskMetrics(
@@ -156,7 +162,7 @@ class TestRiskMetrics:
             correlation_risk=0,
             concentration_risk=0,
             liquidity_risk=0,
-            total_risk_score=0.9  # Critical risk
+            total_risk_score=0.9,  # Critical risk
         )
 
         assert low_risk.risk_level == RiskLevel.LOW
@@ -170,7 +176,7 @@ class TestRiskModelManager:
 
     def setup_method(self):
         """Set up test environment."""
-        with patch('extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry'):
+        with patch("extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry"):
             self.risk_model_manager = RiskModelManager()
 
     def test_risk_model_manager_initialization(self):
@@ -179,8 +185,8 @@ class TestRiskModelManager:
         assert self.risk_model_manager.models == {}
         assert self.risk_model_manager.model_cache_timeout == timedelta(minutes=30)
 
-    @patch('extensions.intraday_ml_risk.ml_risk_manager.MLPredictor')
-    @patch('extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry')
+    @patch("extensions.intraday_ml_risk.ml_risk_manager.MLPredictor")
+    @patch("extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry")
     def test_load_risk_model(self, mock_registry_class, mock_predictor_class):
         """Test loading a risk model."""
         # Setup mocks
@@ -196,9 +202,11 @@ class TestRiskModelManager:
         assert "risk_model_1" in self.risk_model_manager.models
         assert "risk_model_1" in self.risk_model_manager._last_load_time
 
-    @patch('extensions.intraday_ml_risk.ml_risk_manager.MLPredictor')
-    @patch('extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry')
-    def test_predict_risk_metrics(self, mock_registry_class, mock_predictor_class, sample_features):
+    @patch("extensions.intraday_ml_risk.ml_risk_manager.MLPredictor")
+    @patch("extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry")
+    def test_predict_risk_metrics(
+        self, mock_registry_class, mock_predictor_class, sample_features
+    ):
         """Test risk metrics prediction."""
         # Setup mocks
         mock_registry = Mock()
@@ -216,7 +224,9 @@ class TestRiskModelManager:
         self.risk_model_manager.load_risk_model("risk_model_1")
 
         # Predict risk metrics
-        result = self.risk_model_manager.predict_risk_metrics("risk_model_1", sample_features)
+        result = self.risk_model_manager.predict_risk_metrics(
+            "risk_model_1", sample_features
+        )
 
         assert result is not None
         assert result["risk_score"] == 0.6
@@ -226,7 +236,9 @@ class TestRiskModelManager:
 
     def test_predict_risk_metrics_model_not_loaded(self, sample_features):
         """Test risk prediction when model is not loaded."""
-        result = self.risk_model_manager.predict_risk_metrics("nonexistent_model", sample_features)
+        result = self.risk_model_manager.predict_risk_metrics(
+            "nonexistent_model", sample_features
+        )
         assert result is None
 
     def test_model_cache_timeout(self):
@@ -234,7 +246,9 @@ class TestRiskModelManager:
         # Set a very short timeout for testing
         self.risk_model_manager.model_cache_timeout = timedelta(milliseconds=1)
 
-        with patch('extensions.intraday_ml_risk.ml_risk_manager.MLPredictor') as mock_predictor_class:
+        with patch(
+            "extensions.intraday_ml_risk.ml_risk_manager.MLPredictor"
+        ) as mock_predictor_class:
             mock_predictor = Mock()
             mock_predictor_class.return_value = mock_predictor
 
@@ -246,7 +260,9 @@ class TestRiskModelManager:
             time.sleep(0.002)
 
             # Try to use model - should trigger reload
-            with patch.object(self.risk_model_manager, 'load_risk_model', return_value=False) as mock_load:
+            with patch.object(
+                self.risk_model_manager, "load_risk_model", return_value=False
+            ) as mock_load:
                 result = self.risk_model_manager.predict_risk_metrics("test_model", {})
                 assert result is None
                 mock_load.assert_called_once_with("test_model")
@@ -279,7 +295,7 @@ class TestPositionRiskMonitor:
             symbol=symbol,
             size=size,
             entry_price=entry_price,
-            current_price=current_price
+            current_price=current_price,
         )
 
         assert risk_metrics.position_id == position_id
@@ -312,7 +328,7 @@ class TestPositionRiskMonitor:
             entry_price=entry_price,
             current_price=current_price,
             features=sample_features,
-            risk_model_id="risk_model_1"
+            risk_model_id="risk_model_1",
         )
 
         stored_data = self.position_monitor.position_data[position_id]
@@ -333,7 +349,7 @@ class TestPositionRiskMonitor:
             symbol=symbol,
             size=size,
             entry_price=entry_price,
-            current_price=current_price
+            current_price=current_price,
         )
 
         # Verify basic risk calculations
@@ -364,7 +380,7 @@ class TestPositionRiskMonitor:
             symbol="AAPL",
             size=100.0,
             entry_price=150.0,
-            current_price=155.0
+            current_price=155.0,
         )
 
         # Get risk metrics
@@ -383,7 +399,7 @@ class TestPositionRiskMonitor:
                 symbol="AAPL",
                 size=100.0,
                 entry_price=150.0,
-                current_price=150.0 + i  # Vary price
+                current_price=150.0 + i,  # Vary price
             )
 
         # Get full history
@@ -405,7 +421,7 @@ class TestPositionRiskMonitor:
             symbol="AAPL",
             size=100.0,
             entry_price=150.0,
-            current_price=155.0
+            current_price=155.0,
         )
 
         # Verify position exists
@@ -434,7 +450,7 @@ class TestPositionRiskMonitor:
                     symbol="AAPL",
                     size=100.0,
                     entry_price=150.0,
-                    current_price=150.0 + i
+                    current_price=150.0 + i,
                 )
                 results.append(risk.total_risk_score)
                 time.sleep(0.001)
@@ -498,7 +514,7 @@ class TestPortfolioRiskMonitor:
         # Mock position monitor with positions
         position_data = {
             "pos1": {"current_price": 155.0},
-            "pos2": {"current_price": 160.0}
+            "pos2": {"current_price": 160.0},
         }
         self.position_monitor.position_data = position_data
 
@@ -527,10 +543,9 @@ class TestPortfolioRiskMonitor:
         risk2.concentration_risk = 0.3
         risk2.liquidity_risk = 0.25
 
-        self.position_monitor.get_position_risk = Mock(side_effect=lambda pid: {
-            "pos1": risk1,
-            "pos2": risk2
-        }.get(pid))
+        self.position_monitor.get_position_risk = Mock(
+            side_effect=lambda pid: {"pos1": risk1, "pos2": risk2}.get(pid)
+        )
 
         portfolio_risk = self.portfolio_monitor.calculate_portfolio_risk()
 
@@ -556,7 +571,7 @@ class TestPortfolioRiskMonitor:
         mock_history = [
             Mock(total_risk_score=0.3),
             Mock(total_risk_score=0.4),
-            Mock(total_risk_score=0.5)
+            Mock(total_risk_score=0.5),
         ]
         self.portfolio_monitor.portfolio_risk_history = mock_history
 
@@ -581,10 +596,10 @@ class TestMLRiskManager:
                 metric_name="total_risk_score",
                 threshold=0.8,
                 operator="lt",
-                action="warn"
+                action="warn",
             )
         ]
-        with patch('extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry'):
+        with patch("extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry"):
             self.risk_manager = MLRiskManager(risk_limits=self.risk_limits)
 
     def test_risk_manager_initialization(self):
@@ -608,7 +623,7 @@ class TestMLRiskManager:
             symbol=symbol,
             size=size,
             entry_price=entry_price,
-            current_price=current_price
+            current_price=current_price,
         )
 
         assert risk_metrics.position_id == position_id
@@ -629,13 +644,12 @@ class TestMLRiskManager:
             symbol="AAPL",
             size=100.0,
             entry_price=150.0,
-            current_price=155.0
+            current_price=155.0,
         )
 
         # Update position
         updated_risk = self.risk_manager.update_position(
-            position_id=position_id,
-            current_price=160.0
+            position_id=position_id, current_price=160.0
         )
 
         assert updated_risk.position_id == position_id
@@ -651,7 +665,7 @@ class TestMLRiskManager:
             symbol="AAPL",
             size=100.0,
             entry_price=150.0,
-            current_price=155.0
+            current_price=155.0,
         )
 
         # Verify position exists
@@ -669,7 +683,9 @@ class TestMLRiskManager:
         mock_portfolio_risk = Mock()
         mock_portfolio_risk.total_risk_score = 0.6
         mock_portfolio_risk.var_95 = 5000.0
-        self.risk_manager.portfolio_monitor.calculate_portfolio_risk.return_value = mock_portfolio_risk
+        self.risk_manager.portfolio_monitor.calculate_portfolio_risk.return_value = (
+            mock_portfolio_risk
+        )
 
         portfolio_risk = self.risk_manager.get_portfolio_risk()
         assert portfolio_risk is mock_portfolio_risk
@@ -680,14 +696,18 @@ class TestMLRiskManager:
         mock_portfolio_risk = Mock()
         mock_portfolio_risk.to_dict.return_value = {
             "risk_level": "medium",
-            "total_risk_score": 0.6
+            "total_risk_score": 0.6,
         }
 
         mock_position_risk = Mock()
         mock_position_risk.risk_level = RiskLevel.MEDIUM.value
 
-        self.risk_manager.portfolio_monitor.calculate_portfolio_risk.return_value = mock_portfolio_risk
-        self.risk_manager.position_monitor.get_position_risk.return_value = mock_position_risk
+        self.risk_manager.portfolio_monitor.calculate_portfolio_risk.return_value = (
+            mock_portfolio_risk
+        )
+        self.risk_manager.position_monitor.get_position_risk.return_value = (
+            mock_position_risk
+        )
         self.risk_manager.position_monitor.position_data = {"pos1": {}, "pos2": {}}
 
         summary = self.risk_manager.get_risk_summary()
@@ -703,7 +723,9 @@ class TestMLRiskManager:
 
     def test_load_risk_model(self):
         """Test loading a risk model."""
-        with patch.object(self.risk_manager.risk_model_manager, 'load_risk_model') as mock_load:
+        with patch.object(
+            self.risk_manager.risk_model_manager, "load_risk_model"
+        ) as mock_load:
             mock_load.return_value = True
 
             result = self.risk_manager.load_risk_model("risk_model_1")
@@ -716,7 +738,7 @@ class TestMLRiskManager:
         # Mock some loaded models
         self.risk_manager.risk_model_manager.models = {
             "risk_model_1": Mock(),
-            "risk_model_2": Mock()
+            "risk_model_2": Mock(),
         }
 
         models = self.risk_manager.get_available_risk_models()
@@ -737,7 +759,9 @@ class TestMLRiskManager:
         assert "min_sharpe_ratio" in limit_names
 
         # Check limit properties
-        max_risk_limit = next(limit for limit in limits if limit.name == "max_position_risk")
+        max_risk_limit = next(
+            limit for limit in limits if limit.name == "max_position_risk"
+        )
         assert max_risk_limit.metric_name == "total_risk_score"
         assert max_risk_limit.threshold == 0.8
         assert max_risk_limit.operator == "lt"

@@ -4,12 +4,13 @@ This module wraps existing qx-features functionality while providing
 Sprint 3 interface for feature engineering and enrichment.
 """
 
-import pandas as pd
 from typing import Any, Dict, List
 
-from qx_features.core_basics import vwap_m, atr_m, rel_volume_m
-from qx_features.registry import apply
+import pandas as pd
+
 from qx_core.hashers import hash_dataframe
+from qx_features.core_basics import atr_m, rel_volume_m, vwap_m
+from qx_features.registry import apply
 
 
 def intraday_ml_apply_features(

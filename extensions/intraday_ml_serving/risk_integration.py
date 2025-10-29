@@ -1,22 +1,28 @@
 """Risk-aware ML serving integration."""
 
 import logging
+import queue
 import time
-from typing import Dict, Any, List, Optional, Callable, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from threading import Lock
-import queue
+from typing import Any, Callable, Dict, List, Optional, Tuple
+
 import numpy as np
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
-from extensions.intraday_ml_risk.ml_risk_manager import MLRiskManager, RiskMetrics, RiskLevel
+from extensions.intraday_ml_risk.ml_risk_manager import (
+    MLRiskManager,
+    RiskLevel,
+    RiskMetrics,
+)
 
 
 @dataclass
 class RiskAwareConfig:
     """Configuration for risk-aware serving."""
+
     enable_risk_filtering: bool = True
     max_risk_score: float = 0.7
     risk_adjustment_factor: float = 0.5
@@ -29,6 +35,7 @@ class RiskAwareConfig:
 @dataclass
 class RiskAwarePrediction:
     """Risk-aware prediction result."""
+
     prediction: float
     original_prediction: float
     confidence: float
@@ -47,7 +54,7 @@ class RiskAwareServing:
         self,
         model_predictor: MLPredictor,
         risk_manager: MLRiskManager,
-        config: Optional[RiskAwareConfig] = None
+        config: Optional[RiskAwareConfig] = None,
     ):
         """
         Initialize risk-aware serving.
@@ -68,7 +75,9 @@ class RiskAwareServing:
         self.prediction_count = 0
         self.blocked_predictions = 0
 
-    def predict_with_risk(self, features: Dict[str, float], position_size: Optional[float] = None) -> RiskAwarePrediction:
+    def predict_with_risk(
+        self, features: Dict[str, float], position_size: Optional[float] = None
+    ) -> RiskAwarePrediction:
         """
         Make prediction with risk assessment.
 
@@ -85,13 +94,21 @@ class RiskAwareServing:
         # Get original prediction
         original_result = self.predictor.predict(features)
         original_prediction = float(original_result.prediction)
-        confidence = float(original_result.prediction_probability) if hasattr(original_result, 'prediction_probability') else 0.5
+        confidence = (
+            float(original_result.prediction_probability)
+            if hasattr(original_result, "prediction_probability")
+            else 0.5
+        )
 
         # Get risk assessment
-        risk_metrics = self.assess_prediction_risk(features, original_prediction, position_size)
+        risk_metrics = self.assess_prediction_risk(
+            features, original_prediction, position_size
+        )
 
         # Apply risk adjustments
-        risk_adjusted_prediction = self.apply_risk_adjustment(original_prediction, risk_metrics)
+        risk_adjusted_prediction = self.apply_risk_adjustment(
+            original_prediction, risk_metrics
+        )
         position_size_multiplier = self.calculate_position_size_multiplier(risk_metrics)
 
         # Check if prediction is allowed
@@ -107,7 +124,7 @@ class RiskAwareServing:
             position_size_multiplier=position_size_multiplier,
             risk_level=risk_metrics.risk_level,
             prediction_allowed=prediction_allowed,
-            risk_reasons=risk_reasons
+            risk_reasons=risk_reasons,
         )
 
         # Log and monitor
@@ -116,7 +133,12 @@ class RiskAwareServing:
 
         return result
 
-    def assess_prediction_risk(self, features: Dict[str, float], prediction: float, position_size: Optional[float] = None) -> RiskMetrics:
+    def assess_prediction_risk(
+        self,
+        features: Dict[str, float],
+        prediction: float,
+        position_size: Optional[float] = None,
+    ) -> RiskMetrics:
         """Assess risk for a prediction."""
         try:
             # Create a temporary position for risk assessment
@@ -135,11 +157,13 @@ class RiskAwareServing:
                 symbol=symbol,
                 size=position_size,
                 entry_price=entry_price,
-                current_price=current_price
+                current_price=current_price,
             )
 
             # Adjust risk based on prediction characteristics
-            risk_metrics = self.adjust_risk_for_prediction(risk_metrics, prediction, features)
+            risk_metrics = self.adjust_risk_for_prediction(
+                risk_metrics, prediction, features
+            )
 
             # Clean up temporary position
             self.risk_manager.remove_position(position_id)
@@ -171,10 +195,12 @@ class RiskAwareServing:
                 expected_shortfall_1d=0.0,
                 maximum_drawdown=0.0,
                 time_in_position=timedelta(0),
-                last_updated=datetime.now()
+                last_updated=datetime.now(),
             )
 
-    def adjust_risk_for_prediction(self, risk_metrics: RiskMetrics, prediction: float, features: Dict[str, float]) -> RiskMetrics:
+    def adjust_risk_for_prediction(
+        self, risk_metrics: RiskMetrics, prediction: float, features: Dict[str, float]
+    ) -> RiskMetrics:
         """Adjust risk metrics based on prediction characteristics."""
         # Increase risk for extreme predictions
         prediction_magnitude = abs(prediction)
@@ -205,13 +231,17 @@ class RiskAwareServing:
 
         return risk_metrics
 
-    def apply_risk_adjustment(self, prediction: float, risk_metrics: RiskMetrics) -> float:
+    def apply_risk_adjustment(
+        self, prediction: float, risk_metrics: RiskMetrics
+    ) -> float:
         """Apply risk-based adjustment to prediction."""
         if not self.config.enable_risk_filtering:
             return prediction
 
         # Adjust prediction based on risk level
-        risk_factor = 1.0 - (risk_metrics.risk_score * self.config.risk_adjustment_factor)
+        risk_factor = 1.0 - (
+            risk_metrics.risk_score * self.config.risk_adjustment_factor
+        )
         risk_factor = max(risk_factor, 0.1)  # Don't reduce to zero
 
         return prediction * risk_factor
@@ -231,7 +261,9 @@ class RiskAwareServing:
         else:
             return 0.1  # Minimal size for critical risk
 
-    def check_prediction_allowed(self, risk_metrics: RiskMetrics) -> Tuple[bool, List[str]]:
+    def check_prediction_allowed(
+        self, risk_metrics: RiskMetrics
+    ) -> Tuple[bool, List[str]]:
         """Check if prediction is allowed based on risk."""
         if not self.config.enable_risk_filtering:
             return True, []
@@ -240,7 +272,9 @@ class RiskAwareServing:
 
         # Check risk score threshold
         if risk_metrics.risk_score > self.config.max_risk_score:
-            reasons.append(f"Risk score {risk_metrics.risk_score:.2f} exceeds threshold {self.config.max_risk_score}")
+            reasons.append(
+                f"Risk score {risk_metrics.risk_score:.2f} exceeds threshold {self.config.max_risk_score}"
+            )
 
         # Check portfolio heat
         if self.config.portfolio_consideration and risk_metrics.portfolio_heat > 0.8:
@@ -248,11 +282,15 @@ class RiskAwareServing:
 
         # Check exposure limits
         if risk_metrics.total_exposure > risk_metrics.exposure_limit:
-            reasons.append(f"Exposure {risk_metrics.total_exposure:.2f} exceeds limit {risk_metrics.exposure_limit:.2f}")
+            reasons.append(
+                f"Exposure {risk_metrics.total_exposure:.2f} exceeds limit {risk_metrics.exposure_limit:.2f}"
+            )
 
         # Check correlation risk
         if risk_metrics.correlation_risk > 0.7:
-            reasons.append(f"Correlation risk {risk_metrics.correlation_risk:.2f} too high")
+            reasons.append(
+                f"Correlation risk {risk_metrics.correlation_risk:.2f} too high"
+            )
 
         # Check liquidity risk
         if risk_metrics.liquidity_risk > 0.8:
@@ -282,21 +320,26 @@ class RiskAwareServing:
         """Update risk monitoring metrics."""
         try:
             # Add to risk history
-            self.risk_history.put({
-                "timestamp": datetime.now(),
-                "risk_score": result.risk_metrics.risk_score,
-                "risk_level": result.risk_level.value,
-                "prediction_allowed": result.prediction_allowed,
-                "original_prediction": result.original_prediction,
-                "adjusted_prediction": result.prediction
-            })
+            self.risk_history.put(
+                {
+                    "timestamp": datetime.now(),
+                    "risk_score": result.risk_metrics.risk_score,
+                    "risk_level": result.risk_level.value,
+                    "prediction_allowed": result.prediction_allowed,
+                    "original_prediction": result.original_prediction,
+                    "adjusted_prediction": result.prediction,
+                }
+            )
 
             # Update counters
             if not result.prediction_allowed:
                 self.blocked_predictions += 1
 
             # Alert on high risk
-            if self.config.alert_on_high_risk and result.risk_level in [RiskLevel.HIGH, RiskLevel.CRITICAL]:
+            if self.config.alert_on_high_risk and result.risk_level in [
+                RiskLevel.HIGH,
+                RiskLevel.CRITICAL,
+            ]:
                 self.send_risk_alert(result)
 
         except Exception as e:
@@ -343,14 +386,16 @@ class RiskAwareServing:
             "block_rate": block_rate,
             "average_risk_score": avg_risk_score,
             "risk_filtering_enabled": self.config.enable_risk_filtering,
-            "max_risk_threshold": self.config.max_risk_score
+            "max_risk_threshold": self.config.max_risk_score,
         }
 
     def update_config(self, new_config: RiskAwareConfig):
         """Update risk-aware configuration."""
         with self._lock:
             self.config = new_config
-            self.logger.info(f"Updated risk-aware config: max_risk_score={new_config.max_risk_score}")
+            self.logger.info(
+                f"Updated risk-aware config: max_risk_score={new_config.max_risk_score}"
+            )
 
     def get_portfolio_risk_overview(self) -> Dict[str, Any]:
         """Get portfolio risk overview."""
@@ -364,7 +409,9 @@ class RiskAwareServing:
                 "average_risk_score": portfolio_metrics.get("average_risk_score", 0.0),
                 "high_risk_positions": portfolio_metrics.get("high_risk_positions", 0),
                 "value_at_risk_1d": portfolio_metrics.get("value_at_risk_1d", 0.0),
-                "expected_shortfall_1d": portfolio_metrics.get("expected_shortfall_1d", 0.0)
+                "expected_shortfall_1d": portfolio_metrics.get(
+                    "expected_shortfall_1d", 0.0
+                ),
             }
         except Exception as e:
             self.logger.error(f"Failed to get portfolio risk overview: {e}")
@@ -375,5 +422,5 @@ class RiskAwareServing:
                 "average_risk_score": 0.0,
                 "high_risk_positions": 0,
                 "value_at_risk_1d": 0.0,
-                "expected_shortfall_1d": 0.0
+                "expected_shortfall_1d": 0.0,
             }

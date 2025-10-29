@@ -1,41 +1,48 @@
 """Tests for ML monitoring functionality."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
 
-from extensions.intraday_ml_monitoring.metrics import PerformanceMetrics, MetricsCalculator
-from extensions.intraday_ml_monitoring.validator import ModelValidator, DriftDetector
+import numpy as np
+import pandas as pd
+import pytest
+from extensions.intraday_ml_monitoring.metrics import (
+    MetricsCalculator,
+    PerformanceMetrics,
+)
+from extensions.intraday_ml_monitoring.validator import DriftDetector, ModelValidator
 
 
 @pytest.fixture
 def sample_predictions():
     """Create sample prediction data."""
     dates = pd.date_range("2024-01-01", periods=100, freq="1min")
-    return pd.DataFrame({
-        "timestamp": dates,
-        "symbol": "AAPL",
-        "prediction": np.random.normal(0.001, 0.01, 100),
-        "prediction_probability": np.random.uniform(0.6, 0.9, 100),
-        "actual": np.random.normal(0.001, 0.012, 100),
-        "features_used": [["f__vwap_30", "f__rel_volume_30"]] * 100,
-        "feature_values": [{"f__vwap_30": 150.5, "f__rel_volume_30": 1.2}] * 100
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": dates,
+            "symbol": "AAPL",
+            "prediction": np.random.normal(0.001, 0.01, 100),
+            "prediction_probability": np.random.uniform(0.6, 0.9, 100),
+            "actual": np.random.normal(0.001, 0.012, 100),
+            "features_used": [["f__vwap_30", "f__rel_volume_30"]] * 100,
+            "feature_values": [{"f__vwap_30": 150.5, "f__rel_volume_30": 1.2}] * 100,
+        }
+    )
 
 
 @pytest.fixture
 def sample_feature_data():
     """Create sample feature data."""
     dates = pd.date_range("2024-01-01", periods=200, freq="1min")
-    return pd.DataFrame({
-        "timestamp": dates,
-        "f__vwap_30": np.random.normal(150, 5, 200),
-        "f__rel_volume_30": np.random.normal(1.0, 0.3, 200),
-        "f__atr_14": np.random.normal(2.0, 0.5, 200),
-        "close": np.random.normal(150, 5, 200)
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": dates,
+            "f__vwap_30": np.random.normal(150, 5, 200),
+            "f__rel_volume_30": np.random.normal(1.0, 0.3, 200),
+            "f__atr_14": np.random.normal(2.0, 0.5, 200),
+            "close": np.random.normal(150, 5, 200),
+        }
+    )
 
 
 class TestPerformanceMetrics:
@@ -49,7 +56,7 @@ class TestPerformanceMetrics:
             avg_confidence=0.75,
             mse=0.001,
             mae=0.02,
-            r2=0.85
+            r2=0.85,
         )
 
         assert metrics.total_predictions == 100
@@ -62,9 +69,7 @@ class TestPerformanceMetrics:
     def test_performance_metrics_to_dict(self):
         """Test PerformanceMetrics to_dict conversion."""
         metrics = PerformanceMetrics(
-            total_predictions=100,
-            prediction_rate=0.95,
-            avg_confidence=0.75
+            total_predictions=100, prediction_rate=0.95, avg_confidence=0.75
         )
 
         result_dict = metrics.to_dict()
@@ -84,7 +89,7 @@ class TestMetricsCalculator:
         """Test regression metrics calculation."""
         metrics = self.calculator.calculate_regression_metrics(
             predictions=sample_predictions["prediction"],
-            actuals=sample_predictions["actual"]
+            actuals=sample_predictions["actual"],
         )
 
         assert "mse" in metrics
@@ -102,9 +107,7 @@ class TestMetricsCalculator:
         probabilities = np.array([0.3, 0.8, 0.7, 0.2, 0.9, 0.1, 0.6, 0.8, 0.4, 0.3])
 
         metrics = self.calculator.calculate_classification_metrics(
-            predictions=predictions,
-            actuals=actuals,
-            probabilities=probabilities
+            predictions=predictions, actuals=actuals, probabilities=probabilities
         )
 
         assert "accuracy" in metrics
@@ -119,7 +122,7 @@ class TestMetricsCalculator:
         rolling_metrics = self.calculator.calculate_rolling_metrics(
             predictions=sample_predictions["prediction"],
             actuals=sample_predictions["actual"],
-            window=20
+            window=20,
         )
 
         assert isinstance(rolling_metrics, pd.DataFrame)
@@ -140,7 +143,7 @@ class TestMetricsCalculator:
         """Test uncertainty metrics calculation."""
         uncertainty = self.calculator.calculate_uncertainty_metrics(
             probabilities=sample_predictions["prediction_probability"],
-            predictions=sample_predictions["prediction"]
+            predictions=sample_predictions["prediction"],
         )
 
         assert isinstance(uncertainty, dict)
@@ -167,10 +170,12 @@ class TestModelValidator:
         # Current model configuration
         current_config = {
             "features": ["f__vwap_30", "f__rel_volume_30", "f__atr_14"],
-            "hyperparameters": {"n_estimators": 100, "max_depth": 10}
+            "hyperparameters": {"n_estimators": 100, "max_depth": 10},
         }
 
-        result = self.validator.validate_model_consistency(mock_metadata, current_config)
+        result = self.validator.validate_model_consistency(
+            mock_metadata, current_config
+        )
 
         assert isinstance(result, dict)
         assert "is_valid" in result
@@ -188,10 +193,15 @@ class TestModelValidator:
         # Current model configuration with mismatch
         current_config = {
             "features": ["f__vwap_30", "f__rel_volume_30"],  # Missing feature
-            "hyperparameters": {"n_estimators": 200, "max_depth": 10}  # Different hyperparameter
+            "hyperparameters": {
+                "n_estimators": 200,
+                "max_depth": 10,
+            },  # Different hyperparameter
         }
 
-        result = self.validator.validate_model_consistency(mock_metadata, current_config)
+        result = self.validator.validate_model_consistency(
+            mock_metadata, current_config
+        )
 
         assert result["is_valid"] is False
         assert len(result["issues"]) > 0
@@ -202,7 +212,7 @@ class TestModelValidator:
             "f__vwap_30": 0.4,
             "f__rel_volume_30": 0.3,
             "f__atr_14": 0.2,
-            "f__close": 0.1
+            "f__close": 0.1,
         }
 
         result = self.validator.validate_feature_importance(feature_importance)
@@ -245,7 +255,7 @@ class TestDriftDetector:
             reference_data=reference_data,
             current_data=current_data,
             features=features,
-            threshold=0.05
+            threshold=0.05,
         )
 
         assert isinstance(result, dict)
@@ -270,14 +280,13 @@ class TestDriftDetector:
             reference_data=reference_data,
             current_data=current_data,
             features=features,
-            threshold=0.05
+            threshold=0.05,
         )
 
         assert isinstance(result, dict)
         # Should detect drift in at least some features
         assert any(
-            result["feature_drift"][feature]["drift_detected"]
-            for feature in features
+            result["feature_drift"][feature]["drift_detected"] for feature in features
         )
 
     def test_detect_target_drift(self):
@@ -289,7 +298,7 @@ class TestDriftDetector:
         result = self.detector.detect_target_drift(
             reference_targets=reference_targets,
             current_targets=current_targets,
-            threshold=0.05
+            threshold=0.05,
         )
 
         assert isinstance(result, dict)
@@ -321,10 +330,7 @@ class TestDriftDetector:
         actuals[50:] += 0.01  # Add systematic bias
 
         result = self.detector.detect_concept_drift(
-            predictions=predictions,
-            actuals=actuals,
-            window=25,
-            threshold=0.05
+            predictions=predictions, actuals=actuals, window=25, threshold=0.05
         )
 
         assert isinstance(result, dict)

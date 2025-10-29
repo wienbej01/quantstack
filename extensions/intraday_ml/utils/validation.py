@@ -50,7 +50,9 @@ def validate_data_slice(
                 raise ValueError(f"No date directories found for symbol {symbol}")
         else:
             # If symbol path doesn't exist, try alternate structure
-            alternate_path = pathlib.Path(gold_root) / "stocks" / "1m" / symbol[:1] / symbol
+            alternate_path = (
+                pathlib.Path(gold_root) / "stocks" / "1m" / symbol[:1] / symbol
+            )
             if not alternate_path.exists():
                 raise ValueError(f"Symbol directory not found: {symbol}")
 

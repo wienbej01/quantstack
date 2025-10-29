@@ -5,6 +5,8 @@ import argparse
 import os
 import sys
 import traceback
+import json
+import pathlib
 
 import numpy as np
 import pandas as pd
@@ -15,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qx-core", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qx-features", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qx-data", "src"))
 
-from qx_backtest.engine import BacktestConfig, BacktestEngine
+from qx_backtest.engine import BacktestConfig, BacktestEngine, BacktestResult
 from qx_backtest.policies.regime_aligned import (
     AVWAPMomentumPolicy,
     AVWAPPullbackPolicy,
@@ -54,9 +56,7 @@ def load_test_data():
 
     # Include prior-day data to seed warmup features if available
     first_trade_date = pd.to_datetime(trade_dates[0])
-    warmup_seed_dates = [
-        (first_trade_date - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
-    ]
+    warmup_seed_dates = [(first_trade_date - pd.Timedelta(days=1)).strftime("%Y-%m-%d")]
     dates = warmup_seed_dates + trade_dates
 
     # Check if gold data exists in the expected location
@@ -308,6 +308,84 @@ def _create_strategy_func(policy):
     return strategy_func
 
 
+import json
+import pathlib
+
+from qx_backtest.engine import BacktestResult
+
+def save_backtest_results(result: BacktestResult, run_id: str, runs_dir: str = "runs"):
+    """Save backtest artifacts to disk."""
+    run_dir = pathlib.Path(runs_dir) / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # Extract artifacts
+    equity_df = (
+        result.equity_curve
+        if isinstance(result.equity_curve, pd.DataFrame)
+        else pd.DataFrame(result.equity_curve)
+    )
+    trades_df = pd.DataFrame(result.trades_history)
+    if trades_df.empty:
+        trades_df = pd.DataFrame(
+            columns=[
+                "timestamp",
+                "symbol",
+                "side",
+                "quantity",
+                "price",
+                "commission",
+                "total_cost",
+                "order_id",
+            ]
+        )
+    orders_history_df = pd.DataFrame(result.orders_history)
+    if orders_history_df.empty:
+        orders_history_df = pd.DataFrame(
+            columns=[
+                "order_id",
+                "symbol",
+                "side",
+                "order_type",
+                "quantity",
+                "price",
+                "stop_price",
+                "time_in_force",
+                "timestamp",
+                "status",
+                "filled_quantity",
+                "remaining_quantity",
+                "avg_fill_price",
+                "is_fully_filled",
+                "is_active",
+                "strategy_id",
+                "parent_order_id",
+                "tags",
+                "fill_count",
+            ]
+        )
+
+    result_dict = result.to_dict()
+    result_dict["trading"]["total_trades"] = result.total_trades
+    result_dict["trading"]["winning_trades"] = result.winning_trades
+    result_dict["trading"]["losing_trades"] = result.losing_trades
+    result_dict["trading"]["avg_trade_pnl"] = result.avg_trade_pnl
+    result_dict["trading"]["avg_win"] = result.avg_win
+    result_dict["trading"]["avg_loss"] = result.avg_loss
+    result_dict["trading"]["largest_win"] = result.largest_win
+    result_dict["trading"]["largest_loss"] = result.largest_loss
+    result_dict["performance"]["win_rate"] = result.win_rate
+    result_dict["performance"]["total_trades"] = result.total_trades
+
+    # Persist artifacts
+    orders_history_df.to_parquet(run_dir / "orders.parquet")
+    equity_df.to_parquet(run_dir / "equity.parquet")
+    trades_df.to_parquet(run_dir / "trades.parquet")
+    with open(run_dir / "metrics.json", "w") as f:
+        json.dump(result_dict, f, indent=2)
+    
+    print(f"Saved backtest artifacts to: {run_dir}")
+
+
 def test_policies(df, detector):
     """Test regime-aligned policies with proper engine integration."""
     print("\n=== Testing Regime-Aligned Policies ====")
@@ -377,15 +455,15 @@ def test_policies(df, detector):
             # Create strategy function and run backtest
             strategy_func = _create_strategy_func(policy)
 
-            import logging
-
-            # logging.debug(f"Calling engine.run for {name} policy")
-            # Run backtest through engine (handles regime detection automatically)
             result = engine.run(symbol_data, strategy_func)
-            # logging.debug(f"engine.run for {name} policy finished")
 
             # Call policy lifecycle method to get diagnostic output
             policy.on_end()
+
+            # Save results
+            run_id = f"test_regime_pilot_{name}_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}"
+            save_backtest_results(result, run_id)
+            print(f"Run ID for {name} policy: {run_id}")
 
             # Extract results using correct API
             trades = result.trades_history
@@ -559,6 +637,7 @@ def parse_args():
 def main():
     """Main pilot test function."""
     import logging
+
     # logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
     args = parse_args()
 
@@ -579,7 +658,9 @@ def main():
     # Drop prior-session warmup seed rows before diagnostics/backtest
     if "is_warmup_seed" in df_features.columns:
         df_features = df_features[df_features["is_warmup_seed"] == False].copy()
-        df_features.drop(columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore")
+        df_features.drop(
+            columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore"
+        )
 
     # Create regime detector
     detector = create_regime_detector()

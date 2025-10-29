@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 @dataclass
 class FairnessConfig:
     """Configuration for fairness validation."""
+
     allow_unfair: bool = False
     require_identical_base_checksums: bool = True
     require_identical_data_hashes: bool = True
@@ -18,6 +19,7 @@ class FairnessConfig:
 @dataclass
 class FairnessResult:
     """Result of fairness validation."""
+
     is_fair: bool
     reason: str
     violations: List[str]
@@ -60,7 +62,11 @@ class ChecksumValidator:
         self._validate_metric_differences(run_results, violations, warnings)
 
         is_fair = len(violations) == 0
-        reason = "All fairness checks passed" if is_fair else f"Violations: {', '.join(violations)}"
+        reason = (
+            "All fairness checks passed"
+            if is_fair
+            else f"Violations: {', '.join(violations)}"
+        )
 
         return FairnessResult(
             is_fair=is_fair,
@@ -89,7 +95,7 @@ class ChecksumValidator:
 
         # Check for extreme differences
         if max_trades > 0:
-            ratio = max_trades / min_trades if min_trades > 0 else float('inf')
+            ratio = max_trades / min_trades if min_trades > 0 else float("inf")
             if ratio > 10:  # More than 10x difference
                 warnings.append("extreme_trade_count_difference")
 
@@ -114,7 +120,10 @@ def validate_fairness(exp_dir: pathlib.Path) -> Dict[str, Any]:
         # Check if we have multiple runs
         run_ids = manifest.get("run_ids", [])
         if len(run_ids) < 2:
-            return {"valid": False, "message": "Need at least 2 variants for fairness validation"}
+            return {
+                "valid": False,
+                "message": "Need at least 2 variants for fairness validation",
+            }
 
         # Simple fairness check
         base_checksums = manifest["base_checksums"]
@@ -134,7 +143,7 @@ def validate_fairness(exp_dir: pathlib.Path) -> Dict[str, Any]:
         if violations:
             return {
                 "valid": False,
-                "message": f"Fairness violations: {', '.join(violations)}"
+                "message": f"Fairness violations: {', '.join(violations)}",
             }
 
         return {"valid": True, "message": "Fairness validation passed"}

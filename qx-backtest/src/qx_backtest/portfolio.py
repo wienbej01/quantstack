@@ -1,14 +1,15 @@
 """Portfolio management for backtesting engine."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
 
-import logging
 
 def log_debug(msg):
     logging.debug(msg)
+
 
 from .fill import Fill
 from .order import Order, OrderSide, OrderStatus
@@ -58,18 +59,25 @@ class Position:
 
     def apply_fill(self, fill: Fill) -> None:
         import logging
-        logging.debug(f"Before apply_fill: self.quantity={self.quantity}, fill.quantity={fill.quantity}")
+
+        logging.debug(
+            f"Before apply_fill: self.quantity={self.quantity}, fill.quantity={fill.quantity}"
+        )
         fill_cost = fill.total_cost
 
         if fill.side == OrderSide.BUY:
             if self.quantity > 0:
-                logging.warning(f"BUY order for {self.symbol} received while already long. Position not increased.")
+                logging.debug(
+                    f"BUY order for {self.symbol} received while already long. Position not increased."
+                )
                 return
 
             if self.quantity >= 0:
                 new_total_cost = self.total_cost + fill_cost
                 new_quantity = self.quantity + fill.quantity
-                logging.debug(f"BUY LONG: new_quantity={new_quantity}, new_total_cost={new_total_cost}")
+                logging.debug(
+                    f"BUY LONG: new_quantity={new_quantity}, new_total_cost={new_total_cost}"
+                )
                 if new_quantity != 0:
                     self.avg_cost = new_total_cost / new_quantity
                 else:
@@ -105,13 +113,17 @@ class Position:
                     self.avg_cost = 0.0
         else:
             if self.quantity < 0:
-                logging.warning(f"SELL order for {self.symbol} received while already short. Position not increased.")
+                logging.debug(
+                    f"SELL order for {self.symbol} received while already short. Position not increased."
+                )
                 return
 
             # Adding to short position
             new_total_cost = self.total_cost + fill_cost
             new_quantity = self.quantity - fill.quantity
-            logging.debug(f"SELL SHORT: new_quantity={new_quantity}, new_total_cost={new_total_cost}")
+            logging.debug(
+                f"SELL SHORT: new_quantity={new_quantity}, new_total_cost={new_total_cost}"
+            )
             if new_quantity != 0:
                 self.avg_cost = new_total_cost / abs(new_quantity)
             else:

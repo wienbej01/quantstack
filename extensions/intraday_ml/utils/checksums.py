@@ -51,9 +51,7 @@ def compute_input_checksums(
 
     # Seed hash
     seed_str = str(seed)
-    checksums["seed"] = hashlib.blake2b(
-        seed_str.encode(), digest_size=32
-    ).hexdigest()
+    checksums["seed"] = hashlib.blake2b(seed_str.encode(), digest_size=32).hexdigest()
 
     return checksums
 

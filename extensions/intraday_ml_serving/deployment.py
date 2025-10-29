@@ -1,21 +1,23 @@
 """Production deployment management for ML models."""
 
-import os
+import hashlib
 import json
-import yaml
 import logging
+import os
+import shutil
 import subprocess
+import tempfile
 import time
-from typing import Dict, Any, List, Optional, Callable
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-import tempfile
-import shutil
-import hashlib
+from typing import Any, Callable, Dict, List, Optional
+
+import yaml
 
 try:
     import docker
+
     DOCKER_AVAILABLE = True
 except ImportError:
     DOCKER_AVAILABLE = False
@@ -24,6 +26,7 @@ except ImportError:
 try:
     from kubernetes import client, config
     from kubernetes.client.rest import ApiException
+
     K8S_AVAILABLE = True
 except ImportError:
     K8S_AVAILABLE = False
@@ -38,6 +41,7 @@ from extensions.intraday_ml_serving.model_server import ModelServer
 @dataclass
 class DeploymentConfig:
     """Configuration for model deployment."""
+
     deployment_name: str
     model_id: str
     replicas: int = 1
@@ -57,6 +61,7 @@ class DeploymentConfig:
 @dataclass
 class DeploymentStatus:
     """Status of model deployment."""
+
     deployment_name: str
     status: str  # pending, running, failed, stopped
     replicas: int
@@ -86,7 +91,7 @@ class MockDeployment:
             created_at=datetime.now(),
             updated_at=datetime.now(),
             endpoint_url=f"http://mock-endpoint/{model_id}",
-            version="mock-1.0.0"
+            version="mock-1.0.0",
         )
 
     def get_deployment_status(self, deployment_name: str) -> DeploymentStatus:
@@ -97,7 +102,7 @@ class MockDeployment:
             replicas=1,
             ready_replicas=1,
             created_at=datetime.now(),
-            updated_at=datetime.now()
+            updated_at=datetime.now(),
         )
 
 
@@ -123,7 +128,7 @@ class DockerDeployment:
         model_id: str,
         dockerfile_path: str,
         context_path: str,
-        tag: Optional[str] = None
+        tag: Optional[str] = None,
     ) -> str:
         """
         Build Docker image for model.
@@ -150,8 +155,8 @@ class DockerDeployment:
                 rm=True,
                 buildargs={
                     "MODEL_ID": model_id,
-                    "BUILD_DATE": datetime.now().isoformat()
-                }
+                    "BUILD_DATE": datetime.now().isoformat(),
+                },
             )
 
             # Log build progress
@@ -201,11 +206,7 @@ class DockerDeployment:
             self.logger.error(f"Docker push failed: {e}")
             raise
 
-    def run_container(
-        self,
-        image_tag: str,
-        deployment_config: DeploymentConfig
-    ) -> str:
+    def run_container(self, image_tag: str, deployment_config: DeploymentConfig) -> str:
         """
         Run Docker container for model deployment.
 
@@ -226,7 +227,7 @@ class DockerDeployment:
                 environment={
                     "MODEL_ID": deployment_config.model_id,
                     "ENVIRONMENT": deployment_config.environment,
-                    "LOG_LEVEL": "INFO"
+                    "LOG_LEVEL": "INFO",
                 },
                 mem_limit=deployment_config.memory_limit,
                 nano_cpus=self._parse_cpu_limit(deployment_config.cpu_limit),
@@ -235,9 +236,9 @@ class DockerDeployment:
                 healthcheck={
                     "test": f"CMD curl -f {deployment_config.health_check_path} || exit 1",
                     "interval": 30000000000,  # 30 seconds in nanoseconds
-                    "timeout": 5000000000,     # 5 seconds
-                    "retries": 3
-                }
+                    "timeout": 5000000000,  # 5 seconds
+                    "retries": 3,
+                },
             )
 
             self.logger.info(f"Container started with ID: {container.id}")
@@ -272,7 +273,7 @@ class DockerDeployment:
                 "created": container.attrs["Created"],
                 "started": container.attrs["State"]["StartedAt"],
                 "finished": container.attrs["State"]["FinishedAt"],
-                "exit_code": container.attrs["State"]["ExitCode"]
+                "exit_code": container.attrs["State"]["ExitCode"],
             }
 
         except docker.errors.NotFound:
@@ -293,7 +294,9 @@ class DockerDeployment:
 class KubernetesDeployment:
     """Kubernetes-based deployment for ML models."""
 
-    def __init__(self, namespace: str = "default", kubeconfig_path: Optional[str] = None):
+    def __init__(
+        self, namespace: str = "default", kubeconfig_path: Optional[str] = None
+    ):
         """
         Initialize Kubernetes deployment manager.
 
@@ -316,7 +319,9 @@ class KubernetesDeployment:
         self.autoscaling_v1 = client.AutoscalingV1Api()
         self.logger = logging.getLogger(__name__)
 
-    def create_deployment(self, deployment_config: DeploymentConfig, image_tag: str) -> str:
+    def create_deployment(
+        self, deployment_config: DeploymentConfig, image_tag: str
+    ) -> str:
         """
         Create Kubernetes deployment.
 
@@ -327,40 +332,45 @@ class KubernetesDeployment:
         Returns:
             Deployment name
         """
-        self.logger.info(f"Creating Kubernetes deployment {deployment_config.deployment_name}")
+        self.logger.info(
+            f"Creating Kubernetes deployment {deployment_config.deployment_name}"
+        )
 
         # Create deployment manifest
-        deployment_manifest = self._create_deployment_manifest(deployment_config, image_tag)
+        deployment_manifest = self._create_deployment_manifest(
+            deployment_config, image_tag
+        )
 
         try:
             deployment = self.apps_v1.create_namespaced_deployment(
-                namespace=self.namespace,
-                body=deployment_manifest
+                namespace=self.namespace, body=deployment_manifest
             )
 
             # Create service
             service_manifest = self._create_service_manifest(deployment_config)
             self.core_v1.create_namespaced_service(
-                namespace=self.namespace,
-                body=service_manifest
+                namespace=self.namespace, body=service_manifest
             )
 
             # Create HPA if auto-scaling enabled
             if deployment_config.auto_scaling:
                 hpa_manifest = self._create_hpa_manifest(deployment_config)
                 self.autoscaling_v1.create_namespaced_horizontal_pod_autoscaler(
-                    namespace=self.namespace,
-                    body=hpa_manifest
+                    namespace=self.namespace, body=hpa_manifest
                 )
 
-            self.logger.info(f"Successfully created deployment {deployment_config.deployment_name}")
+            self.logger.info(
+                f"Successfully created deployment {deployment_config.deployment_name}"
+            )
             return deployment.metadata.name
 
         except ApiException as e:
             self.logger.error(f"Failed to create deployment: {e}")
             raise
 
-    def update_deployment(self, deployment_config: DeploymentConfig, image_tag: str) -> str:
+    def update_deployment(
+        self, deployment_config: DeploymentConfig, image_tag: str
+    ) -> str:
         """
         Update existing Kubernetes deployment.
 
@@ -371,43 +381,50 @@ class KubernetesDeployment:
         Returns:
             Deployment name
         """
-        self.logger.info(f"Updating Kubernetes deployment {deployment_config.deployment_name}")
+        self.logger.info(
+            f"Updating Kubernetes deployment {deployment_config.deployment_name}"
+        )
 
         try:
             # Get existing deployment
             existing_deployment = self.apps_v1.read_namespaced_deployment(
-                name=deployment_config.deployment_name,
-                namespace=self.namespace
+                name=deployment_config.deployment_name, namespace=self.namespace
             )
 
             # Update image
             existing_deployment.spec.template.spec.containers[0].image = image_tag
             existing_deployment.spec.template.spec.containers[0].env = [
                 client.V1EnvVar(name="MODEL_ID", value=deployment_config.model_id),
-                client.V1EnvVar(name="ENVIRONMENT", value=deployment_config.environment),
-                client.V1EnvVar(name="LOG_LEVEL", value="INFO")
+                client.V1EnvVar(
+                    name="ENVIRONMENT", value=deployment_config.environment
+                ),
+                client.V1EnvVar(name="LOG_LEVEL", value="INFO"),
             ]
 
             # Update resource limits
-            existing_deployment.spec.template.spec.containers[0].resources = client.V1ResourceRequirements(
-                requests={
-                    "cpu": deployment_config.cpu_request,
-                    "memory": deployment_config.memory_request
-                },
-                limits={
-                    "cpu": deployment_config.cpu_limit,
-                    "memory": deployment_config.memory_limit
-                }
+            existing_deployment.spec.template.spec.containers[0].resources = (
+                client.V1ResourceRequirements(
+                    requests={
+                        "cpu": deployment_config.cpu_request,
+                        "memory": deployment_config.memory_request,
+                    },
+                    limits={
+                        "cpu": deployment_config.cpu_limit,
+                        "memory": deployment_config.memory_limit,
+                    },
+                )
             )
 
             # Update deployment
             updated_deployment = self.apps_v1.patch_namespaced_deployment(
                 name=deployment_config.deployment_name,
                 namespace=self.namespace,
-                body=existing_deployment
+                body=existing_deployment,
             )
 
-            self.logger.info(f"Successfully updated deployment {deployment_config.deployment_name}")
+            self.logger.info(
+                f"Successfully updated deployment {deployment_config.deployment_name}"
+            )
             return updated_deployment.metadata.name
 
         except ApiException as e:
@@ -422,22 +439,19 @@ class KubernetesDeployment:
             # Delete HPA
             try:
                 self.autoscaling_v1.delete_namespaced_horizontal_pod_autoscaler(
-                    name=deployment_name,
-                    namespace=self.namespace
+                    name=deployment_name, namespace=self.namespace
                 )
             except ApiException:
                 pass  # HPA might not exist
 
             # Delete deployment
             self.apps_v1.delete_namespaced_deployment(
-                name=deployment_name,
-                namespace=self.namespace
+                name=deployment_name, namespace=self.namespace
             )
 
             # Delete service
             self.core_v1.delete_namespaced_service(
-                name=deployment_name,
-                namespace=self.namespace
+                name=deployment_name, namespace=self.namespace
             )
 
             self.logger.info(f"Successfully deleted deployment {deployment_name}")
@@ -450,13 +464,11 @@ class KubernetesDeployment:
         """Get deployment status."""
         try:
             deployment = self.apps_v1.read_namespaced_deployment(
-                name=deployment_name,
-                namespace=self.namespace
+                name=deployment_name, namespace=self.namespace
             )
 
             service = self.core_v1.read_namespaced_service(
-                name=deployment_name,
-                namespace=self.namespace
+                name=deployment_name, namespace=self.namespace
             )
 
             status = deployment.status
@@ -487,7 +499,9 @@ class KubernetesDeployment:
                 updated_at=datetime.now(),
                 endpoint_url=endpoint_url,
                 health_status=health_status,
-                version=deployment.spec.template.spec.containers[0].image.split(":")[-1]
+                version=deployment.spec.template.spec.containers[0].image.split(":")[
+                    -1
+                ],
             )
 
         except ApiException as e:
@@ -499,81 +513,80 @@ class KubernetesDeployment:
                     ready_replicas=0,
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
-                    health_status="unknown"
+                    health_status="unknown",
                 )
             else:
                 self.logger.error(f"Failed to get deployment status: {e}")
                 raise
 
-    def _create_deployment_manifest(self, config: DeploymentConfig, image_tag: str) -> Dict[str, Any]:
+    def _create_deployment_manifest(
+        self, config: DeploymentConfig, image_tag: str
+    ) -> Dict[str, Any]:
         """Create Kubernetes deployment manifest."""
         return {
             "apiVersion": "apps/v1",
             "kind": "Deployment",
             "metadata": {
                 "name": config.deployment_name,
-                "labels": {
-                    "app": config.deployment_name,
-                    "model": config.model_id
-                }
+                "labels": {"app": config.deployment_name, "model": config.model_id},
             },
             "spec": {
                 "replicas": config.replicas,
-                "selector": {
-                    "matchLabels": {
-                        "app": config.deployment_name
-                    }
-                },
+                "selector": {"matchLabels": {"app": config.deployment_name}},
                 "template": {
                     "metadata": {
                         "labels": {
                             "app": config.deployment_name,
-                            "model": config.model_id
+                            "model": config.model_id,
                         }
                     },
                     "spec": {
-                        "containers": [{
-                            "name": "ml-model",
-                            "image": image_tag,
-                            "ports": [{
-                                "containerPort": config.port,
-                                "protocol": "TCP"
-                            }],
-                            "env": [
-                                {"name": "MODEL_ID", "value": config.model_id},
-                                {"name": "ENVIRONMENT", "value": config.environment},
-                                {"name": "LOG_LEVEL", "value": "INFO"}
-                            ],
-                            "resources": {
-                                "requests": {
-                                    "cpu": config.cpu_request,
-                                    "memory": config.memory_request
+                        "containers": [
+                            {
+                                "name": "ml-model",
+                                "image": image_tag,
+                                "ports": [
+                                    {"containerPort": config.port, "protocol": "TCP"}
+                                ],
+                                "env": [
+                                    {"name": "MODEL_ID", "value": config.model_id},
+                                    {
+                                        "name": "ENVIRONMENT",
+                                        "value": config.environment,
+                                    },
+                                    {"name": "LOG_LEVEL", "value": "INFO"},
+                                ],
+                                "resources": {
+                                    "requests": {
+                                        "cpu": config.cpu_request,
+                                        "memory": config.memory_request,
+                                    },
+                                    "limits": {
+                                        "cpu": config.cpu_limit,
+                                        "memory": config.memory_limit,
+                                    },
                                 },
-                                "limits": {
-                                    "cpu": config.cpu_limit,
-                                    "memory": config.memory_limit
-                                }
-                            },
-                            "readinessProbe": {
-                                "httpGet": {
-                                    "path": config.health_check_path,
-                                    "port": config.port
+                                "readinessProbe": {
+                                    "httpGet": {
+                                        "path": config.health_check_path,
+                                        "port": config.port,
+                                    },
+                                    "initialDelaySeconds": 30,
+                                    "periodSeconds": 10,
                                 },
-                                "initialDelaySeconds": 30,
-                                "periodSeconds": 10
-                            },
-                            "livenessProbe": {
-                                "httpGet": {
-                                    "path": config.health_check_path,
-                                    "port": config.port
+                                "livenessProbe": {
+                                    "httpGet": {
+                                        "path": config.health_check_path,
+                                        "port": config.port,
+                                    },
+                                    "initialDelaySeconds": 60,
+                                    "periodSeconds": 30,
                                 },
-                                "initialDelaySeconds": 60,
-                                "periodSeconds": 30
                             }
-                        }]
-                    }
-                }
-            }
+                        ]
+                    },
+                },
+            },
         }
 
     def _create_service_manifest(self, config: DeploymentConfig) -> Dict[str, Any]:
@@ -583,21 +596,15 @@ class KubernetesDeployment:
             "kind": "Service",
             "metadata": {
                 "name": config.deployment_name,
-                "labels": {
-                    "app": config.deployment_name
-                }
+                "labels": {"app": config.deployment_name},
             },
             "spec": {
-                "selector": {
-                    "app": config.deployment_name
-                },
-                "ports": [{
-                    "port": config.port,
-                    "targetPort": config.port,
-                    "protocol": "TCP"
-                }],
-                "type": "ClusterIP"
-            }
+                "selector": {"app": config.deployment_name},
+                "ports": [
+                    {"port": config.port, "targetPort": config.port, "protocol": "TCP"}
+                ],
+                "type": "ClusterIP",
+            },
         }
 
     def _create_hpa_manifest(self, config: DeploymentConfig) -> Dict[str, Any]:
@@ -607,20 +614,20 @@ class KubernetesDeployment:
             "kind": "HorizontalPodAutoscaler",
             "metadata": {
                 "name": config.deployment_name,
-                "labels": {
-                    "app": config.deployment_name
-                }
+                "labels": {"app": config.deployment_name},
             },
             "spec": {
                 "scaleTargetRef": {
                     "apiVersion": "apps/v1",
                     "kind": "Deployment",
-                    "name": config.deployment_name
+                    "name": config.deployment_name,
                 },
                 "minReplicas": config.auto_scaling.get("min_replicas", 1),
                 "maxReplicas": config.auto_scaling.get("max_replicas", 10),
-                "targetCPUUtilizationPercentage": config.auto_scaling.get("target_cpu", 70)
-            }
+                "targetCPUUtilizationPercentage": config.auto_scaling.get(
+                    "target_cpu", 70
+                ),
+            },
         }
 
 
@@ -631,7 +638,7 @@ class DeploymentManager:
         self,
         registry: Optional[MLModelRegistry] = None,
         deployment_type: str = "docker",
-        **kwargs
+        **kwargs,
     ):
         """
         Initialize deployment manager.
@@ -652,7 +659,9 @@ class DeploymentManager:
         else:
             # Create a mock deployer for testing
             self.deployer = MockDeployment(deployment_type)
-            self.logger.warning(f"Using mock deployment for {deployment_type} - dependencies not available")
+            self.logger.warning(
+                f"Using mock deployment for {deployment_type} - dependencies not available"
+            )
         self.deployments: Dict[str, DeploymentStatus] = {}
 
     def deploy_model(
@@ -661,7 +670,7 @@ class DeploymentManager:
         deployment_config: DeploymentConfig,
         dockerfile_path: Optional[str] = None,
         context_path: Optional[str] = None,
-        image_tag: Optional[str] = None
+        image_tag: Optional[str] = None,
     ) -> DeploymentStatus:
         """
         Deploy model to production.
@@ -676,7 +685,9 @@ class DeploymentManager:
         Returns:
             Deployment status
         """
-        self.logger.info(f"Deploying model {model_id} with config {deployment_config.deployment_name}")
+        self.logger.info(
+            f"Deploying model {model_id} with config {deployment_config.deployment_name}"
+        )
 
         try:
             # Validate model exists
@@ -686,13 +697,15 @@ class DeploymentManager:
             if image_tag is None:
                 if self.deployment_type == "docker":
                     if not dockerfile_path or not context_path:
-                        raise ValueError("dockerfile_path and context_path required for Docker deployment")
+                        raise ValueError(
+                            "dockerfile_path and context_path required for Docker deployment"
+                        )
 
                     image_tag = self.deployer.build_image(
                         model_id=model_id,
                         dockerfile_path=dockerfile_path,
                         context_path=context_path,
-                        tag=f"intraday-ml:{model_id}"
+                        tag=f"intraday-ml:{model_id}",
                     )
                 else:
                     image_tag = f"intraday-ml:{model_id}"
@@ -703,8 +716,12 @@ class DeploymentManager:
                 deployment_id = container_id
                 endpoint_url = f"http://localhost:{deployment_config.port}"
             else:
-                deployment_id = self.deployer.create_deployment(deployment_config, image_tag)
-                status = self.deployer.get_deployment_status(deployment_config.deployment_name)
+                deployment_id = self.deployer.create_deployment(
+                    deployment_config, image_tag
+                )
+                status = self.deployer.get_deployment_status(
+                    deployment_config.deployment_name
+                )
                 endpoint_url = status.endpoint_url
 
             # Create deployment status
@@ -717,7 +734,7 @@ class DeploymentManager:
                 updated_at=datetime.now(),
                 endpoint_url=endpoint_url,
                 health_status="healthy",
-                version=model_metadata.model_hash[:8]
+                version=model_metadata.model_hash[:8],
             )
 
             self.deployments[deployment_config.deployment_name] = deployment_status
@@ -734,7 +751,7 @@ class DeploymentManager:
                 ready_replicas=0,
                 created_at=datetime.now(),
                 updated_at=datetime.now(),
-                error_message=str(e)
+                error_message=str(e),
             )
             self.deployments[deployment_config.deployment_name] = error_status
             raise
@@ -743,7 +760,7 @@ class DeploymentManager:
         self,
         deployment_name: str,
         model_id: Optional[str] = None,
-        image_tag: Optional[str] = None
+        image_tag: Optional[str] = None,
     ) -> DeploymentStatus:
         """Update existing deployment."""
         if deployment_name not in self.deployments:
@@ -764,8 +781,7 @@ class DeploymentManager:
 
                 # Get existing config (would need to store this)
                 deployment_config = DeploymentConfig(
-                    deployment_name=deployment_name,
-                    model_id=model_id or "unknown"
+                    deployment_name=deployment_name, model_id=model_id or "unknown"
                 )
 
                 self.deployer.update_deployment(deployment_config, image_tag)
@@ -790,7 +806,7 @@ class DeploymentManager:
             if self.deployment_type == "docker":
                 # Docker deployment - stop container
                 deployment_status = self.deployments[deployment_name]
-                if hasattr(deployment_status, 'container_id'):
+                if hasattr(deployment_status, "container_id"):
                     self.deployer.stop_container(deployment_status.container_id)
             else:
                 # Kubernetes deployment - delete deployment
@@ -812,9 +828,13 @@ class DeploymentManager:
             if self.deployment_type == "docker":
                 # Docker deployment
                 deployment_status = self.deployments[deployment_name]
-                if hasattr(deployment_status, 'container_id'):
-                    container_status = self.deployer.get_container_status(deployment_status.container_id)
-                    deployment_status.health_status = container_status.get("health", "unknown")
+                if hasattr(deployment_status, "container_id"):
+                    container_status = self.deployer.get_container_status(
+                        deployment_status.container_id
+                    )
+                    deployment_status.health_status = container_status.get(
+                        "health", "unknown"
+                    )
                     deployment_status.status = container_status.get("status", "unknown")
             else:
                 # Kubernetes deployment
@@ -824,7 +844,9 @@ class DeploymentManager:
             return self.deployments[deployment_name]
 
         except Exception as e:
-            self.logger.error(f"Failed to get deployment status for {deployment_name}: {e}")
+            self.logger.error(
+                f"Failed to get deployment status for {deployment_name}: {e}"
+            )
             return None
 
     def list_deployments(self) -> List[DeploymentStatus]:
@@ -848,14 +870,14 @@ class DeploymentManager:
 
         try:
             import requests
+
             response = requests.get(
-                f"{status.endpoint_url}{status.health_check_path}",
-                timeout=10
+                f"{status.endpoint_url}{status.health_check_path}", timeout=10
             )
             return {
                 "healthy": response.status_code == 200,
                 "status_code": response.status_code,
-                "response_time_ms": response.elapsed.total_seconds() * 1000
+                "response_time_ms": response.elapsed.total_seconds() * 1000,
             }
         except Exception as e:
             return {"healthy": False, "error": str(e)}

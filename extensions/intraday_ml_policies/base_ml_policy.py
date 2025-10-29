@@ -5,11 +5,10 @@ from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
-from qx_backtest.policies.base import Policy
-from qx_backtest.order import Order, OrderSide
-
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
+from qx_backtest.order import Order, OrderSide
+from qx_backtest.policies.base import Policy
 
 
 class BaseMLPolicy(Policy, ABC):
@@ -24,7 +23,7 @@ class BaseMLPolicy(Policy, ABC):
         position_size_value: float = 1000.0,
         max_positions: int = 5,
         features_required: Optional[List[str]] = None,
-        **kwargs
+        **kwargs,
     ):
         """Initialize ML policy.
 
@@ -67,11 +66,15 @@ class BaseMLPolicy(Policy, ABC):
     def _validate_model_compatibility(self) -> None:
         """Validate that model is suitable for trading."""
         if self.model_metadata.model_type.value not in ["classification", "regression"]:
-            raise ValueError(f"Unsupported model type: {self.model_metadata.model_type}")
+            raise ValueError(
+                f"Unsupported model type: {self.model_metadata.model_type}"
+            )
 
         # Check if model has reasonable performance
         if self.model_metadata.val_score < 0.5:
-            raise ValueError(f"Model validation score too low: {self.model_metadata.val_score}")
+            raise ValueError(
+                f"Model validation score too low: {self.model_metadata.val_score}"
+            )
 
     def process_bar(self, bar: Dict[str, Any]) -> None:
         """Process a single bar and generate trading signals.
@@ -83,8 +86,10 @@ class BaseMLPolicy(Policy, ABC):
         timestamp = bar["ts"]
 
         # Check if we already have a recent prediction for this symbol
-        if (symbol in self.last_prediction_ts and
-            timestamp <= self.last_prediction_ts[symbol]):
+        if (
+            symbol in self.last_prediction_ts
+            and timestamp <= self.last_prediction_ts[symbol]
+        ):
             return
 
         # Check if we have required features
@@ -131,28 +136,32 @@ class BaseMLPolicy(Policy, ABC):
             return False
 
         # Check maximum position limit
-        current_positions = sum(
-            1 for s in self.engine.get_positions()
-            if self.get_position(s) and self.get_position(s).size != 0
-        ) if self.engine else 0
+        current_positions = (
+            sum(
+                1
+                for s in self.engine.get_positions()
+                if self.get_position(s) and self.get_position(s).size != 0
+            )
+            if self.engine
+            else 0
+        )
 
         return current_positions < self.max_positions
 
     def _extract_features(self, bar: Dict[str, Any]) -> Dict[str, float]:
         """Extract features from bar for prediction."""
-        return {
-            feature: float(bar[feature])
-            for feature in self.features_required
-        }
+        return {feature: float(bar[feature]) for feature in self.features_required}
 
-    def _predict_single(self, features: Dict[str, float], timestamp: int, symbol: str) -> Any:
+    def _predict_single(
+        self, features: Dict[str, float], timestamp: int, symbol: str
+    ) -> Any:
         """Make prediction for single observation."""
         return self.predictor.predict_single(
             model_id=self.model_id,
             features=features,
             timestamp=timestamp,
             symbol=symbol,
-            return_probability=True
+            return_probability=True,
         )
 
     @abstractmethod
@@ -172,10 +181,7 @@ class BaseMLPolicy(Policy, ABC):
         return abs(signal_strength) > self.prediction_threshold
 
     def _create_order(
-        self,
-        bar: Dict[str, Any],
-        signal_strength: float,
-        prediction: Any
+        self, bar: Dict[str, Any], signal_strength: float, prediction: Any
     ) -> Optional[Order]:
         """Create order based on signal."""
         symbol = bar["symbol"]
@@ -200,16 +206,13 @@ class BaseMLPolicy(Policy, ABC):
             side=side,
             qty=qty,
             order_type="market",  # Market orders for intraday
-            timestamp=bar["ts"]
+            timestamp=bar["ts"],
         )
 
         return order
 
     def _calculate_position_size(
-        self,
-        bar: Dict[str, Any],
-        signal_strength: float,
-        prediction: Any
+        self, bar: Dict[str, Any], signal_strength: float, prediction: Any
     ) -> float:
         """Calculate position size based on method and signal."""
         if self.position_size_method == "fixed":

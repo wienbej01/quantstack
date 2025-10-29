@@ -1,12 +1,13 @@
 """ML-powered position sizing for intraday trading."""
 
 import logging
-import numpy as np
-import pandas as pd
-from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
@@ -14,6 +15,7 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 
 class SizingMethod(Enum):
     """Position sizing methods."""
+
     FIXED = "fixed"
     VOLATILITY = "volatility"
     KELLY = "kelly"
@@ -24,6 +26,7 @@ class SizingMethod(Enum):
 @dataclass
 class PositionSize:
     """Position size information."""
+
     symbol: str
     size: float
     max_size: float
@@ -42,7 +45,7 @@ class MLPositionSizer:
         risk_tolerance: float = 0.02,
         sizing_method: SizingMethod = SizingMethod.VOLATILITY,
         ml_model_id: Optional[str] = None,
-        registry: Optional[MLModelRegistry] = None
+        registry: Optional[MLModelRegistry] = None,
     ):
         """
         Initialize ML position sizer.
@@ -77,7 +80,7 @@ class MLPositionSizer:
         account_size: float,
         current_price: float,
         confidence: float = 0.5,
-        additional_features: Optional[Dict[str, float]] = None
+        additional_features: Optional[Dict[str, float]] = None,
     ) -> PositionSize:
         """
         Calculate position size for a trade.
@@ -105,12 +108,16 @@ class MLPositionSizer:
         elif self.sizing_method == SizingMethod.RISK_PARITY:
             size = self._risk_parity_sizing(signal_strength, volatility, account_size)
         elif self.sizing_method == SizingMethod.ML_BASED:
-            size = self._ml_based_sizing(symbol, signal_strength, volatility, confidence, additional_features)
+            size = self._ml_based_sizing(
+                symbol, signal_strength, volatility, confidence, additional_features
+            )
         else:
             raise ValueError(f"Unknown sizing method: {self.sizing_method}")
 
         # Apply maximum size limit
-        max_allowed_size = min(self.max_position_size, account_size * self.risk_tolerance)
+        max_allowed_size = min(
+            self.max_position_size, account_size * self.risk_tolerance
+        )
         final_size = min(size, max_allowed_size)
 
         return PositionSize(
@@ -120,7 +127,7 @@ class MLPositionSizer:
             risk_adjusted_size=final_size,
             sizing_method=self.sizing_method,
             confidence=confidence,
-            reasons=self._get_sizing_reasons(final_size, size, max_allowed_size)
+            reasons=self._get_sizing_reasons(final_size, size, max_allowed_size),
         )
 
     def _fixed_sizing(self, signal_strength: float) -> float:
@@ -135,10 +142,16 @@ class MLPositionSizer:
             volatility = 0.01  # Minimum volatility
 
         volatility_target = 0.02  # 2% daily volatility target
-        size = self.max_position_size * (volatility_target / volatility) * abs(signal_strength)
+        size = (
+            self.max_position_size
+            * (volatility_target / volatility)
+            * abs(signal_strength)
+        )
         return size
 
-    def _kelly_sizing(self, signal_strength: float, confidence: float, volatility: float) -> float:
+    def _kelly_sizing(
+        self, signal_strength: float, confidence: float, volatility: float
+    ) -> float:
         """Kelly criterion position sizing."""
         # Estimate win rate from confidence
         win_rate = confidence
@@ -157,7 +170,9 @@ class MLPositionSizer:
 
         return self.max_position_size * kelly_fraction
 
-    def _risk_parity_sizing(self, signal_strength: float, volatility: float, account_size: float) -> float:
+    def _risk_parity_sizing(
+        self, signal_strength: float, volatility: float, account_size: float
+    ) -> float:
         """Risk parity position sizing."""
         # Equal risk contribution
         target_risk = account_size * self.risk_tolerance / 10  # Assume 10 positions max
@@ -171,7 +186,7 @@ class MLPositionSizer:
         signal_strength: float,
         volatility: float,
         confidence: float,
-        additional_features: Dict[str, float]
+        additional_features: Dict[str, float],
     ) -> float:
         """ML-based position sizing."""
         if not self.ml_predictor:
@@ -188,18 +203,26 @@ class MLPositionSizer:
                 "current_price": additional_features.get("current_price", 0),
                 "volume_ratio": additional_features.get("volume_ratio", 1.0),
                 "market_beta": additional_features.get("market_beta", 1.0),
-                "liquidity_score": additional_features.get("liquidity_score", 0.5)
+                "liquidity_score": additional_features.get("liquidity_score", 0.5),
             }
 
             # Add symbol-specific features if available
             if symbol in additional_features:
-                features[f"{symbol}_momentum"] = additional_features[symbol].get("momentum", 0.0)
-                features[f"{symbol}_trend"] = additional_features[symbol].get("trend", 0.0)
+                features[f"{symbol}_momentum"] = additional_features[symbol].get(
+                    "momentum", 0.0
+                )
+                features[f"{symbol}_trend"] = additional_features[symbol].get(
+                    "trend", 0.0
+                )
 
             # Get ML prediction
             result = self.ml_predictor.predict(features)
             predicted_size = float(result.prediction)
-            predicted_confidence = float(result.prediction_probability) if hasattr(result, 'prediction_probability') else confidence
+            predicted_confidence = (
+                float(result.prediction_probability)
+                if hasattr(result, "prediction_probability")
+                else confidence
+            )
 
             # Adjust prediction by confidence
             adjusted_size = predicted_size * predicted_confidence
@@ -213,7 +236,9 @@ class MLPositionSizer:
             self.logger.error(f"ML-based sizing failed for {symbol}: {e}")
             return self._volatility_sizing(signal_strength, volatility)
 
-    def _get_sizing_reasons(self, final_size: float, requested_size: float, max_allowed: float) -> List[str]:
+    def _get_sizing_reasons(
+        self, final_size: float, requested_size: float, max_allowed: float
+    ) -> List[str]:
         """Get reasons for position sizing decision."""
         reasons = []
 
@@ -235,7 +260,9 @@ class MLPositionSizer:
 
         return reasons
 
-    def update_sizing_method(self, new_method: SizingMethod, ml_model_id: Optional[str] = None):
+    def update_sizing_method(
+        self, new_method: SizingMethod, ml_model_id: Optional[str] = None
+    ):
         """Update sizing method."""
         self.sizing_method = new_method
 
@@ -253,7 +280,7 @@ class MLPositionSizer:
             "sizing_method": self.sizing_method.value,
             "max_position_size": self.max_position_size,
             "risk_tolerance": self.risk_tolerance,
-            "ml_model_loaded": self.ml_predictor is not None
+            "ml_model_loaded": self.ml_predictor is not None,
         }
 
     def validate_position_size(self, position: PositionSize) -> Tuple[bool, List[str]]:
@@ -264,7 +291,9 @@ class MLPositionSizer:
             errors.append("Position size must be positive")
 
         if position.size > self.max_position_size:
-            errors.append(f"Position size {position.size} exceeds maximum {self.max_position_size}")
+            errors.append(
+                f"Position size {position.size} exceeds maximum {self.max_position_size}"
+            )
 
         if position.confidence < 0 or position.confidence > 1:
             errors.append(f"Invalid confidence: {position.confidence}")

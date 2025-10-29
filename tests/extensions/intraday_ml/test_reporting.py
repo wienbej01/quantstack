@@ -10,9 +10,9 @@ import pandas as pd
 import pytest
 
 from extensions.intraday_ml.reporting import (
+    ABComparator,
     ArtifactReader,
     MetricsCalculator,
-    ABComparator,
     generate_experiment_report,
     read_single_run_metrics,
 )
@@ -29,6 +29,7 @@ class TestArtifactReader:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def _create_test_artifacts(self, variant_name: str):
@@ -37,49 +38,52 @@ class TestArtifactReader:
         variant_dir.mkdir(exist_ok=True)
 
         # Create test DataFrames
-        signals_df = pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000],
-            "symbol": ["AAPL", "MSFT"],
-            "side": ["BUY", "SELL"],
-            "close": [150.0, 250.0]
-        })
+        signals_df = pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000],
+                "symbol": ["AAPL", "MSFT"],
+                "side": ["BUY", "SELL"],
+                "close": [150.0, 250.0],
+            }
+        )
         signals_df.to_parquet(variant_dir / "signals.parquet")
 
-        orders_df = pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000],
-            "symbol": ["AAPL", "MSFT"],
-            "side": ["BUY", "SELL"],
-            "qty": [100, 50]
-        })
+        orders_df = pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000],
+                "symbol": ["AAPL", "MSFT"],
+                "side": ["BUY", "SELL"],
+                "qty": [100, 50],
+            }
+        )
         orders_df.to_parquet(variant_dir / "orders.parquet")
 
-        trades_df = pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000],
-            "symbol": ["AAPL", "MSFT"],
-            "side": ["BUY", "SELL"],
-            "pnl": [10.0, -5.0],
-            "stop_dist_ps": [2.0, 2.5],
-            "qty": [100, 50]
-        })
+        trades_df = pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000],
+                "symbol": ["AAPL", "MSFT"],
+                "side": ["BUY", "SELL"],
+                "pnl": [10.0, -5.0],
+                "stop_dist_ps": [2.0, 2.5],
+                "qty": [100, 50],
+            }
+        )
         trades_df.to_parquet(variant_dir / "trades.parquet")
 
-        fills_df = pd.DataFrame({
-            "ts": [1704230400000000000, 1704230460000000000],
-            "symbol": ["AAPL", "MSFT"],
-            "qty": [100, 50],
-            "fees": [1.0, 0.5],
-            "slippage_est": [0.01, 0.02]
-        })
+        fills_df = pd.DataFrame(
+            {
+                "ts": [1704230400000000000, 1704230460000000000],
+                "symbol": ["AAPL", "MSFT"],
+                "qty": [100, 50],
+                "fees": [1.0, 0.5],
+                "slippage_est": [0.01, 0.02],
+            }
+        )
         fills_df.to_parquet(variant_dir / "fills.parquet")
 
         # Create metrics JSON
-        metrics = {
-            "trades": 2,
-            "win_rate": 0.5,
-            "total_pnl": 5.0,
-            "avg_R": 2.5
-        }
-        with open(variant_dir / "metrics.json", 'w') as f:
+        metrics = {"trades": 2, "win_rate": 0.5, "total_pnl": 5.0, "avg_R": 2.5}
+        with open(variant_dir / "metrics.json", "w") as f:
             json.dump(metrics, f)
 
         # Create empty artifacts for missing ones
@@ -103,15 +107,15 @@ class TestArtifactReader:
                 "bars_hash": "test_bars",
                 "features_hash": "test_features",
                 "screener_hash": "test_screener",
-                "config_hash": "test_config"
+                "config_hash": "test_config",
             },
             "checksum_validation": {"fair": True},
             "results_summary": {
                 "fast": {"trades": 2, "win_rate": 0.6, "total_pnl": 6.0},
-                "slow": {"trades": 1, "win_rate": 1.0, "total_pnl": 8.0}
-            }
+                "slow": {"trades": 1, "win_rate": 1.0, "total_pnl": 8.0},
+            },
         }
-        with open(self.temp_path / "manifest.json", 'w') as f:
+        with open(self.temp_path / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         # Create inputs checksum
@@ -121,9 +125,9 @@ class TestArtifactReader:
             "sip_hash": "test_screener",
             "config_hash": "test_config",
             "seed": 42,
-            "experiment_id": "test-exp-123"
+            "experiment_id": "test-exp-123",
         }
-        with open(self.temp_path / "inputs_checksum.json", 'w') as f:
+        with open(self.temp_path / "inputs_checksum.json", "w") as f:
             json.dump(inputs_checksum, f)
 
     def test_init_missing_directory(self):
@@ -140,8 +144,15 @@ class TestArtifactReader:
 
         # Check that all expected artifacts are present
         expected_artifacts = [
-            "signals", "orders", "fills", "positions",
-            "equity", "trades", "risk_rejects", "allocation_log", "metrics"
+            "signals",
+            "orders",
+            "fills",
+            "positions",
+            "equity",
+            "trades",
+            "risk_rejects",
+            "allocation_log",
+            "metrics",
         ]
         for artifact_name in expected_artifacts:
             assert artifact_name in artifacts
@@ -187,10 +198,9 @@ class TestMetricsCalculator:
 
     def test_calculate_basic_metrics_with_trades(self):
         """Test basic metrics calculation with trades data."""
-        trades_df = pd.DataFrame({
-            "pnl": [10.0, -5.0, 15.0, -8.0, 12.0],
-            "qty": [100, 50, 200, 75, 150]
-        })
+        trades_df = pd.DataFrame(
+            {"pnl": [10.0, -5.0, 15.0, -8.0, 12.0], "qty": [100, 50, 200, 75, 150]}
+        )
 
         artifacts = {
             "trades": trades_df,
@@ -226,11 +236,7 @@ class TestMetricsCalculator:
 
     def test_calculate_basic_metrics_with_existing_metrics(self):
         """Test basic metrics calculation when metrics already exist."""
-        existing_metrics = {
-            "trades": 10,
-            "win_rate": 0.7,
-            "total_pnl": 100.0
-        }
+        existing_metrics = {"trades": 10, "win_rate": 0.7, "total_pnl": 100.0}
         artifacts = {"metrics": existing_metrics}
 
         metrics = MetricsCalculator.calculate_basic_metrics(artifacts)
@@ -240,16 +246,12 @@ class TestMetricsCalculator:
 
     def test_calculate_risk_metrics(self):
         """Test risk metrics calculation."""
-        trades_df = pd.DataFrame({
-            "stop_dist_ps": [2.0, 2.5, 1.8],
-            "qty": [100, 50, 200]
-        })
+        trades_df = pd.DataFrame(
+            {"stop_dist_ps": [2.0, 2.5, 1.8], "qty": [100, 50, 200]}
+        )
         risk_rejects_df = pd.DataFrame({"ts": [1, 2, 3]})
 
-        artifacts = {
-            "trades": trades_df,
-            "risk_rejects": risk_rejects_df
-        }
+        artifacts = {"trades": trades_df, "risk_rejects": risk_rejects_df}
 
         metrics = MetricsCalculator.calculate_risk_metrics(artifacts)
 
@@ -260,16 +262,15 @@ class TestMetricsCalculator:
     def test_calculate_execution_metrics(self):
         """Test execution metrics calculation."""
         orders_df = pd.DataFrame({"ts": [1, 2, 3, 4]})
-        fills_df = pd.DataFrame({
-            "ts": [1, 2, 3],
-            "fees": [1.0, 0.5, 1.2],
-            "slippage_est": [0.01, 0.02, 0.015]
-        })
+        fills_df = pd.DataFrame(
+            {
+                "ts": [1, 2, 3],
+                "fees": [1.0, 0.5, 1.2],
+                "slippage_est": [0.01, 0.02, 0.015],
+            }
+        )
 
-        artifacts = {
-            "orders": orders_df,
-            "fills": fills_df
-        }
+        artifacts = {"orders": orders_df, "fills": fills_df}
 
         metrics = MetricsCalculator.calculate_execution_metrics(artifacts)
 
@@ -290,41 +291,55 @@ class TestABComparator:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def _create_test_experiment_structure(self):
         """Create test experiment structure."""
         # Create variant directories with different performance
         for variant_name, metrics in [
-            ("fast", {"trades": 10, "win_rate": 0.6, "total_pnl": 100.0, "avg_R": 10.0}),
-            ("slow", {"trades": 5, "win_rate": 0.8, "total_pnl": 80.0, "avg_R": 16.0})
+            (
+                "fast",
+                {"trades": 10, "win_rate": 0.6, "total_pnl": 100.0, "avg_R": 10.0},
+            ),
+            ("slow", {"trades": 5, "win_rate": 0.8, "total_pnl": 80.0, "avg_R": 16.0}),
         ]:
             variant_dir = self.temp_path / f"variant_{variant_name}"
             variant_dir.mkdir(exist_ok=True)
 
             # Create minimal trades data
-            trades_df = pd.DataFrame({
-                "pnl": [10.0] * metrics["trades"],
-                "stop_dist_ps": [2.0] * metrics["trades"],
-                "qty": [100] * metrics["trades"]
-            })
+            trades_df = pd.DataFrame(
+                {
+                    "pnl": [10.0] * metrics["trades"],
+                    "stop_dist_ps": [2.0] * metrics["trades"],
+                    "qty": [100] * metrics["trades"],
+                }
+            )
             trades_df.to_parquet(variant_dir / "trades.parquet")
 
             # Create metrics JSON
-            with open(variant_dir / "metrics.json", 'w') as f:
+            with open(variant_dir / "metrics.json", "w") as f:
                 json.dump(metrics, f)
 
             # Create empty artifacts
-            for artifact_name in ["signals", "orders", "fills", "positions", "equity", "risk_rejects", "allocation_log"]:
+            for artifact_name in [
+                "signals",
+                "orders",
+                "fills",
+                "positions",
+                "equity",
+                "risk_rejects",
+                "allocation_log",
+            ]:
                 pd.DataFrame().to_parquet(variant_dir / f"{artifact_name}.parquet")
 
         # Create manifest
         manifest = {
             "experiment_id": "test-comparison",
             "experiment_name": "test_comparison",
-            "results_summary": {"fast": {}, "slow": {}}
+            "results_summary": {"fast": {}, "slow": {}},
         }
-        with open(self.temp_path / "manifest.json", 'w') as f:
+        with open(self.temp_path / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         # Create inputs checksum
@@ -333,9 +348,9 @@ class TestABComparator:
             "features_hash": "test",
             "sip_hash": "test",
             "config_hash": "test",
-            "seed": 42
+            "seed": 42,
         }
-        with open(self.temp_path / "inputs_checksum.json", 'w') as f:
+        with open(self.temp_path / "inputs_checksum.json", "w") as f:
             json.dump(inputs_checksum, f)
 
     def test_compare_variants(self):
@@ -406,6 +421,7 @@ class TestExperimentReport:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def _create_minimal_experiment(self):
@@ -420,9 +436,9 @@ class TestExperimentReport:
             "timestamp": "2024-01-15T10:00:00Z",
             "base_hashes": {"config_hash": "test"},
             "checksum_validation": {"fair": True},
-            "results_summary": {"variant1": {"trades": 5}}
+            "results_summary": {"variant1": {"trades": 5}},
         }
-        with open(exp_dir / "manifest.json", 'w') as f:
+        with open(exp_dir / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         # Create inputs checksum
@@ -431,15 +447,15 @@ class TestExperimentReport:
             "features_hash": "test",
             "sip_hash": "test",
             "config_hash": "test",
-            "seed": 42
+            "seed": 42,
         }
-        with open(exp_dir / "inputs_checksum.json", 'w') as f:
+        with open(exp_dir / "inputs_checksum.json", "w") as f:
             json.dump(inputs_checksum, f)
 
         # Create variant
         variant_dir = exp_dir / "variant_variant1"
         variant_dir.mkdir()
-        with open(variant_dir / "metrics.json", 'w') as f:
+        with open(variant_dir / "metrics.json", "w") as f:
             json.dump({"trades": 5, "win_rate": 0.6, "total_pnl": 50.0}, f)
 
         return str(exp_dir)
@@ -471,7 +487,9 @@ class TestExperimentReport:
 
         result = generate_experiment_report(exp_dir, output_format="json")
 
-        assert isinstance(result, dict)  # JSON returns dict, serialization handled by caller
+        assert isinstance(
+            result, dict
+        )  # JSON returns dict, serialization handled by caller
 
     def test_generate_experiment_report_missing_dir(self):
         """Test report generation with missing directory."""
@@ -485,7 +503,7 @@ class TestExperimentReport:
 
         # Create minimal manifest without variants
         manifest = {"experiment_id": "empty", "results_summary": {}}
-        with open(exp_dir / "manifest.json", 'w') as f:
+        with open(exp_dir / "manifest.json", "w") as f:
             json.dump(manifest, f)
 
         with pytest.raises(ValueError, match="No variants found"):
@@ -503,6 +521,7 @@ class TestSingleRunMetrics:
     def teardown_method(self):
         """Clean up test environment."""
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_read_single_run_metrics_from_json(self):
@@ -510,13 +529,8 @@ class TestSingleRunMetrics:
         run_dir = self.temp_path / "test_run"
         run_dir.mkdir()
 
-        metrics = {
-            "trades": 8,
-            "win_rate": 0.75,
-            "total_pnl": 120.0,
-            "avg_R": 15.0
-        }
-        with open(run_dir / "metrics.json", 'w') as f:
+        metrics = {"trades": 8, "win_rate": 0.75, "total_pnl": 120.0, "avg_R": 15.0}
+        with open(run_dir / "metrics.json", "w") as f:
             json.dump(metrics, f)
 
         result = read_single_run_metrics(str(run_dir))
@@ -529,11 +543,13 @@ class TestSingleRunMetrics:
         run_dir.mkdir()
 
         # Create trades artifact
-        trades_df = pd.DataFrame({
-            "pnl": [10.0, -5.0, 15.0, -3.0],
-            "stop_dist_ps": [2.0, 2.5, 1.8, 2.2],
-            "qty": [100, 50, 200, 75]
-        })
+        trades_df = pd.DataFrame(
+            {
+                "pnl": [10.0, -5.0, 15.0, -3.0],
+                "stop_dist_ps": [2.0, 2.5, 1.8, 2.2],
+                "qty": [100, 50, 200, 75],
+            }
+        )
         trades_df.to_parquet(run_dir / "trades.parquet")
 
         # Create other artifacts

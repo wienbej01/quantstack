@@ -4,11 +4,12 @@ This module wraps existing qx-screener functionality while providing
 Sprint 4 interface for universe screening and selection.
 """
 
-import pandas as pd
 from typing import Any, Dict, List
 
-from qx_screener.sip import SipScreener, ScreenerConfig
+import pandas as pd
+
 from qx_core.hashers import hash_dataframe
+from qx_screener.sip import ScreenerConfig, SipScreener
 
 
 def intraday_ml_screen_universe(

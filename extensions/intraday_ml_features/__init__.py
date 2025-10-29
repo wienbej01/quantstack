@@ -2,8 +2,12 @@
 
 from .selection import FeatureSelector, SelectionResult
 from .transforms import (
-    LagTransformer, RollingTransformer, DifferenceTransformer,
-    InteractionTransformer, BinningTransformer, TechnicalIndicatorTransformer
+    BinningTransformer,
+    DifferenceTransformer,
+    InteractionTransformer,
+    LagTransformer,
+    RollingTransformer,
+    TechnicalIndicatorTransformer,
 )
 
 __all__ = [
@@ -14,5 +18,5 @@ __all__ = [
     "DifferenceTransformer",
     "InteractionTransformer",
     "BinningTransformer",
-    "TechnicalIndicatorTransformer"
+    "TechnicalIndicatorTransformer",
 ]

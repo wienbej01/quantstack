@@ -2,12 +2,6 @@
 
 from __future__ import annotations
 
-# import logging
-# logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
-
-# def log_debug(msg):
-#     logging.debug(msg)
-
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date
@@ -18,6 +12,15 @@ import pandas as pd
 from .fill import DefaultFiller, Fill, Filler
 from .order import Order, OrderFactory, OrderStatus
 from .portfolio import Portfolio, Position
+
+# import logging
+# logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
+
+# def log_debug(msg):
+#     logging.debug(msg)
+
+
+
 
 # Optional regime detection import
 try:
@@ -350,7 +353,7 @@ class BacktestEngine:
     def _process_pending_orders(self, bars: pd.DataFrame) -> None:
         # log_debug(f"Processing {len(self.pending_orders)} pending orders.")
         """Process pending orders against current bars."""
-        
+
         remaining_orders = []
         for order in self.pending_orders:
             symbol_bars = bars[bars["symbol"] == order.symbol]

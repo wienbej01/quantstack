@@ -1,16 +1,25 @@
 """Tests for policy automation engine."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from threading import Event
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from extensions.intraday_ml_policies.automation_engine import (
-    PolicyAutomationEngine, AutomationConfig, AutomationState, ExecutionMode,
-    ExecutionResult
+    AutomationConfig,
+    AutomationState,
+    ExecutionMode,
+    ExecutionResult,
+    PolicyAutomationEngine,
 )
-from extensions.intraday_ml_policies.base import BaseMLPolicy, PolicyDecision, PolicySignal, PolicyAction
+from extensions.intraday_ml_policies.base import (
+    BaseMLPolicy,
+    PolicyAction,
+    PolicyDecision,
+    PolicySignal,
+)
 
 
 class MockPolicy(BaseMLPolicy):
@@ -39,7 +48,7 @@ class MockPolicy(BaseMLPolicy):
             action=PolicyAction.BUY,
             confidence=0.7,
             signal_strength=0.5,
-            metadata={"policy_id": self.policy_id}
+            metadata={"policy_id": self.policy_id},
         )
 
 
@@ -52,22 +61,23 @@ class TestPolicyAutomationEngine:
         self.policies = {
             "policy1": MockPolicy("policy1"),
             "policy2": MockPolicy("policy2"),
-            "policy3": MockPolicy("policy3")
+            "policy3": MockPolicy("policy3"),
         }
 
         # Create automation config
         self.config = AutomationConfig(
             execution_mode=ExecutionMode.PARALLEL,
             update_interval_seconds=1,  # Short interval for testing
-            max_concurrent_policies=3
+            max_concurrent_policies=3,
         )
 
         # Create engine
-        with patch('extensions.intraday_ml_policies.automation_engine.PolicySelector'):
-            with patch('extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker'):
+        with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
+            with patch(
+                "extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker"
+            ):
                 self.engine = PolicyAutomationEngine(
-                    policies=self.policies,
-                    config=self.config
+                    policies=self.policies, config=self.config
                 )
 
     def teardown_method(self):
@@ -115,11 +125,13 @@ class TestPolicyAutomationEngine:
         config = AutomationConfig(
             execution_mode=ExecutionMode.SINGLE,
             update_interval_seconds=1,
-            max_concurrent_policies=1
+            max_concurrent_policies=1,
         )
 
-        with patch('extensions.intraday_ml_policies.automation_engine.PolicySelector'):
-            with patch('extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker'):
+        with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
+            with patch(
+                "extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker"
+            ):
                 engine = PolicyAutomationEngine(self.policies, config)
 
                 result = engine._execute_single_policy("policy1")
@@ -167,11 +179,12 @@ class TestPolicyAutomationEngine:
     def test_policy_selection_single_mode(self):
         """Test policy selection for single execution mode."""
         config = AutomationConfig(
-            execution_mode=ExecutionMode.SINGLE,
-            update_interval_seconds=1
+            execution_mode=ExecutionMode.SINGLE, update_interval_seconds=1
         )
 
-        with patch('extensions.intraday_ml_policies.automation_engine.PolicySelector') as mock_selector:
+        with patch(
+            "extensions.intraday_ml_policies.automation_engine.PolicySelector"
+        ) as mock_selector:
             mock_selector_instance = Mock()
             mock_selector_instance.select_best_policy.return_value = "policy1"
             mock_selector.return_value = mock_selector_instance
@@ -187,11 +200,10 @@ class TestPolicyAutomationEngine:
     def test_policy_selection_parallel_mode(self):
         """Test policy selection for parallel execution mode."""
         config = AutomationConfig(
-            execution_mode=ExecutionMode.PARALLEL,
-            update_interval_seconds=1
+            execution_mode=ExecutionMode.PARALLEL, update_interval_seconds=1
         )
 
-        with patch('extensions.intraday_ml_policies.automation_engine.PolicySelector'):
+        with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
             engine = PolicyAutomationEngine(self.policies, config)
             selected = engine._select_policies_for_execution()
 
@@ -204,7 +216,7 @@ class TestPolicyAutomationEngine:
         results = [
             ExecutionResult("policy1", Mock(), 100, True),
             ExecutionResult("policy2", Mock(), 150, True),
-            ExecutionResult("policy3", None, 50, False, "Test error")
+            ExecutionResult("policy3", None, 50, False, "Test error"),
         ]
 
         self.engine._process_execution_results(results)
@@ -253,7 +265,7 @@ class TestPolicyAutomationEngine:
         new_config = AutomationConfig(
             execution_mode=ExecutionMode.SINGLE,
             update_interval_seconds=5,
-            max_concurrent_policies=1
+            max_concurrent_policies=1,
         )
 
         self.engine.update_config(new_config)
@@ -278,7 +290,7 @@ class TestPolicyAutomationEngine:
         decisions = [
             PolicyDecision(PolicyAction.BUY, 0.7, 0.8),
             PolicyDecision(PolicyAction.BUY, 0.6, 0.5),
-            PolicyDecision(PolicyAction.HOLD, 0.5, 0.0)
+            PolicyDecision(PolicyAction.HOLD, 0.5, 0.0),
         ]
 
         ensemble_decision = self.engine._create_ensemble_decision(decisions)
@@ -291,12 +303,13 @@ class TestPolicyAutomationEngine:
     def test_concurrent_execution_limits(self):
         """Test concurrent execution limits."""
         config = AutomationConfig(
-            execution_mode=ExecutionMode.PARALLEL,
-            max_concurrent_policies=2
+            execution_mode=ExecutionMode.PARALLEL, max_concurrent_policies=2
         )
 
-        with patch('extensions.intraday_ml_policies.automation_engine.PolicySelector'):
-            with patch('extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker'):
+        with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
+            with patch(
+                "extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker"
+            ):
                 engine = PolicyAutomationEngine(self.policies, config)
 
                 # Should limit to 2 concurrent policies

@@ -1,0 +1,3 @@
+order_id,symbol,side,order_type,quantity,price,stop_price,time_in_force,timestamp,status,filled_quantity,remaining_quantity,avg_fill_price,is_fully_filled,is_active,strategy_id,parent_order_id,tags,fill_count
+ml_order_1706797920000000_0,msft,SELL,MKT,2476,,,DAY,1706797920000000,FILLED,2476,0,408.73005726539105,True,False,,,{},2476
+ml_order_1706797980000000_0,aapl,SELL,MKT,5420,,,DAY,1706797980000000,FILLED,5420,0,185.50490190329134,True,False,,,{},5420

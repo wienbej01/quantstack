@@ -13,8 +13,8 @@ import yaml
 from rich.console import Console
 from rich.table import Table
 
-from .experiments import run_entry_ab_experiment, validate_fairness
 from . import __version__
+from .experiments import run_entry_ab_experiment, validate_fairness
 
 console = Console()
 app = typer.Typer(help=f"Intraday ML Extension v{__version__}")
@@ -26,7 +26,7 @@ def entry_ab(
     variants: str = typer.Option(
         ...,
         "--variants",
-        help="Variant overlay files pattern, e.g., configs/extensions/intraday_ml/overlays/*.yaml"
+        help="Variant overlay files pattern, e.g., configs/extensions/intraday_ml/overlays/*.yaml",
     ),
     name: str = typer.Option(..., "--name", help="Experiment ID"),
     force: bool = typer.Option(
@@ -46,6 +46,7 @@ def entry_ab(
 
     # Find variant files
     import glob
+
     variant_files = sorted(glob.glob(variants))
     if not variant_files:
         console.print(f"[red]No variant files found: {variants}[/red]")
@@ -65,7 +66,7 @@ def entry_ab(
             base_config_path=str(cfg),
             variant_paths=variant_files,
             experiment_name=name,
-            force=force
+            force=force,
         )
 
         # Display results
@@ -123,7 +124,7 @@ def _display_experiment_results(results: Dict[str, Any], experiment_name: str) -
             f"{metrics.get('win_rate', 0):.2%}",
             f"{metrics.get('avg_R', 0):.3f}",
             f"{metrics.get('total_pnl', 0):.2f}",
-            "✅ Complete"
+            "✅ Complete",
         )
 
     console.print(table)

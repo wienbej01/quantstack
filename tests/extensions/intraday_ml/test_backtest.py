@@ -5,24 +5,25 @@ it properly wraps existing qx-backtest functionality while enforcing
 intraday trading compliance rules.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime, timedelta
-import pandas as pd
-import numpy as np
 from pathlib import Path
+from unittest.mock import Mock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
 
 from extensions.intraday_ml.backtest import (
-    intraday_ml_run_backtest,
-    intraday_ml_get_backtest_hash,
-    _load_and_merge_config,
-    _validate_inputs,
     _apply_intraday_constraints,
-    _shift_to_next_bar,
-    _filter_eod_violations,
-    _create_strategy_wrapper,
-    _convert_result_to_artifacts,
     _calculate_metrics,
+    _convert_result_to_artifacts,
+    _create_strategy_wrapper,
+    _filter_eod_violations,
+    _load_and_merge_config,
+    _shift_to_next_bar,
+    _validate_inputs,
+    intraday_ml_get_backtest_hash,
+    intraday_ml_run_backtest,
 )
 
 
@@ -52,14 +53,16 @@ class TestBacktestConfig:
     def test_load_config_from_file(self, tmp_path):
         """Test loading configuration from file."""
         config_file = tmp_path / "test_config.yaml"
-        config_file.write_text("""
+        config_file.write_text(
+            """
 initial_cash: 2_000_000.0
 costs:
   bps: 0.0015
   per_share: 0.0035
 intraday_constraints:
   next_bar_execution: false
-""")
+"""
+        )
 
         cfg = {"initial_cash": 1_000_000.0}
         config = _load_and_merge_config(cfg, str(config_file))
@@ -90,10 +93,17 @@ class TestInputValidation:
 
     def test_validate_missing_order_columns(self):
         """Test validation fails with missing order columns."""
-        bars = pd.DataFrame({
-            "ts": [1], "symbol": ["AAPL"], "open": [100], "high": [101],
-            "low": [99], "close": [100.5], "volume": [1000]
-        })
+        bars = pd.DataFrame(
+            {
+                "ts": [1],
+                "symbol": ["AAPL"],
+                "open": [100],
+                "high": [101],
+                "low": [99],
+                "close": [100.5],
+                "volume": [1000],
+            }
+        )
         orders = pd.DataFrame({"ts": [2], "symbol": ["AAPL"]})  # Missing side, qty
 
         with pytest.raises(ValueError, match="Missing required order columns"):
@@ -101,13 +111,20 @@ class TestInputValidation:
 
     def test_validate_valid_inputs(self):
         """Test validation passes with valid inputs."""
-        bars = pd.DataFrame({
-            "ts": [1], "symbol": ["AAPL"], "open": [100], "high": [101],
-            "low": [99], "close": [100.5], "volume": [1000]
-        })
-        orders = pd.DataFrame({
-            "ts": [2], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]
-        })
+        bars = pd.DataFrame(
+            {
+                "ts": [1],
+                "symbol": ["AAPL"],
+                "open": [100],
+                "high": [101],
+                "low": [99],
+                "close": [100.5],
+                "volume": [1000],
+            }
+        )
+        orders = pd.DataFrame(
+            {"ts": [2], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
+        )
 
         # Should not raise exception
         _validate_inputs(bars, orders)
@@ -118,16 +135,17 @@ class TestIntradayConstraints:
 
     def test_shift_to_next_bar(self):
         """Test shifting order execution to next bar."""
-        bars = pd.DataFrame({
-            "ts": [1000, 2000, 3000],
-            "symbol": ["AAPL", "AAPL", "AAPL"]
-        })
-        orders = pd.DataFrame({
-            "ts": [1000, 2000],
-            "symbol": ["AAPL", "AAPL"],
-            "side": ["BUY", "SELL"],
-            "qty": [100, 100]
-        })
+        bars = pd.DataFrame(
+            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
+        )
+        orders = pd.DataFrame(
+            {
+                "ts": [1000, 2000],
+                "symbol": ["AAPL", "AAPL"],
+                "side": ["BUY", "SELL"],
+                "qty": [100, 100],
+            }
+        )
 
         shifted = _shift_to_next_bar(orders, bars)
 
@@ -140,17 +158,18 @@ class TestIntradayConstraints:
         """Test filtering orders that would violate EOD flat constraint."""
         # Create simple test data - the EOD filtering is complex and timezone-dependent
         # For this test, we just verify the function runs without error
-        bars = pd.DataFrame({
-            "ts": [1000, 2000, 3000],
-            "symbol": ["AAPL", "AAPL", "AAPL"]
-        })
+        bars = pd.DataFrame(
+            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
+        )
 
-        orders = pd.DataFrame({
-            "ts": [1500, 2500],
-            "symbol": ["AAPL", "AAPL"],
-            "side": ["BUY", "SELL"],
-            "qty": [100, 100]
-        })
+        orders = pd.DataFrame(
+            {
+                "ts": [1500, 2500],
+                "symbol": ["AAPL", "AAPL"],
+                "side": ["BUY", "SELL"],
+                "qty": [100, 100],
+            }
+        )
 
         constraints = {"eod_buffer_minutes": 5}
         filtered = _filter_eod_violations(orders, bars, constraints)
@@ -161,26 +180,24 @@ class TestIntradayConstraints:
 
     def test_apply_intraday_constraints(self):
         """Test applying all intraday constraints."""
-        bars = pd.DataFrame({
-            "ts": [1000, 2000, 3000],
-            "symbol": ["AAPL", "AAPL", "AAPL"]
-        })
-        orders = pd.DataFrame({
-            "ts": [1000],
-            "symbol": ["AAPL"],
-            "side": ["BUY"],
-            "qty": [100]
-        })
+        bars = pd.DataFrame(
+            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
+        )
+        orders = pd.DataFrame(
+            {"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
+        )
 
         config = {
             "intraday_constraints": {
                 "next_bar_execution": True,
                 "no_overnight_positions": True,
-                "eod_buffer_minutes": 5
+                "eod_buffer_minutes": 5,
             }
         }
 
-        processed_bars, processed_orders = _apply_intraday_constraints(bars, orders, config)
+        processed_bars, processed_orders = _apply_intraday_constraints(
+            bars, orders, config
+        )
 
         assert len(processed_orders) == 1
         assert processed_orders.iloc[0]["ts"] == 2000  # Shifted to next bar
@@ -191,20 +208,21 @@ class TestStrategyWrapper:
 
     def test_create_strategy_wrapper(self):
         """Test creating strategy wrapper for pre-sized orders."""
-        orders = pd.DataFrame({
-            "ts": [2000, 3000],
-            "symbol": ["AAPL", "GOOGL"],
-            "side": ["BUY", "SELL"],
-            "qty": [100, 200]
-        })
+        orders = pd.DataFrame(
+            {
+                "ts": [2000, 3000],
+                "symbol": ["AAPL", "GOOGL"],
+                "side": ["BUY", "SELL"],
+                "qty": [100, 200],
+            }
+        )
 
         strategy = _create_strategy_wrapper(orders)
 
         # Test with matching bars
-        bars = pd.DataFrame({
-            "ts": [2000, 3000, 4000],
-            "symbol": ["AAPL", "GOOGL", "MSFT"]
-        })
+        bars = pd.DataFrame(
+            {"ts": [2000, 3000, 4000], "symbol": ["AAPL", "GOOGL", "MSFT"]}
+        )
 
         result = strategy(bars)
 
@@ -230,7 +248,9 @@ class TestResultConversion:
         # Mock result object
         result = Mock()
         result.metrics = {"trades": 10, "pnl": 1000.0}
-        result.equity_curve = pd.DataFrame({"timestamp": [1, 2], "equity": [1000, 1100]})
+        result.equity_curve = pd.DataFrame(
+            {"timestamp": [1, 2], "equity": [1000, 1100]}
+        )
         result.positions = pd.DataFrame({"timestamp": [1], "position": [100]})
         result.trades = pd.DataFrame({"timestamp": [1], "pnl": [10]})
         result.orders = pd.DataFrame({"timestamp": [1], "symbol": ["AAPL"]})
@@ -240,8 +260,15 @@ class TestResultConversion:
 
         # Check all required artifacts exist
         required_artifacts = [
-            "signals", "orders", "fills", "positions", "equity",
-            "trades", "risk_rejects", "allocation_log", "metrics"
+            "signals",
+            "orders",
+            "fills",
+            "positions",
+            "equity",
+            "trades",
+            "risk_rejects",
+            "allocation_log",
+            "metrics",
         ]
 
         for artifact in required_artifacts:
@@ -261,7 +288,7 @@ class TestResultConversion:
         """Test converting result dict to artifacts."""
         result = {
             "metrics": {"trades": 5},
-            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]})
+            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]}),
         }
 
         artifacts = _convert_result_to_artifacts(result, {})
@@ -272,12 +299,8 @@ class TestResultConversion:
     def test_calculate_metrics(self):
         """Test metrics calculation from artifacts."""
         artifacts = {
-            "trades": pd.DataFrame({
-                "pnl": [10, -5, 15, -8, 12]
-            }),
-            "fills": pd.DataFrame({
-                "fees": [1, 0.5, 1.2, 0.8, 1.0]
-            })
+            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]}),
+            "fills": pd.DataFrame({"fees": [1, 0.5, 1.2, 0.8, 1.0]}),
         }
 
         metrics = _calculate_metrics(artifacts)
@@ -292,8 +315,8 @@ class TestResultConversion:
 class TestBacktestHash:
     """Test backtest hash calculation."""
 
-    @patch('extensions.intraday_ml.backtest.hash_dataframe')
-    @patch('extensions.intraday_ml.backtest.hash_dict')
+    @patch("extensions.intraday_ml.backtest.hash_dataframe")
+    @patch("extensions.intraday_ml.backtest.hash_dict")
     def test_get_backtest_hash(self, mock_hash_dict, mock_hash_dataframe):
         """Test deterministic hash calculation."""
         mock_hash_dataframe.side_effect = ["bars_hash", "orders_hash", "config_hash"]
@@ -313,8 +336,8 @@ class TestBacktestHash:
 class TestIntegration:
     """Integration tests for the complete backtest pipeline."""
 
-    @patch('qx_backtest.engine.BacktestEngine')
-    @patch('qx_backtest.fill.DefaultFiller')
+    @patch("qx_backtest.engine.BacktestEngine")
+    @patch("qx_backtest.fill.DefaultFiller")
     def test_run_backtest_full_pipeline(self, mock_filler_class, mock_engine_class):
         """Test complete backtest run with mocked engine."""
         # Mock engine and filler
@@ -334,22 +357,21 @@ class TestIntegration:
         mock_engine.run.return_value = mock_result
 
         # Test data
-        bars = pd.DataFrame({
-            "ts": [1000, 2000, 3000],
-            "symbol": ["AAPL", "AAPL", "AAPL"],
-            "open": [100, 101, 102],
-            "high": [101, 102, 103],
-            "low": [99, 100, 101],
-            "close": [100.5, 101.5, 102.5],
-            "volume": [1000, 1100, 1200]
-        })
+        bars = pd.DataFrame(
+            {
+                "ts": [1000, 2000, 3000],
+                "symbol": ["AAPL", "AAPL", "AAPL"],
+                "open": [100, 101, 102],
+                "high": [101, 102, 103],
+                "low": [99, 100, 101],
+                "close": [100.5, 101.5, 102.5],
+                "volume": [1000, 1100, 1200],
+            }
+        )
 
-        orders = pd.DataFrame({
-            "ts": [1000],
-            "symbol": ["AAPL"],
-            "side": ["BUY"],
-            "qty": [100]
-        })
+        orders = pd.DataFrame(
+            {"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
+        )
 
         cfg = {"initial_cash": 1000000.0}
 

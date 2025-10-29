@@ -11,10 +11,13 @@ from .base import Policy
 @dataclass
 class MomentumParameters:
     """Parameters for AVWAP Momentum strategy."""
+
     atr_stop_multiple: float = 1.0
     atr_target_multiple: float = 1.5
     max_position_bars: int = 60  # New: timeout exit
-    enabled_regimes: list[RegimeType] = field(default_factory=lambda: [RegimeType.BULL, RegimeType.BEAR])
+    enabled_regimes: list[RegimeType] = field(
+        default_factory=lambda: [RegimeType.BULL, RegimeType.BEAR]
+    )
 
 
 class AVWAPMomentumPolicy(Policy):
@@ -121,14 +124,18 @@ class AVWAPMomentumPolicy(Policy):
         if position.is_long:
             if bar["low"] <= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["high"] >= entry_price + (atr * self.params.atr_target_multiple):
+            elif atr > 0 and bar["high"] >= entry_price + (
+                atr * self.params.atr_target_multiple
+            ):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
         elif position.is_short:
             if bar["high"] >= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["low"] <= entry_price - (atr * self.params.atr_target_multiple):
+            elif atr > 0 and bar["low"] <= entry_price - (
+                atr * self.params.atr_target_multiple
+            ):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
@@ -147,21 +154,25 @@ class AVWAPMomentumPolicy(Policy):
             tags={"exit_reason": reason},
         )
         self.submit_order(order)
-        
+
         if symbol in self.active_orders:
             del self.active_orders[symbol]
 
     def on_end(self) -> None:
         pass
 
+
 @dataclass
 class PullbackParameters:
     """Parameters for AVWAP Pullback strategy."""
+
     atr_stop_multiple: float = 1.0
     atr_target_multiple: float = 1.5
     max_position_bars: int = 45
     pullback_dev_multiple: float = 0.5  # Deviation from AVWAP for entry
-    enabled_regimes: list[RegimeType] = field(default_factory=lambda: [RegimeType.BULL, RegimeType.BEAR])
+    enabled_regimes: list[RegimeType] = field(
+        default_factory=lambda: [RegimeType.BULL, RegimeType.BEAR]
+    )
 
 
 class AVWAPPullbackPolicy(Policy):
@@ -217,9 +228,19 @@ class AVWAPPullbackPolicy(Policy):
             if risk_per_share <= 0:
                 return
 
-            order = MarketOrder(symbol=bar["symbol"], quantity=1, side=OrderSide.BUY, ts_submitted=bar["ts"], strategy_id=self.strategy_id)
+            order = MarketOrder(
+                symbol=bar["symbol"],
+                quantity=1,
+                side=OrderSide.BUY,
+                ts_submitted=bar["ts"],
+                strategy_id=self.strategy_id,
+            )
             self.submit_order(order)
-            self.active_orders[bar["symbol"]] = {"stop_level": stop_level, "entry_bar_ts": bar["ts"], "entry_price": bar["close"]}
+            self.active_orders[bar["symbol"]] = {
+                "stop_level": stop_level,
+                "entry_bar_ts": bar["ts"],
+                "entry_price": bar["close"],
+            }
             self.trades_today.add(order.symbol)
 
     def _enter_short(self, bar: dict[str, Any]) -> None:
@@ -236,9 +257,19 @@ class AVWAPPullbackPolicy(Policy):
             if risk_per_share <= 0:
                 return
 
-            order = MarketOrder(symbol=bar["symbol"], quantity=1, side=OrderSide.SELL, ts_submitted=bar["ts"], strategy_id=self.strategy_id)
+            order = MarketOrder(
+                symbol=bar["symbol"],
+                quantity=1,
+                side=OrderSide.SELL,
+                ts_submitted=bar["ts"],
+                strategy_id=self.strategy_id,
+            )
             self.submit_order(order)
-            self.active_orders[bar["symbol"]] = {"stop_level": stop_level, "entry_bar_ts": bar["ts"], "entry_price": bar["close"]}
+            self.active_orders[bar["symbol"]] = {
+                "stop_level": stop_level,
+                "entry_bar_ts": bar["ts"],
+                "entry_price": bar["close"],
+            }
             self.trades_today.add(order.symbol)
 
     def _manage_position(self, bar: dict[str, Any], position) -> None:
@@ -256,14 +287,18 @@ class AVWAPPullbackPolicy(Policy):
         if position.is_long:
             if bar["low"] <= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["high"] >= entry_price + (atr * self.params.atr_target_multiple):
+            elif atr > 0 and bar["high"] >= entry_price + (
+                atr * self.params.atr_target_multiple
+            ):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
         elif position.is_short:
             if bar["high"] >= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["low"] <= entry_price - (atr * self.params.atr_target_multiple):
+            elif atr > 0 and bar["low"] <= entry_price - (
+                atr * self.params.atr_target_multiple
+            ):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
@@ -273,7 +308,14 @@ class AVWAPPullbackPolicy(Policy):
 
     def _close_position(self, bar: dict[str, Any], position, reason: str) -> None:
         symbol = bar["symbol"]
-        order = MarketOrder(symbol=symbol, quantity=abs(position.quantity), side=OrderSide.SELL if position.is_long else OrderSide.BUY, ts_submitted=bar["ts"], strategy_id=self.strategy_id, tags={"exit_reason": reason})
+        order = MarketOrder(
+            symbol=symbol,
+            quantity=abs(position.quantity),
+            side=OrderSide.SELL if position.is_long else OrderSide.BUY,
+            ts_submitted=bar["ts"],
+            strategy_id=self.strategy_id,
+            tags={"exit_reason": reason},
+        )
         self.submit_order(order)
         if symbol in self.active_orders:
             del self.active_orders[symbol]
@@ -281,13 +323,17 @@ class AVWAPPullbackPolicy(Policy):
     def on_end(self) -> None:
         pass
 
+
 @dataclass
 class ValueRotationParameters:
     """Parameters for Value Rotation strategy."""
+
     atr_stop_multiple: float = 1.2
     max_position_bars: int = 90
     entry_dev_multiple: float = 0.1  # % deviation outside value area for entry
-    enabled_regimes: list[RegimeType] = field(default_factory=lambda: [RegimeType.SIDEWAYS])
+    enabled_regimes: list[RegimeType] = field(
+        default_factory=lambda: [RegimeType.SIDEWAYS]
+    )
 
 
 class ValueRotationPolicy(Policy):
@@ -340,9 +386,19 @@ class ValueRotationPolicy(Policy):
             if risk_per_share <= 0:
                 return
 
-            order = MarketOrder(symbol=bar["symbol"], quantity=1, side=OrderSide.BUY, ts_submitted=bar["ts"], strategy_id=self.strategy_id)
+            order = MarketOrder(
+                symbol=bar["symbol"],
+                quantity=1,
+                side=OrderSide.BUY,
+                ts_submitted=bar["ts"],
+                strategy_id=self.strategy_id,
+            )
             self.submit_order(order)
-            self.active_orders[bar["symbol"]] = {"stop_level": stop_level, "entry_bar_ts": bar["ts"], "entry_price": bar["close"]}
+            self.active_orders[bar["symbol"]] = {
+                "stop_level": stop_level,
+                "entry_bar_ts": bar["ts"],
+                "entry_price": bar["close"],
+            }
             self.trades_today.add(order.symbol)
 
     def _enter_short(self, bar: dict[str, Any]) -> None:
@@ -358,9 +414,19 @@ class ValueRotationPolicy(Policy):
             if risk_per_share <= 0:
                 return
 
-            order = MarketOrder(symbol=bar["symbol"], quantity=1, side=OrderSide.SELL, ts_submitted=bar["ts"], strategy_id=self.strategy_id)
+            order = MarketOrder(
+                symbol=bar["symbol"],
+                quantity=1,
+                side=OrderSide.SELL,
+                ts_submitted=bar["ts"],
+                strategy_id=self.strategy_id,
+            )
             self.submit_order(order)
-            self.active_orders[bar["symbol"]] = {"stop_level": stop_level, "entry_bar_ts": bar["ts"], "entry_price": bar["close"]}
+            self.active_orders[bar["symbol"]] = {
+                "stop_level": stop_level,
+                "entry_bar_ts": bar["ts"],
+                "entry_price": bar["close"],
+            }
             self.trades_today.add(order.symbol)
 
     def _manage_position(self, bar: dict[str, Any], position) -> None:
@@ -394,7 +460,14 @@ class ValueRotationPolicy(Policy):
 
     def _close_position(self, bar: dict[str, Any], position, reason: str) -> None:
         symbol = bar["symbol"]
-        order = MarketOrder(symbol=symbol, quantity=abs(position.quantity), side=OrderSide.SELL if position.is_long else OrderSide.BUY, ts_submitted=bar["ts"], strategy_id=self.strategy_id, tags={"exit_reason": reason})
+        order = MarketOrder(
+            symbol=symbol,
+            quantity=abs(position.quantity),
+            side=OrderSide.SELL if position.is_long else OrderSide.BUY,
+            ts_submitted=bar["ts"],
+            strategy_id=self.strategy_id,
+            tags={"exit_reason": reason},
+        )
         self.submit_order(order)
         if symbol in self.active_orders:
             del self.active_orders[symbol]

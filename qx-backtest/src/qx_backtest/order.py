@@ -227,7 +227,10 @@ class MarketOrder(Order):
             self.order_id = uuid.uuid4().hex
 
         import logging
-        logging.debug(f"MarketOrder created for {self.symbol} with quantity {self.quantity}")
+
+        logging.debug(
+            f"MarketOrder created for {self.symbol} with quantity {self.quantity}"
+        )
         # Call parent validation
         super().__post_init__()
 

@@ -14,7 +14,7 @@ class MLClassificationPolicy(BaseMLPolicy):
         long_threshold: float = 0.6,
         short_threshold: float = 0.4,
         confidence_threshold: float = 0.1,
-        **kwargs
+        **kwargs,
     ):
         """Initialize classification policy.
 

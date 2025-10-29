@@ -7,7 +7,12 @@ from rich.console import Console
 from rich.table import Table
 
 from .readers import RunReader
-from .summaries import ABDiffTables, LeaderboardGenerator, PerRunSummaries, TradeAnalysis
+from .summaries import (
+    ABDiffTables,
+    LeaderboardGenerator,
+    PerRunSummaries,
+    TradeAnalysis,
+)
 
 app = typer.Typer(help="QuantStack reporting tool for experiment analysis")
 console = Console()

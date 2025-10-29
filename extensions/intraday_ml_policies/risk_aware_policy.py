@@ -5,20 +5,27 @@ advanced risk management directly into the decision-making process.
 """
 
 import logging
-from typing import Dict, Any, Optional, List, Tuple
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from collections import deque
+from typing import Any, Dict, List, Optional, Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from .base import BaseMLPolicy, PolicyDecision, PolicySignal, PolicyAction, PolicyMetrics
+from .base import (
+    BaseMLPolicy,
+    PolicyAction,
+    PolicyDecision,
+    PolicyMetrics,
+    PolicySignal,
+)
 
 
 class RiskStrategy(Enum):
     """Risk management strategies."""
+
     CONSERVATIVE = "conservative"
     MODERATE = "moderate"
     AGGRESSIVE = "aggressive"
@@ -28,10 +35,11 @@ class RiskStrategy(Enum):
 @dataclass
 class RiskConfig:
     """Configuration for risk management."""
+
     # Position sizing risk
     max_position_size: float = 0.1  # 10% of portfolio
-    max_daily_loss: float = 0.02   # 2% daily loss limit
-    max_drawdown: float = 0.05     # 5% maximum drawdown
+    max_daily_loss: float = 0.02  # 2% daily loss limit
+    max_drawdown: float = 0.05  # 5% maximum drawdown
 
     # Stop loss and take profit
     stop_loss_atr_multiplier: float = 2.0
@@ -41,7 +49,7 @@ class RiskConfig:
 
     # Risk-adjusted position sizing
     kelly_criterion_enabled: bool = False
-    kelly_fraction: float = 0.25   # Fraction of Kelly to use
+    kelly_fraction: float = 0.25  # Fraction of Kelly to use
     volatility_adjustment: bool = True
     correlation_adjustment: bool = True
 
@@ -63,6 +71,7 @@ class RiskConfig:
 @dataclass
 class RiskMetrics:
     """Current risk metrics."""
+
     current_position_size: float = 0.0
     current_exposure: float = 0.0
     daily_pnl: float = 0.0
@@ -79,6 +88,7 @@ class RiskMetrics:
 @dataclass
 class RiskDecision:
     """Risk-aware trading decision."""
+
     original_decision: PolicyDecision
     risk_adjusted_decision: PolicyDecision
     risk_assessment: Dict[str, Any]
@@ -99,7 +109,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         model_id: str,
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None
+        config: Optional[Dict[str, Any]] = None,
     ):
         """
         Initialize risk-aware ML policy.
@@ -113,8 +123,8 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         super().__init__(model_id, registry, feature_pipeline, config)
 
         # Risk configuration
-        self.risk_config = RiskConfig(**self.config.get('risk_config', {}))
-        self.risk_strategy = RiskStrategy(self.config.get('risk_strategy', 'moderate'))
+        self.risk_config = RiskConfig(**self.config.get("risk_config", {}))
+        self.risk_strategy = RiskStrategy(self.config.get("risk_strategy", "moderate"))
 
         # Risk metrics and state
         self.risk_metrics = RiskMetrics()
@@ -143,7 +153,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self,
         features: Dict[str, float],
         current_position: float,
-        market_data: pd.DataFrame
+        market_data: pd.DataFrame,
     ) -> PolicySignal:
         """
         Generate risk-aware trading signal.
@@ -158,7 +168,9 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         """
         try:
             # Get base signal from ML model
-            base_signal = self._generate_base_signal(features, current_position, market_data)
+            base_signal = self._generate_base_signal(
+                features, current_position, market_data
+            )
 
             # Assess current risk environment
             risk_assessment = self._assess_market_risk(features, market_data)
@@ -179,7 +191,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         signal: PolicySignal,
         confidence: float,
         volatility: float,
-        account_value: float
+        account_value: float,
     ) -> float:
         """
         Calculate risk-adjusted position size.
@@ -194,7 +206,9 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             Risk-adjusted position size
         """
         # Get base position size
-        base_position_size = super().calculate_position_size(signal, confidence, volatility, account_value)
+        base_position_size = super().calculate_position_size(
+            signal, confidence, volatility, account_value
+        )
 
         # Apply risk adjustments
         risk_adjusted_size = self._apply_risk_adjustments_to_size(
@@ -210,7 +224,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self,
         decision: PolicyDecision,
         features: Dict[str, float],
-        portfolio: Dict[str, Any]
+        portfolio: Dict[str, Any],
     ) -> Dict[str, Any]:
         """
         Assess risk for a trading decision.
@@ -224,54 +238,56 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             Risk assessment results
         """
         risk_assessment = {
-            'overall_risk_score': 0.0,
-            'position_size_risk': 0.0,
-            'market_risk': 0.0,
-            'portfolio_risk': 0.0,
-            'liquidity_risk': 0.0,
-            'correlation_risk': 0.0,
-            'recommendations': [],
-            'warnings': []
+            "overall_risk_score": 0.0,
+            "position_size_risk": 0.0,
+            "market_risk": 0.0,
+            "portfolio_risk": 0.0,
+            "liquidity_risk": 0.0,
+            "correlation_risk": 0.0,
+            "recommendations": [],
+            "warnings": [],
         }
 
         try:
             # Position size risk
             position_risk = self._assess_position_size_risk(decision, portfolio)
-            risk_assessment['position_size_risk'] = position_risk
+            risk_assessment["position_size_risk"] = position_risk
 
             # Market risk
             market_risk = self._assess_market_risk(features, None)
-            risk_assessment['market_risk'] = market_risk.get('overall_score', 0.5)
+            risk_assessment["market_risk"] = market_risk.get("overall_score", 0.5)
 
             # Portfolio risk
             portfolio_risk = self._assess_portfolio_risk(decision, portfolio)
-            risk_assessment['portfolio_risk'] = portfolio_risk
+            risk_assessment["portfolio_risk"] = portfolio_risk
 
             # Liquidity risk
             liquidity_risk = self._assess_liquidity_risk(decision, features)
-            risk_assessment['liquidity_risk'] = liquidity_risk
+            risk_assessment["liquidity_risk"] = liquidity_risk
 
             # Correlation risk
             correlation_risk = self._assess_correlation_risk(decision, portfolio)
-            risk_assessment['correlation_risk'] = correlation_risk
+            risk_assessment["correlation_risk"] = correlation_risk
 
             # Calculate overall risk score
             risk_components = [
                 position_risk,
-                market_risk.get('overall_score', 0.5),
+                market_risk.get("overall_score", 0.5),
                 portfolio_risk,
                 liquidity_risk,
-                correlation_risk
+                correlation_risk,
             ]
-            risk_assessment['overall_risk_score'] = np.mean(risk_components)
+            risk_assessment["overall_risk_score"] = np.mean(risk_components)
 
             # Generate recommendations and warnings
-            risk_assessment['recommendations'] = self._generate_risk_recommendations(risk_assessment)
-            risk_assessment['warnings'] = self._generate_risk_warnings(risk_assessment)
+            risk_assessment["recommendations"] = self._generate_risk_recommendations(
+                risk_assessment
+            )
+            risk_assessment["warnings"] = self._generate_risk_warnings(risk_assessment)
 
         except Exception as e:
             self.logger.error(f"Error in risk assessment: {e}")
-            risk_assessment['overall_risk_score'] = 0.8  # High risk on error
+            risk_assessment["overall_risk_score"] = 0.8  # High risk on error
 
         return risk_assessment
 
@@ -297,13 +313,13 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self,
         features: Dict[str, float],
         current_position: float,
-        market_data: pd.DataFrame
+        market_data: pd.DataFrame,
     ) -> PolicySignal:
         """Generate base trading signal from ML model."""
         # Use parent class or ML model prediction
         # This is a simplified implementation
-        if 'close' in features and 'vwap' in features:
-            price_to_vwap = features['close'] / features['vwap']
+        if "close" in features and "vwap" in features:
+            price_to_vwap = features["close"] / features["vwap"]
             if price_to_vwap > 1.015:  # 1.5% above VWAP
                 return PolicySignal.BUY
             elif price_to_vwap < 0.985:  # 1.5% below VWAP
@@ -312,57 +328,55 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return PolicySignal.NEUTRAL
 
     def _assess_market_risk(
-        self,
-        features: Dict[str, float],
-        market_data: Optional[pd.DataFrame]
+        self, features: Dict[str, float], market_data: Optional[pd.DataFrame]
     ) -> Dict[str, Any]:
         """Assess current market risk conditions."""
         risk_assessment = {
-            'volatility_risk': 0.5,
-            'trend_risk': 0.5,
-            'volume_risk': 0.5,
-            'overall_score': 0.5
+            "volatility_risk": 0.5,
+            "trend_risk": 0.5,
+            "volume_risk": 0.5,
+            "overall_score": 0.5,
         }
 
         try:
             # Volatility risk
-            if 'atr_pct' in features:
-                volatility = features['atr_pct']
+            if "atr_pct" in features:
+                volatility = features["atr_pct"]
                 if volatility > 0.03:  # 3% daily range
-                    risk_assessment['volatility_risk'] = 0.8
+                    risk_assessment["volatility_risk"] = 0.8
                 elif volatility > 0.02:  # 2% daily range
-                    risk_assessment['volatility_risk'] = 0.6
+                    risk_assessment["volatility_risk"] = 0.6
                 else:
-                    risk_assessment['volatility_risk'] = 0.3
+                    risk_assessment["volatility_risk"] = 0.3
 
             # Trend risk (strength of trend)
             if market_data is not None and len(market_data) > 20:
-                close_prices = market_data['close'].values
+                close_prices = market_data["close"].values
                 returns = np.diff(close_prices) / close_prices[:-1]
                 trend_strength = abs(np.mean(returns[-20:])) / np.std(returns[-20:])
-                risk_assessment['trend_risk'] = min(1.0, trend_strength / 2.0)
+                risk_assessment["trend_risk"] = min(1.0, trend_strength / 2.0)
 
             # Volume risk
-            if 'volume' in features and 'avg_volume' in features:
-                volume_ratio = features['volume'] / features['avg_volume']
+            if "volume" in features and "avg_volume" in features:
+                volume_ratio = features["volume"] / features["avg_volume"]
                 if volume_ratio < 0.5:  # Low volume
-                    risk_assessment['volume_risk'] = 0.7
+                    risk_assessment["volume_risk"] = 0.7
                 elif volume_ratio > 2.0:  # High volume (could be news)
-                    risk_assessment['volume_risk'] = 0.6
+                    risk_assessment["volume_risk"] = 0.6
                 else:
-                    risk_assessment['volume_risk'] = 0.3
+                    risk_assessment["volume_risk"] = 0.3
 
             # Calculate overall score
             scores = [
-                risk_assessment['volatility_risk'],
-                risk_assessment['trend_risk'],
-                risk_assessment['volume_risk']
+                risk_assessment["volatility_risk"],
+                risk_assessment["trend_risk"],
+                risk_assessment["volume_risk"],
             ]
-            risk_assessment['overall_score'] = np.mean(scores)
+            risk_assessment["overall_score"] = np.mean(scores)
 
         except Exception as e:
             self.logger.error(f"Error assessing market risk: {e}")
-            risk_assessment['overall_score'] = 0.7  # Moderate-high risk on error
+            risk_assessment["overall_score"] = 0.7  # Moderate-high risk on error
 
         return risk_assessment
 
@@ -370,17 +384,17 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self,
         signal: PolicySignal,
         risk_assessment: Dict[str, Any],
-        current_position: float
+        current_position: float,
     ) -> PolicySignal:
         """Apply risk adjustments to trading signal."""
         # Convert signal to numeric strength
         signal_strength = self._signal_to_strength(signal)
 
         # Apply strategy-specific risk multiplier
-        risk_multiplier = self.strategy_params['signal_adjustment']
+        risk_multiplier = self.strategy_params["signal_adjustment"]
 
         # Adjust based on market risk
-        market_risk = risk_assessment.get('overall_score', 0.5)
+        market_risk = risk_assessment.get("overall_score", 0.5)
         if market_risk > 0.7:  # High market risk
             risk_multiplier *= 0.7
         elif market_risk > 0.5:  # Moderate market risk
@@ -402,7 +416,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         signal: PolicySignal,
         confidence: float,
         volatility: float,
-        account_value: float
+        account_value: float,
     ) -> float:
         """Apply risk adjustments to position size."""
         adjusted_size = base_size
@@ -418,7 +432,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             adjusted_size *= kelly_fraction * self.risk_config.kelly_fraction
 
         # Strategy-specific adjustment
-        strategy_multiplier = self.strategy_params['position_size_multiplier']
+        strategy_multiplier = self.strategy_params["position_size_multiplier"]
         adjusted_size *= strategy_multiplier
 
         # Correlation adjustment
@@ -429,16 +443,14 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return adjusted_size
 
     def _assess_position_size_risk(
-        self,
-        decision: PolicyDecision,
-        portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: Dict[str, Any]
     ) -> float:
         """Assess risk related to position size."""
-        account_value = portfolio.get('total_value', 10000)
+        account_value = portfolio.get("total_value", 10000)
         max_size = self.risk_config.max_position_size * account_value
 
         # Estimate position size from decision
-        estimated_size = getattr(decision, 'position_size', 0.1) * account_value
+        estimated_size = getattr(decision, "position_size", 0.1) * account_value
 
         # Calculate risk score
         size_ratio = abs(estimated_size) / max_size if max_size > 0 else 1.0
@@ -447,9 +459,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return risk_score
 
     def _assess_portfolio_risk(
-        self,
-        decision: PolicyDecision,
-        portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: Dict[str, Any]
     ) -> float:
         """Assess portfolio-level risk."""
         risk_score = 0.5
@@ -469,14 +479,12 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return min(1.0, risk_score)
 
     def _assess_liquidity_risk(
-        self,
-        decision: PolicyDecision,
-        features: Dict[str, float]
+        self, decision: PolicyDecision, features: Dict[str, float]
     ) -> float:
         """Assess liquidity risk."""
         # Simplified liquidity assessment
-        if 'volume' in features and 'avg_volume' in features:
-            volume_ratio = features['volume'] / features['avg_volume']
+        if "volume" in features and "avg_volume" in features:
+            volume_ratio = features["volume"] / features["avg_volume"]
             if volume_ratio < 0.3:  # Very low volume
                 return 0.8
             elif volume_ratio < 0.6:  # Low volume
@@ -486,9 +494,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return 0.3  # Default moderate risk
 
     def _assess_correlation_risk(
-        self,
-        decision: PolicyDecision,
-        portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: Dict[str, Any]
     ) -> float:
         """Assess correlation risk with existing positions."""
         if not self.positions:
@@ -533,23 +539,29 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         max_size = self.risk_config.max_position_size * account_value
         return max(-max_size, min(max_size, size))
 
-    def _generate_risk_recommendations(self, risk_assessment: Dict[str, Any]) -> List[str]:
+    def _generate_risk_recommendations(
+        self, risk_assessment: Dict[str, Any]
+    ) -> List[str]:
         """Generate risk management recommendations."""
         recommendations = []
 
-        if risk_assessment['position_size_risk'] > 0.7:
+        if risk_assessment["position_size_risk"] > 0.7:
             recommendations.append("Consider reducing position size")
 
-        if risk_assessment['market_risk'] > 0.7:
-            recommendations.append("Market conditions are risky, consider reducing exposure")
+        if risk_assessment["market_risk"] > 0.7:
+            recommendations.append(
+                "Market conditions are risky, consider reducing exposure"
+            )
 
-        if risk_assessment['portfolio_risk'] > 0.7:
+        if risk_assessment["portfolio_risk"] > 0.7:
             recommendations.append("Portfolio risk is high, consider risk reduction")
 
-        if risk_assessment['liquidity_risk'] > 0.7:
-            recommendations.append("Liquidity risk is high, use caution with position size")
+        if risk_assessment["liquidity_risk"] > 0.7:
+            recommendations.append(
+                "Liquidity risk is high, use caution with position size"
+            )
 
-        if risk_assessment['correlation_risk'] > 0.7:
+        if risk_assessment["correlation_risk"] > 0.7:
             recommendations.append("High correlation risk, consider diversification")
 
         return recommendations
@@ -558,7 +570,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         """Generate risk warnings."""
         warnings = []
 
-        overall_risk = risk_assessment['overall_risk_score']
+        overall_risk = risk_assessment["overall_risk_score"]
         if overall_risk > 0.8:
             warnings.append("HIGH RISK: Overall risk score is elevated")
         elif overall_risk > 0.6:
@@ -573,7 +585,9 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             self.risk_metrics.last_updated = datetime.now()
 
             # Calculate current exposure
-            total_exposure = sum(abs(pos.get('size', 0)) for pos in self.positions.values())
+            total_exposure = sum(
+                abs(pos.get("size", 0)) for pos in self.positions.values()
+            )
             self.risk_metrics.current_exposure = total_exposure
 
             # Update other metrics would go here
@@ -586,31 +600,31 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         """Get parameters for current risk strategy."""
         if self.risk_strategy == RiskStrategy.CONSERVATIVE:
             return {
-                'signal_adjustment': 0.6,
-                'position_size_multiplier': 0.5,
-                'stop_loss_multiplier': 1.5,
-                'confidence_threshold': 0.8
+                "signal_adjustment": 0.6,
+                "position_size_multiplier": 0.5,
+                "stop_loss_multiplier": 1.5,
+                "confidence_threshold": 0.8,
             }
         elif self.risk_strategy == RiskStrategy.MODERATE:
             return {
-                'signal_adjustment': 0.8,
-                'position_size_multiplier': 0.75,
-                'stop_loss_multiplier': 2.0,
-                'confidence_threshold': 0.6
+                "signal_adjustment": 0.8,
+                "position_size_multiplier": 0.75,
+                "stop_loss_multiplier": 2.0,
+                "confidence_threshold": 0.6,
             }
         elif self.risk_strategy == RiskStrategy.AGGRESSIVE:
             return {
-                'signal_adjustment': 1.0,
-                'position_size_multiplier': 1.0,
-                'stop_loss_multiplier': 2.5,
-                'confidence_threshold': 0.4
+                "signal_adjustment": 1.0,
+                "position_size_multiplier": 1.0,
+                "stop_loss_multiplier": 2.5,
+                "confidence_threshold": 0.4,
             }
         else:  # ADAPTIVE
             return {
-                'signal_adjustment': 0.8,
-                'position_size_multiplier': 0.75,
-                'stop_loss_multiplier': 2.0,
-                'confidence_threshold': 0.6
+                "signal_adjustment": 0.8,
+                "position_size_multiplier": 0.75,
+                "stop_loss_multiplier": 2.0,
+                "confidence_threshold": 0.6,
             }
 
     def _signal_to_strength(self, signal: PolicySignal) -> float:
@@ -622,7 +636,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             PolicySignal.NEUTRAL: 0.0,
             PolicySignal.WEAK_SELL: -0.3,
             PolicySignal.SELL: -0.7,
-            PolicySignal.STRONG_SELL: -1.0
+            PolicySignal.STRONG_SELL: -1.0,
         }
         return signal_map.get(signal, 0.0)
 
