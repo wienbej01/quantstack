@@ -1,0 +1,111 @@
+# Intraday ML LightGBM Model Configuration
+# Tri-class classifier with probability calibration for prominent moves
+
+# Model architecture
+model_type: "lightgbm"
+objective: "multiclass"
+num_class: 3  # {-1, 0, +1}
+metric: "multi_logloss"
+
+# LightGBM hyperparameters
+lgbm_params:
+  num_leaves: 31
+  max_depth: -1
+  learning_rate: 0.05
+  n_estimators: 200
+  subsample: 0.8
+  colsample_bytree: 0.8
+  reg_alpha: 0.0
+  reg_lambda: 0.0
+  random_state: 42
+  n_jobs: -1
+  verbose: -1
+
+# Class weights (to handle class imbalance)
+class_weights:
+  # Weights for classes {-1, 0, +1}
+  # Adjust these based on label distribution
+  -1: 1.5    # Down-weight negative class
+  0: 0.5     # Heavily down-weight neutral class
+  1: 1.5     # Up-weight positive class
+
+# Training parameters
+training:
+  early_stopping_rounds: 20
+  eval_metric: "multi_logloss"
+  validation_split: 0.2
+  shuffle: true
+  stratify_by_class: true
+
+# Probability calibration
+calibration:
+  enabled: true
+  method: "isotonic"  # Options: "isotonic", "sigmoid"
+  cv_folds: 5
+
+# Decision policy parameters
+decision_policy:
+  # Probability gate threshold (θ)
+  probability_threshold: 0.65  # Minimum max probability to trade
+
+  # Minimum expected move threshold (λ*ATR)
+  expected_move_multiplier: 0.8  # E[|move|] >= 0.8*ATR
+
+  # Volatility-aware cooldown
+  cooldown:
+    base_minutes: 15
+    atr_multiplier: 0.5  # cooldown = base + ATR_factor * ATR
+    max_minutes: 60
+
+  # Time-of-day filter
+  time_filter:
+    first_minutes_after_open: 3  # No entries in first 3 minutes
+    high_confidence_threshold: 0.8  # Allow in first minutes only if prob >= this
+
+  # EOD flatness
+  force_flat_before_close: "15:59:59"  # Force flat positions
+
+# Feature selection
+feature_selection:
+  enabled: false
+  method: "importance"
+  top_k: 50
+
+# Model evaluation
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision_macro"
+    - "recall_macro"
+    - "f1_macro"
+    - "brier_score"
+    - "log_loss"
+
+  cross_validation:
+    enabled: true
+    folds: 5
+    stratify: true
+
+# Model saving and versioning
+model_io:
+  version_format: "v{major}.{minor}.{patch}"
+  save_format: "joblib"  # Options: "joblib", "pickle"
+  compression: true
+
+  # Include in model card
+  include_training_data: false
+  include_predictions: false
+  include_feature_importance: true
+  include_calibration_metrics: true
+
+# Performance requirements
+performance:
+  max_training_time_minutes: 30
+  max_inference_time_ms: 10
+  max_memory_gb: 4
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+  save_random_state: true

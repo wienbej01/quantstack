@@ -67,3 +67,14 @@ def validate_checksum_consistency(
         elif actual[key] != expected_value:
             mismatches.append(f"mismatch_{key}")
     return mismatches
+
+
+def compute_data_hash(data: pd.DataFrame) -> str:
+    """Compute hash of DataFrame for reproducibility."""
+    return hash_dataframe(data, cols=data.columns.tolist())
+
+
+def compute_config_hash(config: Dict[str, Any]) -> str:
+    """Compute hash of configuration dictionary."""
+    config_str = json.dumps(config, sort_keys=True, default=str)
+    return hashlib.blake2b(config_str.encode(), digest_size=32).hexdigest()

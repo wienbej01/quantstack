@@ -1,0 +1,66 @@
+# Intraday ML Feature Configuration
+# Defines feature families and parameters for ≤150 leakage-proof features
+
+# Feature families to compute
+families:
+  returns_trend:
+    enabled: true
+    windows: [1, 5, 10]                   # Return windows in minutes
+    include_log: false                    # Exclude log returns to reduce count
+
+  volatility_ranges:
+    enabled: true
+    atr_windows: [5, 14]                  # ATR lookback windows
+    volatility_windows: [5, 20]           # Rolling volatility windows
+    range_ratios: [1.0]                   # High-low range multiples
+
+  volume_flow:
+    enabled: true
+    volume_windows: [5, 20]               # Volume aggregation windows
+    vwap_windows: [5, 20]                 # VWAP windows
+    relative_volume_windows: [20]         # RVOL windows
+
+  vwap_distance:
+    enabled: true
+    vwap_windows: [5, 20]                 # VWAP windows for distance
+    zscore_windows: [20]                  # Windows for VWAP z-score calculation
+
+  time_seasonality:
+    enabled: true
+    include_hour: true                    # Hour of day (0-23)
+    include_minute: false                 # Exclude minute to reduce count
+    include_day_of_week: true             # Day of week (0-6)
+    cyclical_encoding: true               # Use sin/cos encoding
+
+  cross_section:
+    enabled: true
+    percentile_windows: [5]               # Windows for cross-sectional ranking
+    include_zscores: false                # Exclude z-scores to reduce count
+
+  price_momentum:
+    enabled: true
+    roc_windows: [1, 5, 10]               # Rate of change windows
+    rsi_windows: [14]                     # RSI calculation windows
+    ma_windows: [5, 20]                   # Moving average windows
+
+  microstructure:
+    enabled: true
+    spread_windows: [5]                   # Effective spread windows
+    imbalance_windows: [5]                # Volume imbalance windows
+    include_vwap: false                   # Exclude VWAP to reduce count
+
+# Feature computation constraints
+max_total_features: 150                    # Hard cap on total features
+warmup_multiplier: 3.0                    # Warmup = max_window * multiplier
+leakage_check: true                       # Enable forward look validation
+
+# Quality controls
+min_non_null_ratio: 0.9                   # Minimum non-null values per feature
+max_feature_correlation: 0.95             # Max correlation between features
+outlier_detection: true                   # Enable outlier detection
+outlier_threshold: 5.0                    # Z-score threshold for outliers
+
+# Output settings
+include_feature_metadata: true            # Include feature descriptions in output
+validate_schema: true                     # Validate output DataFrame schema
+cache_features: false                     # Feature caching (disabled for reproducibility)

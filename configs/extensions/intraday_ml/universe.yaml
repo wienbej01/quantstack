@@ -1,0 +1,27 @@
+# Intraday ML Universe Configuration
+# Defines eligibility criteria for pilot universe
+
+# Price band filters (USD)
+min_price: 5.0
+max_price: 50.0
+
+# Liquidity filters
+min_avg_daily_volume: 1_000_000  # $1M minimum daily dollar volume
+min_relative_volume: 0.8         # 80% of recent average volume minimum
+min_trading_days: 18             # Minimum trading days in lookback period
+
+# Lookback period for universe calculations
+lookback_days: 20
+volume_window: 30                # Days for relative volume calculation
+
+# Universe size targets
+max_universe_size: 12            # Pilot universe cap
+min_universe_size: 4             # Minimum viable universe
+
+# Exclusions
+exclude_symbols:
+  - "XYZ"  # Example placeholder
+
+# Data quality filters
+min_minutes_per_day: 300         # Minimum 5 hours of data
+max_missing_minutes_ratio: 0.1   # Max 10% missing data

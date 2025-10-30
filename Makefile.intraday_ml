@@ -1,0 +1,42 @@
+# Makefile for Intraday ML Extension
+# Provides targets for setup, testing, and quality assurance
+
+.PHONY: help intraday-setup intraday-qa intraday-test intraday-smoke
+
+# Default target
+help:
+	@echo "Intraday ML Extension Targets:"
+	@echo "  intraday-setup   - Install dependencies and create directories"
+	@echo "  intraday-qa      - Run linting and type checking"
+	@echo "  intraday-test    - Run all tests"
+	@echo "  intraday-smoke   - Run smoke test for Sprint M1"
+
+# Setup target
+intraday-setup:
+	@echo "Setting up Intraday ML Extension..."
+	@mkdir -p extensions/intraday_ml
+	@mkdir -p configs/extensions/intraday_ml
+	@mkdir -p docs/extensions/intraday_ml
+	@mkdir -p tests/extensions/intraday_ml
+	@mkdir -p runs/intraday_ml
+	@echo "Setup complete."
+
+# Quality assurance target
+intraday-qa:
+	@echo "Running QA checks for Intraday ML Extension..."
+	@echo "Checking Python syntax..."
+	@python -m py_compile extensions/intraday_ml/*.py
+	@echo "Syntax check passed."
+	@echo "QA complete."
+
+# Test target
+intraday-test:
+	@echo "Running tests for Intraday ML Extension..."
+	@python -m pytest tests/extensions/intraday_ml/ -v --tb=short
+	@echo "Tests complete."
+
+# Smoke test target
+intraday-smoke:
+	@echo "Running Sprint M1 smoke test..."
+	@python -m pytest tests/extensions/intraday_ml/test_m1_smoke.py -v --tb=short
+	@echo "Smoke test complete."

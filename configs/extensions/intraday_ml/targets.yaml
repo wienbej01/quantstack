@@ -1,0 +1,36 @@
+# Intraday ML Target Configuration
+# Defines ATR-thresholded "prominent moves" labeling parameters
+
+# Label definition: tri-class {-1, 0, +1}
+label_type: "triclass_atr_threshold"
+
+# Horizon windows (minutes from ts_cut+1m)
+horizons:
+  - 30    # 30 minutes
+  - 60    # 60 minutes
+  - 90    # 90 minutes
+
+# ATR threshold multiplier (k*ATR)
+atr_multiplier: 1.0  # k = 1.0 for prominent moves
+
+# ATR calculation parameters
+atr_window: 14       # 14-period ATR on 1-minute bars
+atr_period_minutes: 1  # ATR computed on 1-minute regular bars
+
+# First-hit logic parameters
+first_hit_logic:
+  enabled: true
+  stop_at_hit: true      # Stop looking when threshold is hit
+  min_bars_required: 1   # Minimum bars to consider
+
+# Label validation
+min_observations_per_horizon: 10  # Minimum observations for each horizon
+max_lookback_bars: 100             # Maximum bars to look back for ATR
+
+# Quality controls
+require_min_atr: 0.01   # Minimum ATR value to avoid division issues
+exclude_flat_periods: true  # Exclude periods with no price movement
+
+# Output settings
+include_metadata: true   # Include labeling metadata in output
+validate_no_peek: true   # Enforce no-peek validation

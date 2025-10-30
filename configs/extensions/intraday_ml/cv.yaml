@@ -1,0 +1,139 @@
+# Intraday ML Cross-Validation Configuration
+# Defines purged, embargoed time-series CV and WFO parameters
+
+# Cross-validation configuration
+cv:
+  # Number of CV folds
+  n_folds: 5
+
+  # Embargo parameters to prevent leakage
+  embargo_days: 5                # Days to embargo around split boundaries
+  purge_days: 2                  # Days to purge from training set near boundaries
+
+  # Validation method
+  validation_method: "purged_cv"   # Options: "purged_cv", "expanding_window", "rolling_window"
+
+  # Temporal ordering enforcement
+  strict_temporal_order: true    # Ensure no temporal overlap between splits
+  cross_symbol_consistency: true # All symbols use same split dates
+
+# Walk-forward evaluation configuration
+wfo:
+  # Walk-forward schedule
+  train_months: 12             # Training window size in months
+  validation_months: 1          # Validation window size in months
+  oos_months: 1                # Out-of-sample window size in months
+
+  # Rolling or expanding window
+  window_type: "expanding"     # Options: "expanding", "rolling"
+  step_size_months: 1           # Step size for window advancement
+
+  # Rebalancing frequency
+  rebalance_frequency: "monthly"  # Options: "weekly", "monthly", "quarterly"
+
+  # Start date for WFO
+  start_date: "2024-01-01"        # YYYY-MM-DD format
+
+# Data quality controls
+data_quality:
+  min_observations_per_fold: 1000  # Minimum observations per CV fold
+  min_symbols_per_fold: 2          # Minimum symbols per CV fold
+  max_missing_ratio: 0.1          # Maximum allowed missing data ratio
+
+  # Date filtering
+  exclude_holiday_periods: true    # Exclude major holiday weeks
+  min_trading_days_per_period: 18  # Minimum trading days
+
+  # Outlier handling
+  outlier_detection: true
+  outlier_threshold: 5.0          # Z-score threshold for outliers
+  outlier_treatment: "clip"       # Options: "clip", "remove", "flag"
+
+# Reproducibility settings
+reproducibility:
+  random_seed: 42
+  deterministic: true
+  save_random_state: true
+
+  # Hashing
+  include_data_hashes: true
+  include_feature_hashes: true
+  include_config_hashes: true
+
+# Performance and resource limits
+performance:
+  max_cv_time_minutes: 120      # Maximum time for complete CV
+  max_memory_gb: 8             # Maximum memory usage
+  parallel_folds: false         # Whether to run folds in parallel
+  n_jobs: 1                   # Number of parallel jobs (-1 for all cores)
+
+# Output settings
+output:
+  save_predictions: true        # Save fold predictions
+  save_probabilities: true       # Save probability predictions
+  save_metrics: true            # Save detailed metrics
+  save_models: false            # Save fold models (memory intensive)
+
+  # Output directory structure
+  output_dir: "runs/cv"
+  create_timestamp_dirs: true
+
+  # File formats
+  results_format: "parquet"      # Options: "parquet", "json", "csv"
+  models_format: "joblib"         # Options: "joblib", "pickle"
+
+# Metrics configuration
+metrics:
+  # Primary metrics
+  primary_metrics:
+    - "f1_macro"              # Macro F1 score
+    - "precision_macro"         # Macro precision
+    - "recall_macro"            # Macro recall
+    - "accuracy"
+    - "log_loss"
+    - "brier_score"
+
+  # Economic metrics
+  economic_metrics:
+    - "expectancy"             # Expected PnL per trade
+    - "sharpe_ratio"          # Sharpe ratio
+    - "max_drawdown"           # Maximum drawdown
+    - "win_rate"               # Win rate
+
+  # Trade density metrics
+  trade_density:
+    - "trades_per_ticker_day"  # Trade frequency
+    - "micro_trade_rate"       # Percentage of micro-trades
+    - "avg_holding_time"       # Average holding time
+    - "abstention_rate"        # Rate of no-action decisions
+
+  # Stability metrics
+  stability_metrics:
+    - "fold_std_dev"          # Standard deviation across folds
+    - "fold_cv"                # Coefficient of variation
+    - "temporal_consistency"   # Consistency over time
+
+  # Calibration metrics
+  calibration_metrics:
+    - "reliability_slope"     # Calibration curve slope
+    - "brier_improvement"     # Brier score improvement
+    - "ece_loss"              # Expected calibration error
+
+# Advanced features
+advanced:
+  # Ensemble methods
+  ensemble_methods:
+    enabled: false
+    method: "voting"            # Options: "voting", "stacking", "blending"
+
+  # Nested cross-validation
+  nested_cv:
+    enabled: false
+    inner_folds: 3
+    outer_folds: 5
+
+  # Stratification
+  stratification:
+    by_class: true
+    by_symbol: false
+    by_time_period: false

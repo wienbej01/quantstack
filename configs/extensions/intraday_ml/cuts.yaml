@@ -1,0 +1,28 @@
+# Intraday ML Decision Cut Times
+# Defines when ML models make intraday decisions
+
+# Timezone for all times
+timezone: "America/New_York"
+
+# Trading session bounds
+market_open: "09:30:00"
+market_close: "16:00:00"
+
+# Decision cut times (ET) - when models evaluate and potentially enter positions
+decision_cuts:
+  - "09:35:00"  # 5 min after open
+  - "11:00:00"  # Mid-morning
+  - "13:30:00"  # After lunch
+  - "14:30:00"  # Late afternoon
+
+# Execution discipline
+execution_delay_bars: 1          # Execute on first full bar after signal
+force_flat_eod_time: "15:59:59"  # Force flat by this time
+
+# Time-of-day restrictions
+no_entry_first_minutes: 1        # No entries in first minute after open
+no_entry_last_minutes: 60        # No entries in last hour before close
+
+# Cut validation
+min_seconds_between_cuts: 300    # Minimum 5 minutes between decisions
+max_cuts_per_day: 8              # Maximum decision points per day
