@@ -52,7 +52,7 @@ def intraday_ml_run_backtest(
         processed_bars, processed_orders = bars.copy(), orders.copy()
 
     # Ensure data is properly sorted by timestamp (required by engine)
-    processed_bars = processed_bars.sort_values(["ts", "symbol"]).reset_index(drop=True)
+    processed_bars = processed_bars.sort_values(['ts', 'symbol']).reset_index(drop=True)
 
     # Configure engine with existing interfaces
     engine_config = BacktestConfig(
@@ -274,9 +274,8 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
         matching_orders = orders[orders["ts"] == current_ts]
 
         # Submit matching orders to engine
+        from qx_backtest.order import Order, OrderSide, OrderType, OrderStatus
         import uuid
-
-        from qx_backtest.order import Order, OrderSide, OrderStatus, OrderType
 
         for idx, (_, order) in enumerate(matching_orders.iterrows()):
             # Convert order to engine format and submit
@@ -292,11 +291,11 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
                 side=side,
                 quantity=int(order["qty"]),
                 order_type=OrderType.MARKET,
-                timestamp=current_ts,
+                timestamp=current_ts
             )
 
             # Add stop-loss and take-profit if available
-            if "stop_loss_pct" in order:
+            if 'stop_loss_pct' in order:
                 # Calculate stop loss price based on order side
                 if side == OrderSide.BUY:  # LONG position
                     stop_loss_price = order["close"] * (1 - order["stop_loss_pct"])
@@ -305,7 +304,7 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
 
                 order_obj.stop_loss = stop_loss_price
 
-            if "take_profit_pct" in order:
+            if 'take_profit_pct' in order:
                 # Calculate take profit price based on order side
                 if side == OrderSide.BUY:  # LONG position
                     take_profit_price = order["close"] * (1 + order["take_profit_pct"])
@@ -332,33 +331,23 @@ def _convert_result_to_artifacts(result: Any, config: dict[str, Any]) -> dict[st
         positions_history = getattr(result, "positions_history", [])
 
         # Create proper trades DataFrame from unique trades only
-        unique_trades = (
-            _deduplicate_trades(trades_history) if trades_history else pd.DataFrame()
-        )
+        unique_trades = _deduplicate_trades(trades_history) if trades_history else pd.DataFrame()
 
         # Create fills DataFrame from unique fills (subset of trades)
-        unique_fills = (
-            _create_fills_from_trades(unique_trades)
-            if not unique_trades.empty
-            else pd.DataFrame()
-        )
+        unique_fills = _create_fills_from_trades(unique_trades) if not unique_trades.empty else pd.DataFrame()
 
         # First create artifacts without metrics
         temp_artifacts = {
             "equity": getattr(result, "equity_curve", pd.DataFrame()),
-            "positions": (
-                pd.DataFrame(positions_history) if positions_history else pd.DataFrame()
-            ),
+            "positions": pd.DataFrame(positions_history) if positions_history else pd.DataFrame(),
             "trades": unique_trades,
-            "orders": (
-                pd.DataFrame(orders_history) if orders_history else pd.DataFrame()
-            ),
+            "orders": pd.DataFrame(orders_history) if orders_history else pd.DataFrame(),
             "fills": unique_fills,
         }
 
         artifacts = {
             "metrics": _extract_metrics_from_result(result, temp_artifacts),
-            **temp_artifacts,
+            **temp_artifacts
         }
     elif isinstance(result, dict):
         artifacts = result.copy()
@@ -408,13 +397,11 @@ def _deduplicate_trades(trades_history: list[dict[str, Any]]) -> pd.DataFrame:
 
     # Group by unique trade identifier (order_id + symbol + entry_timestamp)
     # and take only the first occurrence (actual trade execution)
-    if "order_id" in trades_df.columns and "timestamp" in trades_df.columns:
+    if 'order_id' in trades_df.columns and 'timestamp' in trades_df.columns:
         # Sort by timestamp to ensure first occurrence is the actual trade
-        trades_df = trades_df.sort_values(["order_id", "timestamp", "symbol"])
+        trades_df = trades_df.sort_values(['order_id', 'timestamp', 'symbol'])
         # Drop duplicates keeping the first (actual) trade
-        unique_trades = trades_df.drop_duplicates(
-            subset=["order_id", "symbol"], keep="first"
-        )
+        unique_trades = trades_df.drop_duplicates(subset=['order_id', 'symbol'], keep='first')
     else:
         # Fallback: drop exact duplicates
         unique_trades = trades_df.drop_duplicates()
@@ -428,38 +415,21 @@ def _create_fills_from_trades(trades_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
 
     # Fills are a subset of trade data with fill-specific columns
-    fill_columns = [
-        "timestamp",
-        "symbol",
-        "side",
-        "quantity",
-        "price",
-        "commission",
-        "total_cost",
-        "order_id",
-    ]
+    fill_columns = ['timestamp', 'symbol', 'side', 'quantity', 'price', 'commission', 'total_cost', 'order_id']
     available_columns = [col for col in fill_columns if col in trades_df.columns]
 
     return trades_df[available_columns].copy()
 
 
-def _extract_metrics_from_result(
-    result: Any, artifacts: dict[str, Any] = None
-) -> dict[str, Any]:
+def _extract_metrics_from_result(result: Any, artifacts: dict[str, Any] = None) -> dict[str, Any]:
     """Extract metrics from BacktestResult object, but prioritize calculated metrics."""
     metrics = {}
 
     # Extract performance metrics from BacktestResult (excluding trade counts)
     metric_fields = [
-        "total_return",
-        "annualized_return",
-        "volatility",
-        "sharpe_ratio",
-        "max_drawdown",
-        "max_drawdown_duration",
-        "total_commissions",
-        "total_slippage",
-        "fill_rate",
+        "total_return", "annualized_return", "volatility", "sharpe_ratio",
+        "max_drawdown", "max_drawdown_duration", "total_commissions",
+        "total_slippage", "fill_rate"
     ]
 
     for field in metric_fields:
@@ -469,26 +439,13 @@ def _extract_metrics_from_result(
     # Override trade-related metrics with our calculations from artifacts
     if artifacts and "trades" in artifacts and not artifacts["trades"].empty:
         calculated_metrics = _calculate_metrics(artifacts)
-        trade_fields = [
-            "total_trades",
-            "trades",
-            "win_rate",
-            "avg_R",
-            "total_pnl",
-            "fees_total",
-        ]
+        trade_fields = ["total_trades", "trades", "win_rate", "avg_R", "total_pnl", "fees_total"]
         for field in trade_fields:
             if field in calculated_metrics:
                 metrics[field] = calculated_metrics[field]
     else:
         # Fallback to BacktestResult trade metrics (but they're usually 0)
-        trade_fields = [
-            "total_trades",
-            "win_rate",
-            "profit_factor",
-            "winning_trades",
-            "losing_trades",
-        ]
+        trade_fields = ["total_trades", "win_rate", "profit_factor", "winning_trades", "losing_trades"]
         for field in trade_fields:
             if hasattr(result, field):
                 metrics[field] = getattr(result, field)
@@ -521,9 +478,7 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
         if "total_cost" in trades_df.columns:
             # For short positions, negative total_cost represents profit
             # For long positions, positive total_cost represents investment
-            metrics["total_pnl"] = -trades_df[
-                "total_cost"
-            ].sum()  # Negative because cost is cash outflow
+            metrics["total_pnl"] = -trades_df["total_cost"].sum()  # Negative because cost is cash outflow
 
         # Calculate from commission if available (proxy for trading activity)
         if "commission" in trades_df.columns:
@@ -534,9 +489,7 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
             wins = 0
             # Group trades by symbol and count complete round-trips
             for symbol in trades_df["symbol"].unique():
-                symbol_trades = trades_df[trades_df["symbol"] == symbol].sort_values(
-                    "timestamp"
-                )
+                symbol_trades = trades_df[trades_df["symbol"] == symbol].sort_values("timestamp")
 
                 # Calculate P&L for each complete trade (entry+exit pair)
                 i = 0
@@ -547,9 +500,7 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
 
                         # Calculate P&L for this complete trade
                         if entry_trade["side"] == "SELL":  # Short position
-                            pnl = -(
-                                entry_trade["total_cost"] + exit_trade["total_cost"]
-                            )
+                            pnl = -(entry_trade["total_cost"] + exit_trade["total_cost"])
                         else:  # LONG position
                             pnl = entry_trade["total_cost"] + exit_trade["total_cost"]
 

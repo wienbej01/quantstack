@@ -7,6 +7,8 @@ import os
 import pathlib
 import sys
 import traceback
+import json
+import pathlib
 
 import numpy as np
 import pandas as pd
@@ -313,7 +315,6 @@ import pathlib
 
 from qx_backtest.engine import BacktestResult
 
-
 def save_backtest_results(result: BacktestResult, run_id: str, runs_dir: str = "runs"):
     """Save backtest artifacts to disk."""
     run_dir = pathlib.Path(runs_dir) / run_id
@@ -383,7 +384,7 @@ def save_backtest_results(result: BacktestResult, run_id: str, runs_dir: str = "
     trades_df.to_parquet(run_dir / "trades.parquet")
     with open(run_dir / "metrics.json", "w") as f:
         json.dump(result_dict, f, indent=2)
-
+    
     print(f"Saved backtest artifacts to: {run_dir}")
 
 
