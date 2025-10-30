@@ -1,0 +1,21 @@
+# Slow trading variant overlay
+
+policy:
+  vwap_window: 30
+  deviation_threshold: 0.025
+  position_size_method: "atr_based"
+
+features:
+  config:
+    vwap_window: 30
+    rvol_window: 45
+    atr_window: 21
+
+screener:
+  top_n: 2
+  min_relative_volume: 1.5
+
+risk:
+  max_risk_frac: 0.025
+  atr_mult: 2.5
+  atr_window: 21

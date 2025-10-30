@@ -1,9 +1,15 @@
 """Portfolio management for backtesting engine."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
+
+
+def log_debug(msg):
+    logging.debug(msg)
+
 
 from .fill import Fill
 from .order import Order, OrderSide, OrderStatus
@@ -52,51 +58,52 @@ class Position:
         return self.market_value / abs(self.quantity) if self.quantity != 0 else 0.0
 
     def apply_fill(self, fill: Fill) -> None:
-        """Apply a fill to this position."""
+        import logging
+
+        logging.debug(
+            f"Before apply_fill: self.quantity={self.quantity}, fill.quantity={fill.quantity}"
+        )
         fill_cost = fill.total_cost
 
         if fill.side == OrderSide.BUY:
-            # Adding to long position or covering short
+            if self.quantity > 0:
+                logging.debug(
+                    f"BUY order for {self.symbol} received while already long. Position not increased."
+                )
+                return
+
             if self.quantity >= 0:
-                # Adding to long position
                 new_total_cost = self.total_cost + fill_cost
                 new_quantity = self.quantity + fill.quantity
-
+                logging.debug(
+                    f"BUY LONG: new_quantity={new_quantity}, new_total_cost={new_total_cost}"
+                )
                 if new_quantity != 0:
                     self.avg_cost = new_total_cost / new_quantity
                 else:
                     self.avg_cost = 0.0
-
                 self.total_cost = new_total_cost
                 self.quantity = new_quantity
             else:
                 # Covering short position
                 cover_quantity = min(fill.quantity, abs(self.quantity))
                 realized_pnl = cover_quantity * (self.avg_cost - fill.price)
-
                 self.realized_pnl += realized_pnl
                 self.quantity += fill.quantity
-
                 if self.quantity > 0:
-                    # Starting new long position
                     remaining_qty = fill.quantity - cover_quantity
                     self.total_cost = remaining_qty * fill.price
                     self.avg_cost = fill.price
                 else:
                     self.total_cost = 0.0
                     self.avg_cost = 0.0
-
-        # Selling from long position or opening short
         elif self.quantity > 0:
             # Selling from long position
             sell_quantity = min(fill.quantity, self.quantity)
             realized_pnl = sell_quantity * (fill.price - self.avg_cost)
-
             self.realized_pnl += realized_pnl
             self.quantity -= fill.quantity
-
             if self.quantity < 0:
-                # Starting short position
                 remaining_qty = fill.quantity - sell_quantity
                 self.total_cost = remaining_qty * fill.price
                 self.avg_cost = fill.price
@@ -105,20 +112,41 @@ class Position:
                 if self.quantity == 0:
                     self.avg_cost = 0.0
         else:
+            if self.quantity < 0:
+                logging.debug(
+                    f"SELL order for {self.symbol} received while already short. Position not increased."
+                )
+                return
+
             # Adding to short position
             new_total_cost = self.total_cost + fill_cost
             new_quantity = self.quantity - fill.quantity
-
+            logging.debug(
+                f"SELL SHORT: new_quantity={new_quantity}, new_total_cost={new_total_cost}"
+            )
             if new_quantity != 0:
                 self.avg_cost = new_total_cost / abs(new_quantity)
             else:
                 self.avg_cost = 0.0
-
             self.total_cost = new_total_cost
             self.quantity = new_quantity
 
-        # Update commissions
         self.commissions += fill.commission
+        logging.debug(f"After apply_fill: self.quantity={self.quantity}")
+
+        if abs(self.quantity) > 0:
+            print(
+                f"[TRACE] Position {self.symbol} quantity={self.quantity} "
+                f"after fill {fill.order_id} side={fill.side.value} "
+                f"fill_qty={fill.quantity}"
+            )
+
+        if abs(self.quantity) > 0:
+            print(
+                f"[TRACE] Position {self.symbol} quantity={self.quantity} "
+                f"after fill {fill.order_id} side={fill.side.value} "
+                f"fill_qty={fill.quantity}"
+            )
 
     def update_market_value(self, current_price: float) -> None:
         """Update market value and unrealized P&L."""
@@ -231,6 +259,7 @@ class Portfolio:
             self.filled_orders.append(order)
 
     def apply_fill(self, fill: Fill) -> None:
+        log_debug(f"Applying fill {fill.fill_id} for order {fill.order_id}")
         """Apply a fill to the portfolio."""
         # Update cash with side-aware flow
         if fill.side == OrderSide.BUY:

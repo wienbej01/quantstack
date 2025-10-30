@@ -7,7 +7,12 @@ from rich.console import Console
 from rich.table import Table
 
 from .readers import RunReader
-from .summaries import ABDiffTables, LeaderboardGenerator, PerRunSummaries
+from .summaries import (
+    ABDiffTables,
+    LeaderboardGenerator,
+    PerRunSummaries,
+    TradeAnalysis,
+)
 
 app = typer.Typer(help="QuantStack reporting tool for experiment analysis")
 console = Console()
@@ -251,6 +256,39 @@ def inspect(
 
     except Exception as e:
         console.print(f"Error inspecting run: {e}", style="red")
+        raise typer.Exit(1)
+
+
+@app.command()
+def trades(
+    run_id: str = typer.Argument(..., help="Run ID to get trades for"),
+    runs_dir: str = typer.Option("runs", help="Runs directory"),
+) -> None:
+    """Generate a detailed list of trades for a run."""
+    console.print(f"Generating trade list for run: {run_id}")
+
+    try:
+        trades_df = TradeAnalysis.generate_trade_list(run_id, runs_dir)
+
+        if trades_df is None or trades_df.empty:
+            console.print("No trades found for this run.", style="yellow")
+            return
+
+        # Display table
+        table = Table(title=f"Trade List: {run_id}")
+
+        # Add columns
+        for col in trades_df.columns:
+            table.add_column(col, justify="left")
+
+        # Add rows
+        for _, row in trades_df.iterrows():
+            table.add_row(*[str(val) for val in row])
+
+        console.print(table)
+
+    except Exception as e:
+        console.print(f"Error generating trade list: {e}", style="red")
         raise typer.Exit(1)
 
 

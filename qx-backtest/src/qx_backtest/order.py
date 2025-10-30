@@ -226,6 +226,11 @@ class MarketOrder(Order):
         if not hasattr(self, "order_id") or self.order_id is None:
             self.order_id = uuid.uuid4().hex
 
+        import logging
+
+        logging.debug(
+            f"MarketOrder created for {self.symbol} with quantity {self.quantity}"
+        )
         # Call parent validation
         super().__post_init__()
 
@@ -242,6 +247,11 @@ class MarketOrder(Order):
         """Create MarketOrder with required fields."""
         if ts_submitted is None:
             ts_submitted = int(datetime.now().timestamp() * 1e9)
+
+        if quantity > 1:
+            print(
+                f"[ORDER DEBUG] strategy={strategy_id} submitting quantity={quantity}"
+            )
 
         return cls(
             order_id=uuid.uuid4().hex,

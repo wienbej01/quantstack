@@ -1,0 +1,31 @@
+# Intraday ML Data Splits Configuration
+# Defines Train/Validation/OOS time splits with purging and embargo
+
+# Split durations (in months)
+train_months: 12
+val_months: 1
+oos_months: 1
+
+# Purging and embargo settings
+purge_days: 5                   # Days to purge around split boundaries
+embargo_days: 5                  # Days to embargo after split boundaries
+
+# Start date for pilot dataset
+pilot_start_date: "2024-01-01"   # YYYY-MM-DD format
+
+# Validation strategy
+validation_method: "purged_cv"   # Options: "purged_cv", "expanding_window", "rolling_window"
+n_folds: 3                       # Number of CV folds for purged CV
+
+# Split generation rules
+require_min_trading_days: 18     # Minimum trading days per period
+allow_partial_months: true       # Allow non-month-aligned splits
+skip_holiday_periods: true       # Skip major holiday weeks
+
+# Overlap protection
+strict_temporal_order: true      # Enforce no temporal overlap between splits
+cross_symbol_consistency: true   # All symbols use same split dates
+
+# Reproducibility
+split_seed: 42                   # Seed for any random split decisions
+deterministic: true              # Force deterministic split generation

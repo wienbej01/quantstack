@@ -1,0 +1,22 @@
+# Configuration for ML classification trading policy
+policy_class: "MLClassificationPolicy"
+model_id: "classification_20241028_000000"  # Will be updated after training
+
+# Policy parameters
+long_threshold: 0.65
+short_threshold: 0.35
+confidence_threshold: 0.15
+
+# Position sizing
+position_size_method: "signal_strength"
+position_size_value: 1000.0
+max_positions: 3
+
+# Feature requirements
+features_required: null  # Will auto-detect from model
+
+# Risk management
+risk_params:
+  max_risk_frac: 0.02
+  atr_mult: 2.0
+  stop_loss_bars: 10

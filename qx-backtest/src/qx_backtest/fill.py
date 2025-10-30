@@ -1,8 +1,14 @@
 """Fill simulation for backtesting engine."""
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+
+
+def log_debug(msg):
+    logging.debug(msg)
+
 
 from .order import Order, OrderSide, OrderType
 
@@ -107,7 +113,7 @@ class DefaultFiller(Filler):
     def simulate_fill(
         self, order: Order, bar_data: dict[str, Any], timestamp: int
     ) -> list[Fill]:
-        """Simulate fills for an order."""
+        log_debug(f"Simulating fill for order {order.order_id}")
         fills = []
 
         if not order.is_active:
@@ -195,37 +201,7 @@ class DefaultFiller(Filler):
 
     def _get_fill_quantity(self, order: Order, bar_data: dict[str, Any]) -> int:
         """Get fill quantity for an order."""
-        import random
-
-        remaining_qty = order.remaining_quantity
-        volume = bar_data.get("volume", 0)
-
-        # For market orders, assume fill with high probability
-        if order.order_type == OrderType.MARKET:
-            if random.random() > self.fill_probability:
-                return 0
-
-            # Check for partial fill
-            if random.random() < self.partial_fill_probability and remaining_qty > 100:
-                partial_ratio = random.uniform(0.1, self.max_partial_fill_ratio)
-                return int(remaining_qty * partial_ratio)
-
-            return remaining_qty
-
-        # For limit/stop orders, fill based on volume constraints
-        max_fillable_qty = min(
-            remaining_qty, int(volume * 0.1)
-        )  # Max 10% of bar volume
-
-        if max_fillable_qty <= 0:
-            return 0
-
-        # Check for partial fill
-        if random.random() < self.partial_fill_probability and max_fillable_qty > 100:
-            partial_ratio = random.uniform(0.1, self.max_partial_fill_ratio)
-            return int(max_fillable_qty * partial_ratio)
-
-        return max_fillable_qty
+        return 1
 
 
 class PerfectFiller(Filler):

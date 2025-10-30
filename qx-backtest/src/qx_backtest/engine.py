@@ -13,6 +13,13 @@ from .fill import DefaultFiller, Fill, Filler
 from .order import Order, OrderFactory, OrderStatus
 from .portfolio import Portfolio, Position
 
+# import logging
+# logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
+
+# def log_debug(msg):
+#     logging.debug(msg)
+
+
 # Optional regime detection import
 try:
     from qx_core.regime.detector import RegimeDetectorRules, create_regime_detector
@@ -282,6 +289,7 @@ class BacktestEngine:
         for processed_bars, (timestamp, group) in enumerate(
             data.groupby("ts"), start=1
         ):
+            # log_debug(f"Processing bar {processed_bars}/{total_bars} at {timestamp}")
             self.current_time = timestamp
 
             # Update portfolio market values
@@ -341,24 +349,23 @@ class BacktestEngine:
             raise ValueError("Data must be sorted by timestamp")
 
     def _process_pending_orders(self, bars: pd.DataFrame) -> None:
+        # log_debug(f"Processing {len(self.pending_orders)} pending orders.")
         """Process pending orders against current bars."""
-        orders_to_remove = []
 
+        remaining_orders = []
         for order in self.pending_orders:
             symbol_bars = bars[bars["symbol"] == order.symbol]
             if not symbol_bars.empty:
                 bar_data = symbol_bars.iloc[0].to_dict()
                 self._process_order(order, bar_data)
 
-                if not order.is_active:
-                    orders_to_remove.append(order)
+            if order.is_active:
+                remaining_orders.append(order)
 
-        # Remove filled/cancelled orders
-        for order in orders_to_remove:
-            if order in self.pending_orders:
-                self.pending_orders.remove(order)
+        self.pending_orders = remaining_orders
 
     def _process_order(self, order: Order, bar_data: dict[str, Any]) -> None:
+        # log_debug(f"Processing order {order.order_id} for {order.symbol}")
         """Process an order against bar data."""
         if not order.is_active:
             return
@@ -395,6 +402,7 @@ class BacktestEngine:
             "commission": fill.commission,
             "total_cost": fill.total_cost,
             "order_id": order.order_id,
+            "strategy_id": getattr(order, "strategy_id", None),
         }
         self.trades_history.append(trade_info)
 

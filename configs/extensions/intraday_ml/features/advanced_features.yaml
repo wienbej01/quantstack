@@ -1,0 +1,232 @@
+# Advanced feature engineering configuration
+feature_config:
+  name: "advanced_intraday_features"
+  description: "Advanced feature engineering pipeline for intraday ML"
+
+# Base features to start with
+base_features:
+  - "f__vwap_30"
+  - "f__rel_volume_30"
+  - "f__atr_14"
+  - "f__vwap_distance"
+  - "f__price_position"
+  - "close"
+  - "volume"
+
+# Lag features
+lag_features:
+  enable: true
+  lags: [1, 2, 3, 5]
+  fill_method: "bfill"
+  features_to_lag:
+    - "f__vwap_30"
+    - "f__rel_volume_30"
+    - "f__atr_14"
+    - "close"
+
+# Rolling window features
+rolling_features:
+  enable: true
+  windows: [5, 10, 20]
+  functions: ["mean", "std", "min", "max", "median"]
+  features_to_roll:
+    - "f__vwap_30"
+    - "f__rel_volume_30"
+    - "close"
+
+# Difference features
+difference_features:
+  enable: true
+  periods: [1, 2, 5]
+  features_to_diff:
+    - "close"
+    - "f__vwap_30"
+
+# Interaction features
+interaction_features:
+  enable: true
+  max_interactions: 20
+  interaction_methods: ["multiply", "ratio"]
+  automatic_selection: true  # Select top interactions by correlation with target
+  custom_interactions:
+    - ["f__vwap_30", "f__rel_volume_30"]
+    - ["f__vwap_distance", "f__atr_14"]
+    - ["close", "f__price_position"]
+
+# Technical indicators
+technical_indicators:
+  enable: true
+  indicators:
+    - "rsi"
+    - "macd"
+    - "bollinger_bands"
+    - "stochastic"
+    - "williams_r"
+
+  rsi_config:
+    period: 14
+
+  macd_config:
+    fast_period: 12
+    slow_period: 26
+    signal_period: 9
+
+  bollinger_bands_config:
+    period: 20
+    std_dev: 2
+
+  stochastic_config:
+    k_period: 14
+    d_period: 3
+
+  williams_r_config:
+    period: 14
+
+# Feature binning
+binning_features:
+  enable: false
+  n_bins: 5
+  strategy: "quantile"
+  features_to_bin:
+    - "f__vwap_distance"
+    - "f__rel_volume_30"
+
+# Feature scaling
+scaling:
+  enable: true
+  method: "robust"  # standard, minmax, robust, quantile
+  robust_config:
+    center: true
+    with_scaling: true
+
+  quantile_config:
+    n_quantiles: 1000
+    output_distribution: "uniform"
+
+# Dimensionality reduction
+dimensionality_reduction:
+  enable: false
+  method: "pca"
+  n_components: 20
+  explained_variance_ratio: 0.95
+  random_state: 42
+
+# Feature selection
+feature_selection:
+  enable: true
+  method: "recursive"  # univariate, mutual_info, recursive, lasso, correlation
+
+  univariate_config:
+    k_best: 20
+    percentile: 50
+
+  mutual_info_config:
+    k: 20
+    random_state: 42
+
+  recursive_config:
+    n_features: 25
+    step: 0.1
+    cv: true
+
+  lasso_config:
+    cv: 5
+    max_features: 30
+
+  correlation_config:
+    threshold: 0.95
+
+# Time-based features
+time_features:
+  enable: true
+  features:
+    - "hour_of_day"
+    - "day_of_week"
+    - "minute_of_hour"
+    - "is_session_start"
+    - "is_session_end"
+
+  session_config:
+    start_hour: 9
+    end_hour: 16
+    start_buffer: 30  # minutes
+    end_buffer: 30    # minutes
+
+# Volatility features
+volatility_features:
+  enable: true
+  methods: ["realized", "garch", "parkinson"]
+  windows: [5, 10, 20]
+
+  realized_config:
+    use_log_returns: true
+
+  garch_config:
+    p: 1
+    q: 1
+
+  parkinson_config:
+    use_high_low: true
+
+# Volume features
+volume_features:
+  enable: true
+  methods: ["volume_weighted", "volume_profile", "order_flow"]
+
+  volume_weighted_config:
+    windows: [5, 10, 20]
+
+  volume_profile_config:
+    price_bins: 20
+
+  order_flow_config:
+    imbalance_windows: [5, 10]
+
+# Market microstructure features
+microstructure_features:
+  enable: true
+  features:
+    - "bid_ask_spread"
+    - "order_flow_imbalance"
+    - "trade_intensity"
+    - "price_impact"
+
+# Cross-asset features
+cross_asset_features:
+  enable: false
+  reference_symbols: ["SPY", "QQQ", "VIX"]
+  features:
+    - "correlation"
+    - "beta"
+    - "relative_strength"
+
+# Feature validation
+validation:
+  enable: true
+  checks:
+    - check: "missing_values"
+      threshold: 0.05
+    - check: "infinite_values"
+      action: "remove"
+    - check: "constant_features"
+      action: "remove"
+    - check: "duplicate_features"
+      action: "remove"
+    - check: "outliers"
+      method: "iqr"
+      threshold: 3.0
+
+# Feature monitoring
+monitoring:
+  enable: true
+  track_drift: true
+  track_importance: true
+  track_coverage: true
+  alert_threshold: 0.1
+
+# Output configuration
+output:
+  save_feature_matrix: true
+  save_feature_metadata: true
+  save_feature_importance: true
+  output_format: "parquet"  # parquet, csv, hdf5

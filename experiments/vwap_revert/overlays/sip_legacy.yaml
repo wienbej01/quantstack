@@ -1,8 +1,0 @@
-# Legacy SIP overlay - maintains current behavior
-# This overlay preserves the original SIP screener functionality
-
-sip:
-  method: original  # Use the original SIP screener
-  top_n: 5
-  rvol_col: "f__vol__rel_volume_30"
-  whitelist: null
