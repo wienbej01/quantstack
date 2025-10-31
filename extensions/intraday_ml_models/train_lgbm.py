@@ -76,6 +76,15 @@ class LightGBMTrainer:
         # Prepare data
         X, y = self._prepare_data(features, labels)
 
+        # Validate label diversity - critical for multiclass training
+        unique_labels = y.unique()
+        if len(unique_labels) <= 1:
+            raise ValueError(
+                f"Cannot train multiclass model with only {len(unique_labels)} unique class: {unique_labels.tolist()}. "
+                f"This typically means the ATR threshold is too high (all moves are 'neutral'). "
+                f"Consider reducing 'atr_multiplier' in targets configuration (current: {getattr(self, 'atr_multiplier', 'unknown')})."
+            )
+
         # Split data if no validation provided
         if validation_data is None:
             X_train, X_val, y_train, y_val = self._split_data(X, y)

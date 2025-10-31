@@ -55,7 +55,7 @@ class IntradayMLFeaturePack:
         if validate_time_discipline:
             self._validate_time_discipline(df, ts_cut)
 
-        # Filter data to prevent leakage
+        # Filter data to prevent leakage (ts should already be datetime)
         df_filtered = df[df["ts"] <= ts_cut].copy()
 
         features = []
@@ -129,6 +129,7 @@ class IntradayMLFeaturePack:
 
     def _validate_time_discipline(self, df: pd.DataFrame, ts_cut: pd.Timestamp):
         """Validate that input data respects time discipline."""
+        # ts should already be datetime
         if df["ts"].max() > ts_cut:
             raise ValueError(
                 f"Input data contains timestamps after ts_cut: "
