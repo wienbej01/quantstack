@@ -1,0 +1,17 @@
+position_size: 1                  # FIXED dev size
+commission_per_order: 0.35        # example; keep consistent
+slippage_bps: 0                   # 0 for dev; wire but default to 0
+annualize:
+  minute_bars_per_day: 390
+  trading_days_per_year: 252
+equity:
+  starting_equity: 100000.0
+timing:
+  timezone: "America/New_York"
+  session_calendar: "XNYS"
+  eod_liquidation_time: "15:59:59"
+paths:
+  model_dir: "artefacts/extensions/intraday_ml/phaseA/model_lgbm"
+  features:  "artefacts/extensions/intraday_ml/phaseA/features.parquet"
+  labels:    "artefacts/extensions/intraday_ml/phaseA/labels.parquet"
+  report_dir:"artefacts/extensions/intraday_ml_models/oos_backtest"

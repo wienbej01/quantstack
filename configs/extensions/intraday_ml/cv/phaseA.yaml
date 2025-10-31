@@ -1,0 +1,5 @@
+folds: 3
+embargo_days: 5
+purge_days: 5
+walk_forward: false
+metrics: [f1_posneg, aucpr_posneg, brier, expectancy, trade_rate]

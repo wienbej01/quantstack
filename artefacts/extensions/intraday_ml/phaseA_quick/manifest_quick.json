@@ -1,0 +1,88 @@
+{
+  "created_at": "2025-10-30T16:04:45.518562Z",
+  "gold_root": "/home/jacobw/gcs-mount",
+  "symbols": [
+    "BAC"
+  ],
+  "date_ranges": {
+    "train": {
+      "start": "2024-01-01",
+      "end": "2024-12-31"
+    },
+    "val": {
+      "start": "2025-01-01",
+      "end": "2025-01-31"
+    },
+    "oos": {
+      "start": "2025-02-01",
+      "end": "2025-02-28"
+    }
+  },
+  "data_hash": "0396befd7d7c91d3d38074f7b46cd60514c022284426f0d0647ae1737f4f3ea1",
+  "config_hash": "0139665210e47f27cfcc1ab9cbcdb4255e74864552bb72c235be5218b203e0248fe7ae30ec2f071a40ade39c69c733f468a3d64b85746f06a2c7e0f33f07a7f2",
+  "universe_hash": "9188935c697bcada9306971f54b837e0d1743b2516fef027fefc40432a0adc75591c4e3e16fe12df326ff356dbba74c3c2eaf4c37f7067f67bfcf08892cf4ab5",
+  "universe_config": {
+    "min_price": 5.0,
+    "max_price": 50.0,
+    "min_avg_daily_volume": 1000000,
+    "min_relative_volume": 0.8,
+    "min_trading_days": 18,
+    "lookback_days": 20,
+    "volume_window": 30,
+    "max_universe_size": 12,
+    "min_universe_size": 4,
+    "exclude_symbols": [
+      "XYZ"
+    ],
+    "min_minutes_per_day": 300,
+    "max_missing_minutes_ratio": 0.1
+  },
+  "cuts_config": {
+    "timezone": "America/New_York",
+    "market_open": "09:30:00",
+    "market_close": "16:00:00",
+    "decision_cuts": [
+      "09:35:00",
+      "11:00:00",
+      "13:30:00",
+      "14:30:00"
+    ],
+    "execution_delay_bars": 1,
+    "force_flat_eod_time": "15:59:59",
+    "no_entry_first_minutes": 1,
+    "no_entry_last_minutes": 60,
+    "min_seconds_between_cuts": 300,
+    "max_cuts_per_day": 8
+  },
+  "splits_config": {
+    "train_months": 12,
+    "val_months": 1,
+    "oos_months": 1,
+    "purge_days": 5,
+    "embargo_days": 5,
+    "pilot_start_date": "2024-01-01",
+    "validation_method": "purged_cv",
+    "n_folds": 3,
+    "require_min_trading_days": 18,
+    "allow_partial_months": true,
+    "skip_holiday_periods": true,
+    "strict_temporal_order": true,
+    "cross_symbol_consistency": true,
+    "split_seed": 42,
+    "deterministic": true
+  },
+  "total_symbols": 1,
+  "total_days": 425,
+  "universe_stats": {
+    "total_symbols_screened": 1,
+    "eligible_symbols": 1,
+    "price_range": [
+      46.115,
+      46.115
+    ],
+    "avg_dollar_volume": 52928537.365,
+    "avg_relative_volume": 10.049927128283183
+  },
+  "features_hash": null,
+  "version": "1.0"
+}

@@ -1,0 +1,8 @@
+# Thresholds to reduce micro-trades while keeping model behavior intact
+
+probability_threshold: 0.55      # θ; adjust via CV if needed
+expected_move_atr_lambda: 0.0    # λ; minimum expected move in ATR units
+cooldown_minutes: 0              # post-trade cooldown
+block_new_entries_after_et: "15:45"  # disallow new entries after 15:30 ET
+min_bars_to_close: 1              # require that at least 3 bars remain in session at entry
+horizons_min: [30, 60, 90]        # must match trained model horizons
