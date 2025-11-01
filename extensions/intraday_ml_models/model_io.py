@@ -10,12 +10,11 @@ import pickle
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 import joblib
 import lightgbm as lgb
 import pandas as pd
-from sklearn.calibration import CalibratedClassifierCV
 
 from extensions.intraday_ml_models.train_lgbm import TrainingResult
 
@@ -29,49 +28,49 @@ class ModelCard:
     version: str
     created_at: str
     model_type: str
-    model_config: Dict[str, Any]
+    model_config: dict[str, Any]
 
     # Training data information
-    training_metadata: Dict[str, Any]
+    training_metadata: dict[str, Any]
     features_hash: str
     targets_hash: str
 
     # Performance metrics
-    metrics: Dict[str, Any]
+    metrics: dict[str, Any]
 
     # Optional fields with defaults
     created_by: str = "intraday_ml_pipeline"
 
     # Validation results
-    cross_validation: Optional[Dict[str, Any]] = None
+    cross_validation: dict[str, Any] | None = None
 
     # Feature information
-    feature_names: Optional[list] = None
-    feature_importance: Optional[Dict[str, float]] = None
-    top_features: Optional[list] = None
+    feature_names: list | None = None
+    feature_importance: dict[str, float] | None = None
+    top_features: list | None = None
 
     # Model parameters
-    model_params: Optional[Dict[str, Any]] = None
+    model_params: dict[str, Any] | None = None
 
     # Reproducibility
-    random_seed: Optional[int] = None
-    training_environment: Optional[Dict[str, Any]] = None
+    random_seed: int | None = None
+    training_environment: dict[str, Any] | None = None
 
     # Usage information
     intended_use: str = "Intraday prominent moves prediction"
-    limitations: Optional[list] = None
-    ethical_considerations: Optional[list] = None
+    limitations: list | None = None
+    ethical_considerations: list | None = None
 
     # Version control
-    git_commit: Optional[str] = None
-    code_version: Optional[str] = None
+    git_commit: str | None = None
+    code_version: str | None = None
 
 
 class ModelIO:
     """Handles versioned model saving and loading with model cards."""
 
     def __init__(
-        self, model_dir: Union[str, Path], config: Optional[Dict[str, Any]] = None
+        self, model_dir: str | Path, config: dict[str, Any] | None = None
     ):
         """Initialize ModelIO with model directory.
 
@@ -87,10 +86,10 @@ class ModelIO:
         self,
         training_result: TrainingResult,
         model_name: str,
-        version: Optional[str] = None,
+        version: str | None = None,
         save_format: str = "joblib",
         compression: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Save trained model with model card.
 
         Args:
@@ -134,7 +133,7 @@ class ModelIO:
         version: str,
         load_calibrated: bool = True,
         load_format: str = "joblib",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Load model and model card.
 
         Args:
@@ -151,7 +150,7 @@ class ModelIO:
         if not model_card_path.exists():
             raise FileNotFoundError(f"Model card not found: {model_card_path}")
 
-        with open(model_card_path, "r") as f:
+        with open(model_card_path) as f:
             model_card_dict = json.load(f)
 
         model_card = ModelCard(**model_card_dict)
@@ -180,7 +179,7 @@ class ModelIO:
             "model_card_path": str(model_card_path),
         }
 
-    def list_models(self, model_name: Optional[str] = None) -> pd.DataFrame:
+    def list_models(self, model_name: str | None = None) -> pd.DataFrame:
         """List available models.
 
         Args:
@@ -193,7 +192,7 @@ class ModelIO:
 
         for file_path in self.model_dir.glob("*_model_card.json"):
             try:
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     model_card_dict = json.load(f)
 
                 model_card = ModelCard(**model_card_dict)
@@ -229,7 +228,7 @@ class ModelIO:
             ModelCard with detailed information
         """
         model_card_path = self.model_dir / f"{model_name}_{version}_model_card.json"
-        with open(model_card_path, "r") as f:
+        with open(model_card_path) as f:
             model_card_dict = json.load(f)
 
         return ModelCard(**model_card_dict)
@@ -295,7 +294,7 @@ class ModelIO:
         model_name: str,
         save_format: str,
         compression: bool,
-    ) -> Dict[str, Path]:
+    ) -> dict[str, Path]:
         """Save model files with proper naming."""
         base_name = f"{model_name}_{model_card.version}"
 
@@ -327,10 +326,10 @@ class ModelIO:
 
 def save_model_with_card(
     training_result: TrainingResult,
-    model_dir: Union[str, Path],
+    model_dir: str | Path,
     model_name: str,
-    version: Optional[str] = None,
-) -> Dict[str, Any]:
+    version: str | None = None,
+) -> dict[str, Any]:
     """Convenience function to save model with model card.
 
     Args:
@@ -347,11 +346,11 @@ def save_model_with_card(
 
 
 def load_model_with_card(
-    model_dir: Union[str, Path],
+    model_dir: str | Path,
     model_name: str,
     version: str,
     load_calibrated: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Convenience function to load model with model card.
 
     Args:

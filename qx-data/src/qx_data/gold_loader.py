@@ -1,11 +1,9 @@
 """Gold loader for read-only access to normalized bars."""
 
-import glob
 import os
 
 import pandas as pd
 import pyarrow.parquet as pq
-
 from qx_core.hashers import hash_dataframe
 from qx_core.validators import ValidationError, validate_bars_dataframe
 
@@ -49,19 +47,35 @@ def load_bars(
     files_read = 0
     files_attempted = 0
 
-    for symbol in symbols:
-        for date in dates:
-            paths = _get_parquet_paths(root, family, symbol, date)
-            files_attempted += len(paths)
+    # Collect unique year-month combinations from the dates
+    unique_year_months = set()
+    for date_str in dates:
+        parts = date_str.split("-")
+        if len(parts) >= 2:
+            unique_year_months.add(f"{parts[0]}-{parts[1]}")
 
-            for path in paths:
-                try:
-                    df = _read_parquet_with_validation(path, symbol, columns)
+    for symbol in symbols:
+        for year_month in unique_year_months:
+            # Construct path for monthly parquet file
+            year, month = year_month.split("-")
+            path = os.path.join(
+                root, "stocks", "1m", symbol, year, f"{year}-{month}.parquet"
+            )
+            files_attempted += 1
+
+            try:
+                df = _read_parquet_with_validation(path, symbol, columns)
+                # Filter the monthly data to include only the requested dates
+                df["date_str"] = pd.to_datetime(df["ts"], unit="ns").dt.strftime("%Y-%m-%d")
+                df = df[df["date_str"].isin(dates)]
+                df = df.drop(columns=["date_str"])
+
+                if not df.empty:
                     dfs.append(df)
                     files_read += 1
-                except Exception as e:
-                    # Log warning but continue
-                    print(f"Warning: failed to read {path}: {e}")
+            except Exception as e:
+                # Log warning but continue
+                print(f"Warning: failed to read {path}: {e}")
 
     if files_read == 0:
         raise RuntimeError(
@@ -187,44 +201,7 @@ def get_bars_hash(root: str, family: str, symbols: list[str], dates: list[str]) 
     return hash_dataframe(df)
 
 
-def _get_parquet_paths(root: str, family: str, symbol: str, date: str) -> list[str]:
-    """Get parquet file paths for given symbol and date."""
-    if date == "SMOKE" or "-" not in date:
-        # Smoke test or non-standard date: use partitioned structure
-        pattern = os.path.join(
-            root, family, f"symbol={symbol}", f"date={date}", "*.parquet"
-        )
-    elif family == "bars_1m":
-        # Structure: .../stocks/1m/symbol/year/year-month.parquet
-        parts = date.split("-")
-        if len(parts) == 2:
-            year, month = parts
-        elif len(parts) == 3:
-            year, month, _ = parts
-        else:
-            raise ValueError(f"Invalid date format: {date}")
-        pattern = os.path.join(
-            root, "stocks", "1m", symbol, year, f"{symbol}_{year}-{month}.parquet"
-        )
-    elif family == "stocks":
-        # Structure: .../stocks/symbol/year/symbol_year-month.parquet
-        parts = date.split("-")
-        if len(parts) == 2:
-            year, month = parts
-        elif len(parts) == 3:
-            year, month, _ = parts
-        else:
-            raise ValueError(f"Invalid date format: {date}")
-        pattern = os.path.join(
-            root, "stocks", symbol, year, f"{symbol}_{year}-{month}.parquet"
-        )
-    else:
-        # Structure: .../family/symbol=symbol/date=date/*.parquet
-        pattern = os.path.join(
-            root, family, f"symbol={symbol}", f"date={date}", "*.parquet"
-        )
 
-    return glob.glob(pattern)
 
 
 def _read_parquet_with_validation(

@@ -4,7 +4,7 @@ Registry that enumerates features, windows, dependencies, dtypes, and null polic
 Provides schema validation and feature metadata for the ML pipeline.
 """
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 import pandas as pd
 
@@ -20,8 +20,8 @@ class FeatureMetadata:
         family: str,
         description: str,
         dtype: str,
-        window: Optional[int] = None,
-        dependencies: Optional[List[str]] = None,
+        window: int | None = None,
+        dependencies: list[str] | None = None,
         null_policy: str = "forward_fill",
         min_non_null_ratio: float = 0.9,
     ):
@@ -50,7 +50,7 @@ class FeatureMetadata:
 class IntradayMLFeatureRegistry:
     """Registry for intraday ML features with validation and metadata."""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """Initialize feature registry.
 
         Args:
@@ -59,7 +59,7 @@ class IntradayMLFeatureRegistry:
         self.config = config
         self.families = config.get("families", {})
         self.feature_pack = IntradayMLFeaturePack(config)
-        self._feature_metadata: Dict[str, FeatureMetadata] = {}
+        self._feature_metadata: dict[str, FeatureMetadata] = {}
         self._initialize_metadata()
 
     def _initialize_metadata(self):
@@ -439,11 +439,11 @@ class IntradayMLFeatureRegistry:
                 null_policy="forward_fill",
             )
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """Get list of all registered feature names."""
         return list(self._feature_metadata.keys())
 
-    def get_features_by_family(self, family: str) -> List[str]:
+    def get_features_by_family(self, family: str) -> list[str]:
         """Get feature names belonging to a specific family."""
         return [
             name
@@ -451,15 +451,15 @@ class IntradayMLFeatureRegistry:
             if meta.family == family
         ]
 
-    def get_feature_metadata(self, feature_name: str) -> Optional[FeatureMetadata]:
+    def get_feature_metadata(self, feature_name: str) -> FeatureMetadata | None:
         """Get metadata for a specific feature."""
         return self._feature_metadata.get(feature_name)
 
-    def get_all_metadata(self) -> Dict[str, FeatureMetadata]:
+    def get_all_metadata(self) -> dict[str, FeatureMetadata]:
         """Get all feature metadata."""
         return self._feature_metadata.copy()
 
-    def validate_features(self, df: pd.DataFrame) -> Dict[str, Any]:
+    def validate_features(self, df: pd.DataFrame) -> dict[str, Any]:
         """Validate computed features against registry metadata.
 
         Args:
@@ -548,15 +548,7 @@ class IntradayMLFeatureRegistry:
 
                 if expected_dtype == "float" and not pd.api.types.is_float_dtype(
                     feature_data
-                ):
-                    validation_results["dtype_issues"].append(
-                        {
-                            "feature": feature_name,
-                            "expected": expected_dtype,
-                            "actual": actual_dtype,
-                        }
-                    )
-                elif expected_dtype == "int" and not pd.api.types.is_integer_dtype(
+                ) or expected_dtype == "int" and not pd.api.types.is_integer_dtype(
                     feature_data
                 ):
                     validation_results["dtype_issues"].append(
@@ -587,7 +579,7 @@ class IntradayMLFeatureRegistry:
                 max_window = metadata.window
         return max_window
 
-    def count_features_by_family(self) -> Dict[str, int]:
+    def count_features_by_family(self) -> dict[str, int]:
         """Count features by family."""
         counts = {}
         for metadata in self._feature_metadata.values():

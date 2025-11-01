@@ -10,12 +10,12 @@ Validates that all S10 components work correctly:
 5. Optional enable toggle for VPA features
 """
 
+import sys
 import tempfile
 from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
-
 from qx_features.dataset_builder import DatasetBuilder
 from qx_features.ml_trainer import ModelTrainer, train_simple_classifier
 from qx_features.registry import apply
@@ -163,7 +163,7 @@ def test_dataset_builder(df_with_features: pd.DataFrame):
 
     # Test saving and loading
     with tempfile.TemporaryDirectory() as temp_dir:
-        manifest_path = builder.save_splits(splits, temp_dir, manifest)
+        builder.save_splits(splits, temp_dir, manifest)
         loaded_splits, loaded_manifest = builder.load_splits(temp_dir)
 
         # Verify loaded data matches original
@@ -211,7 +211,7 @@ def test_ml_trainer(splits: dict, feature_cols: list, target_col: str):
         # Test predictions
         test_features = valid_data[feature_cols].head(10)
         predictions = trainer.predict(test_features)
-        probabilities = trainer.predict(test_features, return_proba=True)
+        trainer.predict(test_features, return_proba=True)
 
         if len(predictions) != len(test_features):
             print("❌ Prediction length mismatch")
@@ -407,4 +407,4 @@ def main():
 
 if __name__ == "__main__":
     success = main()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

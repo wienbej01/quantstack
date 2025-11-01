@@ -3,7 +3,6 @@
 from typing import Any
 
 import pandas as pd
-
 from qx_risk.atr_stop import set_stops, size_order
 
 from ..order import OrderSide
@@ -529,7 +528,7 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     signals = []
     position_tracker = {}  # symbol -> {'entry_ts': ts, 'bars_held': int}
 
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         ts = row["ts"]
         symbol = row["symbol"]
         close = row["close"]

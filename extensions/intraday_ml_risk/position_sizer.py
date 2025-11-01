@@ -2,12 +2,10 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
-import pandas as pd
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
@@ -33,7 +31,7 @@ class PositionSize:
     risk_adjusted_size: float
     sizing_method: SizingMethod
     confidence: float
-    reasons: List[str]
+    reasons: list[str]
 
 
 class MLPositionSizer:
@@ -44,8 +42,8 @@ class MLPositionSizer:
         max_position_size: float = 1000.0,
         risk_tolerance: float = 0.02,
         sizing_method: SizingMethod = SizingMethod.VOLATILITY,
-        ml_model_id: Optional[str] = None,
-        registry: Optional[MLModelRegistry] = None,
+        ml_model_id: str | None = None,
+        registry: MLModelRegistry | None = None,
     ):
         """
         Initialize ML position sizer.
@@ -80,7 +78,7 @@ class MLPositionSizer:
         account_size: float,
         current_price: float,
         confidence: float = 0.5,
-        additional_features: Optional[Dict[str, float]] = None,
+        additional_features: dict[str, float] | None = None,
     ) -> PositionSize:
         """
         Calculate position size for a trade.
@@ -138,8 +136,7 @@ class MLPositionSizer:
     def _volatility_sizing(self, signal_strength: float, volatility: float) -> float:
         """Volatility-based position sizing."""
         # Inverse relationship with volatility
-        if volatility < 0.01:
-            volatility = 0.01  # Minimum volatility
+        volatility = max(volatility, 0.01)  # Minimum volatility
 
         volatility_target = 0.02  # 2% daily volatility target
         size = (
@@ -186,7 +183,7 @@ class MLPositionSizer:
         signal_strength: float,
         volatility: float,
         confidence: float,
-        additional_features: Dict[str, float],
+        additional_features: dict[str, float],
     ) -> float:
         """ML-based position sizing."""
         if not self.ml_predictor:
@@ -238,7 +235,7 @@ class MLPositionSizer:
 
     def _get_sizing_reasons(
         self, final_size: float, requested_size: float, max_allowed: float
-    ) -> List[str]:
+    ) -> list[str]:
         """Get reasons for position sizing decision."""
         reasons = []
 
@@ -261,7 +258,7 @@ class MLPositionSizer:
         return reasons
 
     def update_sizing_method(
-        self, new_method: SizingMethod, ml_model_id: Optional[str] = None
+        self, new_method: SizingMethod, ml_model_id: str | None = None
     ):
         """Update sizing method."""
         self.sizing_method = new_method
@@ -274,7 +271,7 @@ class MLPositionSizer:
                 self.logger.error(f"Failed to load new ML model {ml_model_id}: {e}")
                 self.ml_predictor = None
 
-    def get_sizing_statistics(self) -> Dict[str, Any]:
+    def get_sizing_statistics(self) -> dict[str, Any]:
         """Get sizing statistics."""
         return {
             "sizing_method": self.sizing_method.value,
@@ -283,7 +280,7 @@ class MLPositionSizer:
             "ml_model_loaded": self.ml_predictor is not None,
         }
 
-    def validate_position_size(self, position: PositionSize) -> Tuple[bool, List[str]]:
+    def validate_position_size(self, position: PositionSize) -> tuple[bool, list[str]]:
         """Validate position size."""
         errors = []
 

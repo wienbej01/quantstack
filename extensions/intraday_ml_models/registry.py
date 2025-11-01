@@ -2,14 +2,11 @@
 
 import json
 import pickle
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, Union
 
-import pandas as pd
 from sklearn.base import BaseEstimator
 
-from .schemas import ModelConfig, ModelMetadata
+from .schemas import ModelMetadata
 
 
 class MLModelRegistry:
@@ -28,10 +25,10 @@ class MLModelRegistry:
         self.metadata_file = self.registry_dir / "registry.json"
         self._registry = self._load_registry()
 
-    def _load_registry(self) -> Dict[str, ModelMetadata]:
+    def _load_registry(self) -> dict[str, ModelMetadata]:
         """Load existing registry from disk."""
         if self.metadata_file.exists():
-            with open(self.metadata_file, "r") as f:
+            with open(self.metadata_file) as f:
                 data = json.load(f)
             return {
                 model_id: ModelMetadata(**metadata)
@@ -107,8 +104,8 @@ class MLModelRegistry:
         return self._registry[model_id]
 
     def list_models(
-        self, model_type: Optional[str] = None, tags: Optional[List[str]] = None
-    ) -> List[ModelMetadata]:
+        self, model_type: str | None = None, tags: list[str] | None = None
+    ) -> list[ModelMetadata]:
         """List models with optional filtering.
 
         Args:
@@ -130,7 +127,7 @@ class MLModelRegistry:
 
     def get_best_model(
         self, model_type: str, metric: str = "val_score"
-    ) -> Optional[ModelMetadata]:
+    ) -> ModelMetadata | None:
         """Get best model by type and metric.
 
         Args:

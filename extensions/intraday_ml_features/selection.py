@@ -2,7 +2,7 @@
 
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,7 @@ from sklearn.feature_selection import (
     mutual_info_classif,
     mutual_info_regression,
 )
-from sklearn.linear_model import LassoCV, LinearRegression
+from sklearn.linear_model import LassoCV
 
 warnings.filterwarnings("ignore")
 
@@ -26,9 +26,9 @@ warnings.filterwarnings("ignore")
 class SelectionResult:
     """Result of feature selection."""
 
-    selected_features: List[str]
-    feature_scores: Dict[str, float]
-    feature_ranks: Dict[str, int]
+    selected_features: list[str]
+    feature_scores: dict[str, float]
+    feature_ranks: dict[str, int]
     selection_method: str
     n_features_selected: int
     support_mask: np.ndarray
@@ -68,10 +68,7 @@ class FeatureSelector:
         self.feature_names = X.columns.tolist()
 
         # Choose scoring function
-        if task_type == "regression":
-            score_func = f_regression
-        else:
-            score_func = f_classif
+        score_func = f_regression if task_type == "regression" else f_classif
 
         # Create selector
         if method == "k_best":
@@ -82,7 +79,7 @@ class FeatureSelector:
             raise ValueError(f"Unknown univariate method: {method}")
 
         # Fit selector
-        X_selected = selector.fit_transform(X, y)
+        selector.fit_transform(X, y)
         self.fitted_selector = selector
         self.selection_method = f"univariate_{method}"
 
@@ -139,10 +136,7 @@ class FeatureSelector:
         self.feature_names = X.columns.tolist()
 
         # Choose scoring function
-        if task_type == "regression":
-            score_func = mutual_info_regression
-        else:
-            score_func = mutual_info_classif
+        score_func = mutual_info_regression if task_type == "regression" else mutual_info_classif
 
         # Calculate mutual information scores
         scores = score_func(X, y, random_state=random_state)
@@ -185,7 +179,7 @@ class FeatureSelector:
         self,
         X: pd.DataFrame,
         y: pd.Series,
-        estimator: Optional[Any] = None,
+        estimator: Any | None = None,
         n_features: int = 10,
         step: float = 0.1,
         cv: bool = False,
@@ -240,7 +234,7 @@ class FeatureSelector:
             )
 
         # Fit selector
-        X_selected = selector.fit_transform(X, y)
+        selector.fit_transform(X, y)
         self.fitted_selector = selector
         self.selection_method = f"rfe_{'cv' if cv else 'fixed'}"
 
@@ -285,7 +279,7 @@ class FeatureSelector:
         X: pd.DataFrame,
         y: pd.Series,
         cv: int = 5,
-        max_features: Optional[int] = None,
+        max_features: int | None = None,
         random_state: int = 42,
     ) -> SelectionResult:
         """
@@ -440,7 +434,7 @@ class FeatureSelector:
             ]
             return X[selected_features]
 
-    def get_selected_features(self) -> List[str]:
+    def get_selected_features(self) -> list[str]:
         """Get list of selected feature names."""
         if self.fitted_selector is None:
             raise ValueError("Selector not fitted.")
@@ -452,7 +446,7 @@ class FeatureSelector:
             if selected_mask[i]
         ]
 
-    def get_feature_importance(self) -> Dict[str, float]:
+    def get_feature_importance(self) -> dict[str, float]:
         """Get feature importance scores."""
         if self.fitted_selector is None:
             raise ValueError("Selector not fitted.")

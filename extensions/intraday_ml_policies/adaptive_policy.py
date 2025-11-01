@@ -7,18 +7,15 @@ based on detected market regimes and changing conditions.
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from .base import (
     BaseMLPolicy,
-    PolicyAction,
-    PolicyDecision,
-    PolicyMetrics,
     PolicySignal,
 )
 
@@ -38,7 +35,7 @@ class RegimeConfig:
     """Configuration for market regime detection."""
 
     # Trend detection parameters
-    trend_lookback_periods: List[int] = field(default_factory=lambda: [10, 20, 50])
+    trend_lookback_periods: list[int] = field(default_factory=lambda: [10, 20, 50])
     trend_threshold: float = 0.02  # 2% threshold for trend detection
     volatility_threshold: float = 0.015  # 1.5% volatility threshold
     volume_multiplier: float = 1.2  # Volume spike threshold
@@ -65,7 +62,7 @@ class RegimeState:
     duration_bars: int
     last_change_time: datetime
     historical_regimes: deque = field(default_factory=lambda: deque(maxlen=100))
-    regime_probabilities: Dict[MarketRegime, float] = field(default_factory=dict)
+    regime_probabilities: dict[MarketRegime, float] = field(default_factory=dict)
 
 
 class AdaptiveMLPolicy(BaseMLPolicy):
@@ -80,7 +77,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         model_id: str,
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize adaptive ML policy.
@@ -151,13 +148,13 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         # Regime detection metrics
         self.regime_detection_accuracy = 0.5
         self.regime_switch_count = 0
-        self.last_regime_detection: Optional[datetime] = None
+        self.last_regime_detection: datetime | None = None
 
         self.logger = logging.getLogger(__name__)
 
     def generate_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -263,12 +260,12 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         """Get current regime state."""
         return self.regime_state
 
-    def get_regime_parameters(self, regime: MarketRegime) -> Dict[str, float]:
+    def get_regime_parameters(self, regime: MarketRegime) -> dict[str, float]:
         """Get parameters for a specific regime."""
         return self.regime_parameters.get(regime, {}).copy()
 
     def update_regime_parameters(
-        self, regime: MarketRegime, parameters: Dict[str, float]
+        self, regime: MarketRegime, parameters: dict[str, float]
     ) -> None:
         """Update parameters for a specific regime."""
         if regime in self.regime_parameters:
@@ -309,7 +306,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
 
     def _generate_base_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -328,7 +325,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
     def _apply_regime_adjustments(
         self,
         base_signal: PolicySignal,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
     ) -> PolicySignal:
         """Apply regime-specific adjustments to signal."""
@@ -452,11 +449,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         trend_signal = self._calculate_trend_signal(market_data)
         volatility_signal = self._calculate_volatility_signal(market_data)
 
-        if regime == MarketRegime.TRENDING_UP:
-            confidence = min(
-                1.0, abs(trend_signal) / self.regime_config.trend_threshold
-            )
-        elif regime == MarketRegime.TRENDING_DOWN:
+        if regime in (MarketRegime.TRENDING_UP, MarketRegime.TRENDING_DOWN):
             confidence = min(
                 1.0, abs(trend_signal) / self.regime_config.trend_threshold
             )

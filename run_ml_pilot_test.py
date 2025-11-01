@@ -12,7 +12,6 @@ This script demonstrates the complete ML trading system pipeline:
 
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -335,12 +334,12 @@ def run_ml_pilot_test():
         print("✅ ML universe screening (if applicable) functional")
 
         # Summary statistics
-        print(f"\n📋 EXECUTION SUMMARY:")
+        print("\n📋 EXECUTION SUMMARY:")
         print(f"   Data processed: {len(bars):,} bars")
         print(f"   Features computed: {len(features.columns)}")
         print(f"   Risk-managed orders: {len(sized_orders)}")
         print(f"   ML models tested: {ml_config['ml_models']}")
-        print(f"   Reproducibility hashes: 4 generated")
+        print("   Reproducibility hashes: 4 generated")
 
         return True
 
@@ -359,4 +358,4 @@ def run_ml_pilot_test():
 
 if __name__ == "__main__":
     success = run_ml_pilot_test()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

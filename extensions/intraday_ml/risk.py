@@ -4,18 +4,17 @@ This module wraps existing qx-risk functionality while providing
 Sprint 5 interface for position sizing and risk management.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
-from qx_risk.atr_stop import set_stops, size_order
+from qx_risk.atr_stop import size_order
 
 
 def intraday_ml_size_orders(
     signals: pd.DataFrame,
     bars: pd.DataFrame,
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Size orders using existing qx-risk functionality.
 
@@ -48,7 +47,7 @@ def intraday_ml_size_orders(
         # Calculate ATR
         high = symbol_data["high"]
         low = symbol_data["low"]
-        close = symbol_data["close"]
+        symbol_data["close"]
         atr = (high.rolling(atr_window).max() - low.rolling(atr_window).min()).iloc[-1]
 
         if atr > 0:
@@ -84,7 +83,7 @@ def intraday_ml_size_orders(
 def intraday_ml_get_risk_hash(
     signals: pd.DataFrame,
     bars: pd.DataFrame,
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> str:
     """Get deterministic hash of risk management parameters.
 

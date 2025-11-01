@@ -63,7 +63,7 @@ class TestScreenerIntegration:
 
     def test_screener_config_variations(self):
         """Test different screener configurations."""
-        base_config = ScreenerConfig()
+        ScreenerConfig()
 
         # Test different top_n values
         for top_n in [3, 5, 10]:

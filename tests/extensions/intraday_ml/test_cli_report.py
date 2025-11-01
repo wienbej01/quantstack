@@ -3,7 +3,7 @@
 import json
 import pathlib
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner

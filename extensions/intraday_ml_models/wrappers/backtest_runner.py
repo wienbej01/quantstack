@@ -4,7 +4,7 @@ import logging
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -61,7 +61,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 def run(policy_config_path: str, backtest_config: dict) -> None:
     start_time = time.time()
 
-    with open(policy_config_path, 'r') as f:
+    with open(policy_config_path) as f:
         policy_config = yaml.safe_load(f)
 
     paths = backtest_config['paths']
@@ -140,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument("--backtest", required=True, help="Path to backtest.yaml")
     args = parser.parse_args()
 
-    with open(args.backtest, 'r') as f:
+    with open(args.backtest) as f:
         backtest_config = yaml.safe_load(f)
 
     run(args.policy, backtest_config)

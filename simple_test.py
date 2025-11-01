@@ -99,7 +99,7 @@ def main():
         print(f"Average universe size: {avg_size:.1f}")
 
         first_ts = min(universe_map.keys())
-        first_universe = sorted(list(universe_map[first_ts]))
+        first_universe = sorted(universe_map[first_ts])
         print(f"Example universe: {first_universe}")
 
     print("✓ Simple test completed successfully!")

@@ -1,5 +1,7 @@
 # Experiments Framework
 
+> **Note:** For intraday ML experiments, please use the new, streamlined pipeline described in [INTRA_ML_PIPELINE.md](./INTRA_ML_PIPELINE.md). The framework described below is for general strategy development and testing.
+
 Comprehensive experimentation framework for QuantStack strategy development, testing, and validation.
 
 ## Overview

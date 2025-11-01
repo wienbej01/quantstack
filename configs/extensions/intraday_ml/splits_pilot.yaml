@@ -1,0 +1,10 @@
+# Pilot data splits with fixed dates
+train:
+  start: "2025-07-01"
+  end: "2025-09-30"
+test:
+  start: "2025-10-01"
+  end: "2025-10-31"
+oos:
+  start: "2025-11-01"
+  end: "2025-11-30"

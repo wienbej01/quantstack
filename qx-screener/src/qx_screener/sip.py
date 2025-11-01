@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
-
 from qx_data.gold_loader import load_bars
 from qx_features.core_basics import rel_volume_m
 
@@ -91,7 +90,7 @@ class SipScreener:
 
         # Calculate relative volume per symbol
         rvol_series = []
-        for symbol, group in bars.groupby("symbol"):
+        for _symbol, group in bars.groupby("symbol"):
             symbol_rvol = rel_volume_m(group, self.config.volume_window)
             rvol_series.append(symbol_rvol)
 

@@ -98,9 +98,8 @@ def validate_gold_file(file_path: Path) -> list[str]:
     if "ts" in df.columns:
         # Infer timeframe from file path or data
         timeframe = infer_timeframe(file_path)
-        if timeframe:
-            if not check_timestamp_alignment(df["ts"], timeframe):
-                issues.append(f"Timestamps not aligned to {timeframe} boundaries")
+        if timeframe and not check_timestamp_alignment(df["ts"], timeframe):
+            issues.append(f"Timestamps not aligned to {timeframe} boundaries")
 
     return issues
 

@@ -3,12 +3,9 @@
 import json
 import pathlib
 import tempfile
-from unittest.mock import Mock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
-
 from extensions.intraday_ml.reporting import (
     ABComparator,
     ArtifactReader,

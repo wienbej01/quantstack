@@ -6,7 +6,6 @@ This demonstrates the basic functionality without complex CLI dependencies.
 
 import os
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -32,9 +31,7 @@ def load_strategy_bars(root: str, symbols: list[str], dates: list[str]) -> pd.Da
     Returns:
         Normalized DataFrame with canonical schema
     """
-    import glob
 
-    from qx_core.hashers import hash_dataframe
     from qx_core.validators import ValidationError, validate_bars_dataframe
 
     if not symbols:
@@ -239,7 +236,7 @@ def run_simple_pilot_test():
             config = BacktestConfig(
                 initial_cash=100000.0, start_date="2024-01-02", end_date="2024-01-02"
             )
-            engine = BacktestEngine(config)
+            BacktestEngine(config)
             print("✅ Backtest engine initialized")
             print(
                 "Debug: Completed engine initialization, about to start signal generation"
@@ -263,7 +260,6 @@ def run_simple_pilot_test():
             sample_bar = features.iloc[0].to_dict()
 
             # Create mock portfolio
-            portfolio = {"cash": 100000.0, "total_value": 100000.0, "positions": {}}
 
             # Generate trading decision using process_bar method
             print("Debug: About to call policy.process_bar...")
@@ -294,7 +290,7 @@ def run_simple_pilot_test():
         # Test 7: Data validation
         print("\n✅ Data validation...")
         try:
-            print(f"   Data integrity: ✅")
+            print("   Data integrity: ✅")
             print(f"   Timestamp range: {bars['ts'].min()} to {bars['ts'].max()}")
             print(
                 f"   Price range: ${bars['close'].min():.2f} - ${bars['close'].max():.2f}"
@@ -332,4 +328,4 @@ def run_simple_pilot_test():
 
 if __name__ == "__main__":
     success = run_simple_pilot_test()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

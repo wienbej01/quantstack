@@ -4,10 +4,8 @@ Thin adapter that calls existing screener utilities for universe selection.
 Provides configuration-driven universe building for ML pipeline.
 """
 
-from typing import List
 
 import pandas as pd
-
 from qx_data.gold_loader import load_bars
 from qx_screener.sip import ScreenerConfig, SipScreener
 
@@ -40,8 +38,8 @@ class IntradayMLUniverseAdapter:
     def build_universe(
         self,
         gold_root: str,
-        symbols: List[str],
-        dates: List[str],
+        symbols: list[str],
+        dates: list[str],
         reference_date: str | None = None,
     ) -> pd.DataFrame:
         """Build universe using existing SIP screener.
@@ -74,7 +72,7 @@ class IntradayMLUniverseAdapter:
         return universe
 
     def _add_ml_metadata(
-        self, universe: pd.DataFrame, dates: List[str]
+        self, universe: pd.DataFrame, dates: list[str]
     ) -> pd.DataFrame:
         """Add ML-specific metadata to universe DataFrame.
 

@@ -95,20 +95,18 @@ class RegimeConfig(BaseModel):
         ]
 
         for param in window_params:
-            if param in v:
-                if not isinstance(v[param], int) or v[param] <= 0:
-                    raise ValueError(
-                        f"Feature parameter {param} must be a positive integer"
-                    )
+            if param in v and (not isinstance(v[param], int) or v[param] <= 0):
+                raise ValueError(
+                    f"Feature parameter {param} must be a positive integer"
+                )
 
         # Check for valid thresholds
         threshold_params = ["stress_threshold"]
         for param in threshold_params:
-            if param in v:
-                if not isinstance(v[param], (int, float)) or v[param] <= 0:
-                    raise ValueError(
-                        f"Feature parameter {param} must be a positive number"
-                    )
+            if param in v and (not isinstance(v[param], (int, float)) or v[param] <= 0):
+                raise ValueError(
+                    f"Feature parameter {param} must be a positive number"
+                )
 
         return v
 
@@ -118,9 +116,8 @@ class RegimeConfig(BaseModel):
         # Check ratio parameters
         ratio_params = ["variance_ratio_bull", "variance_ratio_bear"]
         for param in ratio_params:
-            if param in v:
-                if not isinstance(v[param], (int, float)) or v[param] <= 0:
-                    raise ValueError(f"Detector parameter {param} must be positive")
+            if param in v and (not isinstance(v[param], (int, float)) or v[param] <= 0):
+                raise ValueError(f"Detector parameter {param} must be positive")
 
         # Check threshold parameters
         threshold_params = [
@@ -132,9 +129,8 @@ class RegimeConfig(BaseModel):
             "stress_volume_threshold",
         ]
         for param in threshold_params:
-            if param in v:
-                if not isinstance(v[param], (int, float)) or v[param] <= 0:
-                    raise ValueError(f"Detector parameter {param} must be positive")
+            if param in v and (not isinstance(v[param], (int, float)) or v[param] <= 0):
+                raise ValueError(f"Detector parameter {param} must be positive")
 
         # Check weight parameters sum to approximately 1.0
         weight_params = [

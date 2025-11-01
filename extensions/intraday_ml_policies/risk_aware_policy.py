@@ -7,18 +7,16 @@ advanced risk management directly into the decision-making process.
 import logging
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from .base import (
     BaseMLPolicy,
-    PolicyAction,
     PolicyDecision,
-    PolicyMetrics,
     PolicySignal,
 )
 
@@ -82,7 +80,7 @@ class RiskMetrics:
     correlation_risk: float = 0.0
     liquidity_score: float = 1.0
     risk_score: float = 0.0
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
 
 @dataclass
@@ -91,10 +89,10 @@ class RiskDecision:
 
     original_decision: PolicyDecision
     risk_adjusted_decision: PolicyDecision
-    risk_assessment: Dict[str, Any]
+    risk_assessment: dict[str, Any]
     position_size_adjustment: float
     risk_score: float
-    risk_warnings: List[str] = field(default_factory=list)
+    risk_warnings: list[str] = field(default_factory=list)
 
 
 class RiskAwareMLPolicy(BaseMLPolicy):
@@ -109,7 +107,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         model_id: str,
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize risk-aware ML policy.
@@ -131,18 +129,18 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self.risk_history: deque = deque(maxlen=1000)
 
         # Position tracking
-        self.positions: Dict[str, Dict[str, Any]] = {}
+        self.positions: dict[str, dict[str, Any]] = {}
         self.daily_pnl_history: deque = deque(maxlen=252)  # 1 year of daily data
         self.high_water_mark: float = 0.0
 
         # Risk monitoring
-        self.risk_alerts: List[str] = []
+        self.risk_alerts: list[str] = []
         self.position_review_counter = 0
-        self.last_risk_assessment: Optional[datetime] = None
+        self.last_risk_assessment: datetime | None = None
 
         # Correlation tracking
-        self.returns_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
-        self.correlation_matrix: Dict[str, Dict[str, float]] = {}
+        self.returns_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=100))
+        self.correlation_matrix: dict[str, dict[str, float]] = {}
 
         # Strategy-specific parameters
         self.strategy_params = self._get_strategy_parameters()
@@ -151,7 +149,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
 
     def generate_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -223,9 +221,9 @@ class RiskAwareMLPolicy(BaseMLPolicy):
     def assess_decision_risk(
         self,
         decision: PolicyDecision,
-        features: Dict[str, float],
-        portfolio: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        features: dict[str, float],
+        portfolio: dict[str, Any],
+    ) -> dict[str, Any]:
         """
         Assess risk for a trading decision.
 
@@ -296,7 +294,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         self._update_risk_metrics()
         return self.risk_metrics
 
-    def update_risk_config(self, config_updates: Dict[str, Any]) -> None:
+    def update_risk_config(self, config_updates: dict[str, Any]) -> None:
         """Update risk configuration."""
         for key, value in config_updates.items():
             if hasattr(self.risk_config, key):
@@ -311,7 +309,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
 
     def _generate_base_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -328,8 +326,8 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return PolicySignal.NEUTRAL
 
     def _assess_market_risk(
-        self, features: Dict[str, float], market_data: Optional[pd.DataFrame]
-    ) -> Dict[str, Any]:
+        self, features: dict[str, float], market_data: pd.DataFrame | None
+    ) -> dict[str, Any]:
         """Assess current market risk conditions."""
         risk_assessment = {
             "volatility_risk": 0.5,
@@ -383,7 +381,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
     def _apply_risk_adjustments_to_signal(
         self,
         signal: PolicySignal,
-        risk_assessment: Dict[str, Any],
+        risk_assessment: dict[str, Any],
         current_position: float,
     ) -> PolicySignal:
         """Apply risk adjustments to trading signal."""
@@ -443,7 +441,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return adjusted_size
 
     def _assess_position_size_risk(
-        self, decision: PolicyDecision, portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: dict[str, Any]
     ) -> float:
         """Assess risk related to position size."""
         account_value = portfolio.get("total_value", 10000)
@@ -459,7 +457,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return risk_score
 
     def _assess_portfolio_risk(
-        self, decision: PolicyDecision, portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: dict[str, Any]
     ) -> float:
         """Assess portfolio-level risk."""
         risk_score = 0.5
@@ -479,7 +477,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return min(1.0, risk_score)
 
     def _assess_liquidity_risk(
-        self, decision: PolicyDecision, features: Dict[str, float]
+        self, decision: PolicyDecision, features: dict[str, float]
     ) -> float:
         """Assess liquidity risk."""
         # Simplified liquidity assessment
@@ -494,7 +492,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return 0.3  # Default moderate risk
 
     def _assess_correlation_risk(
-        self, decision: PolicyDecision, portfolio: Dict[str, Any]
+        self, decision: PolicyDecision, portfolio: dict[str, Any]
     ) -> float:
         """Assess correlation risk with existing positions."""
         if not self.positions:
@@ -540,8 +538,8 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         return max(-max_size, min(max_size, size))
 
     def _generate_risk_recommendations(
-        self, risk_assessment: Dict[str, Any]
-    ) -> List[str]:
+        self, risk_assessment: dict[str, Any]
+    ) -> list[str]:
         """Generate risk management recommendations."""
         recommendations = []
 
@@ -566,7 +564,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
 
         return recommendations
 
-    def _generate_risk_warnings(self, risk_assessment: Dict[str, Any]) -> List[str]:
+    def _generate_risk_warnings(self, risk_assessment: dict[str, Any]) -> list[str]:
         """Generate risk warnings."""
         warnings = []
 
@@ -596,7 +594,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         except Exception as e:
             self.logger.error(f"Error updating risk metrics: {e}")
 
-    def _get_strategy_parameters(self) -> Dict[str, float]:
+    def _get_strategy_parameters(self) -> dict[str, float]:
         """Get parameters for current risk strategy."""
         if self.risk_strategy == RiskStrategy.CONSERVATIVE:
             return {

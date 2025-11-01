@@ -47,7 +47,6 @@ def analyze_parquet_file(file_path: Path) -> dict[str, Any]:
     import pyarrow.parquet as pq
 
     table = pq.read_table(str(file_path))
-    schema = table.schema
     df = table.to_pandas()
 
     issues = []
@@ -91,9 +90,8 @@ def analyze_parquet_file(file_path: Path) -> dict[str, Any]:
 
     # Non-monotonic ts
     ts_col = "t" if has_t else ("ts" if "ts" in columns else "timestamp")
-    if ts_col in df.columns:
-        if not df[ts_col].is_monotonic_increasing:
-            issues.append("Non-monotonic timestamps")
+    if ts_col in df.columns and not df[ts_col].is_monotonic_increasing:
+        issues.append("Non-monotonic timestamps")
 
     # Metrics
     metrics = {

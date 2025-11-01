@@ -4,8 +4,7 @@ Tests purged, embargoed time-series CV with proper temporal ordering
 and comprehensive metrics aggregation.
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -224,8 +223,6 @@ class TestTimeSeriesCVRunner:
 
         # Create mock training result
         from unittest.mock import Mock
-
-        from sklearn.calibration import CalibratedClassifierCV
 
         from extensions.intraday_ml_models.train_lgbm import TrainingResult
 
@@ -488,7 +485,7 @@ class TestTimeSeriesCVRunner:
     def test_run_cv_integration(self, sample_data, cv_config, model_config):
         """Integration test for complete CV run."""
         features, targets = sample_data
-        runner = TimeSeriesCVRunner(cv_config)
+        TimeSeriesCVRunner(cv_config)
 
         # This would require actual LightGBM training
         # Skipping for unit test efficiency

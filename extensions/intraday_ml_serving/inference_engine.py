@@ -3,13 +3,12 @@
 import asyncio
 import logging
 import multiprocessing as mp
-import queue
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from threading import Event, Lock, Semaphore
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -38,7 +37,6 @@ except ImportError:
     PSUTIL_AVAILABLE = False
     psutil = None
 
-from extensions.intraday_ml_features.pipeline import FeaturePipeline
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
 
@@ -47,8 +45,8 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 class InferenceRequest:
     """Request for batch inference."""
 
-    features: List[Dict[str, float]]
-    model_ids: List[str]
+    features: list[dict[str, float]]
+    model_ids: list[str]
     request_id: str
     timestamp: datetime = field(default_factory=datetime.now)
     priority: int = 0  # Higher priority = processed first
@@ -58,9 +56,9 @@ class InferenceRequest:
 class InferenceResponse:
     """Response from batch inference."""
 
-    predictions: List[float]
-    confidences: List[Optional[float]]
-    model_ids: List[str]
+    predictions: list[float]
+    confidences: list[float | None]
+    model_ids: list[str]
     request_id: str
     timestamp: datetime
     processing_time_ms: float
@@ -79,7 +77,7 @@ class InferenceMetrics:
     memory_usage_mb: float = 0.0
     cache_hit_rate: float = 0.0
     error_rate: float = 0.0
-    last_request_time: Optional[datetime] = None
+    last_request_time: datetime | None = None
 
     def update(
         self,
@@ -109,12 +107,11 @@ class InferenceMetrics:
             else:
                 alpha = 0.1
                 self.cache_hit_rate = alpha * 1.0 + (1 - alpha) * self.cache_hit_rate
+        elif self.total_requests == 1:
+            self.cache_hit_rate = 0.0
         else:
-            if self.total_requests == 1:
-                self.cache_hit_rate = 0.0
-            else:
-                alpha = 0.1
-                self.cache_hit_rate = alpha * 0.0 + (1 - alpha) * self.cache_hit_rate
+            alpha = 0.1
+            self.cache_hit_rate = alpha * 0.0 + (1 - alpha) * self.cache_hit_rate
 
         # Update error rate
         if error:
@@ -123,12 +120,11 @@ class InferenceMetrics:
             else:
                 alpha = 0.1
                 self.error_rate = alpha * 1.0 + (1 - alpha) * self.error_rate
+        elif self.total_requests == 1:
+            self.error_rate = 0.0
         else:
-            if self.total_requests == 1:
-                self.error_rate = 0.0
-            else:
-                alpha = 0.1
-                self.error_rate = alpha * 0.0 + (1 - alpha) * self.error_rate
+            alpha = 0.1
+            self.error_rate = alpha * 0.0 + (1 - alpha) * self.error_rate
 
         # Update system metrics
         if PSUTIL_AVAILABLE:
@@ -159,11 +155,11 @@ class ModelPredictorCache:
     def __init__(self, max_size: int = 50, ttl_seconds: int = 1800):
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._access_times: Dict[str, float] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._access_times: dict[str, float] = {}
         self._lock = Lock()
 
-    def get(self, model_id: str) -> Optional[MLPredictor]:
+    def get(self, model_id: str) -> MLPredictor | None:
         """Get predictor from cache."""
         with self._lock:
             if model_id not in self._cache:
@@ -213,8 +209,8 @@ class BatchProcessor:
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
 
     def process_batch(
-        self, requests: List[InferenceRequest], predictors: Dict[str, MLPredictor]
-    ) -> List[InferenceResponse]:
+        self, requests: list[InferenceRequest], predictors: dict[str, MLPredictor]
+    ) -> list[InferenceResponse]:
         """Process multiple inference requests in parallel."""
         futures = []
 
@@ -247,7 +243,7 @@ class BatchProcessor:
         return responses
 
     def _process_single_request(
-        self, request: InferenceRequest, predictors: Dict[str, MLPredictor]
+        self, request: InferenceRequest, predictors: dict[str, MLPredictor]
     ) -> InferenceResponse:
         """Process a single inference request."""
         start_time = time.time()
@@ -312,7 +308,7 @@ class InferenceEngine:
 
     def __init__(
         self,
-        registry: Optional[MLModelRegistry] = None,
+        registry: MLModelRegistry | None = None,
         max_workers: int = None,
         cache_size: int = 50,
         cache_ttl_seconds: int = 1800,
@@ -387,10 +383,10 @@ class InferenceEngine:
                                 self.request_queue.get(), timeout=0.01
                             )
                             requests.append(additional_request)
-                        except asyncio.TimeoutError:
+                        except TimeoutError:
                             break
 
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     continue
 
                 if requests:
@@ -405,7 +401,7 @@ class InferenceEngine:
                 self.logger.error(f"Async processing error: {e}")
 
     async def predict_async(
-        self, features: List[Dict[str, float]], model_ids: List[str], priority: int = 0
+        self, features: list[dict[str, float]], model_ids: list[str], priority: int = 0
     ) -> InferenceResponse:
         """Make async prediction."""
         if not self.enable_async:
@@ -426,9 +422,9 @@ class InferenceEngine:
 
     def predict(
         self,
-        features: List[Dict[str, float]],
-        model_ids: List[str],
-        batch_size: Optional[int] = None,
+        features: list[dict[str, float]],
+        model_ids: list[str],
+        batch_size: int | None = None,
     ) -> InferenceResponse:
         """Make synchronous prediction."""
         start_time = time.time()
@@ -515,8 +511,8 @@ class InferenceEngine:
         return response
 
     def predict_single(
-        self, features: Dict[str, float], model_id: str
-    ) -> tuple[float, Optional[float]]:
+        self, features: dict[str, float], model_id: str
+    ) -> tuple[float, float | None]:
         """Make single prediction."""
         response = self.predict([features], [model_id])
         if response.predictions:
@@ -524,7 +520,7 @@ class InferenceEngine:
         else:
             return 0.0, None
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get inference engine metrics."""
         return {
             "total_requests": self.metrics.total_requests,
@@ -547,7 +543,7 @@ class InferenceEngine:
             self.predictor_cache._access_times.clear()
         self.logger.info("Predictor cache cleared")
 
-    def warm_up_cache(self, model_ids: List[str]):
+    def warm_up_cache(self, model_ids: list[str]):
         """Warm up cache with specified models."""
         for model_id in model_ids:
             try:

@@ -7,10 +7,9 @@ and fairness enforcement.
 
 import json
 import pathlib
-import shutil
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import yaml
@@ -20,7 +19,6 @@ from . import (
     intraday_ml_get_backtest_hash,
     intraday_ml_get_data_hash,
     intraday_ml_get_features_hash,
-    intraday_ml_get_risk_hash,
     intraday_ml_get_screener_hash,
     intraday_ml_load_bars,
     intraday_ml_run_backtest,
@@ -31,10 +29,10 @@ from . import (
 
 def run_entry_ab_experiment(
     base_config_path: str,
-    variant_paths: List[str],
+    variant_paths: list[str],
     experiment_name: str,
     force: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run entry A/B experiment with multiple variants.
 
     Args:
@@ -47,7 +45,7 @@ def run_entry_ab_experiment(
         Dictionary with experiment results and metadata
     """
     # Load base configuration
-    with open(base_config_path, "r") as f:
+    with open(base_config_path) as f:
         base_config = yaml.safe_load(f)
 
     # Create experiment directory
@@ -67,7 +65,7 @@ def run_entry_ab_experiment(
         variant_name = pathlib.Path(variant_path).stem
 
         # Merge variant configuration
-        with open(variant_path, "r") as f:
+        with open(variant_path) as f:
             variant_config = yaml.safe_load(f)
 
         # Deep merge configs
@@ -131,7 +129,7 @@ def run_entry_ab_experiment(
     }
 
 
-def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
+def validate_fairness(experiment_dir: str) -> dict[str, Any]:
     """Validate experiment fairness and checksum consistency.
 
     Args:
@@ -147,7 +145,7 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
     if not manifest_path.exists():
         return {"valid": False, "issues": ["manifest.json not found"]}
 
-    with open(manifest_path, "r") as f:
+    with open(manifest_path) as f:
         manifest = json.load(f)
 
     # Load inputs checksum
@@ -155,7 +153,7 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
     if not checksum_path.exists():
         return {"valid": False, "issues": ["inputs_checksum.json not found"]}
 
-    with open(checksum_path, "r") as f:
+    with open(checksum_path) as f:
         inputs_checksum = json.load(f)
 
     # Check expected files exist
@@ -202,7 +200,7 @@ def validate_fairness(experiment_dir: str) -> Dict[str, Any]:
     }
 
 
-def _load_base_data(config: Dict[str, Any]) -> Dict[str, Any]:
+def _load_base_data(config: dict[str, Any]) -> dict[str, Any]:
     """Load base data using intraday ML data loader."""
     data_config = config.get("data", {})
 
@@ -217,8 +215,8 @@ def _load_base_data(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _compute_base_hashes(
-    base_data: Dict[str, Any], config: Dict[str, Any]
-) -> Dict[str, str]:
+    base_data: dict[str, Any], config: dict[str, Any]
+) -> dict[str, str]:
     """Compute hashes for base data and configuration."""
     bars = base_data["bars"]
 
@@ -232,7 +230,7 @@ def _compute_base_hashes(
 
     # Apply screener for hash computation
     screener_config = config.get("screener", {})
-    screened_universe = intraday_ml_screen_universe(
+    intraday_ml_screen_universe(
         bars_with_features, screener_config, config.get("reference_date")
     )
 
@@ -256,12 +254,12 @@ def _compute_base_hashes(
 
 
 def _run_single_pipeline(
-    base_data: Dict[str, Any],
-    config: Dict[str, Any],
+    base_data: dict[str, Any],
+    config: dict[str, Any],
     variant_name: str,
     exp_dir: pathlib.Path,
     seed: int,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Run complete pipeline for a single variant."""
     import numpy as np
 
@@ -321,7 +319,7 @@ def _run_single_pipeline(
 
 
 def _generate_signals(
-    bars: pd.DataFrame, screened_universe: pd.DataFrame, config: Dict[str, Any]
+    bars: pd.DataFrame, screened_universe: pd.DataFrame, config: dict[str, Any]
 ) -> pd.DataFrame:
     """Generate trading signals (placeholder implementation)."""
     # This is a placeholder - in real implementation, would use specific policy
@@ -386,13 +384,13 @@ def _generate_signals(
 
 
 def _validate_variant_checksums(
-    base_hashes: Dict[str, str], variant_results: Dict[str, Any], force: bool
-) -> Dict[str, Any]:
+    base_hashes: dict[str, str], variant_results: dict[str, Any], force: bool
+) -> dict[str, Any]:
     """Validate checksum consistency across variants."""
     issues = []
 
     # Check that all variants have the same base hashes
-    for variant_name, result in variant_results.items():
+    for _variant_name, _result in variant_results.items():
         # In a real implementation, we'd compare stored base hashes
         # For now, assume validation passes
         pass
@@ -405,8 +403,8 @@ def _validate_variant_checksums(
 
 
 def _deep_merge_configs(
-    base: Dict[str, Any], overlay: Dict[str, Any]
-) -> Dict[str, Any]:
+    base: dict[str, Any], overlay: dict[str, Any]
+) -> dict[str, Any]:
     """Deep merge two configuration dictionaries."""
     result = base.copy()
 
@@ -419,7 +417,7 @@ def _deep_merge_configs(
     return result
 
 
-def _hash_config(config: Dict[str, Any]) -> str:
+def _hash_config(config: dict[str, Any]) -> str:
     """Hash configuration dictionary."""
     from qx_core.hashers import hash_dataframe
 

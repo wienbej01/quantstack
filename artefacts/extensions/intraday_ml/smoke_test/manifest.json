@@ -1,0 +1,102 @@
+{
+  "created_at": "2025-11-01T05:35:38.365915Z",
+  "gold_root": "/home/jacobw/gcs-mount/gold",
+  "symbols": [
+    "BAC"
+  ],
+  "date_ranges": {
+    "train": {
+      "start": "2024-01-02",
+      "end": "2024-01-03"
+    },
+    "val": {},
+    "test": {},
+    "oos": {
+      "start": "2024-01-04",
+      "end": "2024-01-04"
+    }
+  },
+  "data_hash": "82dcba080803753898692037993f6e0a7091e3d5ee5ba9e51ef271e8124aba27",
+  "config_hash": "0ddcd4c62712c38b80824bb5deaf5816fa51469c2ff2d94b815510959ab81854d9acb5bcdfdc905fbc4e7eba989aaca7471092ed5ef8e2857297c39a245cc137",
+  "universe_hash": "afbd35356e7ef732410ca1801f0f7372d071fc4d0806a32d1e3f138fe6c413755ecd2af101b50ded1ce5b71b95586b7a7fe342ce5fd50f28b0698dd5e9a886e6",
+  "universe_config": {
+    "symbols": [
+      "BAC"
+    ]
+  },
+  "cuts_config": {
+    "timezone": "America/New_York",
+    "market_open": "09:30:00",
+    "market_close": "16:00:00",
+    "decision_cuts": [
+      "09:40:00",
+      "09:50:00",
+      "10:00:00",
+      "10:10:00",
+      "10:20:00",
+      "10:30:00",
+      "10:40:00",
+      "10:50:00",
+      "11:00:00",
+      "11:10:00",
+      "11:20:00",
+      "11:30:00",
+      "11:40:00",
+      "11:50:00",
+      "12:00:00",
+      "12:10:00",
+      "12:20:00",
+      "12:30:00",
+      "12:40:00",
+      "12:50:00",
+      "13:00:00",
+      "13:10:00",
+      "13:20:00",
+      "13:30:00",
+      "13:40:00",
+      "13:50:00",
+      "14:00:00",
+      "14:10:00",
+      "14:20:00",
+      "14:30:00",
+      "14:40:00",
+      "14:50:00",
+      "15:00:00",
+      "15:10:00",
+      "15:20:00",
+      "15:30:00",
+      "15:40:00",
+      "15:50:00"
+    ],
+    "execution_delay_bars": 1,
+    "force_flat_eod_time": "15:59:59",
+    "no_entry_first_minutes": 10,
+    "no_entry_last_minutes": 10,
+    "min_seconds_between_cuts": 600,
+    "max_cuts_per_day": 39
+  },
+  "splits_config": {
+    "train": {
+      "start": "2024-01-02",
+      "end": "2024-01-03"
+    },
+    "oos": {
+      "start": "2024-01-04",
+      "end": "2024-01-04"
+    }
+  },
+  "total_symbols": 1,
+  "total_days": 3,
+  "universe_stats": {
+    "total_symbols_screened": 1,
+    "eligible_symbols": 1,
+    "price_range": [
+      33.81,
+      33.81
+    ],
+    "avg_dollar_volume": 44207656.92,
+    "avg_relative_volume": 15.4914880696816
+  },
+  "features_hash": null,
+  "version": "1.0"
+}

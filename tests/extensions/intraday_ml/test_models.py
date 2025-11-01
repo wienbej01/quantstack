@@ -1,7 +1,6 @@
 """Tests for ML model functionality."""
 
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import numpy as np
 import pandas as pd
@@ -288,7 +287,7 @@ class TestMLPredictor:
         assert result.symbol == "AAPL"
         assert result.prediction in [0, 1]  # Binary classification
         assert len(result.feature_values) == 3
-        assert all(f in result.feature_values for f in features.keys())
+        assert all(f in result.feature_values for f in features)
 
     def test_predict_batch(self, predictor, sample_bars, trained_model):
         """Test batch prediction."""

@@ -24,7 +24,7 @@ def compare(
 
     exp_dir = pathlib.Path(exp)
     manifest_path = exp_dir / "manifest.json"
-    checksum_path = exp_dir / "inputs_checksum.json"
+    exp_dir / "inputs_checksum.json"
 
     if not manifest_path.exists():
         console.print("Manifest not found", style="red")

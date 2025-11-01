@@ -5,12 +5,10 @@ import json
 import logging
 import sqlite3
 import threading
-import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from extensions.intraday_ml_models.registry import MLModelRegistry
 from extensions.intraday_ml_models.schemas import ModelMetadata, ModelType
@@ -44,15 +42,15 @@ class ModelVersion:
     file_hash: str
     config_hash: str
     data_hash: str
-    training_metrics: Dict[str, float] = field(default_factory=dict)
-    validation_metrics: Dict[str, float] = field(default_factory=dict)
-    production_metrics: Dict[str, float] = field(default_factory=dict)
-    parent_version: Optional[str] = None
-    child_versions: List[str] = field(default_factory=list)
-    tags: Set[str] = field(default_factory=set)
+    training_metrics: dict[str, float] = field(default_factory=dict)
+    validation_metrics: dict[str, float] = field(default_factory=dict)
+    production_metrics: dict[str, float] = field(default_factory=dict)
+    parent_version: str | None = None
+    child_versions: list[str] = field(default_factory=list)
+    tags: set[str] = field(default_factory=set)
     notes: str = ""
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for storage."""
         data = asdict(self)
         data["status"] = self.status.value
@@ -63,7 +61,7 @@ class ModelVersion:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ModelVersion":
+    def from_dict(cls, data: dict[str, Any]) -> "ModelVersion":
         """Create from dictionary."""
         data["status"] = ModelStatus(data["status"])
         data["model_type"] = ModelType(data["model_type"])
@@ -161,7 +159,7 @@ class VersionDatabase:
 
         self.logger.info(f"Saved model version {version.model_id}:{version.version}")
 
-    def get_version(self, model_id: str, version: str) -> Optional[ModelVersion]:
+    def get_version(self, model_id: str, version: str) -> ModelVersion | None:
         """Get specific model version."""
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -181,7 +179,7 @@ class VersionDatabase:
                 return self._row_to_version(row)
             return None
 
-    def get_latest_version(self, model_id: str) -> Optional[ModelVersion]:
+    def get_latest_version(self, model_id: str) -> ModelVersion | None:
         """Get latest version of a model."""
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -204,7 +202,7 @@ class VersionDatabase:
                 return self._row_to_version(row)
             return None
 
-    def get_versions_by_status(self, status: ModelStatus) -> List[ModelVersion]:
+    def get_versions_by_status(self, status: ModelStatus) -> list[ModelVersion]:
         """Get all versions with specific status."""
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -222,11 +220,11 @@ class VersionDatabase:
 
             return [self._row_to_version(row) for row in rows]
 
-    def get_production_versions(self) -> List[ModelVersion]:
+    def get_production_versions(self) -> list[ModelVersion]:
         """Get all models in production."""
         return self.get_versions_by_status(ModelStatus.PRODUCTION)
 
-    def get_child_versions(self, model_id: str, version: str) -> List[ModelVersion]:
+    def get_child_versions(self, model_id: str, version: str) -> list[ModelVersion]:
         """Get child versions of a specific version."""
         with self._lock:
             conn = sqlite3.connect(self.db_path)
@@ -314,7 +312,7 @@ class VersionManager:
 
     def __init__(
         self,
-        registry: Optional[MLModelRegistry] = None,
+        registry: MLModelRegistry | None = None,
         storage_path: str = "model_versions.db",
     ):
         self.registry = registry or MLModelRegistry()
@@ -326,10 +324,10 @@ class VersionManager:
         model_id: str,
         model_type: ModelType,
         file_path: str,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         training_data_hash: str,
         created_by: str,
-        parent_version: Optional[str] = None,
+        parent_version: str | None = None,
         notes: str = "",
     ) -> ModelVersion:
         """Create a new model version."""
@@ -391,7 +389,7 @@ class VersionManager:
         model_id: str,
         version: str,
         new_status: ModelStatus,
-        metrics: Optional[Dict[str, float]] = None,
+        metrics: dict[str, float] | None = None,
     ):
         """Update version status and optionally metrics."""
         version_obj = self.db.get_version(model_id, version)
@@ -414,7 +412,7 @@ class VersionManager:
             self.db.save_version(version_obj)
 
     def promote_to_production(
-        self, model_id: str, version: str, metrics: Dict[str, float]
+        self, model_id: str, version: str, metrics: dict[str, float]
     ):
         """Promote model version to production."""
         # Check if model is in staging
@@ -461,7 +459,7 @@ class VersionManager:
         self.logger.info(f"Rolled back {model_id} to version {target_version}")
         return target
 
-    def get_version_history(self, model_id: str) -> List[ModelVersion]:
+    def get_version_history(self, model_id: str) -> list[ModelVersion]:
         """Get complete version history for a model."""
         with self.db._lock:
             conn = sqlite3.connect(self.db.db_path)
@@ -481,13 +479,13 @@ class VersionManager:
 
             return [self.db._row_to_version(row) for row in rows]
 
-    def get_production_models(self) -> List[ModelVersion]:
+    def get_production_models(self) -> list[ModelVersion]:
         """Get all models currently in production."""
         return self.db.get_production_versions()
 
     def compare_versions(
         self, model_id: str, version1: str, version2: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Compare two model versions."""
         v1 = self.db.get_version(model_id, version1)
         v2 = self.db.get_version(model_id, version2)
@@ -531,9 +529,7 @@ class VersionManager:
         versions_to_delete = []
 
         for version in versions:
-            if version.status in [ModelStatus.PRODUCTION, ModelStatus.STAGING]:
-                versions_to_keep.append(version)
-            elif len(versions_to_keep) < keep_count:
+            if version.status in [ModelStatus.PRODUCTION, ModelStatus.STAGING] or len(versions_to_keep) < keep_count:
                 versions_to_keep.append(version)
             else:
                 versions_to_delete.append(version)
@@ -555,7 +551,7 @@ class VersionManager:
                 hash_sha256.update(chunk)
         return hash_sha256.hexdigest()
 
-    def _calculate_config_hash(self, config: Dict[str, Any]) -> str:
+    def _calculate_config_hash(self, config: dict[str, Any]) -> str:
         """Calculate SHA-256 hash of configuration."""
         config_str = json.dumps(config, sort_keys=True)
         return hashlib.sha256(config_str.encode()).hexdigest()
@@ -572,7 +568,7 @@ class VersionManager:
 
     def import_versions(self, input_path: str):
         """Import version history from JSON file."""
-        with open(input_path, "r") as f:
+        with open(input_path) as f:
             data = json.load(f)
 
         imported_count = 0

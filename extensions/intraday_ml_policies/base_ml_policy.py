@@ -1,14 +1,13 @@
 """Base class for ML-based trading policies."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-import pandas as pd
+from qx_backtest.order import Order, OrderSide
+from qx_backtest.policies.base import Policy
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
-from qx_backtest.order import Order, OrderSide
-from qx_backtest.policies.base import Policy
 
 
 class BaseMLPolicy(Policy, ABC):
@@ -17,12 +16,12 @@ class BaseMLPolicy(Policy, ABC):
     def __init__(
         self,
         model_id: str,
-        registry: Optional[MLModelRegistry] = None,
+        registry: MLModelRegistry | None = None,
         prediction_threshold: float = 0.5,
         position_size_method: str = "fixed",
         position_size_value: float = 1000.0,
         max_positions: int = 5,
-        features_required: Optional[List[str]] = None,
+        features_required: list[str] | None = None,
         **kwargs,
     ):
         """Initialize ML policy.
@@ -60,8 +59,8 @@ class BaseMLPolicy(Policy, ABC):
         self._validate_model_compatibility()
 
         # Track state
-        self.current_signals: Dict[str, float] = {}
-        self.last_prediction_ts: Dict[str, int] = {}
+        self.current_signals: dict[str, float] = {}
+        self.last_prediction_ts: dict[str, int] = {}
 
     def _validate_model_compatibility(self) -> None:
         """Validate that model is suitable for trading."""
@@ -76,7 +75,7 @@ class BaseMLPolicy(Policy, ABC):
                 f"Model validation score too low: {self.model_metadata.val_score}"
             )
 
-    def process_bar(self, bar: Dict[str, Any]) -> None:
+    def process_bar(self, bar: dict[str, Any]) -> None:
         """Process a single bar and generate trading signals.
 
         Args:
@@ -124,7 +123,7 @@ class BaseMLPolicy(Policy, ABC):
             # Log prediction error but continue processing
             print(f"Prediction error for {symbol} at {timestamp}: {e}")
 
-    def _has_required_features(self, bar: Dict[str, Any]) -> bool:
+    def _has_required_features(self, bar: dict[str, Any]) -> bool:
         """Check if bar has all required features."""
         return all(feature in bar for feature in self.features_required)
 
@@ -148,12 +147,12 @@ class BaseMLPolicy(Policy, ABC):
 
         return current_positions < self.max_positions
 
-    def _extract_features(self, bar: Dict[str, Any]) -> Dict[str, float]:
+    def _extract_features(self, bar: dict[str, Any]) -> dict[str, float]:
         """Extract features from bar for prediction."""
         return {feature: float(bar[feature]) for feature in self.features_required}
 
     def _predict_single(
-        self, features: Dict[str, float], timestamp: int, symbol: str
+        self, features: dict[str, float], timestamp: int, symbol: str
     ) -> Any:
         """Make prediction for single observation."""
         return self.predictor.predict_single(
@@ -181,11 +180,11 @@ class BaseMLPolicy(Policy, ABC):
         return abs(signal_strength) > self.prediction_threshold
 
     def _create_order(
-        self, bar: Dict[str, Any], signal_strength: float, prediction: Any
-    ) -> Optional[Order]:
+        self, bar: dict[str, Any], signal_strength: float, prediction: Any
+    ) -> Order | None:
         """Create order based on signal."""
         symbol = bar["symbol"]
-        price = bar["close"]  # Use close price for order
+        bar["close"]  # Use close price for order
 
         # Determine order side
         if signal_strength > 0:
@@ -212,7 +211,7 @@ class BaseMLPolicy(Policy, ABC):
         return order
 
     def _calculate_position_size(
-        self, bar: Dict[str, Any], signal_strength: float, prediction: Any
+        self, bar: dict[str, Any], signal_strength: float, prediction: Any
     ) -> float:
         """Calculate position size based on method and signal."""
         if self.position_size_method == "fixed":

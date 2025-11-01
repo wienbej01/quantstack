@@ -1,12 +1,10 @@
 """Tests for production ML serving infrastructure."""
 
-import asyncio
 import time
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from datetime import datetime
+from unittest.mock import Mock, patch
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from extensions.intraday_ml_serving.deployment import (
@@ -16,13 +14,9 @@ from extensions.intraday_ml_serving.deployment import (
 )
 from extensions.intraday_ml_serving.inference_engine import (
     InferenceEngine,
-    InferenceRequest,
-    InferenceResponse,
 )
 from extensions.intraday_ml_serving.model_server import (
     ModelServer,
-    PredictionRequest,
-    PredictionResponse,
 )
 from extensions.intraday_ml_serving.monitoring import (
     AlertConfig,
@@ -335,7 +329,6 @@ class TestDeploymentManager:
 
     def test_deployment_status_creation(self):
         """Test deployment status creation."""
-        from extensions.intraday_ml_serving.deployment import DeploymentStatus
 
         status = DeploymentStatus(
             deployment_name="test-deployment",
@@ -416,7 +409,6 @@ class TestProductionMonitor:
     def test_metrics_tracking(self):
         """Test metrics tracking concepts."""
         # Test that metrics can be created
-        from extensions.intraday_ml_serving.monitoring import MonitoringMetrics
 
         metrics = MonitoringMetrics(
             timestamp=datetime.now(),
@@ -497,7 +489,6 @@ class TestProductionIntegration:
     def test_concurrent_operations(self):
         """Test concurrent operations don't interfere."""
         import threading
-        import time
 
         results = []
         errors = []

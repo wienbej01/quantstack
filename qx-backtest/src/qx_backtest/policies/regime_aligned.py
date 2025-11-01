@@ -4,7 +4,7 @@ from typing import Any
 
 from qx_core.schemas import RegimeType
 
-from ..order import MarketOrder, OrderSide, OrderType
+from ..order import MarketOrder, OrderSide
 from .base import Policy
 
 

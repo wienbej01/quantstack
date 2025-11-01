@@ -1,12 +1,10 @@
 """Validation utilities for experiment configuration and data."""
 
 import pathlib
-from typing import Any, Dict, List
-
-from qx_data.gold_loader import list_available_dates, list_available_symbols
+from typing import Any
 
 
-def validate_config(config: Dict[str, Any]) -> None:
+def validate_config(config: dict[str, Any]) -> None:
     """Validate experiment configuration."""
     required_keys = ["gold_root", "family", "symbols", "dates", "features"]
     missing_keys = [k for k in required_keys if k not in config]
@@ -30,8 +28,8 @@ def validate_config(config: Dict[str, Any]) -> None:
 def validate_data_slice(
     gold_root: str,
     family: str,
-    symbols: List[str],
-    dates: List[str],
+    symbols: list[str],
+    dates: list[str],
 ) -> None:
     """Validate that the requested data slice exists."""
     # Check gold root exists
@@ -57,7 +55,7 @@ def validate_data_slice(
                 raise ValueError(f"Symbol directory not found: {symbol}")
 
 
-def validate_backtest_result(result: Dict[str, Any]) -> List[str]:
+def validate_backtest_result(result: dict[str, Any]) -> list[str]:
     """Validate backtest result structure and return any warnings."""
     warnings = []
 

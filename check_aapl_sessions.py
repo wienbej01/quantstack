@@ -22,7 +22,7 @@ def check_aapl_sessions():
         print(f"✅ Loaded {len(df)} total records for January 2024")
 
         # Convert timestamp to ET for display
-        et_tz = pytz.timezone("US/Eastern")
+        pytz.timezone("US/Eastern")
         df["ts_et"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.tz_convert(
             "US/Eastern"
         )
@@ -39,7 +39,7 @@ def check_aapl_sessions():
         )
 
         print("\n🕐 Session Time Ranges (first 10 sessions):")
-        for i, (session_id, row) in enumerate(session_ranges.head(10).iterrows()):
+        for _i, (session_id, row) in enumerate(session_ranges.head(10).iterrows()):
             et_min = row[("ts_et", "min")]
             et_max = row[("ts_et", "max")]
             print(f"   Session {session_id}: {et_min} to {et_max}")

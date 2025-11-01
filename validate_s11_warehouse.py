@@ -14,6 +14,7 @@ Validates that all S11 components work correctly:
 import json
 import pathlib
 import shutil
+import sys
 import tempfile
 from datetime import datetime
 
@@ -352,7 +353,7 @@ def test_mcp_functions():
 
         # Test schema function (will fail if no warehouse, but should not crash)
         try:
-            schema = get_schema()
+            get_schema()
             print("✅ get_schema() function accessible")
         except Exception as e:
             if "not found" in str(e):
@@ -493,4 +494,4 @@ def main():
 
 if __name__ == "__main__":
     success = main()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

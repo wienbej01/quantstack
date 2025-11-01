@@ -4,12 +4,9 @@ import logging
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import dataclass
 
 import numpy as np
-import pandas as pd
 
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
@@ -20,9 +17,9 @@ class EnsembleConfig:
     """Configuration for ensemble methods."""
 
     method: str = "voting"  # "voting", "stacking", "blending", "bagging"
-    weights: Optional[List[float]] = None
+    weights: list[float] | None = None
     voting_strategy: str = "soft"  # "soft", "hard"
-    stacking_model: Optional[str] = None  # model_id for meta-learner
+    stacking_model: str | None = None  # model_id for meta-learner
     blending_ratio: float = 0.8  # train/validation split for blending
     cross_validation_folds: int = 5
     timeout_seconds: int = 30
@@ -34,13 +31,13 @@ class EnsemblePrediction:
 
     prediction: float
     confidence: float
-    individual_predictions: List[float]
-    individual_confidences: List[float]
+    individual_predictions: list[float]
+    individual_confidences: list[float]
     ensemble_method: str
-    model_ids: List[str]
+    model_ids: list[str]
     prediction_time_ms: float
-    consensus_score: Optional[float] = None
-    variance: Optional[float] = None
+    consensus_score: float | None = None
+    variance: float | None = None
 
 
 class EnsembleModel:
@@ -48,9 +45,9 @@ class EnsembleModel:
 
     def __init__(
         self,
-        model_ids: List[str],
-        registry: Optional[MLModelRegistry] = None,
-        config: Optional[EnsembleConfig] = None,
+        model_ids: list[str],
+        registry: MLModelRegistry | None = None,
+        config: EnsembleConfig | None = None,
     ):
         """
         Initialize ensemble model.
@@ -81,7 +78,7 @@ class EnsembleModel:
                 except Exception as e:
                     self.logger.error(f"Failed to load predictor for {model_id}: {e}")
 
-    def predict(self, features: Dict[str, float]) -> EnsemblePrediction:
+    def predict(self, features: dict[str, float]) -> EnsemblePrediction:
         """
         Make ensemble prediction.
 
@@ -123,8 +120,8 @@ class EnsembleModel:
         )
 
     def _get_individual_predictions(
-        self, features: Dict[str, float]
-    ) -> Dict[str, Dict[str, float]]:
+        self, features: dict[str, float]
+    ) -> dict[str, dict[str, float]]:
         """Get predictions from all models."""
         results = {}
 
@@ -151,8 +148,8 @@ class EnsembleModel:
         return results
 
     def _predict_single(
-        self, model_id: str, predictor: MLPredictor, features: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, model_id: str, predictor: MLPredictor, features: dict[str, float]
+    ) -> dict[str, float]:
         """Get prediction from single model."""
         try:
             result = predictor.predict(features)
@@ -169,8 +166,8 @@ class EnsembleModel:
             raise
 
     def _voting_ensemble(
-        self, individual_results: Dict[str, Dict[str, float]]
-    ) -> Dict[str, float]:
+        self, individual_results: dict[str, dict[str, float]]
+    ) -> dict[str, float]:
         """Voting ensemble method."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -201,9 +198,9 @@ class EnsembleModel:
 
     def _stacking_ensemble(
         self,
-        features: Dict[str, float],
-        individual_results: Dict[str, Dict[str, float]],
-    ) -> Dict[str, float]:
+        features: dict[str, float],
+        individual_results: dict[str, dict[str, float]],
+    ) -> dict[str, float]:
         """Stacking ensemble method."""
         if not self.config.stacking_model:
             # Fallback to voting if no stacking model specified
@@ -242,9 +239,9 @@ class EnsembleModel:
 
     def _blending_ensemble(
         self,
-        features: Dict[str, float],
-        individual_results: Dict[str, Dict[str, float]],
-    ) -> Dict[str, float]:
+        features: dict[str, float],
+        individual_results: dict[str, dict[str, float]],
+    ) -> dict[str, float]:
         """Blending ensemble method."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -261,11 +258,11 @@ class EnsembleModel:
         }
 
     def _bagging_ensemble(
-        self, individual_results: Dict[str, Dict[str, float]]
-    ) -> Dict[str, float]:
+        self, individual_results: dict[str, dict[str, float]]
+    ) -> dict[str, float]:
         """Bagging ensemble method (bootstrap aggregation)."""
         predictions = [r["prediction"] for r in individual_results.values()]
-        confidences = [r["confidence"] for r in individual_results.values()]
+        [r["confidence"] for r in individual_results.values()]
 
         # Bootstrap sampling with replacement
         n_samples = len(predictions)
@@ -288,8 +285,8 @@ class EnsembleModel:
         }
 
     def evaluate_ensemble(
-        self, test_features: List[Dict[str, float]], test_targets: List[float]
-    ) -> Dict[str, float]:
+        self, test_features: list[dict[str, float]], test_targets: list[float]
+    ) -> dict[str, float]:
         """
         Evaluate ensemble performance.
 
@@ -363,11 +360,11 @@ class EnsembleModel:
             self.predictors.pop(model_id, None)
             self.logger.info(f"Removed model from ensemble: {model_id}")
 
-    def get_model_weights(self) -> Dict[str, float]:
+    def get_model_weights(self) -> dict[str, float]:
         """Get current model weights."""
         if self.config.weights:
-            return dict(zip(self.model_ids, self.config.weights))
+            return dict(zip(self.model_ids, self.config.weights, strict=False))
         else:
             # Equal weights if not specified
             equal_weight = 1.0 / len(self.model_ids)
-            return {model_id: equal_weight for model_id in self.model_ids}
+            return dict.fromkeys(self.model_ids, equal_weight)

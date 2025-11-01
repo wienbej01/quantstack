@@ -4,8 +4,6 @@ Tests Bayesian hyperparameter optimization with composite objectives
 and trade-rate shaping functionality.
 """
 
-from datetime import datetime
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -249,7 +247,7 @@ class TestBayesianLightGBMTuner:
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
         # Create mock CV result
-        from extensions.intraday_ml_models.cv_runner import CVMetrics, CVResult, CVSplit
+        from extensions.intraday_ml_models.cv_runner import CVResult
 
         mock_cv_result = CVResult(
             cv_config={},
@@ -328,7 +326,7 @@ class TestBayesianLightGBMTuner:
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
         # Add mock trial history
-        from extensions.intraday_ml_models.cv_runner import CVMetrics, CVResult, CVSplit
+        from extensions.intraday_ml_models.cv_runner import CVResult
 
         mock_cv_result = CVResult(
             cv_config={},
@@ -371,7 +369,7 @@ class TestBayesianLightGBMTuner:
         assert "reason" in convergence
 
         # Test with sufficient trials
-        from extensions.intraday_ml_models.cv_runner import CVMetrics, CVResult, CVSplit
+        from extensions.intraday_ml_models.cv_runner import CVResult
 
         mock_cv_result = CVResult(
             cv_config={},
@@ -408,7 +406,7 @@ class TestBayesianLightGBMTuner:
     ):
         """Integration test for complete optimization."""
         features, targets = sample_data
-        tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
+        BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
         # This would run the full optimization process
         # Skipping for unit test efficiency

@@ -9,14 +9,12 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import dateutil.relativedelta
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
 
-from .feature_pack import IntradayMLFeaturePack
 from .universe_adapter import IntradayMLUniverseAdapter
 
 
@@ -27,18 +25,18 @@ class DatasetManifest:
     # Basic metadata (no defaults first)
     created_at: str
     gold_root: str
-    symbols: List[str]
-    date_ranges: Dict[str, Dict[str, str]]  # split -> {start, end}
+    symbols: list[str]
+    date_ranges: dict[str, dict[str, str]]  # split -> {start, end}
     data_hash: str
     config_hash: str
     universe_hash: str
-    universe_config: Dict[str, Any]
-    cuts_config: Dict[str, Any]
-    splits_config: Dict[str, Any]
+    universe_config: dict[str, Any]
+    cuts_config: dict[str, Any]
+    splits_config: dict[str, Any]
     total_symbols: int
     total_days: int
-    universe_stats: Dict[str, Any]
-    features_hash: Optional[str] = None
+    universe_stats: dict[str, Any]
+    features_hash: str | None = None
     version: str = "1.0"  # Default values last
 
 
@@ -48,10 +46,10 @@ class DatasetManifestBuilder:
     def __init__(
         self,
         gold_root: str,
-        universe_config: Dict[str, Any],
-        cuts_config: Dict[str, Any],
-        splits_config: Dict[str, Any],
-        features_config: Optional[Dict[str, Any]] = None,
+        universe_config: dict[str, Any],
+        cuts_config: dict[str, Any],
+        splits_config: dict[str, Any],
+        features_config: dict[str, Any] | None = None,
     ):
         """Initialize manifest builder.
 
@@ -71,7 +69,7 @@ class DatasetManifestBuilder:
         self.universe_adapter = IntradayMLUniverseAdapter(universe_config)
 
     def build_manifest(
-        self, candidate_symbols: List[str], output_path: Optional[Path] = None
+        self, candidate_symbols: list[str], output_path: Path | None = None
     ) -> DatasetManifest:
         """Build dataset manifest with hashes and metadata.
 
@@ -87,11 +85,12 @@ class DatasetManifestBuilder:
 
         # Build universe and compute hashes
         all_dates = []
-        for split_dates in date_ranges.values():
-            all_dates.extend(
-                self._get_date_list(split_dates["start"], split_dates["end"])
-            )
-        all_dates = sorted(list(set(all_dates)))
+        for _split_name, split_dates in date_ranges.items():
+            if split_dates and 'start' in split_dates and 'end' in split_dates:
+                all_dates.extend(
+                    self._get_date_list(split_dates["start"], split_dates["end"])
+                )
+        all_dates = sorted(set(all_dates))
 
         # Load data for hashing
         from qx_data.gold_loader import load_bars
@@ -150,8 +149,17 @@ class DatasetManifestBuilder:
 
         return manifest
 
-    def _generate_date_ranges(self) -> Dict[str, Dict[str, str]]:
+    def _generate_date_ranges(self) -> dict[str, dict[str, str]]:
         """Generate Train/Val/OOS date ranges from config."""
+        if 'train' in self.splits_config and 'start' in self.splits_config['train']:
+            return {
+                "train": self.splits_config['train'],
+                "val": self.splits_config.get('val', {}),
+                "test": self.splits_config.get('test', {}),
+                "oos": self.splits_config.get('oos', {}),
+            }
+
+        # Fallback to original logic
         # Parse pilot start date
         start_date = datetime.strptime(
             self.splits_config.get("pilot_start_date", "2024-01-01"), "%Y-%m-%d"
@@ -163,7 +171,6 @@ class DatasetManifestBuilder:
         oos_months = self.splits_config.get("oos_months", 1)
 
         # Calculate end dates
-        import dateutil.relativedelta
 
         train_end = (
             start_date
@@ -198,7 +205,7 @@ class DatasetManifestBuilder:
             },
         }
 
-    def _get_date_list(self, start_date: str, end_date: str) -> List[str]:
+    def _get_date_list(self, start_date: str, end_date: str) -> list[str]:
         """Get list of dates between start and end inclusive."""
         start = datetime.strptime(start_date, "%Y-%m-%d")
         end = datetime.strptime(end_date, "%Y-%m-%d")
@@ -241,7 +248,7 @@ class DatasetManifestBuilder:
         return hashlib.blake2b(universe_str.encode()).hexdigest()
 
     def _compute_features_hash(
-        self, bars: pd.DataFrame, features_config: Dict[str, Any]
+        self, bars: pd.DataFrame, features_config: dict[str, Any]
     ) -> str:
         """Compute features hash for given data and configuration.
 
@@ -273,7 +280,7 @@ class DatasetManifestBuilder:
 
 
 def intraday_ml_get_data_hash(
-    symbols: List[str], dates: List[str], vendor: str = "gold"
+    symbols: list[str], dates: list[str], vendor: str = "gold"
 ) -> str:
     """Compute data hash for given symbols and dates.
 
@@ -296,7 +303,7 @@ def intraday_ml_get_data_hash(
 
 
 def intraday_ml_get_features_hash(
-    bars: pd.DataFrame, features_config: Dict[str, Any]
+    bars: pd.DataFrame, features_config: dict[str, Any]
 ) -> str:
     """Compute features hash for given data and configuration.
 

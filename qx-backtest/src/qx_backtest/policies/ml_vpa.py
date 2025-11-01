@@ -5,7 +5,6 @@ import pathlib
 from typing import Any
 
 import numpy as np
-
 from qx_features.ml_trainer import ModelTrainer
 
 from ..order import OrderSide
@@ -400,7 +399,7 @@ def generate_ml_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
         {}
     )  # symbol -> {'entry_ts': ts, 'bars_held': int, 'entry_score': float}
 
-    for idx, row in df.iterrows():
+    for _idx, row in df.iterrows():
         ts = row["ts"]
         symbol = row["symbol"]
         close = row["close"]

@@ -4,8 +4,6 @@
 import os
 import sys
 
-import pandas as pd
-
 # Add required paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qx-backtest", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "qx-core", "src"))
@@ -87,7 +85,7 @@ def diagnose_trade_gates(df):
         return
 
     # Check for regime field
-    print(f"\n[3] Checking for regime classification field...")
+    print("\n[3] Checking for regime classification field...")
     has_regime_current = "f__regime__current" in warmed.columns
     print(
         f"   {'✓' if has_regime_current else '❌'} 'f__regime__current' field exists: {has_regime_current}"
@@ -95,7 +93,7 @@ def diagnose_trade_gates(df):
 
     if has_regime_current:
         regime_dist = warmed["f__regime__current"].value_counts()
-        print(f"   Regime distribution:")
+        print("   Regime distribution:")
         for regime, count in regime_dist.items():
             print(f"      {regime}: {count} bars ({count/len(warmed)*100:.1f}%)")
     else:
@@ -104,7 +102,7 @@ def diagnose_trade_gates(df):
         )
 
     # Check regime feature values
-    print(f"\n[4] Checking regime feature values (sample of 5 bars after warmup)...")
+    print("\n[4] Checking regime feature values (sample of 5 bars after warmup)...")
     regime_cols = [
         "f__regime__var_ratio_10_60",
         "f__regime__adx_proxy_14",
@@ -117,7 +115,7 @@ def diagnose_trade_gates(df):
     print(sample.to_string())
 
     # Manually classify what regime these should be
-    print(f"\n[5] Manual regime classification (using detector thresholds)...")
+    print("\n[5] Manual regime classification (using detector thresholds)...")
     BULL_VR_MIN = 1.2
     BEAR_VR_MAX = 0.8
     TRENDING_ADX_MIN = 25
@@ -145,7 +143,7 @@ def diagnose_trade_gates(df):
         )
 
     # Check AVWAP features
-    print(f"\n[6] Checking AVWAP features (needed for momentum entry)...")
+    print("\n[6] Checking AVWAP features (needed for momentum entry)...")
     avwap_cols = ["f__anchor__session_avwap", "f__anchor__first_hour_avwap", "close"]
     if all(col in warmed.columns for col in avwap_cols):
         sample = warmed[avwap_cols].head(5)
@@ -162,7 +160,7 @@ def diagnose_trade_gates(df):
         print("   ❌ AVWAP features missing!")
 
     # Check ICT features
-    print(f"\n[7] Checking ICT features (FVG, discount/premium)...")
+    print("\n[7] Checking ICT features (FVG, discount/premium)...")
     ict_cols = [
         "f__ict__in_discount",
         "f__ict__in_premium",
@@ -191,7 +189,7 @@ def diagnose_trade_gates(df):
         print("   ❌ ICT features missing!")
 
     # Check ATR
-    print(f"\n[8] Checking ATR (minimum 0.5 required for trade)...")
+    print("\n[8] Checking ATR (minimum 0.5 required for trade)...")
     if "f__vol__atr_14" in warmed.columns:
         atr_ok = (warmed["f__vol__atr_14"] >= 0.5).sum()
         print(
@@ -204,7 +202,7 @@ def diagnose_trade_gates(df):
         print("   ❌ ATR feature missing!")
 
     # Test a specific bar against entry logic
-    print(f"\n[9] Testing entry logic on a sample bar...")
+    print("\n[9] Testing entry logic on a sample bar...")
     test_bar = (
         warmed.iloc[100].to_dict() if len(warmed) > 100 else warmed.iloc[0].to_dict()
     )
@@ -247,25 +245,25 @@ def diagnose_trade_gates(df):
     print(f"\n   Gates passed: {gates_passed}")
     print(f"   Gates FAILED: {gates_failed}")
 
-    print(f"\n" + "=" * 70)
+    print("\n" + "=" * 70)
     print("DIAGNOSIS SUMMARY")
     print("=" * 70)
-    print(f"✓ Features computed successfully")
+    print("✓ Features computed successfully")
     print(
         f"{'❌' if not has_regime_current else '✓'} Regime classification {'MISSING' if not has_regime_current else 'present'}"
     )
 
     if not has_regime_current:
         print(
-            f"\n🔴 ROOT CAUSE: 'f__regime__current' field is NOT being added to bars!"
+            "\n🔴 ROOT CAUSE: 'f__regime__current' field is NOT being added to bars!"
         )
-        print(f"   The backtest engine or test script needs to:")
-        print(f"   1. Create a regime detector")
+        print("   The backtest engine or test script needs to:")
+        print("   1. Create a regime detector")
         print(
-            f"   2. Run detector.evaluate() or detector.evaluate_symbol() on each bar"
+            "   2. Run detector.evaluate() or detector.evaluate_symbol() on each bar"
         )
-        print(f"   3. Add the result as bar['f__regime__current'] = signal.regime")
-        print(f"   Without this, all policies see RegimeType.OFF and cannot trade!")
+        print("   3. Add the result as bar['f__regime__current'] = signal.regime")
+        print("   Without this, all policies see RegimeType.OFF and cannot trade!")
 
 
 def main():

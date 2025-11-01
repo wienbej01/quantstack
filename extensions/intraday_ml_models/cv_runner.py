@@ -7,9 +7,9 @@ comprehensive metrics aggregation, and reproducibility validation.
 import itertools
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,6 @@ from sklearn.metrics import (
     brier_score_loss,
     precision_recall_fscore_support,
 )
-from sklearn.model_selection import TimeSeriesSplit
 
 from extensions.intraday_ml.utils.checksums import compute_data_hash
 from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer, TrainingResult
@@ -33,13 +32,13 @@ class CVSplit:
     train_end: datetime
     val_start: datetime
     val_end: datetime
-    train_symbols: List[str]
-    val_symbols: List[str]
+    train_symbols: list[str]
+    val_symbols: list[str]
     train_size: int
     val_size: int
-    purge_start: Optional[datetime] = None
-    purge_end: Optional[datetime] = None
-    embargo_end: Optional[datetime] = None
+    purge_start: datetime | None = None
+    purge_end: datetime | None = None
+    embargo_end: datetime | None = None
 
 
 @dataclass
@@ -60,7 +59,7 @@ class CVMetrics:
     log_loss_calibrated: float
 
     # Class-specific metrics
-    class_metrics: Dict[str, Dict[str, float]]
+    class_metrics: dict[str, dict[str, float]]
 
     # Economic metrics
     expectancy: float
@@ -75,8 +74,8 @@ class CVMetrics:
     abstention_rate: float
 
     # Feature importance
-    feature_importance: Dict[str, float]
-    top_features: List[Tuple[str, float]]
+    feature_importance: dict[str, float]
+    top_features: list[tuple[str, float]]
 
     # Reproducibility
     features_hash: str
@@ -91,20 +90,20 @@ class CVMetrics:
 class CVResult:
     """Complete CV results with aggregated metrics."""
 
-    cv_config: Dict[str, Any]
-    splits: List[CVSplit]
-    fold_metrics: List[CVMetrics]
-    aggregated_metrics: Dict[str, Any]
-    stability_metrics: Dict[str, Any]
-    calibration_metrics: Dict[str, Any]
-    reproducibility_info: Dict[str, Any]
+    cv_config: dict[str, Any]
+    splits: list[CVSplit]
+    fold_metrics: list[CVMetrics]
+    aggregated_metrics: dict[str, Any]
+    stability_metrics: dict[str, Any]
+    calibration_metrics: dict[str, Any]
+    reproducibility_info: dict[str, Any]
     total_time_seconds: float
 
 
 class TimeSeriesCVRunner:
     """Runs purged, embargoed time-series CV with proper temporal ordering."""
 
-    def __init__(self, cv_config: Dict[str, Any]):
+    def __init__(self, cv_config: dict[str, Any]):
         """Initialize CV runner with configuration.
 
         Args:
@@ -125,14 +124,19 @@ class TimeSeriesCVRunner:
         self.min_symbols_per_fold = cv_config.get("min_symbols_per_fold", 2)
 
         # Metrics configuration
-        self.metrics_config = cv_config.get("metrics", {})
-        self.primary_metrics = self.metrics_config.get("primary_metrics", [])
-        self.economic_metrics = self.metrics_config.get("economic_metrics", [])
-        self.trade_density_metrics = self.metrics_config.get("trade_density", [])
+        self.metrics_config = cv_config.get("metrics", [])
+        if isinstance(self.metrics_config, dict):
+            self.primary_metrics = self.metrics_config.get("primary_metrics", [])
+            self.economic_metrics = self.metrics_config.get("economic_metrics", [])
+            self.trade_density_metrics = self.metrics_config.get("trade_density", [])
+        else:
+            self.primary_metrics = self.metrics_config
+            self.economic_metrics = []
+            self.trade_density_metrics = []
 
     def create_splits(
         self, data: pd.DataFrame, date_column: str = "ts"
-    ) -> List[CVSplit]:
+    ) -> list[CVSplit]:
         """Create purged, embargoed CV splits.
 
         Args:
@@ -153,7 +157,7 @@ class TimeSeriesCVRunner:
 
     def _create_purged_splits(
         self, data: pd.DataFrame, date_column: str
-    ) -> List[CVSplit]:
+    ) -> list[CVSplit]:
         """Create purged CV splits with proper temporal ordering."""
         # Ensure data is sorted by timestamp
         data = data.sort_values(date_column)
@@ -225,8 +229,8 @@ class TimeSeriesCVRunner:
             # Apply cross-symbol consistency
             if self.cross_symbol_consistency:
                 common_symbols = set(train_symbols) & set(val_symbols)
-                train_symbols = sorted(list(common_symbols))
-                val_symbols = sorted(list(common_symbols))
+                train_symbols = sorted(common_symbols)
+                val_symbols = sorted(common_symbols)
 
                 # Filter data to common symbols
                 train_data = train_data[train_data["symbol"].isin(common_symbols)]
@@ -266,7 +270,7 @@ class TimeSeriesCVRunner:
 
     def _create_expanding_splits(
         self, data: pd.DataFrame, date_column: str
-    ) -> List[CVSplit]:
+    ) -> list[CVSplit]:
         """Create expanding window CV splits."""
         # Similar implementation to purged splits but with expanding windows
         # For now, delegate to purged splits
@@ -274,7 +278,7 @@ class TimeSeriesCVRunner:
 
     def _create_rolling_splits(
         self, data: pd.DataFrame, date_column: str
-    ) -> List[CVSplit]:
+    ) -> list[CVSplit]:
         """Create rolling window CV splits."""
         # Similar implementation to purged splits but with fixed-size windows
         # For now, delegate to purged splits
@@ -285,7 +289,7 @@ class TimeSeriesCVRunner:
         features: pd.DataFrame,
         labels: pd.Series,
         model_trainer: LightGBMTrainer,
-        model_config: Dict[str, Any],
+        model_config: dict[str, Any],
     ) -> CVResult:
         """Run complete CV evaluation.
 
@@ -477,7 +481,7 @@ class TimeSeriesCVRunner:
 
         # Feature importance
         feature_importance = dict(
-            zip(val_features.columns, training_result.model.feature_importances_)
+            zip(val_features.columns, training_result.model.feature_importances_, strict=False)
         )
         top_features = sorted(
             feature_importance.items(), key=lambda x: x[1], reverse=True
@@ -511,7 +515,7 @@ class TimeSeriesCVRunner:
             train_time_seconds=training_result.training_time_seconds,
         )
 
-    def _aggregate_metrics(self, fold_metrics: List[CVMetrics]) -> Dict[str, Any]:
+    def _aggregate_metrics(self, fold_metrics: list[CVMetrics]) -> dict[str, Any]:
         """Aggregate metrics across folds."""
         # Collect numeric metrics
         metric_names = [
@@ -544,8 +548,8 @@ class TimeSeriesCVRunner:
         return aggregated
 
     def _calculate_stability_metrics(
-        self, fold_metrics: List[CVMetrics]
-    ) -> Dict[str, Any]:
+        self, fold_metrics: list[CVMetrics]
+    ) -> dict[str, Any]:
         """Calculate stability metrics across folds."""
         # Coefficient of variation for primary metrics
         primary_metrics = ["accuracy", "f1_macro", "precision_macro", "recall_macro"]
@@ -589,8 +593,8 @@ class TimeSeriesCVRunner:
         return stability
 
     def _calculate_calibration_metrics(
-        self, fold_metrics: List[CVMetrics]
-    ) -> Dict[str, Any]:
+        self, fold_metrics: list[CVMetrics]
+    ) -> dict[str, Any]:
         """Calculate calibration metrics across folds."""
         # Simplified calibration metrics
         brier_scores = [m.brier_score for m in fold_metrics]
@@ -636,9 +640,9 @@ class TimeSeriesCVRunner:
 def run_cross_validation(
     features: pd.DataFrame,
     labels: pd.Series,
-    model_config: Dict[str, Any],
-    cv_config: Dict[str, Any],
-    output_path: Optional[Path] = None,
+    model_config: dict[str, Any],
+    cv_config: dict[str, Any],
+    output_path: Path | None = None,
 ) -> CVResult:
     """Convenience function to run cross-validation.
 

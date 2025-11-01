@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
 

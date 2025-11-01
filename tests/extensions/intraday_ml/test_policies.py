@@ -1,8 +1,7 @@
 """Tests for ML trading policy functionality."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -76,105 +75,102 @@ class TestBaseMLPolicy:
         """Test policy initialization."""
         with patch(
             "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class:
-            with patch(
-                "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
-            ) as mock_predictor_class:
-                # Setup mocks
-                mock_registry = Mock()
-                mock_registry.get_metadata.return_value = mock_model_metadata
-                mock_registry_class.return_value = mock_registry
+        ) as mock_registry_class, patch(
+            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+        ):
+            # Setup mocks
+            mock_registry = Mock()
+            mock_registry.get_metadata.return_value = mock_model_metadata
+            mock_registry_class.return_value = mock_registry
 
-                # Create concrete implementation for testing
-                class TestPolicy(BaseMLPolicy):
-                    def _prediction_to_signal_strength(self, prediction):
-                        return 0.5  # Simple implementation
+            # Create concrete implementation for testing
+            class TestPolicy(BaseMLPolicy):
+                def _prediction_to_signal_strength(self, prediction):
+                    return 0.5  # Simple implementation
 
-                # Create policy
-                policy = TestPolicy(model_id="test_model", name="TestPolicy")
+            # Create policy
+            policy = TestPolicy(model_id="test_model", name="TestPolicy")
 
-                # Verify initialization
-                assert policy.model_id == "test_model"
-                assert policy.features_required == mock_model_metadata.features
-                assert policy.prediction_threshold == 0.5
-                assert policy.max_positions == 5
+            # Verify initialization
+            assert policy.model_id == "test_model"
+            assert policy.features_required == mock_model_metadata.features
+            assert policy.prediction_threshold == 0.5
+            assert policy.max_positions == 5
 
     def test_feature_validation(self, sample_bar, mock_model_metadata):
         """Test feature validation in bar processing."""
         with patch(
             "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class:
-            with patch(
-                "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
-            ) as mock_predictor_class:
-                # Setup mocks
-                mock_registry = Mock()
-                mock_registry.get_metadata.return_value = mock_model_metadata
-                mock_registry_class.return_value = mock_registry
+        ) as mock_registry_class, patch(
+            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+        ) as mock_predictor_class:
+            # Setup mocks
+            mock_registry = Mock()
+            mock_registry.get_metadata.return_value = mock_model_metadata
+            mock_registry_class.return_value = mock_registry
 
-                mock_predictor = Mock()
-                mock_predictor_class.return_value = mock_predictor
+            mock_predictor = Mock()
+            mock_predictor_class.return_value = mock_predictor
 
-                # Create concrete implementation for testing
-                class TestPolicy(BaseMLPolicy):
-                    def _prediction_to_signal_strength(self, prediction):
-                        return 0.5  # Simple implementation
+            # Create concrete implementation for testing
+            class TestPolicy(BaseMLPolicy):
+                def _prediction_to_signal_strength(self, prediction):
+                    return 0.5  # Simple implementation
 
-                policy = TestPolicy(model_id="test_model")
-                policy.engine = Mock()
-                policy.submit_order = Mock()
+            policy = TestPolicy(model_id="test_model")
+            policy.engine = Mock()
+            policy.submit_order = Mock()
 
-                # Test with all features present
-                assert policy._has_required_features(sample_bar) is True
+            # Test with all features present
+            assert policy._has_required_features(sample_bar) is True
 
-                # Test with missing features
-                incomplete_bar = sample_bar.copy()
-                del incomplete_bar["f__atr_14"]
-                assert policy._has_required_features(incomplete_bar) is False
+            # Test with missing features
+            incomplete_bar = sample_bar.copy()
+            del incomplete_bar["f__atr_14"]
+            assert policy._has_required_features(incomplete_bar) is False
 
     def test_position_limits(self, mock_engine, sample_bar, mock_model_metadata):
         """Test position limit checking."""
         with patch(
             "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class:
-            with patch(
-                "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
-            ) as mock_predictor_class:
-                # Setup mocks
-                mock_registry = Mock()
-                mock_registry.get_metadata.return_value = mock_model_metadata
-                mock_registry_class.return_value = mock_registry
+        ) as mock_registry_class, patch(
+            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+        ) as mock_predictor_class:
+            # Setup mocks
+            mock_registry = Mock()
+            mock_registry.get_metadata.return_value = mock_model_metadata
+            mock_registry_class.return_value = mock_registry
 
-                mock_predictor = Mock()
-                mock_predictor_class.return_value = mock_predictor
+            mock_predictor = Mock()
+            mock_predictor_class.return_value = mock_predictor
 
-                # Create concrete implementation for testing
-                class TestPolicy(BaseMLPolicy):
-                    def _prediction_to_signal_strength(self, prediction):
-                        return 0.5  # Simple implementation
+            # Create concrete implementation for testing
+            class TestPolicy(BaseMLPolicy):
+                def _prediction_to_signal_strength(self, prediction):
+                    return 0.5  # Simple implementation
 
-                    def _can_open_position(self, symbol):
-                        # Override for easier testing
-                        if not self.engine:
-                            return True
-                        current_position = self.get_position(symbol)
-                        if current_position is not None and current_position.size != 0:
-                            return False
-                        positions = self.engine.get_positions()
-                        return len(positions) < self.max_positions
+                def _can_open_position(self, symbol):
+                    # Override for easier testing
+                    if not self.engine:
+                        return True
+                    current_position = self.get_position(symbol)
+                    if current_position is not None and current_position.size != 0:
+                        return False
+                    positions = self.engine.get_positions()
+                    return len(positions) < self.max_positions
 
-                policy = TestPolicy(model_id="test_model", max_positions=2)
-                policy.engine = mock_engine
-                policy.get_position = Mock(return_value=None)  # No position
+            policy = TestPolicy(model_id="test_model", max_positions=2)
+            policy.engine = mock_engine
+            policy.get_position = Mock(return_value=None)  # No position
 
-                # Should be able to open position
-                assert policy._can_open_position("AAPL") is True
+            # Should be able to open position
+            assert policy._can_open_position("AAPL") is True
 
-                # Mock existing positions
-                policy.engine.get_positions.return_value = ["MSFT", "GOOGL"]
-                assert (
-                    policy._can_open_position("AAPL") is False
-                )  # Max positions reached
+            # Mock existing positions
+            policy.engine.get_positions.return_value = ["MSFT", "GOOGL"]
+            assert (
+                policy._can_open_position("AAPL") is False
+            )  # Max positions reached
 
 
 class TestMLClassificationPolicy:

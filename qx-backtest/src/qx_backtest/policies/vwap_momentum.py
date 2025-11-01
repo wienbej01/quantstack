@@ -3,10 +3,7 @@
 from datetime import datetime
 from typing import Any
 
-import numpy as np
 import pandas as pd
-
-from qx_risk.atr_stop import size_order
 
 from ..order import OrderSide
 from ..portfolio import Position

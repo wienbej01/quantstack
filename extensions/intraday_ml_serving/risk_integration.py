@@ -3,15 +3,14 @@
 import logging
 import queue
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import Lock
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 
 from extensions.intraday_ml_models.predictors import MLPredictor
-from extensions.intraday_ml_models.registry import MLModelRegistry
 from extensions.intraday_ml_risk.ml_risk_manager import (
     MLRiskManager,
     RiskLevel,
@@ -44,7 +43,7 @@ class RiskAwarePrediction:
     position_size_multiplier: float
     risk_level: RiskLevel
     prediction_allowed: bool
-    risk_reasons: List[str]
+    risk_reasons: list[str]
 
 
 class RiskAwareServing:
@@ -54,7 +53,7 @@ class RiskAwareServing:
         self,
         model_predictor: MLPredictor,
         risk_manager: MLRiskManager,
-        config: Optional[RiskAwareConfig] = None,
+        config: RiskAwareConfig | None = None,
     ):
         """
         Initialize risk-aware serving.
@@ -76,7 +75,7 @@ class RiskAwareServing:
         self.blocked_predictions = 0
 
     def predict_with_risk(
-        self, features: Dict[str, float], position_size: Optional[float] = None
+        self, features: dict[str, float], position_size: float | None = None
     ) -> RiskAwarePrediction:
         """
         Make prediction with risk assessment.
@@ -135,9 +134,9 @@ class RiskAwareServing:
 
     def assess_prediction_risk(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         prediction: float,
-        position_size: Optional[float] = None,
+        position_size: float | None = None,
     ) -> RiskMetrics:
         """Assess risk for a prediction."""
         try:
@@ -199,7 +198,7 @@ class RiskAwareServing:
             )
 
     def adjust_risk_for_prediction(
-        self, risk_metrics: RiskMetrics, prediction: float, features: Dict[str, float]
+        self, risk_metrics: RiskMetrics, prediction: float, features: dict[str, float]
     ) -> RiskMetrics:
         """Adjust risk metrics based on prediction characteristics."""
         # Increase risk for extreme predictions
@@ -263,7 +262,7 @@ class RiskAwareServing:
 
     def check_prediction_allowed(
         self, risk_metrics: RiskMetrics
-    ) -> Tuple[bool, List[str]]:
+    ) -> tuple[bool, list[str]]:
         """Check if prediction is allowed based on risk."""
         if not self.config.enable_risk_filtering:
             return True, []
@@ -361,7 +360,7 @@ class RiskAwareServing:
         except Exception as e:
             self.logger.error(f"Failed to send risk alert: {e}")
 
-    def get_risk_statistics(self) -> Dict[str, Any]:
+    def get_risk_statistics(self) -> dict[str, Any]:
         """Get risk statistics for monitoring."""
         total_predictions = self.prediction_count
         blocked_predictions = self.blocked_predictions
@@ -397,7 +396,7 @@ class RiskAwareServing:
                 f"Updated risk-aware config: max_risk_score={new_config.max_risk_score}"
             )
 
-    def get_portfolio_risk_overview(self) -> Dict[str, Any]:
+    def get_portfolio_risk_overview(self) -> dict[str, Any]:
         """Get portfolio risk overview."""
         try:
             portfolio_metrics = self.risk_manager.get_portfolio_metrics()

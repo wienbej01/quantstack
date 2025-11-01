@@ -85,7 +85,7 @@ def _compute_session_avwap(df: pd.DataFrame) -> pd.DataFrame:
     def compute_group_session_avwap(group):
         group = group.sort_values("ts")
 
-        session_groups = group.groupby("session_date", sort=False)
+        group.groupby("session_date", sort=False)
         pv_cumsum = (
             (group["close"] * group["volume"]).groupby(group["session_date"]).cumsum()
         )
@@ -167,7 +167,7 @@ def _compute_first_hour_avwap(df: pd.DataFrame) -> pd.DataFrame:
         first_hour_vwap = pv_cumsum / vol_cumsum
 
         first_hour_series = pd.Series(np.nan, index=group.index)
-        for session_date, session_df in group.groupby("session_date", sort=False):
+        for _session_date, session_df in group.groupby("session_date", sort=False):
             session_idx = session_df.index
             mask_first_hour = is_first_hour.loc[session_idx]
             running_vwap = first_hour_vwap.loc[session_idx]
@@ -397,8 +397,8 @@ def compute_intraday_volume_profile(
             idx_hi_all = np.searchsorted(bin_edges, highs, side="left")
 
             # Accumulate volume into histogram bins
-            for j, (idx_lo, idx_hi, vol) in enumerate(
-                zip(idx_lo_all, idx_hi_all, vols)
+            for _j, (idx_lo, idx_hi, vol) in enumerate(
+                zip(idx_lo_all, idx_hi_all, vols, strict=False)
             ):
                 idx_lo = max(0, idx_lo)
                 idx_hi = min(len(hist), idx_hi)
@@ -429,10 +429,8 @@ def compute_intraday_volume_profile(
             val = bin_centers[min(val_idx, len(bin_centers) - 1)]
 
             # Ensure ordering
-            if val > poc:
-                val = poc
-            if vah < poc:
-                vah = poc
+            val = min(val, poc)
+            vah = max(vah, poc)
 
             vah_vals[i] = vah
             val_vals[i] = val
@@ -561,7 +559,7 @@ def compute_ict_structures(
         bear_active_state = False
         bear_locked = False
 
-        for i, idx in enumerate(group.index):
+        for i, _idx in enumerate(group.index):
             # Bullish FVG lifecycle
             if bullish_fvg.iloc[i] and not bull_locked:
                 current_bull_lower = group.iloc[i]["low"]
@@ -910,7 +908,7 @@ def compute_order_flow_vpa(
 
         return group
 
-    print(f"[DEBUG] Calling groupby.apply for flow_vpa", file=sys.stderr, flush=True)
+    print("[DEBUG] Calling groupby.apply for flow_vpa", file=sys.stderr, flush=True)
     flow_vpa_results = result.groupby("symbol", group_keys=False).apply(
         compute_group_flow_vpa, include_groups=False
     )

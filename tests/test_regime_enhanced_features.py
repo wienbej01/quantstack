@@ -3,7 +3,6 @@
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_features.regime_enhanced import (
     compute_all_regime_enhanced_features,
     compute_avwap_features,
@@ -951,38 +950,38 @@ class TestRegimeEnhancedRegression:
         df = pd.DataFrame(data)
 
         # Test with verbose=False (default) - should produce no output
-        result1 = compute_all_regime_enhanced_features(df, verbose=False)
+        compute_all_regime_enhanced_features(df, verbose=False)
         captured = capsys.readouterr()
         assert captured.out == "", "Should produce no output when verbose=False"
         assert captured.err == "", "Should produce no error output when verbose=False"
 
         # Test individual functions with verbose=False
-        result2 = compute_intraday_volume_profile(df, verbose=False)
+        compute_intraday_volume_profile(df, verbose=False)
         captured = capsys.readouterr()
         assert (
             captured.out == ""
         ), "Volume profile should produce no output when verbose=False"
 
-        result3 = compute_ict_structures(df, verbose=False)
+        compute_ict_structures(df, verbose=False)
         captured = capsys.readouterr()
         assert (
             captured.out == ""
         ), "ICT structures should produce no output when verbose=False"
 
-        result4 = compute_order_flow_vpa(df, verbose=False)
+        compute_order_flow_vpa(df, verbose=False)
         captured = capsys.readouterr()
         assert (
             captured.out == ""
         ), "Order flow VPA should produce no output when verbose=False"
 
-        result5 = compute_stress_contraction(df, verbose=False)
+        compute_stress_contraction(df, verbose=False)
         captured = capsys.readouterr()
         assert (
             captured.out == ""
         ), "Stress contraction should produce no output when verbose=False"
 
         # Test with verbose=True - should produce output
-        result6 = compute_all_regime_enhanced_features(df, verbose=True)
+        compute_all_regime_enhanced_features(df, verbose=True)
         captured = capsys.readouterr()
         assert captured.out != "", "Should produce output when verbose=True"
         assert (

@@ -2,7 +2,6 @@
 from datetime import datetime
 
 import pandas as pd
-
 from qx_screener.daily_hmm_sip import DailyHMMSIPSelector
 
 

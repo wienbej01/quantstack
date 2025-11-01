@@ -2,14 +2,11 @@
 
 import logging
 import queue
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from threading import Lock
-from typing import Any, Dict, List, Optional, Tuple
-
-import numpy as np
-import pandas as pd
+from typing import Any
 
 
 class ExposureType(Enum):
@@ -62,8 +59,8 @@ class ExposureMetrics:
     short_exposure: float
     leverage_ratio: float
     concentration_ratio: float
-    sector_exposures: Dict[str, float]
-    currency_exposures: Dict[str, float]
+    sector_exposures: dict[str, float]
+    currency_exposures: dict[str, float]
     timestamp: datetime
 
 
@@ -108,7 +105,7 @@ class ExposureMonitor:
         self.alerts = queue.Queue(maxsize=1000)
         self.alert_history = []
 
-    def _initialize_limits(self) -> Dict[str, ExposureLimit]:
+    def _initialize_limits(self) -> dict[str, ExposureLimit]:
         """Initialize exposure limits."""
         return {
             "total_gross": ExposureLimit(
@@ -146,7 +143,7 @@ class ExposureMonitor:
         symbol: str,
         size: float,
         price: float,
-        sector: Optional[str] = None,
+        sector: str | None = None,
         currency: str = "USD",
     ):
         """Add or update position."""
@@ -282,7 +279,7 @@ class ExposureMonitor:
             self._check_limit("sector_exposure", exposure, f"sector_{sector}")
 
     def _check_limit(
-        self, limit_name: str, current_value: float, custom_name: Optional[str] = None
+        self, limit_name: str, current_value: float, custom_name: str | None = None
     ):
         """Check individual exposure limit."""
         if limit_name not in self.limits:
@@ -365,7 +362,7 @@ class ExposureMonitor:
         else:
             self.logger.warning(alert.message)
 
-    def get_exposure_summary(self) -> Dict[str, Any]:
+    def get_exposure_summary(self) -> dict[str, Any]:
         """Get exposure monitoring summary."""
         metrics = self.get_current_exposures()
         limits_status = {}
@@ -457,7 +454,7 @@ class ExposureMonitor:
                 except queue.Empty:
                     break
 
-    def get_position_details(self) -> List[Dict[str, Any]]:
+    def get_position_details(self) -> list[dict[str, Any]]:
         """Get detailed position information."""
         with self._lock:
             positions = []
@@ -476,15 +473,15 @@ class ExposureMonitor:
             return positions
 
     def calculate_scenario_exposure(
-        self, price_changes: Dict[str, float]
-    ) -> Dict[str, float]:
+        self, price_changes: dict[str, float]
+    ) -> dict[str, float]:
         """Calculate exposure under different price scenarios."""
         scenario_exposures = {}
 
         for scenario_name, price_change_pct in price_changes.items():
             total_exposure = 0.0
 
-            for symbol, position in self.positions.items():
+            for _symbol, position in self.positions.items():
                 new_price = position["price"] * (1 + price_change_pct)
                 new_exposure = position["size"] * new_price
                 total_exposure += new_exposure

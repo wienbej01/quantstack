@@ -6,6 +6,7 @@ Standalone implementation to avoid import issues with qx-backtest.
 
 import json
 import pathlib
+import sys
 import uuid
 from datetime import datetime
 
@@ -158,7 +159,7 @@ def create_s9_experiment():
 
         # Calculate metrics
         winning_trades = trades_df[trades_df["pnl"] > 0]
-        losing_trades = trades_df[trades_df["pnl"] <= 0]
+        trades_df[trades_df["pnl"] <= 0]
 
         metrics = {
             "trades": len(trades_df),
@@ -405,4 +406,4 @@ if __name__ == "__main__":
         print("📄 See compare.md for detailed results")
     else:
         print("\n❌ S9 Implementation Failed")
-        exit(1)
+        sys.exit(1)

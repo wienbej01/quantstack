@@ -4,7 +4,6 @@
 import os
 import sys
 
-import numpy as np
 import pandas as pd
 
 # Add required paths
@@ -167,15 +166,15 @@ def main():
     print(f"Total data: {len(df)} bars")
 
     # Compute features
-    print(f"\nComputing features...")
+    print("\nComputing features...")
     df = compute_all_core_features(df)
     df = compute_all_regime_features(df)
 
     # Test the fixed diagnostic
-    regime_counts = run_diagnostic_check(df, verbose=True)
+    run_diagnostic_check(df, verbose=True)
 
-    print(f"\n✅ Fixed diagnostic test completed!")
-    print(f"Now using only valid regime data (no fake defaults)")
+    print("\n✅ Fixed diagnostic test completed!")
+    print("Now using only valid regime data (no fake defaults)")
 
 
 if __name__ == "__main__":

@@ -1,1 +1,17 @@
-{}
+{
+  "total_return": "<Mock name='BacktestEngine().run().total_return' id='135681389699024'>",
+  "annualized_return": "<Mock name='BacktestEngine().run().annualized_return' id='135681389697584'>",
+  "volatility": "<Mock name='BacktestEngine().run().volatility' id='135681389697248'>",
+  "sharpe_ratio": "<Mock name='BacktestEngine().run().sharpe_ratio' id='135681389697776'>",
+  "max_drawdown": "<Mock name='BacktestEngine().run().max_drawdown' id='135681389697728'>",
+  "max_drawdown_duration": "<Mock name='BacktestEngine().run().max_drawdown_duration' id='135681389697536'>",
+  "total_commissions": "<Mock name='BacktestEngine().run().total_commissions' id='135681389696672'>",
+  "total_slippage": "<Mock name='BacktestEngine().run().total_slippage' id='135681391780512'>",
+  "fill_rate": "<Mock name='BacktestEngine().run().fill_rate' id='135681389699840'>",
+  "total_trades": 1,
+  "trades": 1,
+  "win_rate": 0.0,
+  "avg_R": 0.0,
+  "total_pnl": 0,
+  "fees_total": 0.0
+}

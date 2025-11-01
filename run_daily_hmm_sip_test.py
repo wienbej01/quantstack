@@ -152,7 +152,7 @@ def run_vwap_backtest_with_daily_hmm_sip():
         # Show universe for first timestamp as example
         if universe_map:
             first_ts = min(universe_map.keys())
-            first_universe = sorted(list(universe_map[first_ts]))
+            first_universe = sorted(universe_map[first_ts])
             print(
                 f"Example universe at timestamp {pd.to_datetime(first_ts, unit='ns')}: {first_universe}"
             )

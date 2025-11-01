@@ -2,11 +2,10 @@
 
 import logging
 import threading
-import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -29,7 +28,7 @@ class RiskMetrics:
     """Risk metrics for a position or portfolio."""
 
     timestamp: datetime
-    position_id: Optional[str]  # None for portfolio-level metrics
+    position_id: str | None  # None for portfolio-level metrics
     symbol: str
     risk_level: RiskLevel
     var_95: float  # Value at Risk (95%)
@@ -43,8 +42,8 @@ class RiskMetrics:
     concentration_risk: float
     liquidity_risk: float
     total_risk_score: float
-    risk_factors: Dict[str, float] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    risk_factors: dict[str, float] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -63,10 +62,10 @@ class RiskLimit:
 class RiskModelManager:
     """Manages ML models for risk assessment."""
 
-    def __init__(self, registry: Optional[MLModelRegistry] = None):
+    def __init__(self, registry: MLModelRegistry | None = None):
         self.registry = registry or MLModelRegistry()
         self.logger = logging.getLogger(__name__)
-        self.models: Dict[str, MLPredictor] = {}
+        self.models: dict[str, MLPredictor] = {}
         self.model_cache_timeout = timedelta(minutes=30)
         self._last_load_time = {}
 
@@ -91,12 +90,11 @@ class RiskModelManager:
             return False
 
     def predict_risk_metrics(
-        self, model_id: str, features: Dict[str, float]
-    ) -> Optional[Dict[str, float]]:
+        self, model_id: str, features: dict[str, float]
+    ) -> dict[str, float] | None:
         """Predict risk metrics using ML model."""
-        if model_id not in self.models:
-            if not self.load_risk_model(model_id):
-                return None
+        if model_id not in self.models and not self.load_risk_model(model_id):
+            return None
 
         try:
             predictor = self.models[model_id]
@@ -128,8 +126,8 @@ class PositionRiskMonitor:
     def __init__(self, risk_model_manager: RiskModelManager):
         self.risk_model_manager = risk_model_manager
         self.logger = logging.getLogger(__name__)
-        self.position_data: Dict[str, Dict[str, Any]] = {}
-        self.risk_history: Dict[str, List[RiskMetrics]] = {}
+        self.position_data: dict[str, dict[str, Any]] = {}
+        self.risk_history: dict[str, list[RiskMetrics]] = {}
         self._lock = threading.Lock()
 
     def update_position(
@@ -139,8 +137,8 @@ class PositionRiskMonitor:
         size: float,
         entry_price: float,
         current_price: float,
-        features: Optional[Dict[str, float]] = None,
-        risk_model_id: Optional[str] = None,
+        features: dict[str, float] | None = None,
+        risk_model_id: str | None = None,
     ) -> RiskMetrics:
         """Update position and calculate current risk metrics."""
         with self._lock:
@@ -287,7 +285,7 @@ class PositionRiskMonitor:
             recommendations=recommendations,
         )
 
-    def get_position_risk(self, position_id: str) -> Optional[RiskMetrics]:
+    def get_position_risk(self, position_id: str) -> RiskMetrics | None:
         """Get current risk metrics for a position."""
         with self._lock:
             if position_id not in self.position_data:
@@ -300,7 +298,7 @@ class PositionRiskMonitor:
             # Calculate if not available
             return self._calculate_position_risk(position_id)
 
-    def get_risk_history(self, position_id: str, limit: int = 50) -> List[RiskMetrics]:
+    def get_risk_history(self, position_id: str, limit: int = 50) -> list[RiskMetrics]:
         """Get risk history for a position."""
         with self._lock:
             if position_id not in self.risk_history:
@@ -321,7 +319,7 @@ class PortfolioRiskMonitor:
     def __init__(self, position_monitor: PositionRiskMonitor):
         self.position_monitor = position_monitor
         self.logger = logging.getLogger(__name__)
-        self.portfolio_risk_history: List[RiskMetrics] = []
+        self.portfolio_risk_history: list[RiskMetrics] = []
         self._lock = threading.Lock()
 
     def calculate_portfolio_risk(self) -> RiskMetrics:
@@ -456,7 +454,7 @@ class PortfolioRiskMonitor:
             total_risk_score=0.0,
         )
 
-    def get_portfolio_risk_history(self, limit: int = 100) -> List[RiskMetrics]:
+    def get_portfolio_risk_history(self, limit: int = 100) -> list[RiskMetrics]:
         """Get portfolio risk history."""
         with self._lock:
             return self.portfolio_risk_history[-limit:]
@@ -467,8 +465,8 @@ class MLRiskManager:
 
     def __init__(
         self,
-        registry: Optional[MLModelRegistry] = None,
-        risk_limits: Optional[List[RiskLimit]] = None,
+        registry: MLModelRegistry | None = None,
+        risk_limits: list[RiskLimit] | None = None,
     ):
         self.registry = registry or MLModelRegistry()
         self.risk_model_manager = RiskModelManager(registry)
@@ -477,12 +475,12 @@ class MLRiskManager:
 
         # Risk limits
         self.risk_limits = risk_limits or self._create_default_limits()
-        self.limit_violations: Dict[str, List[Dict[str, Any]]] = {}
-        self.limit_cooldowns: Dict[str, datetime] = {}
+        self.limit_violations: dict[str, list[dict[str, Any]]] = {}
+        self.limit_cooldowns: dict[str, datetime] = {}
 
         self.logger = logging.getLogger(__name__)
 
-    def _create_default_limits(self) -> List[RiskLimit]:
+    def _create_default_limits(self) -> list[RiskLimit]:
         """Create default risk limits."""
         return [
             RiskLimit(
@@ -522,8 +520,8 @@ class MLRiskManager:
         size: float,
         entry_price: float,
         current_price: float,
-        features: Optional[Dict[str, float]] = None,
-        risk_model_id: Optional[str] = None,
+        features: dict[str, float] | None = None,
+        risk_model_id: str | None = None,
     ) -> RiskMetrics:
         """Add a position to risk monitoring."""
         risk_metrics = self.position_monitor.update_position(
@@ -545,7 +543,7 @@ class MLRiskManager:
         self,
         position_id: str,
         current_price: float,
-        features: Optional[Dict[str, float]] = None,
+        features: dict[str, float] | None = None,
     ) -> RiskMetrics:
         """Update existing position with new price."""
         position_data = self.position_monitor.position_data.get(position_id)
@@ -567,7 +565,7 @@ class MLRiskManager:
         self.position_monitor.remove_position(position_id)
         self.limit_violations.pop(position_id, None)
 
-    def get_position_risk(self, position_id: str) -> Optional[RiskMetrics]:
+    def get_position_risk(self, position_id: str) -> RiskMetrics | None:
         """Get current risk metrics for a position."""
         return self.position_monitor.get_position_risk(position_id)
 
@@ -686,7 +684,7 @@ class MLRiskManager:
             return abs(current_value - threshold) > 1e-9
         return False
 
-    def _handle_risk_violations(self, entity_id: str, violations: List[Dict[str, Any]]):
+    def _handle_risk_violations(self, entity_id: str, violations: list[dict[str, Any]]):
         """Handle risk limit violations."""
         for violation in violations:
             action = violation["action"]
@@ -714,11 +712,11 @@ class MLRiskManager:
                 # Signal trading stop (would be handled by trading system)
                 self.logger.error(f"Recommendation: Stop trading for {entity_id}")
 
-    def get_risk_summary(self) -> Dict[str, Any]:
+    def get_risk_summary(self) -> dict[str, Any]:
         """Get comprehensive risk summary."""
         portfolio_risk = self.portfolio_monitor.calculate_portfolio_risk()
         position_risks = {}
-        for position_id in self.position_monitor.position_data.keys():
+        for position_id in self.position_monitor.position_data:
             position_risks[position_id] = self.position_monitor.get_position_risk(
                 position_id
             )
@@ -748,11 +746,11 @@ class MLRiskManager:
             ),
             "risk_model_status": {
                 model_id: model_id in self.risk_model_manager.models
-                for model_id in set(
+                for model_id in {
                     pos.get("risk_model_id")
                     for pos in self.position_monitor.position_data.values()
                     if pos.get("risk_model_id")
-                )
+                }
             },
         }
 
@@ -760,6 +758,6 @@ class MLRiskManager:
         """Load a risk assessment model."""
         return self.risk_model_manager.load_risk_model(model_id)
 
-    def get_available_risk_models(self) -> List[str]:
+    def get_available_risk_models(self) -> list[str]:
         """Get list of available risk models."""
         return list(self.risk_model_manager.models.keys())

@@ -8,12 +8,13 @@ import asyncio
 import logging
 import threading
 import time
-from collections import defaultdict, deque
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from collections import defaultdict
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from extensions.intraday_ml_policies.base import BaseMLPolicy, PolicyDecision
 from extensions.intraday_ml_policies.performance_tracker import PolicyPerformanceTracker
@@ -64,11 +65,11 @@ class ExecutionResult:
     """Result of policy execution."""
 
     policy_id: str
-    decision: Optional[PolicyDecision]
+    decision: PolicyDecision | None
     execution_time_ms: float
     success: bool
-    error_message: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    error_message: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -79,8 +80,8 @@ class AutomationMetrics:
     successful_executions: int = 0
     failed_executions: int = 0
     avg_execution_time_ms: float = 0.0
-    policies_executed: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    last_execution_time: Optional[datetime] = None
+    policies_executed: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    last_execution_time: datetime | None = None
     uptime_seconds: float = 0.0
     error_rate: float = 0.0
 
@@ -94,10 +95,10 @@ class PolicyAutomationEngine:
 
     def __init__(
         self,
-        policies: Dict[str, BaseMLPolicy],
+        policies: dict[str, BaseMLPolicy],
         config: AutomationConfig,
-        policy_selector: Optional[PolicySelector] = None,
-        performance_tracker: Optional[PolicyPerformanceTracker] = None,
+        policy_selector: PolicySelector | None = None,
+        performance_tracker: PolicyPerformanceTracker | None = None,
     ):
         """
         Initialize policy automation engine.
@@ -115,7 +116,7 @@ class PolicyAutomationEngine:
 
         # Engine state
         self.state = AutomationState.STOPPED
-        self.execution_thread: Optional[threading.Thread] = None
+        self.execution_thread: threading.Thread | None = None
         self.stop_event = threading.Event()
         self.pause_event = threading.Event()
 
@@ -126,7 +127,7 @@ class PolicyAutomationEngine:
 
         # Metrics and monitoring
         self.metrics = AutomationMetrics()
-        self.execution_statistics: Dict[str, Dict[str, Any]] = defaultdict(
+        self.execution_statistics: dict[str, dict[str, Any]] = defaultdict(
             lambda: {
                 "total_executions": 0,
                 "successful_executions": 0,
@@ -137,8 +138,8 @@ class PolicyAutomationEngine:
         )
 
         # Callbacks
-        self.execution_callbacks: List[Callable[[ExecutionResult], None]] = []
-        self.error_callbacks: List[Callable[[str, Exception], None]] = []
+        self.execution_callbacks: list[Callable[[ExecutionResult], None]] = []
+        self.error_callbacks: list[Callable[[str, Exception], None]] = []
 
         self.logger = logging.getLogger(__name__)
 
@@ -214,15 +215,15 @@ class PolicyAutomationEngine:
         self.logger.info("Updated automation configuration")
 
     def execute_policies(
-        self, market_data: Any, portfolio: Any, policy_ids: Optional[List[str]] = None
-    ) -> List[ExecutionResult]:
+        self, market_data: Any, portfolio: Any, policy_ids: list[str] | None = None
+    ) -> list[ExecutionResult]:
         """Execute policies immediately."""
         if policy_ids is None:
             policy_ids = list(self.policies.keys())
 
         return self._execute_policies_batch(market_data, portfolio, policy_ids)
 
-    def get_engine_status(self) -> Dict[str, Any]:
+    def get_engine_status(self) -> dict[str, Any]:
         """Get current engine status."""
         return {
             "state": self.state.value,
@@ -319,7 +320,7 @@ class PolicyAutomationEngine:
             self.logger.error(f"Error in execution cycle: {e}")
             raise
 
-    def _select_policies_for_execution(self) -> List[str]:
+    def _select_policies_for_execution(self) -> list[str]:
         """Select policies for execution based on current mode."""
         if not self.policies:
             return []
@@ -396,7 +397,7 @@ class PolicyAutomationEngine:
                 error_message=str(e),
             )
 
-    def _execute_parallel(self, policy_ids: List[str]) -> List[ExecutionResult]:
+    def _execute_parallel(self, policy_ids: list[str]) -> list[ExecutionResult]:
         """Execute policies in parallel."""
         futures = {}
 
@@ -428,7 +429,7 @@ class PolicyAutomationEngine:
 
         return results
 
-    def _execute_ensemble(self, policy_ids: List[str]) -> List[ExecutionResult]:
+    def _execute_ensemble(self, policy_ids: list[str]) -> list[ExecutionResult]:
         """Execute policies as ensemble."""
         # Execute individual policies
         individual_results = self._execute_parallel(policy_ids)
@@ -463,7 +464,7 @@ class PolicyAutomationEngine:
                 )
             ]
 
-    def _execute_adaptive(self, policy_ids: List[str]) -> List[ExecutionResult]:
+    def _execute_adaptive(self, policy_ids: list[str]) -> list[ExecutionResult]:
         """Execute policies with adaptive selection."""
         # For now, fall back to single best policy
         # In a full implementation, this would consider market conditions, recent performance, etc.
@@ -481,7 +482,7 @@ class PolicyAutomationEngine:
             ]
 
     def _create_ensemble_decision(
-        self, decisions: List[PolicyDecision]
+        self, decisions: list[PolicyDecision]
     ) -> PolicyDecision:
         """Create ensemble decision from multiple decisions."""
         if not decisions:
@@ -509,7 +510,7 @@ class PolicyAutomationEngine:
             },
         )
 
-    def _process_execution_results(self, results: List[ExecutionResult]) -> None:
+    def _process_execution_results(self, results: list[ExecutionResult]) -> None:
         """Process execution results and update metrics."""
         for result in results:
             # Update global metrics
@@ -565,8 +566,8 @@ class PolicyAutomationEngine:
                     self.logger.error(f"Error in execution callback: {e}")
 
     def _execute_policies_batch(
-        self, market_data: Any, portfolio: Any, policy_ids: List[str]
-    ) -> List[ExecutionResult]:
+        self, market_data: Any, portfolio: Any, policy_ids: list[str]
+    ) -> list[ExecutionResult]:
         """Execute a batch of policies."""
         # For now, use the existing execution methods
         # In a full implementation, this would properly handle market_data and portfolio

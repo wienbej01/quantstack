@@ -100,7 +100,7 @@ def backtest(
                     symbol_path = os.path.join(base_path, symbol_dir)
                     if os.path.isdir(symbol_path):
                         all_symbols.add(symbol_dir)
-            symbol_list = sorted(list(all_symbols))
+            symbol_list = sorted(all_symbols)
             if verbose:
                 typer.echo(f"Discovered {len(symbol_list)} symbols in Gold data")
         elif symbol_list is None and config_symbols is not None:

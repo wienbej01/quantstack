@@ -17,9 +17,9 @@ def synthetic_equity_curve() -> pd.DataFrame:
 def test_sharpe_ratio_annualization(synthetic_equity_curve):
     """Validate that minute and daily Sharpe ratios are consistent."""
     minute_returns = synthetic_equity_curve['equity'].pct_change().dropna()
-    minute_sharpe = np.sqrt(252 * 390) * minute_returns.mean() / minute_returns.std()
+    np.sqrt(252 * 390) * minute_returns.mean() / minute_returns.std()
 
-    daily_returns = synthetic_equity_curve['equity'].resample('D').last().pct_change().dropna()
+    synthetic_equity_curve['equity'].resample('D').last().pct_change().dropna()
     # Since we only have one day of data, daily_returns will be empty.
     # Let's create a multi-day curve for a better test.
     timestamps_2days = pd.date_range(start='2024-01-09 09:30:00', periods=780, freq='min')

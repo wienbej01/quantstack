@@ -4,7 +4,6 @@
 import os
 import sys
 
-import numpy as np
 import pandas as pd
 
 # Add required paths
@@ -57,7 +56,7 @@ def analyze_real_data():
     print(f"Total data: {len(df)} bars")
 
     # Analyze raw data first
-    print(f"\nRaw Data Analysis:")
+    print("\nRaw Data Analysis:")
     print(
         f"  Time range: {pd.to_datetime(df['ts'], unit='ns', utc=True).min()} to {pd.to_datetime(df['ts'], unit='ns', utc=True).max()}"
     )
@@ -65,13 +64,13 @@ def analyze_real_data():
     print(f"  Volume range: {df['volume'].min()} - {df['volume'].max()}")
 
     # Compute features
-    print(f"\nComputing features...")
+    print("\nComputing features...")
     df = compute_all_core_features(df)
     df = compute_all_regime_features(df)
 
     # Analyze regime feature quality
     regime_features = [col for col in df.columns if col.startswith("f__regime__")]
-    print(f"\nRegime Features Analysis:")
+    print("\nRegime Features Analysis:")
 
     for feature in regime_features:
         total_count = len(df)
@@ -90,7 +89,7 @@ def analyze_real_data():
             print(f"    Mean: {valid_values.mean():.3f}, Std: {valid_values.std():.3f}")
 
     # Analyze actual regime distribution (without defaults)
-    print(f"\nActual Regime Distribution (No Defaults):")
+    print("\nActual Regime Distribution (No Defaults):")
 
     # Only analyze rows with valid regime features
     valid_mask = (
@@ -146,7 +145,7 @@ def analyze_real_data():
         print("No valid regime features found!")
 
     # Sample some actual values
-    print(f"\nSample Regime Feature Values (First 5 valid rows):")
+    print("\nSample Regime Feature Values (First 5 valid rows):")
     if len(valid_bars) > 0:
         sample_cols = [
             "f__regime__var_ratio_10_60",
@@ -158,7 +157,7 @@ def analyze_real_data():
     else:
         print("No valid regime data to sample")
 
-    print(f"\n✅ Analysis complete!")
+    print("\n✅ Analysis complete!")
 
 
 if __name__ == "__main__":

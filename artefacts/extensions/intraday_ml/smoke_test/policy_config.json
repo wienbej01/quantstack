@@ -1,0 +1,10 @@
+{
+  "prob_threshold_long": 0.55,
+  "prob_threshold_short": 0.55,
+  "cooldown_minutes": 30,
+  "min_time": "09:45:00",
+  "max_time": "15:45:00",
+  "stop_loss_pct": 0.01,
+  "take_profit_pct": 0.015,
+  "order_qty": 1
+}

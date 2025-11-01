@@ -5,13 +5,12 @@ All features respect time discipline and use only data ≤ ts_cut.
 """
 
 import math
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_core.utils import utc_ns_to_datetime
-from qx_features.core_basics import atr_m, rel_volume_m, vwap_m
+from qx_features.core_basics import atr_m, vwap_m
 
 
 class IntradayMLFeaturePack:
@@ -26,7 +25,7 @@ class IntradayMLFeaturePack:
     - Cross-section signals
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         """Initialize feature pack with configuration.
 
         Args:
@@ -144,7 +143,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             for window in windows:
@@ -176,7 +175,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             # ATR features (reuse qx_features primitive)
@@ -218,7 +217,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             # Volume aggregations
@@ -261,7 +260,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             for vwap_window in vwap_windows:
@@ -403,12 +402,12 @@ class IntradayMLFeaturePack:
         """Compute cross-sectional ranking features."""
         config = self.families["cross_section"]
         percentile_windows = config.get("percentile_windows", [5, 20])
-        include_zscores = config.get("include_zscores", True)
+        config.get("include_zscores", True)
 
         features = []
 
         # For each timestamp, compute cross-sectional features
-        for timestamp, group in df.groupby("ts"):
+        for _timestamp, group in df.groupby("ts"):
             if len(group) < 2:  # Need at least 2 symbols for cross-section
                 continue
 
@@ -423,7 +422,7 @@ class IntradayMLFeaturePack:
                     percentiles = returns.rank(pct=True)
 
                     for idx, (orig_idx, percentile) in enumerate(
-                        zip(group.index, percentiles)
+                        zip(group.index, percentiles, strict=False)
                     ):
                         if not math.isnan(percentile):
                             feature_name = f"f__cross__ret_percentile_{window}"
@@ -462,7 +461,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             # Rate of change
@@ -504,7 +503,7 @@ class IntradayMLFeaturePack:
 
         features = []
 
-        for symbol, group in df.groupby("symbol"):
+        for _symbol, group in df.groupby("symbol"):
             group = group.sort_values("ts")
 
             # Effective spread (simplified)

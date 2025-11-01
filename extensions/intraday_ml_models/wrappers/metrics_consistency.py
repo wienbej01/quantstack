@@ -24,7 +24,7 @@ def run_metrics_consistency_check(backtest_config: dict) -> None:
         equity_df = pd.read_parquet(equity_path)
         equity_df = equity_df.set_index('timestamp')
         trades_df = pd.read_parquet(trades_path)
-        with open(meta_path, 'r') as f:
+        with open(meta_path) as f:
             run_meta = json.load(f)
     except FileNotFoundError as e:
         print(f"BLOCKED: missing outputs from backtest_runner: {e}")
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     parser.add_argument("--backtest", required=True, help="Path to backtest.yaml")
     args = parser.parse_args()
 
-    with open(args.backtest, 'r') as f:
+    with open(args.backtest) as f:
         backtest_config = yaml.safe_load(f)
 
     run_metrics_consistency_check(backtest_config)

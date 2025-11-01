@@ -3,11 +3,11 @@
 
 import json
 import pathlib
+import sys
 import tempfile
 
 import pandas as pd
 import yaml
-
 from qx_core.hashers import hash_dataframe
 
 
@@ -222,4 +222,4 @@ def main():
 
 
 if __name__ == "__main__":
-    exit(main())
+    sys.exit(main())

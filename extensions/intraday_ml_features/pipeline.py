@@ -1,12 +1,10 @@
 """Feature engineering pipeline for intraday ML."""
 
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
-from sklearn.pipeline import Pipeline as SklearnPipeline
 from sklearn.preprocessing import (
     MinMaxScaler,
     QuantileTransformer,
@@ -51,7 +49,7 @@ class FeaturePipeline:
 
     def add_pca_step(
         self,
-        n_components: Optional[int] = None,
+        n_components: int | None = None,
         explained_variance_ratio: float = 0.95,
         **kwargs,
     ):
@@ -90,7 +88,7 @@ class FeaturePipeline:
         """
         self.steps[name] = {"transform_func": transform_func, "params": kwargs}
 
-    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "FeaturePipeline":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "FeaturePipeline":
         """
         Fit the pipeline to training data.
 
@@ -213,7 +211,7 @@ class FeaturePipeline:
         return X_transformed
 
     def fit_transform(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> pd.DataFrame:
         """
         Fit pipeline and transform data.
@@ -227,7 +225,7 @@ class FeaturePipeline:
         """
         return self.fit(X, y).transform(X)
 
-    def get_feature_names(self) -> List[str]:
+    def get_feature_names(self) -> list[str]:
         """Get names of features after pipeline transformation."""
         if not self.fitted:
             raise ValueError("Pipeline must be fitted first")
@@ -239,7 +237,7 @@ class FeaturePipeline:
         else:
             return self.feature_names
 
-    def get_step_params(self, step_name: str) -> Dict[str, Any]:
+    def get_step_params(self, step_name: str) -> dict[str, Any]:
         """Get parameters for a specific step."""
         if step_name not in self.steps:
             raise ValueError(f"Step '{step_name}' not found in pipeline")

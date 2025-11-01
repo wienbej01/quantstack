@@ -4,17 +4,16 @@ This module wraps existing qx-screener functionality while providing
 Sprint 4 interface for universe screening and selection.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
 from qx_screener.sip import ScreenerConfig, SipScreener
 
 
 def intraday_ml_screen_universe(
     bars: pd.DataFrame,
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
     reference_date: str | None = None,
 ) -> pd.DataFrame:
     """Screen universe using existing qx-screener SIP functionality.
@@ -49,7 +48,7 @@ def intraday_ml_screen_universe(
 
 def intraday_ml_get_screener_hash(
     bars: pd.DataFrame,
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
     reference_date: str | None = None,
 ) -> str:
     """Get deterministic hash of screener parameters.

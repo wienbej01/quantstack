@@ -3,7 +3,7 @@
 import json
 import pathlib
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 
 @dataclass
@@ -22,8 +22,8 @@ class FairnessResult:
 
     is_fair: bool
     reason: str
-    violations: List[str]
-    warnings: List[str]
+    violations: list[str]
+    warnings: list[str]
 
 
 class ChecksumValidator:
@@ -32,7 +32,7 @@ class ChecksumValidator:
     def __init__(self, config: FairnessConfig):
         self.config = config
 
-    def validate_fairness(self, run_results: List[Dict[str, Any]]) -> FairnessResult:
+    def validate_fairness(self, run_results: list[dict[str, Any]]) -> FairnessResult:
         """Validate fairness across all run results."""
         violations = []
         warnings = []
@@ -77,9 +77,9 @@ class ChecksumValidator:
 
     def _validate_metric_differences(
         self,
-        run_results: List[Dict[str, Any]],
-        violations: List[str],
-        warnings: List[str],
+        run_results: list[dict[str, Any]],
+        violations: list[str],
+        warnings: list[str],
     ) -> None:
         """Validate that metric differences are reasonable."""
         if len(run_results) < 2:
@@ -100,7 +100,7 @@ class ChecksumValidator:
                 warnings.append("extreme_trade_count_difference")
 
 
-def validate_fairness(exp_dir: pathlib.Path) -> Dict[str, Any]:
+def validate_fairness(exp_dir: pathlib.Path) -> dict[str, Any]:
     """Validate fairness of an experiment directory."""
     manifest_file = exp_dir / "manifest.json"
 

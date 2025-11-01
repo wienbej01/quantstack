@@ -1,0 +1,17 @@
+{
+    "total_return": -2.900033748698405e-07,
+    "annualized_return": -1.8738680573893163e-07,
+    "volatility": 3.87015674572822e-05,
+    "sharpe_ratio": -516.7797766558534,
+    "max_drawdown": -3.410000337500385e-05,
+    "max_drawdown_duration": 262,
+    "total_commissions": 0.35,
+    "total_slippage": 0.0,
+    "fill_rate": 0.5,
+    "total_trades": 1,
+    "trades": 1,
+    "win_rate": 0.0,
+    "avg_R": 0.0,
+    "total_pnl": 0,
+    "fees_total": 0.35
+}

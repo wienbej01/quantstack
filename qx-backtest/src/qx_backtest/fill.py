@@ -151,7 +151,7 @@ class DefaultFiller(Filler):
 
     def _get_fill_price(self, order: Order, bar_data: dict[str, Any]) -> float | None:
         """Get fill price for an order."""
-        open_price = bar_data.get("open", 0)
+        bar_data.get("open", 0)
         high_price = bar_data.get("high", 0)
         low_price = bar_data.get("low", 0)
         close_price = bar_data.get("close", 0)

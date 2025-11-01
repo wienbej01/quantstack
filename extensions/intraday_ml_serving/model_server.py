@@ -1,15 +1,13 @@
 """Production ML model server for real-time intraday inference."""
 
-import asyncio
 import logging
 import queue
 import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
 try:
@@ -26,9 +24,7 @@ except ImportError:
     CORSMiddleware = None
     uvicorn = None
 
-from pydantic import BaseModel, Field
 
-from extensions.intraday_ml_features.pipeline import FeaturePipeline
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
 
@@ -37,10 +33,10 @@ from extensions.intraday_ml_models.registry import MLModelRegistry
 class PredictionRequest:
     """Request for model prediction."""
 
-    features: Dict[str, float]
+    features: dict[str, float]
     model_id: str
-    request_id: Optional[str] = None
-    timestamp: Optional[datetime] = None
+    request_id: str | None = None
+    timestamp: datetime | None = None
 
 
 @dataclass
@@ -48,12 +44,12 @@ class PredictionResponse:
     """Response from model prediction."""
 
     prediction: float
-    confidence: Optional[float]
+    confidence: float | None
     model_id: str
     request_id: str
     timestamp: datetime
     latency_ms: float
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class PredictionMetrics:
@@ -100,7 +96,7 @@ class PredictionMetrics:
             self.error_rate = self.error_count / self.total_predictions
             self.predictions_per_minute = len(self._recent_predictions)
 
-    def get_metrics(self) -> Dict[str, float]:
+    def get_metrics(self) -> dict[str, float]:
         """Get current metrics."""
         with self._lock:
             return {
@@ -122,11 +118,11 @@ class ModelCache:
     def __init__(self, max_size: int = 10, ttl_seconds: int = 3600):
         self.max_size = max_size
         self.ttl_seconds = ttl_seconds
-        self._cache: Dict[str, Dict[str, Any]] = {}
-        self._access_times: Dict[str, datetime] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
+        self._access_times: dict[str, datetime] = {}
         self._lock = threading.Lock()
 
-    def get(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def get(self, model_id: str) -> dict[str, Any] | None:
         """Get cached model."""
         with self._lock:
             if model_id not in self._cache:
@@ -146,7 +142,7 @@ class ModelCache:
             self._access_times[model_id] = now
             return cache_entry["model"]
 
-    def put(self, model_id: str, model: Dict[str, Any]):
+    def put(self, model_id: str, model: dict[str, Any]):
         """Put model in cache."""
         with self._lock:
             # Evict if cache is full
@@ -173,7 +169,7 @@ class ModelServer:
 
     def __init__(
         self,
-        registry: Optional[MLModelRegistry] = None,
+        registry: MLModelRegistry | None = None,
         cache_size: int = 10,
         cache_ttl_seconds: int = 3600,
         max_concurrent_predictions: int = 100,
@@ -234,36 +230,36 @@ class ModelServer:
             return await self._predict_async(request)
 
         @self.app.get("/models")
-        async def list_models() -> Dict[str, Any]:
+        async def list_models() -> dict[str, Any]:
             """List available models."""
             return {"models": self.registry.list_models()}
 
         @self.app.get("/models/{model_id}/info")
-        async def get_model_info(model_id: str) -> Dict[str, Any]:
+        async def get_model_info(model_id: str) -> dict[str, Any]:
             """Get model information."""
             try:
                 metadata = self.registry.get_metadata(model_id)
                 return asdict(metadata)
-            except Exception as e:
+            except Exception:
                 raise HTTPException(
                     status_code=404, detail=f"Model {model_id} not found"
                 )
 
         @self.app.get("/metrics")
-        async def get_metrics() -> Dict[str, float]:
+        async def get_metrics() -> dict[str, float]:
             """Get server metrics."""
             return self.metrics.get_metrics()
 
         @self.app.post("/models/{model_id}/reload")
         async def reload_model(
             model_id: str, background_tasks: BackgroundTasks
-        ) -> Dict[str, str]:
+        ) -> dict[str, str]:
             """Reload model in background."""
             background_tasks.add_task(self._reload_model_background, model_id)
             return {"message": f"Model {model_id} reload started"}
 
         @self.app.get("/health")
-        async def health_check() -> Dict[str, str]:
+        async def health_check() -> dict[str, str]:
             """Health check endpoint."""
             return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
@@ -317,7 +313,7 @@ class ModelServer:
             self.logger.error(f"Prediction failed for model {request.model_id}: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
-    def _load_model(self, model_id: str) -> Optional[Dict[str, Any]]:
+    def _load_model(self, model_id: str) -> dict[str, Any] | None:
         """Load model from cache or registry."""
         # Try cache first
         model = self.model_cache.get(model_id)
@@ -344,8 +340,8 @@ class ModelServer:
             return None
 
     async def _make_prediction(
-        self, model: Dict[str, Any], features: Dict[str, float], model_id: str
-    ) -> tuple[float, Optional[float]]:
+        self, model: dict[str, Any], features: dict[str, float], model_id: str
+    ) -> tuple[float, float | None]:
         """Make prediction with loaded model."""
         predictor = model["predictor"]
         metadata = model["metadata"]
@@ -390,7 +386,7 @@ class ModelServer:
         """Run the model server."""
         uvicorn.run(self.app, host=host, port=port, log_level=log_level)
 
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get server status."""
         return {
             "cache_size": len(self.model_cache._cache),

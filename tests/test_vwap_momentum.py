@@ -758,7 +758,6 @@ def test_enhanced_exit_signal_with_atr():
 def test_legacy_generate_signals():
     """Test legacy signal generation function for compatibility."""
     import pandas as pd
-
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with breakout above VWAP
@@ -796,7 +795,6 @@ def test_legacy_generate_signals():
 def test_legacy_generate_signals_short():
     """Test legacy signal generation for short breakdowns."""
     import pandas as pd
-
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with breakdown below VWAP
@@ -833,7 +831,6 @@ def test_legacy_generate_signals_short():
 def test_legacy_generate_signals_timeout():
     """Test legacy signal generation timeout logic."""
     import pandas as pd
-
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with position that times out
@@ -881,7 +878,6 @@ def test_legacy_generate_signals_timeout():
 def test_legacy_generate_signals_sip_filter():
     """Test legacy signal generation with SIP universe filtering."""
     import pandas as pd
-
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data
@@ -913,12 +909,12 @@ def test_legacy_generate_signals_sip_filter():
     signals = generate_signals(df, params)
 
     # Should not enter at first bar (AAPL not in SIP universe)
-    assert signals.iloc[0]["in_sip"] == False
+    assert not signals.iloc[0]["in_sip"]
     assert signals.iloc[0]["decision"] == "hold"
     assert signals.iloc[0]["signal"] == 0
 
     # Should enter at second bar (AAPL now in SIP universe)
-    assert signals.iloc[1]["in_sip"] == True
+    assert signals.iloc[1]["in_sip"]
     assert signals.iloc[1]["decision"] == "enter"
     assert signals.iloc[1]["signal"] == 1
 

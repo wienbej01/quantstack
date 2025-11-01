@@ -3,7 +3,7 @@
 import json
 import pathlib
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -224,7 +224,7 @@ class TestExperimentOrchestration:
         manifest_path = exp_dir / "manifest.json"
         assert manifest_path.exists()
 
-        with open(manifest_path, "r") as f:
+        with open(manifest_path) as f:
             manifest = json.load(f)
         assert manifest["experiment_name"] == "test_experiment"
 

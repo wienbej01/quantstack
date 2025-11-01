@@ -4,19 +4,17 @@ This module wraps existing qx-features functionality while providing
 Sprint 3 interface for feature engineering and enrichment.
 """
 
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
-from qx_features.core_basics import atr_m, rel_volume_m, vwap_m
 from qx_features.registry import apply
 
 
 def intraday_ml_apply_features(
     bars: pd.DataFrame,
     feature_pack: str = "core_basics",
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Apply feature engineering using existing qx-features.
 
@@ -39,7 +37,7 @@ def intraday_ml_apply_features(
 def intraday_ml_get_features_hash(
     bars: pd.DataFrame,
     feature_pack: str = "core_basics",
-    config: Dict[str, Any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> str:
     """Get deterministic hash of feature engineering parameters.
 

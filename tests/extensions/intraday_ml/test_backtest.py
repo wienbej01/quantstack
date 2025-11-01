@@ -5,11 +5,8 @@ it properly wraps existing qx-backtest functionality while enforcing
 intraday trading compliance rules.
 """
 
-from datetime import datetime, timedelta
-from pathlib import Path
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pandas as pd
 import pytest
 
@@ -212,32 +209,51 @@ class TestStrategyWrapper:
             {
                 "ts": [2000, 3000],
                 "symbol": ["AAPL", "GOOGL"],
-                "side": ["BUY", "SELL"],
+                "side": ["long", "short"],
                 "qty": [100, 200],
+                "stop_loss_pct": [0.01, 0.01],
+                "take_profit_pct": [0.015, 0.015],
             }
         )
 
         strategy = _create_strategy_wrapper(orders)
+        mock_engine = Mock()
+        mock_engine.get_position.return_value = None
 
         # Test with matching bars
         bars = pd.DataFrame(
-            {"ts": [2000, 3000, 4000], "symbol": ["AAPL", "GOOGL", "MSFT"]}
+            {"ts": [2000, 3000, 4000], "symbol": ["AAPL", "GOOGL", "MSFT"], "close": [100, 200, 300]}
         )
 
-        result = strategy(bars)
+        for _, bar in bars.iterrows():
+            strategy(mock_engine, bar.to_dict())
 
-        assert len(result) == 2
-        assert list(result["ts"]) == [2000, 3000]
+        assert mock_engine.submit_order.call_count == 2
+        submitted_orders = [c[0][0] for c in mock_engine.submit_order.call_args_list]
+        
+        assert submitted_orders[0].symbol == "AAPL"
+        assert submitted_orders[0].quantity == 100
+        assert submitted_orders[0].stop_loss == pytest.approx(99.0)
+        assert submitted_orders[0].take_profit == pytest.approx(101.5)
+
+        assert submitted_orders[1].symbol == "GOOGL"
+        assert submitted_orders[1].quantity == 200
+        assert submitted_orders[1].stop_loss == pytest.approx(202.0)
+        assert submitted_orders[1].take_profit == pytest.approx(197.0)
+
 
     def test_strategy_wrapper_empty_orders(self):
         """Test strategy wrapper with empty orders."""
         orders = pd.DataFrame()
         strategy = _create_strategy_wrapper(orders)
 
-        bars = pd.DataFrame({"ts": [1000], "symbol": ["AAPL"]})
-        result = strategy(bars)
+        mock_engine = Mock()
+        bars = pd.DataFrame({"ts": [1000], "symbol": ["AAPL"], "close": [100]})
+        
+        for _, bar in bars.iterrows():
+            strategy(mock_engine, bar.to_dict())
 
-        assert result.empty
+        assert mock_engine.submit_order.call_count == 0
 
 
 class TestResultConversion:
@@ -251,10 +267,10 @@ class TestResultConversion:
         result.equity_curve = pd.DataFrame(
             {"timestamp": [1, 2], "equity": [1000, 1100]}
         )
-        result.positions = pd.DataFrame({"timestamp": [1], "position": [100]})
-        result.trades = pd.DataFrame({"timestamp": [1], "pnl": [10]})
-        result.orders = pd.DataFrame({"timestamp": [1], "symbol": ["AAPL"]})
-        result.fills = pd.DataFrame({"timestamp": [1], "qty": [100]})
+        result.positions_history = [{"timestamp": 1, "position": 100}]
+        result.trades_history = [{"timestamp": 1, "pnl": 10}]
+        result.orders_history = [{"timestamp": 1, "symbol": "AAPL"}]
+        result.fills_history = [{"timestamp": 1, "qty": 100}]
 
         artifacts = _convert_result_to_artifacts(result, {})
 
@@ -288,28 +304,28 @@ class TestResultConversion:
         """Test converting result dict to artifacts."""
         result = {
             "metrics": {"trades": 5},
-            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]}),
+            "trades_history": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]}),
         }
 
         artifacts = _convert_result_to_artifacts(result, {})
 
-        assert len(artifacts) == 9  # All required artifacts created
+        assert len(artifacts) == 10  # All required artifacts created
         assert artifacts["metrics"]["trades"] == 5
 
     def test_calculate_metrics(self):
         """Test metrics calculation from artifacts."""
         artifacts = {
-            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8, 12]}),
-            "fills": pd.DataFrame({"fees": [1, 0.5, 1.2, 0.8, 1.0]}),
+            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8], "symbol": ["A", "A", "B", "B"], "timestamp": [1,2,3,4], "side": ["BUY", "SELL", "BUY", "SELL"], "total_cost": [-10, 5, -15, 8], "order_id": [1,1,2,2]}),
+            "fills": pd.DataFrame({"commission": [1, 0.5, 1.2, 0.8]}),
         }
 
         metrics = _calculate_metrics(artifacts)
 
-        assert metrics["trades"] == 5
-        assert metrics["total_pnl"] == 24  # 10 - 5 + 15 - 8 + 12
-        assert metrics["avg_R"] == 4.8  # 24 / 5
-        assert metrics["win_rate"] == 0.6  # 3 wins out of 5
-        assert metrics["fees_total"] == 4.5  # Sum of fees
+        assert metrics["trades"] == 2
+        assert metrics["total_pnl"] == pytest.approx(12.0)
+        assert metrics["avg_R"] == pytest.approx(6.0)
+        assert metrics["win_rate"] == 1.0
+        assert metrics["fees_total"] == 3.5
 
 
 class TestBacktestHash:
@@ -348,12 +364,12 @@ class TestIntegration:
 
         # Mock engine result
         mock_result = Mock()
-        mock_result.metrics = {"trades": 2, "pnl": 100.0}
-        mock_result.equity_curve = pd.DataFrame({"equity": [1000, 1100]})
-        mock_result.positions = pd.DataFrame()
-        mock_result.trades = pd.DataFrame({"pnl": [60, 40]})
-        mock_result.orders = pd.DataFrame()
-        mock_result.fills = pd.DataFrame()
+        mock_result.metrics = {"trades": 1, "pnl": 20.0}
+        mock_result.equity_curve = pd.DataFrame({"timestamp": [1,2], "equity": [1000, 1020]})
+        mock_result.positions_history = []
+        mock_result.trades_history = [{"pnl": 20, "order_id": 1, "symbol": "A", "timestamp": 1, "side": "BUY", "total_cost": -100}, {"pnl": 20, "order_id": 1, "symbol": "A", "timestamp": 2, "side": "SELL", "total_cost": 120}]
+        mock_result.orders_history = []
+        mock_result.fills_history = []
         mock_engine.run.return_value = mock_result
 
         # Test data
@@ -387,7 +403,7 @@ class TestIntegration:
         assert "metrics" in result
         assert "equity" in result
         assert "trades" in result
-        assert result["metrics"]["trades"] == 2
+        assert result["metrics"]["trades"] == 1
 
 
 if __name__ == "__main__":

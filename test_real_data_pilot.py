@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 """Test pilot with smaller subset of real gold data to demonstrate trade generation."""
 
-import argparse
 import os
 import sys
 
-import numpy as np
 import pandas as pd
 
 # Add required paths
@@ -391,7 +389,7 @@ def main():
     # Include regime counts in summary
     trending_sessions = regime_counts.get("BULL", 0) + regime_counts.get("BEAR", 0)
     total_sessions = sum(regime_counts.values())
-    print(f"\nRegime Distribution Summary (Session-based):")
+    print("\nRegime Distribution Summary (Session-based):")
     print(
         f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions/(total_sessions or 1)*100:.1f}%) - Tradeable regimes"
     )

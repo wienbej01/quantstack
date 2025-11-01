@@ -207,17 +207,6 @@ def test_pipeline_structure():
     assert pipeline_steps == expected_order, "Pipeline steps should be in correct order"
 
     # Required artifact files from S6 engine
-    required_artifacts = [
-        "signals.parquet",
-        "orders.parquet",
-        "fills.parquet",
-        "positions.parquet",
-        "equity.parquet",
-        "trades.parquet",
-        "risk_rejects.parquet",
-        "allocation_log.parquet",
-        "metrics.json",
-    ]
 
     print("✓ Pipeline structure meets S7 requirements")
 

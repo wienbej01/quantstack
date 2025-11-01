@@ -1,0 +1,6 @@
+n_folds: 2
+purge_days: 1
+embargo_days: 1
+min_observations_per_fold: 10
+min_symbols_per_fold: 1
+metrics: [f1_posneg, aucpr_posneg, brier, expectancy, trade_rate]

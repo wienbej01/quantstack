@@ -1,26 +1,25 @@
 """ML model inference utilities for intraday trading."""
 
-from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 
 from .registry import MLModelRegistry
-from .schemas import ModelMetadata, PredictionResult
+from .schemas import PredictionResult
 
 
 class MLPredictor:
     """Predictor for ML models with feature validation and inference."""
 
-    def __init__(self, registry: Optional[MLModelRegistry] = None):
+    def __init__(self, registry: MLModelRegistry | None = None):
         """Initialize predictor.
 
         Args:
             registry: Model registry instance (creates default if None)
         """
         self.registry = registry or MLModelRegistry()
-        self._loaded_models: Dict[str, BaseEstimator] = {}
+        self._loaded_models: dict[str, BaseEstimator] = {}
 
     def load_model(self, model_id: str, force_reload: bool = False) -> BaseEstimator:
         """Load model for inference with caching.
@@ -41,10 +40,10 @@ class MLPredictor:
         self,
         model_id: str,
         features: pd.DataFrame,
-        timestamps: Optional[pd.Series] = None,
-        symbols: Optional[pd.Series] = None,
+        timestamps: pd.Series | None = None,
+        symbols: pd.Series | None = None,
         return_probabilities: bool = False,
-    ) -> List[PredictionResult]:
+    ) -> list[PredictionResult]:
         """Make predictions using loaded model.
 
         Args:
@@ -96,7 +95,7 @@ class MLPredictor:
 
         # Create prediction results
         results = []
-        for i, idx in enumerate(X.index):
+        for i, _idx in enumerate(X.index):
             feature_values = {
                 feature: float(X.iloc[i][feature]) for feature in metadata.features
             }
@@ -119,7 +118,7 @@ class MLPredictor:
     def predict_single(
         self,
         model_id: str,
-        features: Dict[str, float],
+        features: dict[str, float],
         timestamp: int,
         symbol: str,
         return_probability: bool = False,
@@ -151,7 +150,7 @@ class MLPredictor:
         return results[0]
 
     def _validate_features(
-        self, features: pd.DataFrame, expected_features: List[str]
+        self, features: pd.DataFrame, expected_features: list[str]
     ) -> None:
         """Validate that required features are present."""
         missing_features = [f for f in expected_features if f not in features.columns]
@@ -168,6 +167,6 @@ class MLPredictor:
         """Clear cached models."""
         self._loaded_models.clear()
 
-    def get_loaded_models(self) -> List[str]:
+    def get_loaded_models(self) -> list[str]:
         """Get list of currently loaded model IDs."""
         return list(self._loaded_models.keys())

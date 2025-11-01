@@ -11,7 +11,7 @@ from collections import defaultdict, deque
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
+from typing import Any
 
 from extensions.intraday_ml_policies.adaptive_policy import MarketRegime
 from extensions.intraday_ml_policies.base import PolicyDecision
@@ -33,15 +33,15 @@ class TradeRecord:
     policy_id: str
     symbol: str
     entry_time: datetime
-    exit_time: Optional[datetime]
+    exit_time: datetime | None
     entry_price: float
-    exit_price: Optional[float]
+    exit_price: float | None
     quantity: float
     pnl: float
     return_pct: float
     bars_held: int
-    regime: Optional[MarketRegime] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    regime: MarketRegime | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -63,9 +63,9 @@ class PerformanceMetrics:
     avg_loss: float = 0.0
     profit_factor: float = 0.0
     avg_trade_duration_bars: float = 0.0
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         data = asdict(self)
         if self.last_updated:
@@ -86,7 +86,7 @@ class RegimePerformance:
     sharpe_ratio: float = 0.0
     max_drawdown: float = 0.0
     avg_duration_bars: float = 0.0
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
 
 class PolicyPerformanceTracker:
@@ -115,31 +115,31 @@ class PolicyPerformanceTracker:
         self.detailed_logging = detailed_logging
 
         # Core metrics storage
-        self.policy_metrics: Dict[str, PerformanceMetrics] = defaultdict(
+        self.policy_metrics: dict[str, PerformanceMetrics] = defaultdict(
             PerformanceMetrics
         )
-        self.execution_history: Dict[str, deque] = defaultdict(
+        self.execution_history: dict[str, deque] = defaultdict(
             lambda: deque(maxlen=1000)
         )
-        self.trade_history: Dict[str, List[TradeRecord]] = defaultdict(list)
+        self.trade_history: dict[str, list[TradeRecord]] = defaultdict(list)
 
         # Regime-specific performance
-        self.regime_performance: Dict[str, Dict[MarketRegime, RegimePerformance]] = (
+        self.regime_performance: dict[str, dict[MarketRegime, RegimePerformance]] = (
             defaultdict(lambda: defaultdict(RegimePerformance))
         )
 
         # Time-based performance
-        self.period_performance: Dict[
-            str, Dict[PerformancePeriod, PerformanceMetrics]
+        self.period_performance: dict[
+            str, dict[PerformancePeriod, PerformanceMetrics]
         ] = defaultdict(lambda: defaultdict(PerformanceMetrics))
 
         # Performance trends
-        self.performance_trends: Dict[str, Dict[str, deque]] = defaultdict(
+        self.performance_trends: dict[str, dict[str, deque]] = defaultdict(
             lambda: defaultdict(lambda: deque(maxlen=100))
         )
 
         # Risk metrics
-        self.risk_metrics: Dict[str, Dict[str, float]] = defaultdict(dict)
+        self.risk_metrics: dict[str, dict[str, float]] = defaultdict(dict)
 
         self.logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ class PolicyPerformanceTracker:
         policy_id: str,
         decision: PolicyDecision,
         execution_time_ms: float,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Record a policy decision."""
         # Update basic metrics
@@ -257,23 +257,23 @@ class PolicyPerformanceTracker:
 
         self.logger.debug(f"Recorded trade for policy {policy_id}: PnL={trade.pnl:.4f}")
 
-    def get_policy_metrics(self, policy_id: str) -> Optional[PerformanceMetrics]:
+    def get_policy_metrics(self, policy_id: str) -> PerformanceMetrics | None:
         """Get performance metrics for a policy."""
         return self.policy_metrics.get(policy_id)
 
     def get_regime_performance(
         self, policy_id: str, regime: MarketRegime
-    ) -> Optional[RegimePerformance]:
+    ) -> RegimePerformance | None:
         """Get regime-specific performance for a policy."""
         return self.regime_performance.get(policy_id, {}).get(regime)
 
     def get_period_performance(
         self, policy_id: str, period: PerformancePeriod
-    ) -> Optional[PerformanceMetrics]:
+    ) -> PerformanceMetrics | None:
         """Get period-specific performance for a policy."""
         return self.period_performance.get(policy_id, {}).get(period)
 
-    def get_performance_summary(self, policy_id: str) -> Dict[str, Any]:
+    def get_performance_summary(self, policy_id: str) -> dict[str, Any]:
         """Get comprehensive performance summary for a policy."""
         metrics = self.policy_metrics.get(policy_id)
         if not metrics:
@@ -347,7 +347,7 @@ class PolicyPerformanceTracker:
 
         return summary
 
-    def compare_policies(self, policy_ids: List[str]) -> Dict[str, Any]:
+    def compare_policies(self, policy_ids: list[str]) -> dict[str, Any]:
         """Compare performance across multiple policies."""
         comparison = {"policies": {}, "ranking": [], "summary": {}}
 
@@ -455,8 +455,7 @@ class PolicyPerformanceTracker:
             peak = cumulative_returns[0]
             max_dd = 0
             for value in cumulative_returns:
-                if value > peak:
-                    peak = value
+                peak = max(peak, value)
                 dd = (peak - value) / peak if peak != 0 else 0
                 max_dd = max(max_dd, dd)
 
@@ -481,7 +480,7 @@ class PolicyPerformanceTracker:
             "kurtosis": self._calculate_kurtosis(returns),
         }
 
-    def _calculate_var(self, returns: List[float], confidence: float) -> float:
+    def _calculate_var(self, returns: list[float], confidence: float) -> float:
         """Calculate Value at Risk."""
         if not returns:
             return 0.0
@@ -490,7 +489,7 @@ class PolicyPerformanceTracker:
         index = int((1 - confidence) * len(sorted_returns))
         return sorted_returns[index] if index < len(sorted_returns) else 0.0
 
-    def _calculate_cvar(self, returns: List[float], confidence: float) -> float:
+    def _calculate_cvar(self, returns: list[float], confidence: float) -> float:
         """Calculate Conditional Value at Risk."""
         if not returns:
             return 0.0
@@ -500,7 +499,7 @@ class PolicyPerformanceTracker:
 
         return statistics.mean(tail_returns) if tail_returns else 0.0
 
-    def _calculate_skewness(self, returns: List[float]) -> float:
+    def _calculate_skewness(self, returns: list[float]) -> float:
         """Calculate return skewness."""
         if len(returns) < 3:
             return 0.0
@@ -514,7 +513,7 @@ class PolicyPerformanceTracker:
         skew = sum(((r - mean) / std) ** 3 for r in returns) / len(returns)
         return skew
 
-    def _calculate_kurtosis(self, returns: List[float]) -> float:
+    def _calculate_kurtosis(self, returns: list[float]) -> float:
         """Calculate return kurtosis."""
         if len(returns) < 4:
             return 0.0
@@ -575,8 +574,7 @@ class PolicyPerformanceTracker:
                 peak = cumulative_returns[0]
                 max_dd = 0
                 for value in cumulative_returns:
-                    if value > peak:
-                        peak = value
+                    peak = max(peak, value)
                     dd = (peak - value) / peak if peak != 0 else 0
                     max_dd = max(max_dd, dd)
                 regime_perf.max_drawdown = max_dd

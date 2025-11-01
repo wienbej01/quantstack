@@ -100,14 +100,14 @@ class TestGoldLoaderBasics:
         mock_normalize.return_value = sample_df
 
         # Test with validation (default)
-        result = load_bars(
+        load_bars(
             "/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=True
         )
         mock_validate.assert_called_once()
 
         # Test without validation
         mock_validate.reset_mock()
-        result = load_bars(
+        load_bars(
             "/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=False
         )
         mock_validate.assert_not_called()
@@ -132,7 +132,7 @@ class TestParquetPathResolution:
         with patch("glob.glob") as mock_glob:
             mock_glob.return_value = ["/fake/stocks/1m/AAPL/2020/2020-01.parquet"]
 
-            paths = _get_parquet_paths("/fake", "bars_1m", "AAPL", "2020-01-15")
+            _get_parquet_paths("/fake", "bars_1m", "AAPL", "2020-01-15")
 
             expected_pattern = "/fake/stocks/1m/AAPL/2020/2020-01.parquet"
             mock_glob.assert_called_once_with(expected_pattern)
@@ -144,7 +144,7 @@ class TestParquetPathResolution:
                 "/fake/features/symbol=AAPL/date=2020-01-15/file.parquet"
             ]
 
-            paths = _get_parquet_paths("/fake", "features", "AAPL", "2020-01-15")
+            _get_parquet_paths("/fake", "features", "AAPL", "2020-01-15")
 
             expected_pattern = "/fake/features/symbol=AAPL/date=2020-01-15/*.parquet"
             mock_glob.assert_called_once_with(expected_pattern)
@@ -154,7 +154,7 @@ class TestParquetPathResolution:
         with patch("glob.glob") as mock_glob:
             mock_glob.return_value = ["/fake/test/symbol=AAPL/date=SMOKE/file.parquet"]
 
-            paths = _get_parquet_paths("/fake", "test", "AAPL", "SMOKE")
+            _get_parquet_paths("/fake", "test", "AAPL", "SMOKE")
 
             expected_pattern = "/fake/test/symbol=AAPL/date=SMOKE/*.parquet"
             mock_glob.assert_called_once_with(expected_pattern)

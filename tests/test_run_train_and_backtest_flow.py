@@ -2,18 +2,18 @@
 """
 Test the logical flow of the end-to-end train and backtest script.
 """
-import pytest
-from unittest.mock import patch, MagicMock
-import pandas as pd
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta
-import yaml
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import run_train_and_backtest
+
 
 @pytest.fixture
 def mock_dependencies():
@@ -22,11 +22,11 @@ def mock_dependencies():
          patch('run_train_and_backtest.resample_data') as mock_resample_data,
          patch('run_train_and_backtest.create_training_dataset') as mock_create_training_dataset,
          patch('run_train_and_backtest.LightGBMTrainer') as mock_trainer_class,
-         patch('run_train_and_backtest.joblib.dump') as mock_joblib_dump,
+         patch('run_train_and_backtest.joblib.dump'),
          patch('run_train_and_backtest.joblib.load') as mock_joblib_load,
          patch('run_train_and_backtest.create_feature_set') as mock_create_feature_set,
          patch('run_train_and_backtest.BacktestEngine') as mock_engine_class,
-         patch('run_train_and_backtest.DecisionPolicy') as mock_policy_class,
+         patch('run_train_and_backtest.DecisionPolicy'),
          patch('run_train_and_backtest.add_regime_feature') as mock_add_regime_feature):
 
         # Mock data loading and resampling

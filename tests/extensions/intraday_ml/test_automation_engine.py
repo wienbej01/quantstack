@@ -1,9 +1,7 @@
 """Tests for policy automation engine."""
 
 import time
-from datetime import datetime, timedelta
-from threading import Event
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 

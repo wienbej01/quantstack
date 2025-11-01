@@ -435,7 +435,6 @@ class RegimeDetectorRules:
         """Detect trend vs sideways regime."""
         trend_score = 0.0
         volatility_level = "normal"
-        band_position = 0.5  # Default to middle
 
         # Extract features
         var_ratio = features.get("f__regime__var_ratio_10_60", 1.0)
@@ -807,7 +806,7 @@ class RegimeDetectorRules:
         total_count = 0
 
         for symbol_counters in self._persistence_counters.values():
-            for regime, count in symbol_counters.items():
+            for _regime, count in symbol_counters.items():
                 if count > 0:  # Only count regimes that have been observed
                     total_persistence += count
                     total_count += 1

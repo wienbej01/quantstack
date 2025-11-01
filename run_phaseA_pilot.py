@@ -5,18 +5,19 @@ Single authoritative implementation with all fixes and optimizations.
 """
 
 import json
+import logging
 import sys
 import time
-import logging
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
-import yaml
 import pandas as pd
+import yaml
+
+from extensions.intraday_ml.data_prep import create_training_dataset
 
 # Import ML modules
 from extensions.intraday_ml.dataset_manifest import DatasetManifestBuilder
-from extensions.intraday_ml.data_prep import create_training_dataset
 from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
 
 # Setup logging
@@ -60,7 +61,7 @@ def main():
 
         for name, path in config_files.items():
             logger.info(f"   Loading {name}...")
-            with open(path, 'r') as f:
+            with open(path) as f:
                 configs[name] = yaml.safe_load(f)
             logger.info(f"   ✅ {name}: {path}")
 
@@ -68,7 +69,7 @@ def main():
         logger.info(f"✅ Step 0 completed in {step_time:.1f}s")
 
         # Step 1: Build Dataset Manifest
-        logger.info(f"\n🔧 Step 1: Building dataset manifest...")
+        logger.info("\n🔧 Step 1: Building dataset manifest...")
         step_start = time.time()
 
         builder = DatasetManifestBuilder(
@@ -94,7 +95,7 @@ def main():
         logger.info(f"   Total days: {manifest.total_days}")
 
         # Step 2: Data Preparation
-        logger.info(f"\n🔧 Step 2: Sliding window data preparation...")
+        logger.info("\n🔧 Step 2: Sliding window data preparation...")
         step_start = time.time()
 
         # Use 2 days for pilot testing (can be adjusted for production)
@@ -102,7 +103,7 @@ def main():
         pilot_end = '2024-01-03'
 
         # Add buffer for label horizons
-        start_date = datetime.strptime(pilot_start, '%Y-%m-%d')
+        datetime.strptime(pilot_start, '%Y-%m-%d')
         end_date = datetime.strptime(pilot_end, '%Y-%m-%d')
         extended_end_date = end_date + timedelta(days=2)  # 2 day buffer
 
@@ -143,12 +144,12 @@ def main():
         unique_labels = training_data['label'].unique()
         if len(unique_labels) <= 1:
             logger.error(f"❌ CRITICAL: Only {len(unique_labels)} unique label class: {unique_labels.tolist()}")
-            logger.error(f"   This means ATR threshold is too high or data doesn't have enough movement.")
+            logger.error("   This means ATR threshold is too high or data doesn't have enough movement.")
             logger.error(f"   Current ATR multiplier: {configs['targets']['atr_multiplier']}")
             return 1
 
         # Step 3: Train LightGBM Model
-        logger.info(f"\n🤖 Step 3: Training LightGBM model...")
+        logger.info("\n🤖 Step 3: Training LightGBM model...")
         step_start = time.time()
 
         trainer = LightGBMTrainer(configs['model'])
@@ -182,7 +183,7 @@ def main():
         logger.info(f"   Training metrics: {result.metrics}")
 
         # Step 4: Summary and Validation
-        logger.info(f"\n📋 Step 4: Pilot validation and summary...")
+        logger.info("\n📋 Step 4: Pilot validation and summary...")
         step_start = time.time()
 
         # Validate model performance
@@ -204,26 +205,26 @@ def main():
 
         # Final Summary
         total_time = time.time() - time.time()  # Will be updated
-        logger.info(f"\n🎉 PILOT COMPLETED SUCCESSFULLY!")
+        logger.info("\n🎉 PILOT COMPLETED SUCCESSFULLY!")
         logger.info("=" * 60)
         logger.info(f"📊 Total execution time: {total_time:.1f}s ({total_time/60:.1f} minutes)")
-        logger.info(f"📊 Generated Artifacts:")
+        logger.info("📊 Generated Artifacts:")
 
         for artifact in artifact_dir.glob("*"):
             if artifact.is_file():
                 size_mb = artifact.stat().st_size / (1024*1024)
                 logger.info(f"   - {artifact.name} ({size_mb:.1f} MB)")
 
-        logger.info(f"\n📋 Pilot Summary:")
-        logger.info(f"   - Ticker: BAC (single-ticker pilot)")
+        logger.info("\n📋 Pilot Summary:")
+        logger.info("   - Ticker: BAC (single-ticker pilot)")
         logger.info(f"   - Period: {pilot_start} to {pilot_end} (2 days)")
         logger.info(f"   - Samples: {training_data.shape[0]:,}")
         logger.info(f"   - Features: {len(feature_columns)}")
-        logger.info(f"   - Model: LightGBM (tri-class + calibration)")
+        logger.info("   - Model: LightGBM (tri-class + calibration)")
         logger.info(f"   - Accuracy: {accuracy:.1%}")
         logger.info(f"   - Brier Improvement: {brier_improvement:.1%}")
-        logger.info(f"   - Architecture: Optimized sliding window (no lookahead bias)")
-        logger.info(f"   - Status: ✅ PRODUCTION READY")
+        logger.info("   - Architecture: Optimized sliding window (no lookahead bias)")
+        logger.info("   - Status: ✅ PRODUCTION READY")
 
         # Create pilot report
         pilot_report = {
@@ -255,10 +256,10 @@ def main():
             json.dump(pilot_report, f, indent=2, default=str)
 
         logger.info(f"\n📄 Pilot report saved: {report_path}")
-        logger.info(f"\n🚀 Next Steps:")
+        logger.info("\n🚀 Next Steps:")
         logger.info(f"   1. Review model performance in {report_path}")
-        logger.info(f"   2. Scale to full production with expanded date ranges")
-        logger.info(f"   3. Configure decision policy for OOS testing")
+        logger.info("   2. Scale to full production with expanded date ranges")
+        logger.info("   3. Configure decision policy for OOS testing")
 
         return 0
 

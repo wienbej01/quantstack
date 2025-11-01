@@ -33,7 +33,7 @@ def mod_normalized_volatility(
 
     results = []
 
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy().sort_values("ts")
 
         # Calculate intraday volatility (True Range normalized by close)
@@ -101,7 +101,7 @@ def variance_ratio(
 
     results = []
 
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy().sort_values("ts")
 
         # Calculate returns
@@ -154,7 +154,7 @@ def adx_proxy(
 
     results = []
 
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy().sort_values("ts")
 
         # Calculate True Range
@@ -219,7 +219,7 @@ def band_position(
 
     results = []
 
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy().sort_values("ts")
 
         # Calculate Bollinger Bands
@@ -278,7 +278,7 @@ def stress_metrics(
 
     results = []
 
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy().sort_values("ts")
 
         # Calculate True Range volatility

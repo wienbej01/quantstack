@@ -5,15 +5,13 @@ cooldowns, and time-of-day filters to reduce micro-trades.
 """
 
 from datetime import datetime, time
-from typing import Any, Dict, Optional, Tuple
-
-import pandas as pd
+from typing import Any
 
 
 class DecisionPolicy:
     """Decision policy to reduce micro-trades through soft constraints."""
 
-    def __init__(self, decision_config: Dict[str, Any]):
+    def __init__(self, decision_config: dict[str, Any]):
         """Initialize decision policy with configuration.
 
         Args:
@@ -28,17 +26,17 @@ class DecisionPolicy:
         self.time_filter_config = decision_config.get("time_filter", {})
 
         # Track cooldown state
-        self.cooldown_tracker: Dict[str, Dict[str, datetime]] = {}
+        self.cooldown_tracker: dict[str, dict[str, datetime]] = {}
 
     def should_trade(
         self,
         symbol: str,
-        probabilities: Dict[int, float],
+        probabilities: dict[int, float],
         atr: float,
         current_time: datetime,
-        last_entry_time: Optional[datetime] = None,
-        last_exit_time: Optional[datetime] = None,
-    ) -> Tuple[bool, int, str]:
+        last_entry_time: datetime | None = None,
+        last_exit_time: datetime | None = None,
+    ) -> tuple[bool, int, str]:
         """Determine if trade should be taken.
 
         Args:
@@ -101,7 +99,7 @@ class DecisionPolicy:
         self.cooldown_tracker[symbol][action] = timestamp
 
     def _calculate_expected_move(
-        self, probabilities: Dict[int, float], atr: float
+        self, probabilities: dict[int, float], atr: float
     ) -> float:
         """Calculate expected absolute move based on probabilities and ATR."""
         # Expected move = |P(+1) - P(-1)| * atr_multiplier * atr
@@ -115,12 +113,12 @@ class DecisionPolicy:
         self,
         symbol: str,
         current_time: datetime,
-        last_entry_time: Optional[datetime],
-        last_exit_time: Optional[datetime],
+        last_entry_time: datetime | None,
+        last_exit_time: datetime | None,
     ) -> bool:
         """Check if symbol is in cooldown period."""
         base_minutes = self.cooldown_config.get("base_minutes", 15)
-        atr_multiplier = self.cooldown_config.get("atr_multiplier", 0.5)
+        self.cooldown_config.get("atr_multiplier", 0.5)
         max_minutes = self.cooldown_config.get("max_minutes", 60)
 
         # Get the most recent action time
@@ -161,14 +159,11 @@ class DecisionPolicy:
         force_flat_time_str = self.config.get("force_flat_before_close", "15:59:59")
         force_flat_time = datetime.strptime(force_flat_time_str, "%H:%M:%S").time()
 
-        if current_time_only >= force_flat_time:
-            return True
-
-        return False
+        return current_time_only >= force_flat_time
 
     def get_cooldown_status(
         self, symbol: str, current_time: datetime
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get current cooldown status for a symbol.
 
         Args:

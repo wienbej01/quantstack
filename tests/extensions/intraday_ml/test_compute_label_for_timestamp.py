@@ -5,9 +5,7 @@ using future price movements with strict no-lookahead bias enforcement.
 """
 
 import warnings
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -24,7 +22,7 @@ class TestComputeLabelForTimestamp:
     def targets_config(self):
         """Load targets configuration with adjusted ATR multiplier for testing."""
         config_path = Path("configs/extensions/intraday_ml/targets.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             config = yaml.safe_load(f)
 
         # Adjust ATR multiplier for testing - make threshold easier to hit
@@ -62,14 +60,13 @@ class TestComputeLabelForTimestamp:
             if ts.date() == pd.Timestamp("2024-01-02").date():
                 # Day 1: gradual uptrend
                 trend = i * 0.001
+            # Day 2: more volatile with clear directional moves for testing
+            elif i < 450:  # First hour of day 2: sharp up move
+                trend = 0.5 + (i - 390) * 0.01
+            elif i < 470:  # Next 20 minutes: sharp down move
+                trend = 0.5 - (i - 450) * 0.02
             else:
-                # Day 2: more volatile with clear directional moves for testing
-                if i < 450:  # First hour of day 2: sharp up move
-                    trend = 0.5 + (i - 390) * 0.01
-                elif i < 470:  # Next 20 minutes: sharp down move
-                    trend = 0.5 - (i - 450) * 0.02
-                else:
-                    trend = -0.1 + (i - 470) * 0.001
+                trend = -0.1 + (i - 470) * 0.001
 
             noise = np.random.normal(0, 0.005) * base_price
             close = base_price + trend + noise
@@ -169,7 +166,7 @@ class TestComputeLabelForTimestamp:
         neutral_data = []
         base_price = 30.0
 
-        for i, ts in enumerate(neutral_dates):
+        for _i, ts in enumerate(neutral_dates):
             # Very small random movements around base price
             noise = np.random.normal(0, 0.0001)  # Very small noise
             price = base_price * (1 + noise)

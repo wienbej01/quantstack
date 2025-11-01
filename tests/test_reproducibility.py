@@ -13,7 +13,6 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_core.hashers import hash_dataframe
 from qx_features.registry import apply
 
@@ -225,7 +224,7 @@ class TestReproducibility:
             # Run experiment twice (simulated)
             run_results = []
 
-            for run_num in [1, 2]:
+            for _run_num in [1, 2]:
                 with tempfile.TemporaryDirectory() as run_dir:
                     run_path = pathlib.Path(run_dir)
 
@@ -384,7 +383,6 @@ class TestReproducibility:
             temp_path = pathlib.Path(temp_dir)
 
             # Create multiple experiments with same underlying data
-            experiments = []
             checksums = []
 
             for exp_name in ["exp_A", "exp_B"]:

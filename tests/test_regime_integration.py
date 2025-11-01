@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_core.regime.detector import RegimeDetectorConfig
 from qx_core.regime_config import RegimeConfig
@@ -153,7 +152,7 @@ class TestRegimeBacktestIntegration:
             orders_submitted.append(order)
 
         # Run backtest
-        result = engine.run(data_with_features, test_strategy)
+        engine.run(data_with_features, test_strategy)
 
         # Verify regime detection occurred
         assert len(engine._regime_history) > 0
@@ -460,7 +459,7 @@ class TestRegimeRiskIntegration:
 
         # Verify position sizing varied by regime
         if len(position_sizes) > 1:
-            regimes_seen = set(ps["regime"] for ps in position_sizes)
+            regimes_seen = {ps["regime"] for ps in position_sizes}
             assert len(regimes_seen) > 1  # Should see multiple regimes
 
 

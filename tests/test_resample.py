@@ -1,7 +1,8 @@
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from qx_data.resample import resample_data
+
 
 def test_resample_data():
     """Tests the resample_data function."""

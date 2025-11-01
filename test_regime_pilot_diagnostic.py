@@ -6,9 +6,7 @@ import os
 import sys
 import traceback
 import warnings
-from io import StringIO
 
-import numpy as np
 import pandas as pd
 
 # Add required paths
@@ -114,7 +112,7 @@ def test_function_isolation(df, func_name, func, *args, **kwargs):
 
 def main():
     """Main diagnostic function."""
-    args = argparse.ArgumentParser().parse_args()
+    argparse.ArgumentParser().parse_args()
 
     print("DIAGNOSTIC: Isolating RuntimeWarning Sources")
     print("=" * 60)

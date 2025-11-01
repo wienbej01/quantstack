@@ -2,9 +2,8 @@
 
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
-import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
@@ -16,15 +15,15 @@ class TransformResult:
     """Result of feature transformation."""
 
     transformed_features: pd.DataFrame
-    transform_params: Dict[str, Any]
-    feature_names: List[str]
+    transform_params: dict[str, Any]
+    feature_names: list[str]
     n_features: int
 
 
 class LagTransformer(BaseEstimator, TransformerMixin):
     """Create lagged features for time series data."""
 
-    def __init__(self, lags: List[int], fill_method: str = "bfill"):
+    def __init__(self, lags: list[int], fill_method: str = "bfill"):
         """
         Initialize lag transformer.
 
@@ -36,7 +35,7 @@ class LagTransformer(BaseEstimator, TransformerMixin):
         self.fill_method = fill_method
         self.feature_names = None
 
-    def fit(self, X: pd.DataFrame, y: Optional[pd.Series] = None) -> "LagTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "LagTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
         return self
@@ -83,7 +82,7 @@ class LagTransformer(BaseEstimator, TransformerMixin):
 class RollingTransformer(BaseEstimator, TransformerMixin):
     """Create rolling window features."""
 
-    def __init__(self, windows: List[int], functions: List[str]):
+    def __init__(self, windows: list[int], functions: list[str]):
         """
         Initialize rolling transformer.
 
@@ -96,7 +95,7 @@ class RollingTransformer(BaseEstimator, TransformerMixin):
         self.feature_names = None
 
     def fit(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> "RollingTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
@@ -149,18 +148,20 @@ class RollingTransformer(BaseEstimator, TransformerMixin):
 class DifferenceTransformer(BaseEstimator, TransformerMixin):
     """Create difference features for time series data."""
 
-    def __init__(self, periods: List[int] = [1]):
+    def __init__(self, periods: list[int] = None):
         """
         Initialize difference transformer.
 
         Args:
             periods: List of difference periods
         """
+        if periods is None:
+            periods = [1]
         self.periods = periods
         self.feature_names = None
 
     def fit(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> "DifferenceTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
@@ -200,7 +201,7 @@ class InteractionTransformer(BaseEstimator, TransformerMixin):
 
     def __init__(
         self,
-        interactions: Optional[List[Tuple[str, str]]] = None,
+        interactions: list[tuple[str, str]] | None = None,
         max_features: int = 20,
     ):
         """
@@ -215,7 +216,7 @@ class InteractionTransformer(BaseEstimator, TransformerMixin):
         self.selected_interactions = None
 
     def fit(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> "InteractionTransformer":
         """
         Fit interaction transformer.
@@ -305,7 +306,7 @@ class BinningTransformer(BaseEstimator, TransformerMixin):
         self.bin_edges = {}
 
     def fit(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> "BinningTransformer":
         """Fit binning transformer."""
         for col in X.columns:
@@ -354,7 +355,7 @@ class BinningTransformer(BaseEstimator, TransformerMixin):
 class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
     """Create technical indicator features."""
 
-    def __init__(self, indicators: List[str] = None):
+    def __init__(self, indicators: list[str] = None):
         """
         Initialize technical indicator transformer.
 
@@ -367,7 +368,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
         self.feature_names = None
 
     def fit(
-        self, X: pd.DataFrame, y: Optional[pd.Series] = None
+        self, X: pd.DataFrame, y: pd.Series | None = None
     ) -> "TechnicalIndicatorTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
@@ -390,11 +391,11 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
         new_feature_names = []
 
         # Identify OHLC columns
-        open_col = self._find_column(X, ["open", "Open", "OPEN"])
+        self._find_column(X, ["open", "Open", "OPEN"])
         high_col = self._find_column(X, ["high", "High", "HIGH"])
         low_col = self._find_column(X, ["low", "Low", "LOW"])
         close_col = self._find_column(X, ["close", "Close", "CLOSE"])
-        volume_col = self._find_column(X, ["volume", "Volume", "VOLUME"])
+        self._find_column(X, ["volume", "Volume", "VOLUME"])
 
         for indicator in self.indicators:
             if indicator == "rsi" and close_col:
@@ -446,7 +447,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
         else:
             return pd.DataFrame(index=X.index)
 
-    def _find_column(self, X: pd.DataFrame, candidates: List[str]) -> Optional[str]:
+    def _find_column(self, X: pd.DataFrame, candidates: list[str]) -> str | None:
         """Find column name from candidates."""
         for candidate in candidates:
             if candidate in X.columns:
@@ -464,7 +465,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
 
     def _calculate_macd(
         self, prices: pd.Series, fast: int = 12, slow: int = 26, signal: int = 9
-    ) -> Tuple[pd.Series, pd.Series]:
+    ) -> tuple[pd.Series, pd.Series]:
         """Calculate MACD indicator."""
         exp1 = prices.ewm(span=fast).mean()
         exp2 = prices.ewm(span=slow).mean()
@@ -474,7 +475,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
 
     def _calculate_bollinger_bands(
         self, prices: pd.Series, period: int = 20, std_dev: int = 2
-    ) -> Tuple[pd.Series, pd.Series]:
+    ) -> tuple[pd.Series, pd.Series]:
         """Calculate Bollinger Bands."""
         sma = prices.rolling(window=period).mean()
         std = prices.rolling(window=period).std()
@@ -489,7 +490,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
         close: pd.Series,
         k_period: int = 14,
         d_period: int = 3,
-    ) -> Tuple[pd.Series, pd.Series]:
+    ) -> tuple[pd.Series, pd.Series]:
         """Calculate Stochastic oscillator."""
         lowest_low = low.rolling(window=k_period).min()
         highest_high = high.rolling(window=k_period).max()

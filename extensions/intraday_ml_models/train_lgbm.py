@@ -4,11 +4,9 @@ Tri-class classifier training with probability calibration and comprehensive
 evaluation metrics for prominent moves prediction.
 """
 
-import json
 import time
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import lightgbm as lgb
 import numpy as np
@@ -22,8 +20,6 @@ from sklearn.metrics import (
 )
 from sklearn.model_selection import StratifiedKFold, train_test_split
 
-from extensions.intraday_ml.labeling import IntradayMLLabeler
-
 
 @dataclass
 class TrainingResult:
@@ -31,15 +27,15 @@ class TrainingResult:
 
     model: lgb.LGBMClassifier
     calibrated_model: CalibratedClassifierCV
-    metrics: Dict[str, Any]
-    training_metadata: Dict[str, Any]
+    metrics: dict[str, Any]
+    training_metadata: dict[str, Any]
     training_time_seconds: float
 
 
 class LightGBMTrainer:
     """Trains LightGBM tri-class classifier for intraday ML."""
 
-    def __init__(self, model_config: Dict[str, Any]):
+    def __init__(self, model_config: dict[str, Any]):
         """Initialize trainer with model configuration.
 
         Args:
@@ -57,7 +53,7 @@ class LightGBMTrainer:
         labels: pd.Series,
         features_hash: str,
         targets_hash: str,
-        validation_data: Optional[Tuple[pd.DataFrame, pd.Series]] = None,
+        validation_data: tuple[pd.DataFrame, pd.Series] | None = None,
     ) -> TrainingResult:
         """Train LightGBM model with calibration.
 
@@ -125,7 +121,7 @@ class LightGBMTrainer:
 
     def _prepare_data(
         self, features: pd.DataFrame, labels: pd.Series
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.Series]:
         """Prepare data for training."""
         # Align features and labels
         aligned_data = pd.concat([features, labels], axis=1, join="inner")
@@ -145,7 +141,7 @@ class LightGBMTrainer:
 
     def _split_data(
         self, X: pd.DataFrame, y: pd.Series
-    ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """Split data into training and validation sets."""
         val_split = self.training_params.get("validation_split", 0.2)
         stratify = self.training_params.get("stratify_by_class", True)
@@ -235,12 +231,16 @@ class LightGBMTrainer:
         calibrated_model: CalibratedClassifierCV,
         X_val: pd.DataFrame,
         y_val: pd.Series,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Evaluate model performance."""
         # Get predictions
         y_pred = model.predict(X_val)
         y_proba = model.predict_proba(X_val)
         y_proba_calibrated = calibrated_model.predict_proba(X_val)
+
+        # Calculate trade density proxy
+        trade_density = np.mean(y_pred != 0)
+
 
         # Calculate metrics
         accuracy = accuracy_score(y_val, y_pred)
@@ -251,8 +251,8 @@ class LightGBMTrainer:
         brier_score_calibrated = brier_score_loss(
             y_val, y_proba_calibrated, labels=model.classes_
         )
-        logloss_val = log_loss(y_val, y_proba)
-        logloss_calibrated = log_loss(y_val, y_proba_calibrated)
+        logloss_val = log_loss(y_val, y_proba, labels=model.classes_)
+        logloss_calibrated = log_loss(y_val, y_proba_calibrated, labels=model.classes_)
 
         # Class-specific metrics
         precision_per_class, recall_per_class, f1_per_class, _ = (
@@ -262,7 +262,7 @@ class LightGBMTrainer:
         )
 
         # Feature importance
-        feature_importance = dict(zip(X_val.columns, model.feature_importances_))
+        feature_importance = dict(zip(X_val.columns, model.feature_importances_, strict=False))
         top_features = sorted(
             feature_importance.items(), key=lambda x: x[1], reverse=True
         )[:10]
@@ -277,6 +277,7 @@ class LightGBMTrainer:
             "brier_improvement": brier_score - brier_score_calibrated,
             "log_loss": logloss_val,
             "log_loss_calibrated": logloss_calibrated,
+            "trade_density": trade_density,
             "class_metrics": {
                 str(cls): {
                     "precision": float(precision_per_class[i]),
@@ -298,7 +299,7 @@ class LightGBMTrainer:
         labels: pd.Series,
         features_hash: str,
         targets_hash: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Perform cross-validation for model evaluation."""
         cv_config = self.config.get("evaluation", {}).get("cross_validation", {})
         if not cv_config.get("enabled", False):
@@ -306,7 +307,7 @@ class LightGBMTrainer:
 
         X, y = self._prepare_data(features, labels)
         cv_folds = cv_config.get("folds", 5)
-        stratify = cv_config.get("stratify", True)
+        cv_config.get("stratify", True)
 
         cv = StratifiedKFold(
             n_splits=cv_folds,
@@ -369,7 +370,7 @@ class LightGBMTrainer:
 def train_lgbm_model(
     features: pd.DataFrame,
     labels: pd.Series,
-    model_config: Dict[str, Any],
+    model_config: dict[str, Any],
     features_hash: str,
     targets_hash: str,
 ) -> TrainingResult:

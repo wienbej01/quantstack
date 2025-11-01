@@ -6,6 +6,7 @@ Tests the core components without requiring real artifacts.
 
 import json
 import pathlib
+import sys
 import tempfile
 import uuid
 
@@ -247,7 +248,7 @@ def test_ab_diff_tables():
         run_ids = []
         base_sharpe = [1.2, 1.8]  # Different Sharpe ratios
 
-        for i, sharpe in enumerate(base_sharpe):
+        for _i, sharpe in enumerate(base_sharpe):
             run_id = str(uuid.uuid4())
             run_ids.append(run_id)
             run_dir = runs_dir / run_id
@@ -320,7 +321,7 @@ def test_leaderboard_generator():
         run_ids = []
         sharpe_values = [1.5, 2.1, 1.8]  # Different Sharpe ratios
 
-        for i, sharpe in enumerate(sharpe_values):
+        for _i, sharpe in enumerate(sharpe_values):
             run_id = str(uuid.uuid4())
             run_ids.append(run_id)
             run_dir = runs_dir / run_id
@@ -409,4 +410,4 @@ def run_all_tests():
 if __name__ == "__main__":
     success = run_all_tests()
     if not success:
-        exit(1)
+        sys.exit(1)

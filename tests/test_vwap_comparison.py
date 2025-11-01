@@ -112,7 +112,7 @@ def test_vwap_revert_vs_momentum_comparison():
     policy_momentum.set_engine(engine_momentum)
 
     # Process the same data through both policies
-    for idx, bar in bars_with_features.iterrows():
+    for _idx, bar in bars_with_features.iterrows():
         bar_dict = bar.to_dict()
         policy_revert.process_bar(bar_dict)
         policy_momentum.process_bar(bar_dict)
@@ -270,7 +270,7 @@ def test_enhanced_vwap_comparison():
     policy_momentum_enhanced.set_engine(engine_momentum_enhanced)
 
     # Process data
-    for idx, bar in bars_with_features.iterrows():
+    for _idx, bar in bars_with_features.iterrows():
         bar_dict = bar.to_dict()
         policy_revert_enhanced.process_bar(bar_dict)
         policy_momentum_enhanced.process_bar(bar_dict)

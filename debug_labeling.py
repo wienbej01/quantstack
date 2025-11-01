@@ -3,16 +3,18 @@
 Debug script for analyzing the vectorized labeling process.
 """
 
-import pandas as pd
-import yaml
 import sys
 from pathlib import Path
+
+import pandas as pd
+import yaml
 
 # --- Path Setup ---
 sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 
 from extensions.intraday_ml.labeling_vectorized import VectorizedIntradayMLLabeler
 from qx_data.gold_loader import load_bars
+
 
 def debug_labeling():
     print("--- Starting Labeling Debugger ---")

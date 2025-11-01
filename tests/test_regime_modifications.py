@@ -13,15 +13,12 @@ All tests use real market data only - no synthetic/mock data.
 import os
 import sys
 
-import pytest
-
 # Add required paths for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "qx-backtest", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "qx-core", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "qx-features", "src"))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "qx-data", "src"))
 
-import pandas as pd
 
 from qx_backtest.policies.regime_aligned import (
     MomentumParameters,
@@ -221,7 +218,7 @@ class TestNoSyntheticDataUsage:
 
         for file_path in test_files:
             if os.path.exists(file_path):
-                with open(file_path, "r") as f:
+                with open(file_path) as f:
                     content = f.read()
 
                 if "def create_synthetic_data(" in content:
@@ -291,7 +288,7 @@ class TestIntegrationSmoke:
         assert len(regime_features) > 0, "No regime features found"
         assert len(enhanced_features) > 0, "No enhanced features found"
 
-        print(f"✓ End-to-end test passed:")
+        print("✓ End-to-end test passed:")
         print(f"  - Core features: {len(core_features)}")
         print(f"  - Regime features: {len(regime_features)}")
         print(f"  - Enhanced features: {len(enhanced_features)}")

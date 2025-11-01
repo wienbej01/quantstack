@@ -25,9 +25,9 @@ Performance Notes:
 - Suitable for datasets with 100K+ timestamps
 """
 
-from typing import Dict, List, Optional, Tuple, Union
 
 import time
+
 import pandas as pd
 
 from .feature_pack import IntradayMLFeaturePack
@@ -35,12 +35,13 @@ from .labeling import IntradayMLLabeler
 
 
 def create_training_dataset(
-    symbols: List[str],
+    symbols: list[str],
     start_date: str,
     end_date: str,
-    features_config: Dict[str, any],
-    targets_config: Dict[str, any],
-    data_loader_config: Optional[Dict[str, any]] = None,
+    features_config: dict[str, any],
+    targets_config: dict[str, any],
+    data_loader_config: dict[str, any] | None = None,
+    include_ohlcv: bool = False,
 ) -> pd.DataFrame:
     """Create training dataset with aligned features and labels.
 
@@ -102,13 +103,14 @@ def create_training_dataset(
     # Pre-compute labels for all timestamps at once (much faster)
     print("Pre-computing labels for all timestamps...")
     all_labels = {}
-    for timestamp in all_timestamps:
-        label = compute_label_for_timestamp(
-            data_window=data_window,
-            current_timestamp=timestamp,
-            labeler=labeler
-        )
-        all_labels[timestamp] = label
+    for symbol, symbol_group in data_window.groupby('symbol'):
+        for timestamp in all_timestamps:
+            label = compute_label_for_timestamp(
+                data_window=symbol_group,
+                current_timestamp=timestamp,
+                labeler=labeler
+            )
+            all_labels[(symbol, timestamp)] = label
 
     print("Starting batch processing...")
 
@@ -129,31 +131,38 @@ def create_training_dataset(
             ].copy()
 
             # Process each timestamp in the batch
-            for timestamp in batch_timestamps:
-                # Extract rolling window for this timestamp from batch data
-                window_start = timestamp - pd.Timedelta(minutes=max_lookback_minutes)
-                rolling_data = batch_data[
-                    (batch_data["ts"] > window_start) &
-                    (batch_data["ts"] <= timestamp)
-                ]
+            for symbol, symbol_group in batch_data.groupby('symbol'):
+                for timestamp in batch_timestamps:
+                    # Extract rolling window for this timestamp from batch data
+                    window_start = timestamp - pd.Timedelta(minutes=max_lookback_minutes)
+                    rolling_data = symbol_group[
+                        (symbol_group["ts"] > window_start) &
+                        (symbol_group["ts"] <= timestamp)
+                    ]
 
-                # Generate features for this timestamp
-                features = generate_features_for_timestamp_optimized(
-                    rolling_data=rolling_data,
-                    current_timestamp=timestamp,
-                    feature_pack=feature_pack
-                )
+                    if rolling_data.empty:
+                        continue
 
-                # Get pre-computed label
-                label = all_labels[timestamp]
+                    # Generate features for this timestamp
+                    features = generate_features_for_timestamp_optimized(
+                        rolling_data=rolling_data,
+                        current_timestamp=timestamp,
+                        feature_pack=feature_pack
+                    )
 
-                # Combine features and label
-                if features is not None and not features.empty:
-                    result_row = features.to_dict()
-                    result_row["ts"] = timestamp
-                    result_row["label"] = label
-                    all_results.append(result_row)
-                    processed_count += 1
+                    # Get pre-computed label
+                    label = all_labels.get((symbol, timestamp))
+                    if label is None:
+                        continue
+
+                    # Combine features and label
+                    if features is not None and not features.empty:
+                        result_row = features.to_dict()
+                        result_row["ts"] = timestamp
+                        result_row["label"] = label
+                        result_row["symbol"] = symbol
+                        all_results.append(result_row)
+                        processed_count += 1
 
         except Exception as e:
             # Log error but continue processing other batches
@@ -181,6 +190,8 @@ def create_training_dataset(
     # Convert to DataFrame
     if all_results:
         result_df = pd.DataFrame(all_results)
+        if include_ohlcv:
+            result_df = pd.merge(result_df, data_window[['ts', 'symbol', 'open', 'high', 'low', 'close', 'volume']], on=['ts', 'symbol'], how='left')
 
         # Set multi-index with symbol and timestamp
         # For now, we'll keep symbol as a column since we're processing one symbol at a time
@@ -198,10 +209,10 @@ def create_training_dataset(
 
 
 def load_data_window(
-    symbols: List[str],
+    symbols: list[str],
     start_date: str,
     end_date: str,
-    config: Optional[Dict[str, any]] = None,
+    config: dict[str, any] | None = None,
 ) -> pd.DataFrame:
     """Load continuous data block for the date range.
 
@@ -216,10 +227,10 @@ def load_data_window(
     """
     try:
         # Import here to avoid circular imports
-        from qx_data.gold_loader import load_bars
-
         # Generate date list
         from datetime import datetime, timedelta
+
+        from qx_data.gold_loader import load_bars
         start_dt = datetime.strptime(start_date, '%Y-%m-%d')
         end_dt = datetime.strptime(end_date, '%Y-%m-%d')
 

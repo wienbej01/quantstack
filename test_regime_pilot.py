@@ -8,7 +8,6 @@ import pathlib
 import sys
 import traceback
 
-import numpy as np
 import pandas as pd
 
 # Add required paths
@@ -29,11 +28,6 @@ from qx_features.core_basics import compute_all_core_features
 from qx_features.regime.features import compute_all_regime_features
 from qx_features.regime_enhanced import (
     compute_all_regime_enhanced_features,
-    compute_avwap_features,
-    compute_ict_structures,
-    compute_intraday_volume_profile,
-    compute_order_flow_vpa,
-    compute_stress_contraction,
 )
 
 
@@ -229,7 +223,7 @@ def prepare_features(df, verbose=False):
 
     # DEBUG: Add feature value checks for trade generation
     print("\n=== DEBUG: Feature Value Analysis ====")
-    valid_mask = df["f__warmup_ok"] == True
+    valid_mask = df["f__warmup_ok"]
     valid_df = df[valid_mask]
     if len(valid_df) > 0:
         print(f"Valid bars after warmup: {len(valid_df)}")
@@ -261,7 +255,7 @@ def prepare_features(df, verbose=False):
 
     # DEBUG: Add feature value checks for trade generation
     print("\n=== DEBUG: Feature Value Analysis ====")
-    valid_mask = df["f__warmup_ok"] == True
+    valid_mask = df["f__warmup_ok"]
     valid_df = df[valid_mask]
     if len(valid_df) > 0:
         print(f"Valid bars after warmup: {len(valid_df)}")
@@ -308,10 +302,7 @@ def _create_strategy_func(policy):
     return strategy_func
 
 
-import json
-import pathlib
 
-from qx_backtest.engine import BacktestResult
 
 
 def save_backtest_results(result: BacktestResult, run_id: str, runs_dir: str = "runs"):
@@ -637,7 +628,6 @@ def parse_args():
 
 def main():
     """Main pilot test function."""
-    import logging
 
     # logging.basicConfig(filename='debug.log', level=logging.DEBUG, filemode='w')
     args = parse_args()
@@ -658,7 +648,7 @@ def main():
 
     # Drop prior-session warmup seed rows before diagnostics/backtest
     if "is_warmup_seed" in df_features.columns:
-        df_features = df_features[df_features["is_warmup_seed"] == False].copy()
+        df_features = df_features[not df_features["is_warmup_seed"]].copy()
         df_features.drop(
             columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore"
         )
@@ -693,7 +683,7 @@ def main():
     if verbose:
         trending_sessions = regime_counts.get("BULL", 0) + regime_counts.get("BEAR", 0)
         total_sessions = sum(regime_counts.values())
-        print(f"\nRegime Distribution Summary (Session-based):")
+        print("\nRegime Distribution Summary (Session-based):")
         print(
             f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions/(total_sessions or 1)*100:.1f}%) - Tradeable regimes"
         )
@@ -704,7 +694,7 @@ def main():
             f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0)/(total_sessions or 1)*100:.1f}%) - No trading"
         )
         print(
-            f"\nNote: Regimes are set twice per day (AM session: 9:30-12:30 ET, PM session: 12:30-16:00 ET)"
+            "\nNote: Regimes are set twice per day (AM session: 9:30-12:30 ET, PM session: 12:30-16:00 ET)"
         )
         print(
             f"Tradeable regime sessions detected: {trending_sessions} - analyzing why no trades generated..."

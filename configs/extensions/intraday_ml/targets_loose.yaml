@@ -1,0 +1,24 @@
+# Loose target configuration for more signals
+label_type: "triclass_atr_threshold"
+
+horizons:
+  - 60 # 60 minutes
+
+atr_multiplier: 0.02 # Lower multiplier for more labels
+
+atr_window: 14
+atr_period_minutes: 1
+
+first_hit_logic:
+  enabled: true
+  stop_at_hit: true
+  min_bars_required: 1
+
+min_observations_per_horizon: 10
+max_lookback_bars: 100
+
+require_min_atr: 0.01
+exclude_flat_periods: true
+
+include_metadata: true
+validate_no_peek: true

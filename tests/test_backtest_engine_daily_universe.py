@@ -3,7 +3,6 @@
 from datetime import date
 
 import pytest
-
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 
 EXPECTED_TRADING_DAYS = 2

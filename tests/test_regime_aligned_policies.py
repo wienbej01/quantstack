@@ -404,7 +404,7 @@ def test_atr_stop_manager_integration():
     )
 
     # Trailing stop should be higher than initial stop (moved up with price)
-    assert trailing_stop is not None, f"Trailing stop should not be None when enabled"
+    assert trailing_stop is not None, "Trailing stop should not be None when enabled"
     assert (
         trailing_stop >= stop_price
     ), f"Trailing stop ({trailing_stop}) should be at least initial stop ({stop_price}) when price moves up"

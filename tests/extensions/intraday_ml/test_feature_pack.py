@@ -7,7 +7,6 @@ and validation tests for feature registry compliance.
 import numpy as np
 import pandas as pd
 import pytest
-import yaml
 
 from extensions.intraday_ml.feature_pack import IntradayMLFeaturePack
 from extensions.intraday_ml.feature_registry import IntradayMLFeatureRegistry
@@ -296,7 +295,6 @@ class TestFeatureProperties:
         """Sample data for property testing."""
         np.random.seed(42)
         dates = pd.date_range("2024-01-02 09:30:00", periods=50, freq="1min")
-        symbols = ["AAPL"]
 
         data = []
         base_price = 150.0

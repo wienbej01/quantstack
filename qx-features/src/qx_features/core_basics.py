@@ -4,7 +4,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_core.utils import utc_ns_to_datetime
 
 
@@ -24,7 +23,7 @@ def vwap_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         )
 
     results = []
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         # Ensure group is sorted by timestamp
         group = group.sort_values("ts")
 
@@ -61,7 +60,7 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         raise ValueError("DataFrame must contain 'ts', 'symbol', 'volume' columns")
 
     results = []
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         group = group.copy()
 
         # Convert nanosecond timestamps to datetime for time-of-day calculation
@@ -77,7 +76,7 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         tod_avg_vol = tod_avg_vol.replace(0, 1)
 
         # Calculate relative volume
-        rvol = volume_series / tod_avg_vol
+        rvol = group["volume"] / tod_avg_vol
 
         # Fill NaN values with 1.0 (average volume)
         rvol = np.where(np.isnan(rvol), 1.0, rvol)
@@ -108,7 +107,7 @@ def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         )
 
     results = []
-    for symbol, group in df.groupby("symbol"):
+    for _symbol, group in df.groupby("symbol"):
         # Ensure group is sorted by timestamp
         group = group.sort_values("ts")
 
@@ -170,15 +169,14 @@ def validate_feature_inputs(df: pd.DataFrame, required_cols: list) -> None:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
     # Check that DataFrame is properly sorted by symbol, ts
-    if "symbol" in df.columns and "ts" in df.columns:
-        if (
-            not df.groupby("symbol", group_keys=False)
-            .apply(lambda g: g["ts"].is_monotonic_increasing)
-            .all()
-        ):
-            raise ValueError(
-                "DataFrame must be sorted by [symbol, ts] for proper feature computation"
-            )
+    if "symbol" in df.columns and "ts" in df.columns and (
+        not df.groupby("symbol", group_keys=False)
+        .apply(lambda g: g["ts"].is_monotonic_increasing)
+        .all()
+    ):
+        raise ValueError(
+            "DataFrame must be sorted by [symbol, ts] for proper feature computation"
+        )
 
 
 def get_feature_name(feature_type: str, params: dict[str, Any]) -> str:

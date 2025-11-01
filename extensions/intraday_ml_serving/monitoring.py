@@ -1,18 +1,15 @@
 """Production monitoring for ML model deployments."""
 
-import asyncio
-import json
 import logging
-import queue
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 import numpy as np
-import pandas as pd
 
 try:
     from prometheus_client import (
@@ -80,11 +77,11 @@ class MonitoringMetrics:
     requests_per_second: float = 0.0
 
     # Model performance metrics
-    prediction_accuracy: Optional[float] = None
-    prediction_mse: Optional[float] = None
-    prediction_mae: Optional[float] = None
-    prediction_r2: Optional[float] = None
-    confidence_distribution: Dict[str, float] = field(default_factory=dict)
+    prediction_accuracy: float | None = None
+    prediction_mse: float | None = None
+    prediction_mae: float | None = None
+    prediction_r2: float | None = None
+    confidence_distribution: dict[str, float] = field(default_factory=dict)
 
     # System metrics
     cpu_usage_percent: float = 0.0
@@ -133,7 +130,7 @@ class MetricsCollector:
         self._collection_thread = None
 
         # Metrics storage
-        self.metrics_history: Dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
+        self.metrics_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
         self._metrics_lock = threading.Lock()
 
     def start_collection(self):
@@ -174,7 +171,7 @@ class MetricsCollector:
             except Exception as e:
                 self.logger.error(f"Metrics collection error: {e}")
 
-    def _collect_system_metrics(self) -> Dict[str, float]:
+    def _collect_system_metrics(self) -> dict[str, float]:
         """Collect system-level metrics."""
         try:
             import psutil
@@ -213,25 +210,24 @@ class MetricsCollector:
             self.logger.error(f"System metrics collection failed: {e}")
             return {}
 
-    def _collect_application_metrics(self) -> Dict[str, float]:
+    def _collect_application_metrics(self) -> dict[str, float]:
         """Collect application-level metrics."""
         # This would be implemented by the specific application
         # For now, return empty dict
         return {}
 
-    def _store_metrics(self, timestamp: datetime, metrics: Dict[str, float]):
+    def _store_metrics(self, timestamp: datetime, metrics: dict[str, float]):
         """Store metrics in history."""
         with self._metrics_lock:
-            metrics_with_timestamp = {**metrics, "timestamp": timestamp}
             for key, value in metrics.items():
                 self.metrics_history[key].append((timestamp, value))
 
     def get_metrics_history(
         self,
         metric_name: str,
-        start_time: Optional[datetime] = None,
-        end_time: Optional[datetime] = None,
-    ) -> List[tuple]:
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> list[tuple]:
         """Get metrics history for a specific metric."""
         with self._metrics_lock:
             history = list(self.metrics_history[metric_name])
@@ -248,7 +244,7 @@ class MetricsCollector:
 
         return history
 
-    def get_latest_metrics(self) -> Dict[str, Any]:
+    def get_latest_metrics(self) -> dict[str, Any]:
         """Get the latest metrics for all tracked metrics."""
         latest_metrics = {}
         with self._metrics_lock:
@@ -263,17 +259,17 @@ class MetricsCollector:
 class AlertManager:
     """Manages alerting based on monitoring metrics."""
 
-    def __init__(self, alert_configs: List[AlertConfig]):
+    def __init__(self, alert_configs: list[AlertConfig]):
         self.alert_configs = {config.metric_name: config for config in alert_configs}
         self.logger = logging.getLogger(__name__)
-        self._alert_states: Dict[str, Dict[str, Any]] = {}
-        self._callbacks: List[Callable] = []
+        self._alert_states: dict[str, dict[str, Any]] = {}
+        self._callbacks: list[Callable] = []
 
-    def add_alert_callback(self, callback: Callable[[str, Dict[str, Any]], None]):
+    def add_alert_callback(self, callback: Callable[[str, dict[str, Any]], None]):
         """Add callback for alert notifications."""
         self._callbacks.append(callback)
 
-    def check_alerts(self, metrics: Dict[str, float]):
+    def check_alerts(self, metrics: dict[str, float]):
         """Check if any alerts should be triggered."""
         timestamp = datetime.now()
 
@@ -315,11 +311,9 @@ class AlertManager:
                 and state["first_breached"]
                 and (timestamp - state["first_breached"])
                 >= timedelta(minutes=config.duration_minutes)
-            ):
-
-                if state["notifications_sent"] == 0:  # Only send once per breach
-                    self._send_alert(metric_name, current_value, config, timestamp)
-                    state["notifications_sent"] = 1
+            ) and state["notifications_sent"] == 0:  # Only send once per breach
+                self._send_alert(metric_name, current_value, config, timestamp)
+                state["notifications_sent"] = 1
 
     def _check_threshold(self, value: float, threshold: float, operator: str) -> bool:
         """Check if value breaches threshold."""
@@ -361,8 +355,8 @@ class PerformanceMonitor:
 
     def __init__(
         self,
-        model_registry: Optional[MLModelRegistry] = None,
-        inference_engine: Optional[InferenceEngine] = None,
+        model_registry: MLModelRegistry | None = None,
+        inference_engine: InferenceEngine | None = None,
         window_size_minutes: int = 60,
     ):
         self.model_registry = model_registry or MLModelRegistry()
@@ -372,19 +366,19 @@ class PerformanceMonitor:
         self.logger = logging.getLogger(__name__)
 
         # Performance data storage
-        self.predictions_buffer: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-        self.performance_metrics: Dict[str, MonitoringMetrics] = {}
+        self.predictions_buffer: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        self.performance_metrics: dict[str, MonitoringMetrics] = {}
 
     def record_prediction(
         self,
         model_id: str,
         deployment_id: str,
         prediction: float,
-        confidence: Optional[float],
-        features: Dict[str, float],
-        actual: Optional[float] = None,
+        confidence: float | None,
+        features: dict[str, float],
+        actual: float | None = None,
         latency_ms: float = 0.0,
-        timestamp: Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ):
         """Record a prediction for performance monitoring."""
         if timestamp is None:
@@ -408,7 +402,7 @@ class PerformanceMonitor:
         self._update_performance_metrics(model_id, deployment_id)
 
     def record_actual(
-        self, model_id: str, actual: float, timestamp: Optional[datetime] = None
+        self, model_id: str, actual: float, timestamp: datetime | None = None
     ):
         """Record actual value for a previous prediction."""
         if timestamp is None:
@@ -513,15 +507,15 @@ class PerformanceMonitor:
 
         self.performance_metrics[model_id] = metrics
 
-    def get_performance_metrics(self, model_id: str) -> Optional[MonitoringMetrics]:
+    def get_performance_metrics(self, model_id: str) -> MonitoringMetrics | None:
         """Get performance metrics for a model."""
         return self.performance_metrics.get(model_id)
 
-    def get_all_performance_metrics(self) -> Dict[str, MonitoringMetrics]:
+    def get_all_performance_metrics(self) -> dict[str, MonitoringMetrics]:
         """Get performance metrics for all models."""
         return self.performance_metrics.copy()
 
-    def calculate_drift_metrics(self, model_id: str) -> Dict[str, float]:
+    def calculate_drift_metrics(self, model_id: str) -> dict[str, float]:
         """Calculate drift metrics for a model."""
         predictions = self.predictions_buffer[model_id]
         if len(predictions) < 100:
@@ -562,8 +556,8 @@ class ProductionMonitor:
 
     def __init__(
         self,
-        model_registry: Optional[MLModelRegistry] = None,
-        inference_engine: Optional[InferenceEngine] = None,
+        model_registry: MLModelRegistry | None = None,
+        inference_engine: InferenceEngine | None = None,
         metrics_port: int = 8001,
         enable_prometheus: bool = True,
     ):
@@ -588,7 +582,7 @@ class ProductionMonitor:
         self._monitoring_active = False
         self._monitoring_thread = None
 
-    def _create_default_alert_configs(self) -> List[AlertConfig]:
+    def _create_default_alert_configs(self) -> list[AlertConfig]:
         """Create default alert configurations."""
         return [
             AlertConfig(
@@ -736,7 +730,7 @@ class ProductionMonitor:
         except Exception as e:
             self.logger.error(f"Prometheus metrics update failed: {e}")
 
-    def _handle_alert(self, metric_name: str, alert_data: Dict[str, Any]):
+    def _handle_alert(self, metric_name: str, alert_data: dict[str, Any]):
         """Handle alert notifications."""
         self.logger.warning(f"ALERT: {alert_data['message']}")
 
@@ -751,9 +745,9 @@ class ProductionMonitor:
         model_id: str,
         deployment_id: str,
         prediction: float,
-        confidence: Optional[float],
-        features: Dict[str, float],
-        actual: Optional[float] = None,
+        confidence: float | None,
+        features: dict[str, float],
+        actual: float | None = None,
         latency_ms: float = 0.0,
     ):
         """Record inference for monitoring."""
@@ -775,7 +769,7 @@ class ProductionMonitor:
                 latency_ms / 1000.0
             )
 
-    def get_monitoring_dashboard_data(self) -> Dict[str, Any]:
+    def get_monitoring_dashboard_data(self) -> dict[str, Any]:
         """Get data for monitoring dashboard."""
         return {
             "system_metrics": self.metrics_collector.get_latest_metrics(),

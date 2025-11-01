@@ -2,20 +2,19 @@
 
 import hashlib
 import json
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe, hash_sip_map
 
 
 def compute_input_checksums(
     bars_df: pd.DataFrame,
     features_df: pd.DataFrame,
-    config: Dict[str, Any],
-    sip_map: Dict[int, set] | None = None,
+    config: dict[str, Any],
+    sip_map: dict[int, set] | None = None,
     seed: int = 42,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Compute comprehensive input checksums for experiment reproducibility."""
     checksums = {}
 
@@ -57,7 +56,7 @@ def compute_input_checksums(
 
 
 def validate_checksum_consistency(
-    expected: Dict[str, str], actual: Dict[str, str]
+    expected: dict[str, str], actual: dict[str, str]
 ) -> list[str]:
     """Validate that checksums are consistent between expected and actual."""
     mismatches = []
@@ -74,7 +73,7 @@ def compute_data_hash(data: pd.DataFrame) -> str:
     return hash_dataframe(data, cols=data.columns.tolist())
 
 
-def compute_config_hash(config: Dict[str, Any]) -> str:
+def compute_config_hash(config: dict[str, Any]) -> str:
     """Compute hash of configuration dictionary."""
     config_str = json.dumps(config, sort_keys=True, default=str)
     return hashlib.blake2b(config_str.encode(), digest_size=32).hexdigest()

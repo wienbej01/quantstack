@@ -2,17 +2,19 @@
 """
 Test the logical flow of the OOS backtest script without running slow functions.
 """
-import pytest
-from unittest.mock import patch, MagicMock
-import pandas as pd
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import pandas as pd
+import pytest
 
 # Add project root to path to allow importing run_oos_backtest
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Now we can import the script we want to test
 import run_oos_backtest
+
 
 @pytest.fixture
 def mock_dependencies():

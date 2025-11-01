@@ -1,7 +1,6 @@
 # tests/test_hmm_sip_daily_config.py
 import pytest
 from pydantic import ValidationError
-
 from qx_screener.hmm_sip import HMMSIPConfig
 
 

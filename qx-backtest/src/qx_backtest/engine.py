@@ -461,7 +461,9 @@ class BacktestEngine:
         trading_days = set()
         for bar in bars:
             ts = bar["ts"]
-            if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+            ts_val = ts.value if isinstance(ts, pd.Timestamp) else ts
+
+            if ts_val > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
                 bar_date = pd.to_datetime(ts, unit="ns").date()
             else:  # Millisecond timestamp - convert to nanoseconds first
                 bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()
@@ -486,7 +488,9 @@ class BacktestEngine:
         """Check if we need to update universe for this bar's date."""
         # Handle both nanosecond timestamps and millisecond timestamps
         ts = bar["ts"]
-        if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+        ts_val = ts.value if isinstance(ts, pd.Timestamp) else ts
+
+        if ts_val > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
             bar_date = pd.to_datetime(ts, unit="ns").date()
         else:  # Millisecond timestamp - convert to nanoseconds first
             bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()
@@ -515,7 +519,9 @@ class BacktestEngine:
 
         # Handle both nanosecond timestamps and millisecond timestamps
         ts = bar["ts"]
-        if ts > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
+        ts_val = ts.value if isinstance(ts, pd.Timestamp) else ts
+
+        if ts_val > NANOSECOND_THRESHOLD:  # Likely nanosecond timestamp
             bar_date = pd.to_datetime(ts, unit="ns").date()
         else:  # Millisecond timestamp - convert to nanoseconds first
             bar_date = pd.to_datetime(ts * 1_000_000, unit="ns").date()

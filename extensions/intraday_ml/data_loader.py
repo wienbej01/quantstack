@@ -4,10 +4,8 @@ This module wraps existing qx-data functionality while providing
 Sprint 2 interface for loading and normalizing market data.
 """
 
-from typing import Any, Optional
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
 from qx_data.gold_loader import load_bars
 

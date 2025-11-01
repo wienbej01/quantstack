@@ -1,16 +1,13 @@
 """Unit tests for intraday ML CLI interface."""
 
-import json
 import pathlib
 import tempfile
 from unittest.mock import Mock, patch
 
 import pytest
-import typer
-import yaml
 from typer.testing import CliRunner
 
-from extensions.intraday_ml.cli import app, main
+from extensions.intraday_ml.cli import app
 
 
 class TestCLIInterface:

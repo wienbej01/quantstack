@@ -2,20 +2,23 @@
 """
 Test and benchmark the production (vectorized) feature pack.
 """
-import pytest
-import time
-import pandas as pd
-import yaml
-from pathlib import Path
 import sys
+import time
+from pathlib import Path
+
+import pandas as pd
+import pytest
+import yaml
 
 # Add project paths
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "qx-data" / "src"))
 
 # Import the production feature pack
-from extensions.intraday_ml.feature_pack import IntradayMLFeaturePack
 from qx_data.gold_loader import load_bars
+
+from extensions.intraday_ml.feature_pack import IntradayMLFeaturePack
+
 
 @pytest.fixture(scope="module")
 def test_data():
@@ -35,7 +38,7 @@ def test_data():
 def feature_config():
     """Load the feature configuration."""
     config_path = Path("configs/extensions/intraday_ml/features.yaml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         return yaml.safe_load(f)
 
 def test_feature_pack_execution(test_data, feature_config):

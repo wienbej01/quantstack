@@ -9,9 +9,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from extensions.intraday_ml_features.pipeline import FeaturePipeline
@@ -48,7 +47,7 @@ class PolicyDecision:
     confidence: float  # 0.0 to 1.0
     signal_strength: float  # -1.0 to 1.0
     timestamp: datetime = field(default_factory=datetime.now)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def is_buy_signal(self) -> bool:
         """Check if decision is a buy signal."""
@@ -74,7 +73,7 @@ class PolicyMetrics:
     avg_confidence: float = 0.0
     avg_signal_strength: float = 0.0
     decision_frequency: float = 0.0  # decisions per hour
-    last_updated: Optional[datetime] = None
+    last_updated: datetime | None = None
 
     def update(self, decision: PolicyDecision) -> None:
         """Update metrics with new decision."""
@@ -113,9 +112,9 @@ class BaseMLPolicy(ABC):
     def __init__(
         self,
         model_id: str,
-        registry: Optional[MLModelRegistry] = None,
-        feature_pipeline: Optional[FeaturePipeline] = None,
-        config: Optional[Dict[str, Any]] = None,
+        registry: MLModelRegistry | None = None,
+        feature_pipeline: FeaturePipeline | None = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize ML policy.
@@ -138,9 +137,9 @@ class BaseMLPolicy(ABC):
         self.metrics = PolicyMetrics()
 
         # State management
-        self.last_decision_time: Optional[datetime] = None
-        self.position_state: Dict[str, float] = {}  # symbol -> position_size
-        self.signal_history: List[PolicyDecision] = []
+        self.last_decision_time: datetime | None = None
+        self.position_state: dict[str, float] = {}  # symbol -> position_size
+        self.signal_history: list[PolicyDecision] = []
 
         # Configuration parameters
         self.min_confidence_threshold = self.config.get("min_confidence_threshold", 0.6)
@@ -156,7 +155,7 @@ class BaseMLPolicy(ABC):
     @abstractmethod
     def generate_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -195,7 +194,7 @@ class BaseMLPolicy(ABC):
         """
         pass
 
-    def decide(self, bar: pd.Series, portfolio: Dict[str, Any]) -> Dict[str, Any]:
+    def decide(self, bar: pd.Series, portfolio: dict[str, Any]) -> dict[str, Any]:
         """
         Make trading decision for current bar.
 
@@ -297,8 +296,8 @@ class BaseMLPolicy(ABC):
         self.last_decision_time = None
 
     def _extract_features(
-        self, bar: pd.Series, portfolio: Dict[str, Any]
-    ) -> Optional[Dict[str, float]]:
+        self, bar: pd.Series, portfolio: dict[str, Any]
+    ) -> dict[str, float] | None:
         """Extract features from bar and portfolio data."""
         try:
             # Basic features from bar data
@@ -337,7 +336,7 @@ class BaseMLPolicy(ABC):
             return None
 
     def _get_market_data_context(
-        self, bar: pd.Series, portfolio: Dict[str, Any]
+        self, bar: pd.Series, portfolio: dict[str, Any]
     ) -> pd.DataFrame:
         """Get market data context for decision making."""
         # This is a simplified implementation
@@ -357,7 +356,7 @@ class BaseMLPolicy(ABC):
     def _apply_risk_adjustments(
         self,
         signal_strength: float,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> float:
@@ -379,7 +378,7 @@ class BaseMLPolicy(ABC):
         return max(-1.0, min(1.0, signal_strength))
 
     def _adjust_confidence(
-        self, confidence: float, features: Dict[str, float], market_data: pd.DataFrame
+        self, confidence: float, features: dict[str, float], market_data: pd.DataFrame
     ) -> float:
         """Adjust confidence based on market conditions."""
         # Reduce confidence in high volatility
@@ -407,7 +406,7 @@ class BaseMLPolicy(ABC):
         signal: PolicySignal,
         signal_strength: float,
         confidence: float,
-        features: Dict[str, float],
+        features: dict[str, float],
     ) -> PolicyDecision:
         """Create policy decision from signal and analysis."""
         # Convert signal to action
@@ -447,11 +446,11 @@ class BaseMLPolicy(ABC):
         return True
 
     def _create_order(
-        self, decision: PolicyDecision, bar: pd.Series, portfolio: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, decision: PolicyDecision, bar: pd.Series, portfolio: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create order from policy decision."""
         symbol = bar.get("symbol", "default")
-        current_position = self.position_state.get(symbol, 0.0)
+        self.position_state.get(symbol, 0.0)
 
         # Calculate position size
         volatility = float(bar.get("atr_pct", 0.01))  # Default 1% volatility
@@ -479,10 +478,10 @@ class BaseMLPolicy(ABC):
 
         return order
 
-    def get_signal_history(self, limit: int = 100) -> List[PolicyDecision]:
+    def get_signal_history(self, limit: int = 100) -> list[PolicyDecision]:
         """Get recent signal history."""
         return self.signal_history[-limit:] if self.signal_history else []
 
-    def get_position_state(self) -> Dict[str, float]:
+    def get_position_state(self) -> dict[str, float]:
         """Get current position state."""
         return self.position_state.copy()

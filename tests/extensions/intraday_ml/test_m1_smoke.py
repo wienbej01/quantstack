@@ -24,7 +24,7 @@ def test_universe_config_loading():
 
     assert config_path.exists(), "universe.yaml should exist"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Validate required fields
@@ -44,7 +44,7 @@ def test_cuts_config_loading():
 
     assert config_path.exists(), "cuts.yaml should exist"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Validate required fields
@@ -63,7 +63,7 @@ def test_splits_config_loading():
 
     assert config_path.exists(), "splits.yaml should exist"
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Validate required fields
@@ -83,7 +83,7 @@ def test_universe_adapter_initialization():
     """Test that universe adapter initializes with correct config."""
     config_path = Path("configs/extensions/intraday_ml/universe.yaml")
 
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     adapter = IntradayMLUniverseAdapter(config)
@@ -98,11 +98,11 @@ def test_universe_adapter_initialization():
 def test_dataset_manifest_builder_initialization(mock_load_bars):
     """Test that dataset manifest builder initializes correctly."""
     # Load configs
-    with open("configs/extensions/intraday_ml/universe.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/universe.yaml") as f:
         universe_config = yaml.safe_load(f)
-    with open("configs/extensions/intraday_ml/cuts.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/cuts.yaml") as f:
         cuts_config = yaml.safe_load(f)
-    with open("configs/extensions/intraday_ml/splits.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/splits.yaml") as f:
         splits_config = yaml.safe_load(f)
 
     builder = DatasetManifestBuilder(
@@ -121,13 +121,13 @@ def test_dataset_manifest_builder_initialization(mock_load_bars):
 
 def test_date_range_generation():
     """Test that date ranges generate correctly from config."""
-    with open("configs/extensions/intraday_ml/splits.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/splits.yaml") as f:
         splits_config = yaml.safe_load(f)
 
-    with open("configs/extensions/intraday_ml/universe.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/universe.yaml") as f:
         universe_config = yaml.safe_load(f)
 
-    with open("configs/extensions/intraday_ml/cuts.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/cuts.yaml") as f:
         cuts_config = yaml.safe_load(f)
 
     builder = DatasetManifestBuilder(
@@ -161,11 +161,11 @@ def test_smoke_build_pilot_symbols():
     It mocks the universe building to focus on manifest creation logic.
     """
     # Load configs
-    with open("configs/extensions/intraday_ml/universe.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/universe.yaml") as f:
         universe_config = yaml.safe_load(f)
-    with open("configs/extensions/intraday_ml/cuts.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/cuts.yaml") as f:
         cuts_config = yaml.safe_load(f)
-    with open("configs/extensions/intraday_ml/splits.yaml", "r") as f:
+    with open("configs/extensions/intraday_ml/splits.yaml") as f:
         splits_config = yaml.safe_load(f)
 
     # Mock data loading to simulate pilot universe
@@ -231,7 +231,7 @@ def test_smoke_build_pilot_symbols():
             assert manifest_path.exists()
 
             # Validate manifest JSON structure
-            with open(manifest_path, "r") as f:
+            with open(manifest_path) as f:
                 saved_manifest = json.load(f)
 
             assert "symbols" in saved_manifest

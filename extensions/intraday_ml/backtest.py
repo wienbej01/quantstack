@@ -10,7 +10,6 @@ from typing import Any
 
 import pandas as pd
 import yaml
-
 from qx_core.hashers import hash_dataframe
 
 
@@ -140,7 +139,7 @@ def _load_and_merge_config(
     if config_path:
         config_file = Path(config_path)
         if config_file.exists():
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 file_config = yaml.safe_load(f)
             default_config.update(file_config)
 
@@ -265,25 +264,29 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
         if orders.empty:
             return
 
-        # Get current bar timestamp
+        # Get current bar timestamp and symbol
         current_ts = bar_dict.get("ts")
-        if current_ts is None:
+        symbol = bar_dict.get("symbol")
+        if current_ts is None or symbol is None:
             return
 
-        # Find orders matching current timestamp
-        matching_orders = orders[orders["ts"] == current_ts]
+        # Single position guard
+        if engine.get_position(symbol):
+            return
+
+        # Find orders matching current timestamp and symbol
+        matching_orders = orders[(orders["ts"] == current_ts) & (orders["symbol"] == symbol)]
 
         # Submit matching orders to engine
-        import uuid
 
-        from qx_backtest.order import Order, OrderSide, OrderStatus, OrderType
+        from qx_backtest.order import Order, OrderSide, OrderType
 
         for idx, (_, order) in enumerate(matching_orders.iterrows()):
             # Convert order to engine format and submit
             order_id = f"ml_order_{current_ts}_{idx}"
 
             # Determine order side - handle both LONG and SHORT
-            side = OrderSide.BUY if order["side"] == "buy" else OrderSide.SELL
+            side = OrderSide.BUY if order["side"].lower() == "long" else OrderSide.SELL
 
             # Create order with proper risk management
             order_obj = Order(
@@ -295,23 +298,26 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
                 timestamp=current_ts,
             )
 
+            # Get current close price from bar_dict
+            current_close = bar_dict.get("close")
+            if current_close is None:
+                continue # Should not happen if bar_dict is valid
+
             # Add stop-loss and take-profit if available
-            if "stop_loss_pct" in order:
+            if "stop_loss_pct" in order and pd.notna(order["stop_loss_pct"]):
                 # Calculate stop loss price based on order side
                 if side == OrderSide.BUY:  # LONG position
-                    stop_loss_price = order["close"] * (1 - order["stop_loss_pct"])
+                    stop_loss_price = current_close * (1 - order["stop_loss_pct"])
                 else:  # SHORT position
-                    stop_loss_price = order["close"] * (1 + order["stop_loss_pct"])
-
+                    stop_loss_price = current_close * (1 + order["stop_loss_pct"])
                 order_obj.stop_loss = stop_loss_price
 
-            if "take_profit_pct" in order:
+            if "take_profit_pct" in order and pd.notna(order["take_profit_pct"]):
                 # Calculate take profit price based on order side
                 if side == OrderSide.BUY:  # LONG position
-                    take_profit_price = order["close"] * (1 + order["take_profit_pct"])
+                    take_profit_price = current_close * (1 + order["take_profit_pct"])
                 else:  # SHORT position
-                    take_profit_price = order["close"] * (1 - order["take_profit_pct"])
-
+                    take_profit_price = current_close * (1 - order["take_profit_pct"])
                 order_obj.take_profit = take_profit_price
 
             engine.submit_order(order_obj)
@@ -505,6 +511,8 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
         "total_pnl": 0.0,
         "win_rate": 0.0,
         "trades": 0,  # For backward compatibility
+        "trades_per_day": 0.0,
+        "avg_trade_duration_minutes": 0.0,
     }
 
     # Calculate from trades if available
@@ -512,57 +520,67 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
         trades_df = artifacts["trades"]
 
         # Count unique completed trades (pairs of entry/exit)
-        # Each complete trade should have both entry and exit
-        trade_count = len(trades_df) // 2  # Assuming 2 legs per complete trade
+        if "order_id" in trades_df.columns:
+            trade_count = trades_df["order_id"].nunique()
+        else:
+            trade_count = len(trades_df) // 2
+            
         metrics["total_trades"] = trade_count
         metrics["trades"] = trade_count  # Backward compatibility
 
         # Calculate P&L from total_cost if available
         if "total_cost" in trades_df.columns:
-            # For short positions, negative total_cost represents profit
-            # For long positions, positive total_cost represents investment
-            metrics["total_pnl"] = -trades_df[
-                "total_cost"
-            ].sum()  # Negative because cost is cash outflow
+            total_pnl = 0
+            if "order_id" in trades_df.columns:
+                for order_id in trades_df["order_id"].unique():
+                    trade_group = trades_df[trades_df["order_id"] == order_id]
+                    if len(trade_group) == 2:
+                         total_pnl -= trade_group["total_cost"].sum()
+            else:
+                total_pnl = -trades_df["total_cost"].sum()
+            metrics["total_pnl"] = total_pnl
 
         # Calculate from commission if available (proxy for trading activity)
         if "commission" in trades_df.columns:
             metrics["fees_total"] = trades_df["commission"].sum()
 
         # Calculate win rate based on direction and P&L - group by symbol to count complete trades
-        if "side" in trades_df.columns and "total_cost" in trades_df.columns:
+        if "side" in trades_df.columns and "total_cost" in trades_df.columns and "order_id" in trades_df.columns:
             wins = 0
-            # Group trades by symbol and count complete round-trips
-            for symbol in trades_df["symbol"].unique():
-                symbol_trades = trades_df[trades_df["symbol"] == symbol].sort_values(
-                    "timestamp"
-                )
-
-                # Calculate P&L for each complete trade (entry+exit pair)
-                i = 0
-                while i < len(symbol_trades):
-                    if i + 1 < len(symbol_trades):
-                        entry_trade = symbol_trades.iloc[i]
-                        exit_trade = symbol_trades.iloc[i + 1]
-
-                        # Calculate P&L for this complete trade
-                        if entry_trade["side"] == "SELL":  # Short position
-                            pnl = -(
-                                entry_trade["total_cost"] + exit_trade["total_cost"]
-                            )
-                        else:  # LONG position
-                            pnl = entry_trade["total_cost"] + exit_trade["total_cost"]
-
-                        if pnl > 0:
-                            wins += 1
-
-                    i += 2  # Move to next trade pair
-
+            for order_id in trades_df["order_id"].unique():
+                trade_group = trades_df[trades_df["order_id"] == order_id]
+                if len(trade_group) == 2:
+                    pnl = -trade_group["total_cost"].sum()
+                    if pnl > 0:
+                        wins += 1
             metrics["win_rate"] = wins / trade_count if trade_count > 0 else 0.0
 
         # Calculate average return per trade
-        if metrics["total_pnl"] != 0:
+        if metrics["total_pnl"] != 0 and trade_count > 0:
             metrics["avg_R"] = metrics["total_pnl"] / trade_count
+
+        # Calculate trades per day
+        if "trades" in artifacts and not artifacts["trades"].empty:
+            trades_df = artifacts["trades"]
+            if "timestamp" in trades_df.columns:
+                trades_df["date"] = pd.to_datetime(trades_df["timestamp"], unit="ns").dt.date
+                num_trading_days = trades_df["date"].nunique()
+                if num_trading_days > 0:
+                    metrics["trades_per_day"] = trade_count / num_trading_days
+
+        # Calculate average trade duration
+        if "trades" in artifacts and not artifacts["trades"].empty:
+            trades_df = artifacts["trades"]
+            if "order_id" in trades_df.columns and "timestamp" in trades_df.columns:
+                durations = []
+                for order_id in trades_df["order_id"].unique():
+                    trade_group = trades_df[trades_df["order_id"] == order_id]
+                    if len(trade_group) == 2:
+                        duration = trade_group["timestamp"].max() - trade_group["timestamp"].min()
+                        durations.append(duration.total_seconds() / 60)
+                if durations:
+                    metrics["avg_trade_duration_minutes"] = sum(durations) / len(durations)
+
 
     # Calculate fees from fills if available
     if "fills" in artifacts and not artifacts["fills"].empty:
@@ -573,20 +591,20 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
     return metrics
 
 
-def _write_artifacts(artifacts: dict[str, Any], config: dict[str, Any]) -> None:
-    """Write artifacts to files."""
-    artifacts_dir = Path(config["artifacts_dir"])
+def _write_artifacts(artifacts: dict[str, Any], config: dict[str, Any]):
+    """Write backtest artifacts to disk."""
+    artifacts_dir = Path(config["artifacts_path"])
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write parquet files
     for name, df in artifacts.items():
-        if isinstance(df, pd.DataFrame) and not df.empty:
-            df.to_parquet(artifacts_dir / f"{name}.parquet", index=False)
-
-    # Write metrics as JSON
-    if "metrics" in artifacts:
-        with open(artifacts_dir / "metrics.json", "w") as f:
-            json.dump(artifacts["metrics"], f, indent=2, default=str)
+        if isinstance(df, pd.DataFrame):
+            if not df.empty:
+                if 'tags' in df.columns:
+                    df['tags'] = df['tags'].astype(str)
+                df.to_parquet(artifacts_dir / f"{name}.parquet", index=False)
+        elif isinstance(df, dict):
+            with open(artifacts_dir / f"{name}.json", "w") as f:
+                json.dump(df, f, indent=4)
 
 
 # Import hash function

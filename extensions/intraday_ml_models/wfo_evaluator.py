@@ -8,7 +8,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -29,8 +29,8 @@ class WFOPeriod:
     validation_end: datetime
     oos_start: datetime
     oos_end: datetime
-    train_symbols: List[str]
-    oos_symbols: List[str]
+    train_symbols: list[str]
+    oos_symbols: list[str]
     train_size: int
     oos_size: int
 
@@ -41,9 +41,9 @@ class WFOPeriodResults:
 
     period: WFOPeriod
     training_result: TrainingResult
-    cv_results: Dict[str, Any]  # Cross-validation results
+    cv_results: dict[str, Any]  # Cross-validation results
     oos_predictions: pd.DataFrame
-    oos_metrics: Dict[str, Any]
+    oos_metrics: dict[str, Any]
     model_path: str
     model_card_path: str
     training_time_seconds: float
@@ -54,22 +54,22 @@ class WFOPeriodResults:
 class WFOAggregatedResults:
     """Aggregated results across all WFO periods."""
 
-    wfo_config: Dict[str, Any]
-    periods: List[WFOPeriod]
-    period_results: List[WFOPeriodResults]
-    overall_metrics: Dict[str, Any]
-    temporal_stability: Dict[str, Any]
-    regime_analysis: Dict[str, Any]
-    model_evolution: Dict[str, Any]
-    kpi_summary: Dict[str, Any]
+    wfo_config: dict[str, Any]
+    periods: list[WFOPeriod]
+    period_results: list[WFOPeriodResults]
+    overall_metrics: dict[str, Any]
+    temporal_stability: dict[str, Any]
+    regime_analysis: dict[str, Any]
+    model_evolution: dict[str, Any]
+    kpi_summary: dict[str, Any]
     total_time_seconds: float
-    reproducibility_info: Dict[str, Any]
+    reproducibility_info: dict[str, Any]
 
 
 class WalkForwardEvaluator:
     """Evaluates models using walk-forward optimization with comprehensive KPI tracking."""
 
-    def __init__(self, wfo_config: Dict[str, Any], model_dir: Path):
+    def __init__(self, wfo_config: dict[str, Any], model_dir: Path):
         """Initialize WFO evaluator.
 
         Args:
@@ -100,7 +100,7 @@ class WalkForwardEvaluator:
         # KPI tracking
         self.kpi_config = wfo_config.get("kpi_tracking", {})
 
-    def create_wfo_periods(self, data: pd.DataFrame) -> List[WFOPeriod]:
+    def create_wfo_periods(self, data: pd.DataFrame) -> list[WFOPeriod]:
         """Create walk-forward optimization periods.
 
         Args:
@@ -235,8 +235,8 @@ class WalkForwardEvaluator:
         return periods
 
     def _find_date_index(
-        self, dates: List[pd.Timestamp], target_date: pd.Timestamp, start_idx: int
-    ) -> Optional[int]:
+        self, dates: list[pd.Timestamp], target_date: pd.Timestamp, start_idx: int
+    ) -> int | None:
         """Find the index of the closest date to target."""
         for i in range(start_idx, len(dates)):
             if dates[i] >= target_date:
@@ -247,8 +247,8 @@ class WalkForwardEvaluator:
         self,
         features: pd.DataFrame,
         labels: pd.Series,
-        model_config: Dict[str, Any],
-        cv_config: Dict[str, Any],
+        model_config: dict[str, Any],
+        cv_config: dict[str, Any],
     ) -> WFOAggregatedResults:
         """Run complete walk-forward evaluation.
 
@@ -277,7 +277,7 @@ class WalkForwardEvaluator:
 
         # Run each period
         period_results = []
-        for i, period in enumerate(periods):
+        for _i, period in enumerate(periods):
             print(f"\nRunning WFO period {period.period_id}/{len(periods)}")
             print(f"Training: {period.train_start.date()} to {period.train_end.date()}")
             print(f"OOS: {period.oos_start.date()} to {period.oos_end.date()}")
@@ -336,8 +336,8 @@ class WalkForwardEvaluator:
         self,
         period: WFOPeriod,
         combined_data: pd.DataFrame,
-        model_config: Dict[str, Any],
-        cv_config: Dict[str, Any],
+        model_config: dict[str, Any],
+        cv_config: dict[str, Any],
     ) -> WFOPeriodResults:
         """Run a single WFO period."""
         period_start_time = datetime.now()
@@ -435,7 +435,7 @@ class WalkForwardEvaluator:
 
     def _calculate_oos_metrics(
         self, predictions: pd.DataFrame, true_labels: pd.Series
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Calculate out-of-sample metrics."""
         from sklearn.metrics import (
             accuracy_score,
@@ -476,8 +476,8 @@ class WalkForwardEvaluator:
         }
 
     def _calculate_overall_metrics(
-        self, period_results: List[WFOPeriodResults]
-    ) -> Dict[str, Any]:
+        self, period_results: list[WFOPeriodResults]
+    ) -> dict[str, Any]:
         """Calculate overall metrics across all periods."""
         metric_names = [
             "accuracy",
@@ -508,8 +508,8 @@ class WalkForwardEvaluator:
         return overall
 
     def _analyze_temporal_stability(
-        self, period_results: List[WFOPeriodResults]
-    ) -> Dict[str, Any]:
+        self, period_results: list[WFOPeriodResults]
+    ) -> dict[str, Any]:
         """Analyze temporal stability of performance."""
         # Extract metrics over time
         periods = [r.period.period_id for r in period_results]
@@ -538,8 +538,8 @@ class WalkForwardEvaluator:
         }
 
     def _analyze_regime_performance(
-        self, period_results: List[WFOPeriodResults]
-    ) -> Dict[str, Any]:
+        self, period_results: list[WFOPeriodResults]
+    ) -> dict[str, Any]:
         """Analyze performance across different market regimes."""
         # Simplified regime analysis - in practice would use market regime indicators
         performance_by_quarter = {}
@@ -574,8 +574,8 @@ class WalkForwardEvaluator:
         }
 
     def _analyze_model_evolution(
-        self, period_results: List[WFOPeriodResults]
-    ) -> Dict[str, Any]:
+        self, period_results: list[WFOPeriodResults]
+    ) -> dict[str, Any]:
         """Analyze evolution of model parameters over time."""
         # Extract feature importance trends
         all_features = set()
@@ -606,8 +606,8 @@ class WalkForwardEvaluator:
         }
 
     def _calculate_kpi_summary(
-        self, period_results: List[WFOPeriodResults]
-    ) -> Dict[str, Any]:
+        self, period_results: list[WFOPeriodResults]
+    ) -> dict[str, Any]:
         """Calculate comprehensive KPI summary."""
         # Performance KPIs
         avg_f1 = np.mean([r.oos_metrics.get("f1_macro", 0) for r in period_results])
@@ -664,7 +664,7 @@ class WalkForwardEvaluator:
         """Compute hash of data for reproducibility."""
         return str(hash(pd.util.hash_pandas_object(data.head(1000)).sum()))
 
-    def _compute_config_hash(self, model_config: Dict, cv_config: Dict) -> str:
+    def _compute_config_hash(self, model_config: dict, cv_config: dict) -> str:
         """Compute hash of configurations."""
         config_str = json.dumps({**model_config, **cv_config}, sort_keys=True)
         return str(hash(config_str))
@@ -706,9 +706,9 @@ class WalkForwardEvaluator:
 def run_walk_forward_optimization(
     features: pd.DataFrame,
     labels: pd.Series,
-    model_config: Dict[str, Any],
-    cv_config: Dict[str, Any],
-    wfo_config: Dict[str, Any],
+    model_config: dict[str, Any],
+    cv_config: dict[str, Any],
+    wfo_config: dict[str, Any],
     model_dir: Path,
 ) -> WFOAggregatedResults:
     """Convenience function for walk-forward optimization.

@@ -1,7 +1,5 @@
 """Tests for advanced feature engineering functionality."""
 
-from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 
 import numpy as np
 import pandas as pd
@@ -54,9 +52,9 @@ class TestFeaturePipeline:
     def test_pipeline_initialization(self):
         """Test pipeline initialization."""
         assert self.pipeline.scalers == {}
-        assert self.pipeline.pca == None
-        assert self.pipeline.feature_selector == None
-        assert self.pipeline.fitted == False
+        assert self.pipeline.pca is None
+        assert self.pipeline.feature_selector is None
+        assert not self.pipeline.fitted
 
     def test_add_scaling_step(self):
         """Test adding scaling step to pipeline."""

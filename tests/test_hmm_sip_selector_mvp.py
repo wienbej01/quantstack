@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
-
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
 
@@ -108,7 +107,7 @@ def test_hmm_sip_selector_with_external_file():
 
     # Create temporary external file
     with tempfile.TemporaryDirectory() as temp_dir:
-        external_path = create_external_premarket_file(temp_dir, "2024-01-03")
+        create_external_premarket_file(temp_dir, "2024-01-03")
 
         # Configure selector
         config = HMMSIPConfig(
@@ -249,7 +248,7 @@ def test_hmm_sip_selector_rth_filtering():
 
     # All timestamps should be RTH (9:30 AM - 4:00 PM ET)
     # Convert to ET to verify
-    bars_et = pd.DataFrame([{"ts": ts} for ts in universe_map.keys()])
+    bars_et = pd.DataFrame([{"ts": ts} for ts in universe_map])
     bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(
         "America/New_York"
     )
@@ -295,7 +294,7 @@ def test_hmm_sip_config_defaults():
 
     assert config.top_k == 40
     assert config.score_floor == 0.0
-    assert config.enable_gold_fallback == True
+    assert config.enable_gold_fallback
     assert config.p_hat_threshold is None
     assert config.min_minutes_in_state == 0
     assert "hybrid-local" in config.external_premarket_root

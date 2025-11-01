@@ -4,9 +4,8 @@ Tests for the main data preparation function that creates aligned feature-label
 pairs using the sliding window approach with strict no-lookahead bias.
 """
 
-from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -14,8 +13,6 @@ import pytest
 import yaml
 
 from extensions.intraday_ml.data_prep import create_training_dataset
-from extensions.intraday_ml.feature_pack import IntradayMLFeaturePack
-from extensions.intraday_ml.labeling import IntradayMLLabeler
 
 
 class TestCreateTrainingDataset:
@@ -25,14 +22,14 @@ class TestCreateTrainingDataset:
     def features_config(self):
         """Load features configuration."""
         config_path = Path("configs/extensions/intraday_ml/features.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture
     def targets_config(self):
         """Load targets configuration."""
         config_path = Path("configs/extensions/intraday_ml/targets.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture

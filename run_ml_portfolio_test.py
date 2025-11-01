@@ -264,7 +264,6 @@ def generate_trading_signals(features_df, symbols, config):
 
             # Track current position state
             current_position = None
-            position_entry_ts = None
             position_entry_date = None
 
             for _, row in symbol_data.iterrows():
@@ -301,7 +300,7 @@ def generate_trading_signals(features_df, symbols, config):
                         print(
                             f"       Entry: {entry_datetime} ({days_held:.1f} days held)"
                         )
-                        print(f"       Reason: End of day hard close")
+                        print("       Reason: End of day hard close")
 
                         # Force close position at end of day
                         signals.append(
@@ -324,7 +323,6 @@ def generate_trading_signals(features_df, symbols, config):
                         )
                         signal_times.append(current_ts)
                         current_position = None
-                        position_entry_ts = None
                     continue  # Skip all signals after market close
 
                 # EXIT LOGIC: Close position for intraday targets
@@ -431,7 +429,6 @@ def generate_trading_signals(features_df, symbols, config):
                         )
                         signal_times.append(current_ts)
                         current_position = None
-                        position_entry_ts = None
                         continue
 
                 # ENTRY LOGIC: Open new intraday positions
@@ -473,7 +470,6 @@ def generate_trading_signals(features_df, symbols, config):
                             "stop_loss_pct": stop_loss_pct,
                             "take_profit_pct": take_profit_pct,
                         }
-                        position_entry_ts = current_ts
                         position_entry_date = current_datetime
 
                     elif current_dev > short_threshold:  # SHORT signal
@@ -506,7 +502,6 @@ def generate_trading_signals(features_df, symbols, config):
                             "stop_loss_pct": stop_loss_pct,
                             "take_profit_pct": take_profit_pct,
                         }
-                        position_entry_ts = current_ts
                         position_entry_date = current_datetime
 
             long_signals = len(
@@ -753,7 +748,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
                         f"⚠️  No paired trades could be created from {len(trades_df)} raw trades"
                     )
             else:
-                print(f"⚠️  Trades not saved: empty or not DataFrame")
+                print("⚠️  Trades not saved: empty or not DataFrame")
 
         # Save equity curve
         if "equity" in engine_result:
@@ -768,7 +763,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
                 equity_df.to_csv(run_dir / "equity.csv", index=False)
                 print(f"✅ Saved equity curve to {run_dir / 'equity.csv'}")
             else:
-                print(f"⚠️  Equity curve not saved: empty or not DataFrame")
+                print("⚠️  Equity curve not saved: empty or not DataFrame")
 
         # Save positions
         if "positions" in engine_result:
@@ -808,21 +803,21 @@ def save_run_artifacts(run_id, results, bars, orders, config):
 
         # Save trades
         if hasattr(engine_result, "trades"):
-            trades_df = getattr(engine_result, "trades")
+            trades_df = engine_result.trades
             if hasattr(trades_df, "to_csv") and not trades_df.empty:
                 trades_df.to_csv(run_dir / "trades.csv", index=False)
                 print(f"✅ Saved {len(trades_df)} trades to {run_dir / 'trades.csv'}")
 
         # Save equity curve
         if hasattr(engine_result, "equity_curve"):
-            equity_df = getattr(engine_result, "equity_curve")
+            equity_df = engine_result.equity_curve
             if hasattr(equity_df, "to_csv") and not equity_df.empty:
                 equity_df.to_csv(run_dir / "equity.csv", index=False)
                 print(f"✅ Saved equity curve to {run_dir / 'equity.csv'}")
 
         # Save metrics
         if hasattr(engine_result, "metrics"):
-            metrics = getattr(engine_result, "metrics")
+            metrics = engine_result.metrics
             if metrics:
                 with open(run_dir / "metrics.json", "w") as f:
                     json.dump(metrics, f, indent=2, default=str)
@@ -995,7 +990,7 @@ def run_ml_portfolio_test():
                         print(f"   📈 Average Trade Return: {avg_return:.2%}")
 
                 # Display sample trades
-                print(f"   📋 Sample trades:")
+                print("   📋 Sample trades:")
                 for i, (_, trade) in enumerate(trades_df.head(3).iterrows()):
                     symbol = trade.get("symbol", "N/A")
                     pnl = trade.get("pnl", 0)
@@ -1011,10 +1006,10 @@ def run_ml_portfolio_test():
             # Try to read metrics if available
             metrics_file = run_dir / "metrics.json"
             if metrics_file.exists():
-                with open(metrics_file, "r") as f:
+                with open(metrics_file) as f:
                     metrics = json.load(f)
 
-                print(f"\n📊 PERFORMANCE METRICS:")
+                print("\n📊 PERFORMANCE METRICS:")
                 print(f"   📈 Total Return: {metrics.get('total_return', 'N/A')}")
                 print(f"   📊 Sharpe Ratio: {metrics.get('sharpe_ratio', 'N/A')}")
                 print(f"   📉 Max Drawdown: {metrics.get('max_drawdown', 'N/A')}")
@@ -1025,10 +1020,10 @@ def run_ml_portfolio_test():
             print(f"⚠️  Performance metrics analysis failed: {e}")
 
         # === SUMMARY ===
-        print(f"\n🎉 ML PORTFOLIO TEST COMPLETED SUCCESSFULLY!")
+        print("\n🎉 ML PORTFOLIO TEST COMPLETED SUCCESSFULLY!")
         print("=" * 70)
 
-        print(f"📋 EXECUTION SUMMARY:")
+        print("📋 EXECUTION SUMMARY:")
         print(f"   Training Period: January 2024 ({len(train_bars):,} bars)")
         print(f"   Test Period: February 2024 ({len(test_bars):,} bars)")
         print(f"   Features Computed: {len(test_features.columns)}")
@@ -1036,13 +1031,13 @@ def run_ml_portfolio_test():
         print(f"   Experiment ID: {experiment_id}")
         print(f"   Run Directory: {run_dir}")
 
-        print(f"\n📊 REPORTING AVAILABILITY:")
+        print("\n📊 REPORTING AVAILABILITY:")
         print(f"   📈 Trade List: {run_dir / 'trades.csv'}")
         print(f"   💰 Equity Curve: {run_dir / 'equity.csv'}")
         print(f"   📋 Metrics: {run_dir / 'metrics.json'}")
         print(f"   🔧 Configuration: {run_dir / 'config.json'}")
 
-        print(f"\n✨ Ready for QX Reporting Analysis:")
+        print("\n✨ Ready for QX Reporting Analysis:")
         print(f"   Use: python -m qx_report.main summarize {run_id}")
 
         return True
@@ -1057,4 +1052,4 @@ def run_ml_portfolio_test():
 
 if __name__ == "__main__":
     success = run_ml_portfolio_test()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

@@ -7,7 +7,6 @@ ensuring compliance with no-peek rules and execution discipline.
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
@@ -46,7 +45,7 @@ class TestLabeling:
     def targets_config(self):
         """Load targets configuration."""
         config_path = Path("configs/extensions/intraday_ml/targets.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture
@@ -182,7 +181,7 @@ class TestLightGBMTraining:
     def model_config(self):
         """Load model configuration."""
         config_path = Path("configs/extensions/intraday_ml/model_lgbm.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture

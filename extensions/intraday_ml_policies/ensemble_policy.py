@@ -9,17 +9,13 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from statistics import mean, median
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from .base import (
     BaseMLPolicy,
-    PolicyAction,
-    PolicyDecision,
-    PolicyMetrics,
     PolicySignal,
 )
 
@@ -43,8 +39,8 @@ class ModelConfig:
     enabled: bool = True
     min_confidence: float = 0.5
     performance_weight: float = 1.0
-    specialty_tags: List[str] = field(default_factory=list)
-    last_updated: Optional[datetime] = None
+    specialty_tags: list[str] = field(default_factory=list)
+    last_updated: datetime | None = None
 
 
 @dataclass
@@ -53,11 +49,11 @@ class EnsemblePrediction:
 
     final_prediction: float
     confidence: float
-    individual_predictions: Dict[str, float]
-    individual_confidences: Dict[str, float]
+    individual_predictions: dict[str, float]
+    individual_confidences: dict[str, float]
     ensemble_method: EnsembleMethod
-    voting_breakdown: Dict[str, int] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    voting_breakdown: dict[str, int] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class EnsemblePolicy(BaseMLPolicy):
@@ -69,10 +65,10 @@ class EnsemblePolicy(BaseMLPolicy):
 
     def __init__(
         self,
-        model_ids: List[str],
+        model_ids: list[str],
         registry=None,
         feature_pipeline=None,
-        config: Optional[Dict[str, Any]] = None,
+        config: dict[str, Any] | None = None,
     ):
         """
         Initialize ensemble ML policy.
@@ -96,7 +92,7 @@ class EnsemblePolicy(BaseMLPolicy):
         self.diversification_bonus = self.config.get("diversification_bonus", 0.1)
 
         # Model configurations
-        self.model_configs: Dict[str, ModelConfig] = {}
+        self.model_configs: dict[str, ModelConfig] = {}
         for model_id in model_ids:
             self.model_configs[model_id] = ModelConfig(
                 model_id=model_id,
@@ -104,7 +100,7 @@ class EnsemblePolicy(BaseMLPolicy):
             )
 
         # Individual model predictors
-        self.predictors: Dict[str, Any] = {}
+        self.predictors: dict[str, Any] = {}
         for model_id in model_ids:
             try:
                 self.predictors[model_id] = type(self.predictor)(self.registry)
@@ -114,7 +110,7 @@ class EnsemblePolicy(BaseMLPolicy):
                 )
 
         # Performance tracking for individual models
-        self.model_performance: Dict[str, Dict[str, float]] = defaultdict(
+        self.model_performance: dict[str, dict[str, float]] = defaultdict(
             lambda: {
                 "accuracy": 0.5,
                 "confidence": 0.5,
@@ -143,7 +139,7 @@ class EnsemblePolicy(BaseMLPolicy):
 
     def generate_signal(
         self,
-        features: Dict[str, float],
+        features: dict[str, float],
         current_position: float,
         market_data: pd.DataFrame,
     ) -> PolicySignal:
@@ -222,8 +218,8 @@ class EnsemblePolicy(BaseMLPolicy):
         )
 
     def get_ensemble_prediction(
-        self, features: Dict[str, float]
-    ) -> Optional[EnsemblePrediction]:
+        self, features: dict[str, float]
+    ) -> EnsemblePrediction | None:
         """
         Get ensemble prediction from all models.
 
@@ -352,11 +348,11 @@ class EnsemblePolicy(BaseMLPolicy):
         if self.enable_dynamic_weights:
             self._update_model_weights()
 
-    def get_model_performance(self) -> Dict[str, Dict[str, float]]:
+    def get_model_performance(self) -> dict[str, dict[str, float]]:
         """Get performance metrics for all models."""
         return dict(self.model_performance)
 
-    def update_model_config(self, model_id: str, config: Dict[str, Any]) -> None:
+    def update_model_config(self, model_id: str, config: dict[str, Any]) -> None:
         """Update configuration for a specific model."""
         if model_id in self.model_configs:
             model_config = self.model_configs[model_id]
@@ -366,8 +362,8 @@ class EnsemblePolicy(BaseMLPolicy):
             self.logger.info(f"Updated config for model {model_id}")
 
     def _voting_ensemble(
-        self, predictions: Dict[str, float], confidences: Dict[str, float]
-    ) -> Tuple[float, float, Dict[str, int]]:
+        self, predictions: dict[str, float], confidences: dict[str, float]
+    ) -> tuple[float, float, dict[str, int]]:
         """Combine predictions using majority voting."""
         # Convert predictions to votes (buy/sell/hold)
         votes = {"buy": 0, "sell": 0, "hold": 0}
@@ -392,10 +388,7 @@ class EnsemblePolicy(BaseMLPolicy):
         winners = [k for k, v in votes.items() if v == max_votes]
 
         # Use weighted votes to break ties
-        if len(winners) == 1:
-            winner = winners[0]
-        else:
-            winner = max(weighted_votes, key=weighted_votes.get)
+        winner = winners[0] if len(winners) == 1 else max(weighted_votes, key=weighted_votes.get)
 
         # Convert to numeric prediction
         if winner == "buy":
@@ -412,8 +405,8 @@ class EnsemblePolicy(BaseMLPolicy):
         return final_prediction, confidence, votes
 
     def _weighted_average_ensemble(
-        self, predictions: Dict[str, float], confidences: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, predictions: dict[str, float], confidences: dict[str, float]
+    ) -> tuple[float, float]:
         """Combine predictions using weighted average."""
         weighted_sum = 0.0
         weight_sum = 0.0
@@ -436,10 +429,10 @@ class EnsemblePolicy(BaseMLPolicy):
 
     def _stacking_ensemble(
         self,
-        predictions: Dict[str, float],
-        confidences: Dict[str, float],
-        features: Dict[str, float],
-    ) -> Tuple[float, float]:
+        predictions: dict[str, float],
+        confidences: dict[str, float],
+        features: dict[str, float],
+    ) -> tuple[float, float]:
         """Combine predictions using stacking (meta-learner)."""
         # This is a simplified stacking implementation
         # In practice, this would use a trained meta-learner
@@ -449,10 +442,10 @@ class EnsemblePolicy(BaseMLPolicy):
 
     def _dynamic_ensemble(
         self,
-        predictions: Dict[str, float],
-        confidences: Dict[str, float],
-        features: Dict[str, float],
-    ) -> Tuple[float, float]:
+        predictions: dict[str, float],
+        confidences: dict[str, float],
+        features: dict[str, float],
+    ) -> tuple[float, float]:
         """Combine predictions using dynamic method selection."""
         # Choose ensemble method based on current conditions
         prediction_variance = np.var(list(predictions.values()))
@@ -472,8 +465,8 @@ class EnsemblePolicy(BaseMLPolicy):
             return self._weighted_average_ensemble(predictions, confidences)
 
     def _performance_based_ensemble(
-        self, predictions: Dict[str, float], confidences: Dict[str, float]
-    ) -> Tuple[float, float]:
+        self, predictions: dict[str, float], confidences: dict[str, float]
+    ) -> tuple[float, float]:
         """Combine predictions weighted by recent performance."""
         weighted_sum = 0.0
         weight_sum = 0.0
@@ -495,7 +488,7 @@ class EnsemblePolicy(BaseMLPolicy):
 
         return final_prediction, avg_confidence
 
-    def _calculate_agreement_score(self, predictions: Dict[str, float]) -> float:
+    def _calculate_agreement_score(self, predictions: dict[str, float]) -> float:
         """Calculate agreement score among predictions."""
         if len(predictions) <= 1:
             return 1.0

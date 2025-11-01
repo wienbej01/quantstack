@@ -7,7 +7,6 @@ and detector configuration validation.
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_core.regime.detector import (
     RegimeDetectorConfig,
     RegimeDetectorRules,
@@ -490,7 +489,7 @@ class TestRegimeDetectorRules:
         assert "f__regime__adx_proxy_14" in signal.features
 
         # Aggregated values should be reasonable
-        for feature_name, value in signal.features.items():
+        for _feature_name, value in signal.features.items():
             if isinstance(value, (int, float)):
                 assert not np.isnan(value)
                 assert np.isfinite(value)
@@ -535,7 +534,7 @@ class TestRegimeConfig:
         """Test default regime configuration."""
         config = RegimeConfig()
 
-        assert config.enabled == False
+        assert not config.enabled
         assert config.model == "rules"
         assert config.persistence_bars == 3
         assert "BULL" in config.strategy_map
@@ -545,7 +544,7 @@ class TestRegimeConfig:
         """Test custom regime configuration."""
         config = RegimeConfig(enabled=True, persistence_bars=5, model="hsmm")
 
-        assert config.enabled == True
+        assert config.enabled
         assert config.model == "hsmm"
         assert config.persistence_bars == 5
 
@@ -595,7 +594,7 @@ class TestRegimeConfig:
 
         config = validate_regime_config(valid_config)
         assert isinstance(config, RegimeConfig)
-        assert config.enabled == True
+        assert config.enabled
         assert config.persistence_bars == 5
 
     def test_validate_invalid_config(self):

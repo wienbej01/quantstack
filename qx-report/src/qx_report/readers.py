@@ -132,26 +132,25 @@ class RunReader:
         equity_df = self.equity
         equity_metrics = {}
 
-        if equity_df is not None and not equity_df.empty:
-            if "equity" in equity_df.columns:
-                equity_series = equity_df["equity"]
-                returns = equity_series.pct_change().dropna()
+        if equity_df is not None and not equity_df.empty and "equity" in equity_df.columns:
+            equity_series = equity_df["equity"]
+            returns = equity_series.pct_change().dropna()
 
-                equity_metrics = {
-                    "initial_equity": (
-                        float(equity_series.iloc[0]) if len(equity_series) > 0 else 0.0
-                    ),
-                    "final_equity": (
-                        float(equity_series.iloc[-1]) if len(equity_series) > 0 else 0.0
-                    ),
-                    "total_return": (
-                        float(equity_series.iloc[-1] / equity_series.iloc[0] - 1)
-                        if len(equity_series) > 1
-                        else 0.0
-                    ),
-                    "volatility": float(returns.std()) if len(returns) > 0 else 0.0,
-                    "max_drawdown": float(self._calculate_max_drawdown(equity_series)),
-                }
+            equity_metrics = {
+                "initial_equity": (
+                    float(equity_series.iloc[0]) if len(equity_series) > 0 else 0.0
+                ),
+                "final_equity": (
+                    float(equity_series.iloc[-1]) if len(equity_series) > 0 else 0.0
+                ),
+                "total_return": (
+                    float(equity_series.iloc[-1] / equity_series.iloc[0] - 1)
+                    if len(equity_series) > 1
+                    else 0.0
+                ),
+                "volatility": float(returns.std()) if len(returns) > 0 else 0.0,
+                "max_drawdown": float(self._calculate_max_drawdown(equity_series)),
+            }
 
         # Merge all metrics
         return {

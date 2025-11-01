@@ -1,7 +1,5 @@
 """Tests for checksum computation utilities."""
 
-import hashlib
-import json
 
 import numpy as np
 import pandas as pd

@@ -3,15 +3,14 @@
 import json
 import pathlib
 import uuid
-from typing import Any, Dict, List
+from typing import Any
 
 import pandas as pd
 import yaml
-from rich.console import Console
-
 from qx_cli.exp.entry_ab import deep_merge
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply_feature_packs
+from rich.console import Console
 
 from ..utils.checksums import compute_input_checksums
 from ..utils.validation import validate_config, validate_data_slice
@@ -30,10 +29,10 @@ class ABOrchestrator:
     def run_experiment(
         self,
         cfg_path: pathlib.Path,
-        variant_paths: List[pathlib.Path],
+        variant_paths: list[pathlib.Path],
         experiment_name: str,
         force: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run A/B experiment with enhanced fairness validation."""
         console.print(f"Starting A/B experiment: {experiment_name}")
 
@@ -100,10 +99,10 @@ class ABOrchestrator:
 
     def _run_variant(
         self,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         variant_path: pathlib.Path,
-        base_checksums: Dict[str, str],
-    ) -> Dict[str, Any]:
+        base_checksums: dict[str, str],
+    ) -> dict[str, Any]:
         """Run a single variant."""
         run_id = str(uuid.uuid4())
         run_dir = pathlib.Path("runs") / run_id
@@ -183,7 +182,7 @@ class ABOrchestrator:
         run_dir: pathlib.Path,
         result,
         df_with_features: pd.DataFrame,
-        policy_params: Dict[str, Any],
+        policy_params: dict[str, Any],
     ) -> None:
         """Persist run artifacts."""
         # Generate signals using policy
@@ -219,10 +218,10 @@ class ABOrchestrator:
         self,
         experiment_name: str,
         cfg_path: pathlib.Path,
-        variant_paths: List[pathlib.Path],
-        run_results: List[Dict[str, Any]],
-        base_checksums: Dict[str, str],
-    ) -> Dict[str, Any]:
+        variant_paths: list[pathlib.Path],
+        run_results: list[dict[str, Any]],
+        base_checksums: dict[str, str],
+    ) -> dict[str, Any]:
         """Create experiment manifest."""
         return {
             "exp_id": experiment_name,
@@ -235,7 +234,7 @@ class ABOrchestrator:
             "git_commit": "dirty",  # TODO: implement proper git integration
         }
 
-    def _write_manifest(self, experiment_name: str, manifest: Dict[str, Any]) -> None:
+    def _write_manifest(self, experiment_name: str, manifest: dict[str, Any]) -> None:
         """Write experiment manifest."""
         exp_dir = pathlib.Path("experiments") / experiment_name
         exp_dir.mkdir(parents=True, exist_ok=True)

@@ -7,7 +7,6 @@ and complex multi-regime scenarios.
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_core.regime.detector import RegimeDetectorConfig, RegimeDetectorRules
 from qx_core.regime_config import RegimeConfig
@@ -43,7 +42,6 @@ class TestStressRegimeOverrides:
         )
 
         engine = BacktestEngine(config)
-        order_factory = engine.order_factory
 
         # Simulate stress regime
         engine._current_regime = RegimeType.STRESS

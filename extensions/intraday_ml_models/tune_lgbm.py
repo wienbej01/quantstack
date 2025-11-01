@@ -9,20 +9,17 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
-from scipy.stats import norm
 
 from extensions.intraday_ml.utils.checksums import compute_data_hash
 from extensions.intraday_ml_models.cv_runner import (
     CVResult,
-    TimeSeriesCVRunner,
     run_cross_validation,
 )
-from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer, TrainingResult
+from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
 
 
 @dataclass
@@ -33,7 +30,7 @@ class HyperparameterBounds:
     low: float
     high: float
     param_type: str  # 'continuous', 'integer', 'categorical'
-    choices: Optional[List[Any]] = None
+    choices: list[Any] | None = None
 
 
 @dataclass
@@ -41,10 +38,10 @@ class OptimizationTrial:
     """Single optimization trial results."""
 
     trial_id: int
-    params: Dict[str, Any]
+    params: dict[str, Any]
     cv_result: CVResult
     objective_value: float
-    component_scores: Dict[str, float]
+    component_scores: dict[str, float]
     optimization_time_seconds: float
 
 
@@ -52,13 +49,13 @@ class OptimizationTrial:
 class TuningResult:
     """Complete hyperparameter tuning results."""
 
-    best_params: Dict[str, Any]
+    best_params: dict[str, Any]
     best_cv_result: CVResult
-    optimization_history: List[OptimizationTrial]
+    optimization_history: list[OptimizationTrial]
     total_trials: int
     total_time_seconds: float
-    convergence_info: Dict[str, Any]
-    reproducibility_info: Dict[str, Any]
+    convergence_info: dict[str, Any]
+    reproducibility_info: dict[str, Any]
 
 
 class BayesianLightGBMTuner:
@@ -66,9 +63,9 @@ class BayesianLightGBMTuner:
 
     def __init__(
         self,
-        model_config: Dict[str, Any],
-        cv_config: Dict[str, Any],
-        objective_config: Dict[str, Any],
+        model_config: dict[str, Any],
+        cv_config: dict[str, Any],
+        objective_config: dict[str, Any],
     ):
         """Initialize tuner with configurations.
 
@@ -110,11 +107,11 @@ class BayesianLightGBMTuner:
         )
 
         # Optimization state
-        self.trial_history: List[OptimizationTrial] = []
+        self.trial_history: list[OptimizationTrial] = []
         self.current_trial = 0
         self.gaussian_process_state = None
 
-    def _initialize_parameter_bounds(self) -> List[HyperparameterBounds]:
+    def _initialize_parameter_bounds(self) -> list[HyperparameterBounds]:
         """Initialize hyperparameter search bounds."""
         bounds = [
             # LightGBM parameters
@@ -140,7 +137,7 @@ class BayesianLightGBMTuner:
         self,
         features: pd.DataFrame,
         labels: pd.Series,
-        output_dir: Optional[Path] = None,
+        output_dir: Path | None = None,
     ) -> TuningResult:
         """Run Bayesian hyperparameter optimization.
 
@@ -229,7 +226,7 @@ class BayesianLightGBMTuner:
         self.trial_history.append(trial_result)
         self.current_trial += 1
 
-    def _sample_random_parameters(self) -> Dict[str, Any]:
+    def _sample_random_parameters(self) -> dict[str, Any]:
         """Sample random parameters within bounds."""
         params = {}
         for bound in self.param_bounds:
@@ -242,7 +239,7 @@ class BayesianLightGBMTuner:
 
         return params
 
-    def _propose_next_parameters(self) -> Dict[str, Any]:
+    def _propose_next_parameters(self) -> dict[str, Any]:
         """Propose next parameters using acquisition function."""
         if len(self.trial_history) < 2:
             # Not enough history for GP, use random sampling
@@ -272,7 +269,7 @@ class BayesianLightGBMTuner:
         return params
 
     def _evaluate_trial(
-        self, params: Dict[str, Any], features: pd.DataFrame, labels: pd.Series
+        self, params: dict[str, Any], features: pd.DataFrame, labels: pd.Series
     ) -> OptimizationTrial:
         """Evaluate a single parameter trial."""
         trial_start = time.time()
@@ -281,7 +278,7 @@ class BayesianLightGBMTuner:
         trial_config = self._create_trial_config(params)
 
         # Initialize trainer
-        trainer = LightGBMTrainer(trial_config)
+        LightGBMTrainer(trial_config)
 
         # Run cross-validation
         cv_result = run_cross_validation(features, labels, trial_config, self.cv_config)
@@ -304,7 +301,7 @@ class BayesianLightGBMTuner:
 
         return trial
 
-    def _create_trial_config(self, params: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_trial_config(self, params: dict[str, Any]) -> dict[str, Any]:
         """Create model configuration for a trial."""
         config = self.base_model_config.copy()
 
@@ -348,7 +345,7 @@ class BayesianLightGBMTuner:
 
     def _calculate_composite_objective(
         self, cv_result: CVResult
-    ) -> Tuple[float, Dict[str, float]]:
+    ) -> tuple[float, dict[str, float]]:
         """Calculate composite objective with trade-rate shaping."""
         agg_metrics = cv_result.aggregated_metrics
 
@@ -414,7 +411,7 @@ class BayesianLightGBMTuner:
         self.trial_history.append(trial_result)
         self.current_trial += 1
 
-    def _calculate_convergence_info(self) -> Dict[str, Any]:
+    def _calculate_convergence_info(self) -> dict[str, Any]:
         """Calculate convergence information."""
         if len(self.trial_history) < 2:
             return {"converged": False, "reason": "Insufficient trials"}
@@ -478,10 +475,10 @@ class BayesianLightGBMTuner:
 def optimize_lightgbm_model(
     features: pd.DataFrame,
     labels: pd.Series,
-    model_config: Dict[str, Any],
-    cv_config: Dict[str, Any],
-    objective_config: Dict[str, Any],
-    output_dir: Optional[Path] = None,
+    model_config: dict[str, Any],
+    cv_config: dict[str, Any],
+    objective_config: dict[str, Any],
+    output_dir: Path | None = None,
 ) -> TuningResult:
     """Convenience function for LightGBM hyperparameter optimization.
 

@@ -1,19 +1,9 @@
 """Production deployment management for ML models."""
 
-import hashlib
-import json
 import logging
-import os
-import shutil
-import subprocess
-import tempfile
-import time
-from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-
-import yaml
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any
 
 try:
     import docker
@@ -35,7 +25,6 @@ except ImportError:
     ApiException = None
 
 from extensions.intraday_ml_models.registry import MLModelRegistry
-from extensions.intraday_ml_serving.model_server import ModelServer
 
 
 @dataclass
@@ -54,8 +43,8 @@ class DeploymentConfig:
     metrics_path: str = "/metrics"
     port: int = 8000
     image_tag: str = "latest"
-    auto_scaling: Optional[Dict[str, Any]] = None
-    resources: Optional[Dict[str, str]] = None
+    auto_scaling: dict[str, Any] | None = None
+    resources: dict[str, str] | None = None
 
 
 @dataclass
@@ -68,10 +57,10 @@ class DeploymentStatus:
     ready_replicas: int
     created_at: datetime
     updated_at: datetime
-    endpoint_url: Optional[str] = None
+    endpoint_url: str | None = None
     health_status: str = "unknown"
     version: str = "unknown"
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class MockDeployment:
@@ -109,7 +98,7 @@ class MockDeployment:
 class DockerDeployment:
     """Docker-based deployment for ML models."""
 
-    def __init__(self, registry_url: Optional[str] = None):
+    def __init__(self, registry_url: str | None = None):
         """
         Initialize Docker deployment manager.
 
@@ -128,7 +117,7 @@ class DockerDeployment:
         model_id: str,
         dockerfile_path: str,
         context_path: str,
-        tag: Optional[str] = None,
+        tag: str | None = None,
     ) -> str:
         """
         Build Docker image for model.
@@ -260,7 +249,7 @@ class DockerDeployment:
         except docker.errors.APIError as e:
             self.logger.error(f"Failed to stop container {container_id}: {e}")
 
-    def get_container_status(self, container_id: str) -> Dict[str, Any]:
+    def get_container_status(self, container_id: str) -> dict[str, Any]:
         """Get container status."""
         try:
             container = self.client.containers.get(container_id)
@@ -295,7 +284,7 @@ class KubernetesDeployment:
     """Kubernetes-based deployment for ML models."""
 
     def __init__(
-        self, namespace: str = "default", kubeconfig_path: Optional[str] = None
+        self, namespace: str = "default", kubeconfig_path: str | None = None
     ):
         """
         Initialize Kubernetes deployment manager.
@@ -521,7 +510,7 @@ class KubernetesDeployment:
 
     def _create_deployment_manifest(
         self, config: DeploymentConfig, image_tag: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create Kubernetes deployment manifest."""
         return {
             "apiVersion": "apps/v1",
@@ -589,7 +578,7 @@ class KubernetesDeployment:
             },
         }
 
-    def _create_service_manifest(self, config: DeploymentConfig) -> Dict[str, Any]:
+    def _create_service_manifest(self, config: DeploymentConfig) -> dict[str, Any]:
         """Create Kubernetes service manifest."""
         return {
             "apiVersion": "v1",
@@ -607,7 +596,7 @@ class KubernetesDeployment:
             },
         }
 
-    def _create_hpa_manifest(self, config: DeploymentConfig) -> Dict[str, Any]:
+    def _create_hpa_manifest(self, config: DeploymentConfig) -> dict[str, Any]:
         """Create Kubernetes HPA manifest."""
         return {
             "apiVersion": "autoscaling/v1",
@@ -636,7 +625,7 @@ class DeploymentManager:
 
     def __init__(
         self,
-        registry: Optional[MLModelRegistry] = None,
+        registry: MLModelRegistry | None = None,
         deployment_type: str = "docker",
         **kwargs,
     ):
@@ -662,15 +651,15 @@ class DeploymentManager:
             self.logger.warning(
                 f"Using mock deployment for {deployment_type} - dependencies not available"
             )
-        self.deployments: Dict[str, DeploymentStatus] = {}
+        self.deployments: dict[str, DeploymentStatus] = {}
 
     def deploy_model(
         self,
         model_id: str,
         deployment_config: DeploymentConfig,
-        dockerfile_path: Optional[str] = None,
-        context_path: Optional[str] = None,
-        image_tag: Optional[str] = None,
+        dockerfile_path: str | None = None,
+        context_path: str | None = None,
+        image_tag: str | None = None,
     ) -> DeploymentStatus:
         """
         Deploy model to production.
@@ -712,11 +701,10 @@ class DeploymentManager:
 
             # Deploy based on type
             if self.deployment_type == "docker":
-                container_id = self.deployer.run_container(image_tag, deployment_config)
-                deployment_id = container_id
+                self.deployer.run_container(image_tag, deployment_config)
                 endpoint_url = f"http://localhost:{deployment_config.port}"
             else:
-                deployment_id = self.deployer.create_deployment(
+                self.deployer.create_deployment(
                     deployment_config, image_tag
                 )
                 status = self.deployer.get_deployment_status(
@@ -759,8 +747,8 @@ class DeploymentManager:
     def update_deployment(
         self,
         deployment_name: str,
-        model_id: Optional[str] = None,
-        image_tag: Optional[str] = None,
+        model_id: str | None = None,
+        image_tag: str | None = None,
     ) -> DeploymentStatus:
         """Update existing deployment."""
         if deployment_name not in self.deployments:
@@ -819,7 +807,7 @@ class DeploymentManager:
             self.logger.error(f"Failed to undeploy {deployment_name}: {e}")
             raise
 
-    def get_deployment_status(self, deployment_name: str) -> Optional[DeploymentStatus]:
+    def get_deployment_status(self, deployment_name: str) -> DeploymentStatus | None:
         """Get deployment status."""
         if deployment_name not in self.deployments:
             return None
@@ -849,7 +837,7 @@ class DeploymentManager:
             )
             return None
 
-    def list_deployments(self) -> List[DeploymentStatus]:
+    def list_deployments(self) -> list[DeploymentStatus]:
         """List all deployments."""
         deployments = []
         for deployment_name in list(self.deployments.keys()):
@@ -859,7 +847,7 @@ class DeploymentManager:
 
         return deployments
 
-    def health_check(self, deployment_name: str) -> Dict[str, Any]:
+    def health_check(self, deployment_name: str) -> dict[str, Any]:
         """Perform health check on deployment."""
         status = self.get_deployment_status(deployment_name)
         if not status:

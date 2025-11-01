@@ -5,11 +5,9 @@ market conditions, and other criteria.
 """
 
 import logging
-from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set
 
 from extensions.intraday_ml_policies.adaptive_policy import MarketRegime
 from extensions.intraday_ml_policies.base import BaseMLPolicy
@@ -40,11 +38,11 @@ class SelectionCriteria:
     weight_success_rate: float = 0.4
     weight_sharpe_ratio: float = 0.3
     weight_return: float = 0.3
-    required_tags: Set[str] = field(default_factory=set)
-    excluded_tags: Set[str] = field(default_factory=set)
-    current_regime: Optional[MarketRegime] = None
+    required_tags: set[str] = field(default_factory=set)
+    excluded_tags: set[str] = field(default_factory=set)
+    current_regime: MarketRegime | None = None
     top_k: int = 3
-    ensemble_weights: Dict[str, float] = field(default_factory=dict)
+    ensemble_weights: dict[str, float] = field(default_factory=dict)
     performance_decay_half_life_days: float = 30.0
     fallback_to_overall: bool = True
 
@@ -75,7 +73,7 @@ class SelectionScore:
     sharpe_ratio: float
     return_score: float
 
-    def calculate_total_score(self, weights: Dict[str, float]) -> float:
+    def calculate_total_score(self, weights: dict[str, float]) -> float:
         """Calculate total weighted score."""
         return (
             weights.get("success_rate", 0.4) * self.success_rate
@@ -93,8 +91,8 @@ class PolicySelector:
 
     def __init__(
         self,
-        performance_tracker: Optional[PolicyPerformanceTracker] = None,
-        selection_weights: Optional[Dict[str, float]] = None,
+        performance_tracker: PolicyPerformanceTracker | None = None,
+        selection_weights: dict[str, float] | None = None,
     ):
         """
         Initialize policy selector.
@@ -113,8 +111,8 @@ class PolicySelector:
         self.logger = logging.getLogger(__name__)
 
     def select_best_policy(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """
         Select the best policy based on criteria.
 
@@ -153,8 +151,8 @@ class PolicySelector:
             raise ValueError(f"Unknown selection method: {criteria.method}")
 
     def get_policy_rankings(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> List[tuple[str, float]]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> list[tuple[str, float]]:
         """
         Get ranked list of policies by score.
 
@@ -171,7 +169,7 @@ class PolicySelector:
             return []
 
         scores = []
-        for policy_id, policy in qualified_policies.items():
+        for policy_id, _policy in qualified_policies.items():
             metrics = self.performance_tracker.get_policy_metrics(policy_id)
             if metrics:
                 score = self._calculate_selection_score(metrics, criteria)
@@ -181,7 +179,7 @@ class PolicySelector:
         scores.sort(key=lambda x: x[1], reverse=True)
         return scores
 
-    def update_selection_weights(self, weights: Dict[str, float]) -> None:
+    def update_selection_weights(self, weights: dict[str, float]) -> None:
         """Update default selection weights."""
         total_weight = sum(weights.values())
         if abs(total_weight - 1.0) > 1e-6:
@@ -190,13 +188,13 @@ class PolicySelector:
         self.selection_weights = weights.copy()
         self.logger.info(f"Updated selection weights: {weights}")
 
-    def get_selection_weights(self) -> Dict[str, float]:
+    def get_selection_weights(self) -> dict[str, float]:
         """Get current selection weights."""
         return self.selection_weights.copy()
 
     def _filter_policies_by_criteria(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Dict[str, BaseMLPolicy]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> dict[str, BaseMLPolicy]:
         """Filter policies based on basic criteria."""
         qualified = {}
 
@@ -235,13 +233,13 @@ class PolicySelector:
         return qualified
 
     def _select_by_best_performance(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """Select policy with best overall performance."""
         best_policy_id = None
         best_score = -float("inf")
 
-        for policy_id, policy in policies.items():
+        for policy_id, _policy in policies.items():
             metrics = self.performance_tracker.get_policy_metrics(policy_id)
             if not metrics:
                 continue
@@ -254,8 +252,8 @@ class PolicySelector:
         return best_policy_id
 
     def _select_by_regime(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """Select policy based on regime-specific performance."""
         if not criteria.current_regime:
             # Fallback to overall performance if no regime specified
@@ -264,7 +262,7 @@ class PolicySelector:
         best_policy_id = None
         best_score = -float("inf")
 
-        for policy_id, policy in policies.items():
+        for policy_id, _policy in policies.items():
             # Check if we have regime-specific performance
             regime_perf = self.performance_tracker.get_regime_performance(
                 policy_id, criteria.current_regime
@@ -274,16 +272,15 @@ class PolicySelector:
                 # Use regime-specific score
                 weights = criteria.ensemble_weights or self.selection_weights
                 score = regime_perf.calculate_total_score(weights)
-            else:
-                # Fallback to overall performance if regime data missing
-                if criteria.fallback_to_overall:
-                    metrics = self.performance_tracker.get_policy_metrics(policy_id)
-                    if metrics:
-                        score = self._calculate_selection_score(metrics, criteria)
-                    else:
-                        continue
+            # Fallback to overall performance if regime data missing
+            elif criteria.fallback_to_overall:
+                metrics = self.performance_tracker.get_policy_metrics(policy_id)
+                if metrics:
+                    score = self._calculate_selection_score(metrics, criteria)
                 else:
                     continue
+            else:
+                continue
 
             if score > best_score:
                 best_score = score
@@ -292,8 +289,8 @@ class PolicySelector:
         return best_policy_id
 
     def _select_ensemble(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """Select ensemble of top policies."""
         rankings = self.get_policy_rankings(policies, criteria)
 
@@ -308,14 +305,14 @@ class PolicySelector:
         return ensemble_id
 
     def _select_by_weighted_score(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """Select policy using custom weighted scoring."""
         return self._select_by_best_performance(policies, criteria)
 
     def _select_adaptive(
-        self, policies: Dict[str, BaseMLPolicy], criteria: SelectionCriteria
-    ) -> Optional[str]:
+        self, policies: dict[str, BaseMLPolicy], criteria: SelectionCriteria
+    ) -> str | None:
         """Adaptively select policy based on multiple factors."""
         # For now, use best performance
         # In a full implementation, this would consider recent performance trends,

@@ -3,9 +3,7 @@
 import logging
 import warnings
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -43,14 +41,14 @@ class PortfolioMetrics:
 class OptimizationResult:
     """Portfolio optimization result."""
 
-    weights: Dict[str, float]
+    weights: dict[str, float]
     expected_return: float
     volatility: float
     sharpe_ratio: float
     metrics: PortfolioMetrics
     optimization_method: OptimizationMethod
     constraints_satisfied: bool
-    warnings: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 class PortfolioOptimizer:
@@ -62,8 +60,8 @@ class PortfolioOptimizer:
         risk_free_rate: float = 0.02,
         max_weight: float = 0.3,
         min_weight: float = 0.0,
-        ml_model_id: Optional[str] = None,
-        registry: Optional[MLModelRegistry] = None,
+        ml_model_id: str | None = None,
+        registry: MLModelRegistry | None = None,
     ):
         """
         Initialize portfolio optimizer.
@@ -96,10 +94,10 @@ class PortfolioOptimizer:
 
     def optimize_portfolio(
         self,
-        expected_returns: Dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
-        current_weights: Optional[Dict[str, float]] = None,
-        additional_features: Optional[Dict[str, Dict[str, float]]] = None,
+        current_weights: dict[str, float] | None = None,
+        additional_features: dict[str, dict[str, float]] | None = None,
     ) -> OptimizationResult:
         """
         Optimize portfolio weights.
@@ -160,11 +158,11 @@ class PortfolioOptimizer:
             warnings=warnings,
         )
 
-    def _equal_weight_optimization(self, assets: List[str]) -> OptimizationResult:
+    def _equal_weight_optimization(self, assets: list[str]) -> OptimizationResult:
         """Equal weight portfolio optimization."""
         n_assets = len(assets)
         weight = 1.0 / n_assets
-        weights = {asset: weight for asset in assets}
+        weights = dict.fromkeys(assets, weight)
 
         # Simple metrics calculation
         expected_return = 0.1  # 10% annual return assumption
@@ -190,9 +188,9 @@ class PortfolioOptimizer:
 
     def _mean_variance_optimization(
         self,
-        expected_returns: Dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
-        assets: List[str],
+        assets: list[str],
     ) -> OptimizationResult:
         """Mean-variance optimization (Markowitz)."""
         # Convert to numpy arrays
@@ -206,7 +204,7 @@ class PortfolioOptimizer:
 
             # Weights for maximum Sharpe ratio
             ones = np.ones((len(assets), 1))
-            sigma_inv_ones = sigma_inv @ ones
+            sigma_inv @ ones
 
             # Market portfolio weights
             weights_market = sigma_inv @ mu / (ones.T @ sigma_inv @ mu)
@@ -228,7 +226,7 @@ class PortfolioOptimizer:
             )
 
             weights_dict = {
-                asset: float(weight) for asset, weight in zip(assets, weights)
+                asset: float(weight) for asset, weight in zip(assets, weights, strict=False)
             }
 
             return OptimizationResult(
@@ -253,7 +251,7 @@ class PortfolioOptimizer:
             return self._equal_weight_optimization(assets)
 
     def _risk_parity_optimization(
-        self, covariance_matrix: pd.DataFrame, assets: List[str]
+        self, covariance_matrix: pd.DataFrame, assets: list[str]
     ) -> OptimizationResult:
         """Risk parity optimization."""
         try:
@@ -281,7 +279,7 @@ class PortfolioOptimizer:
             sharpe_ratio = (expected_return - self.risk_free_rate) / volatility
 
             weights_dict = {
-                asset: float(weight) for asset, weight in zip(assets, weights)
+                asset: float(weight) for asset, weight in zip(assets, weights, strict=False)
             }
 
             return OptimizationResult(
@@ -307,9 +305,9 @@ class PortfolioOptimizer:
 
     def _hierarchical_optimization(
         self,
-        expected_returns: Dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
-        assets: List[str],
+        assets: list[str],
     ) -> OptimizationResult:
         """Hierarchical risk parity optimization."""
         # Simplified HRP implementation
@@ -359,10 +357,10 @@ class PortfolioOptimizer:
 
     def _ml_enhanced_optimization(
         self,
-        expected_returns: Dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
-        assets: List[str],
-        additional_features: Optional[Dict[str, Dict[str, float]]] = None,
+        assets: list[str],
+        additional_features: dict[str, dict[str, float]] | None = None,
     ) -> OptimizationResult:
         """ML-enhanced portfolio optimization."""
         if not self.ml_predictor:
@@ -490,11 +488,11 @@ class PortfolioOptimizer:
 
     def _recursive_bisection(
         self,
-        expected_returns: Dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
         linkage: np.ndarray,
-        assets: List[str],
-    ) -> Dict[str, float]:
+        assets: list[str],
+    ) -> dict[str, float]:
         """Recursive bisection for HRP."""
         if len(assets) == 1:
             return {assets[0]: 1.0}
@@ -502,12 +500,12 @@ class PortfolioOptimizer:
         # Simple implementation - return equal weights
         n_assets = len(assets)
         weight = 1.0 / n_assets
-        return {asset: weight for asset in assets}
+        return dict.fromkeys(assets, weight)
 
     def _calculate_portfolio_metrics(
         self,
-        weights: Dict[str, float],
-        expected_returns: Dict[str, float],
+        weights: dict[str, float],
+        expected_returns: dict[str, float],
         covariance_matrix: pd.DataFrame,
     ) -> PortfolioMetrics:
         """Calculate portfolio metrics."""
@@ -544,7 +542,7 @@ class PortfolioOptimizer:
         )
 
     def _calculate_turnover(
-        self, current_weights: Dict[str, float], new_weights: Dict[str, float]
+        self, current_weights: dict[str, float], new_weights: dict[str, float]
     ) -> float:
         """Calculate portfolio turnover."""
         all_assets = set(current_weights.keys()) | set(new_weights.keys())
@@ -558,8 +556,8 @@ class PortfolioOptimizer:
         return turnover / 2.0  # Divide by 2 for standard turnover definition
 
     def _check_constraints(
-        self, weights: Dict[str, float], expected_returns: Dict[str, float]
-    ) -> Tuple[bool, List[str]]:
+        self, weights: dict[str, float], expected_returns: dict[str, float]
+    ) -> tuple[bool, list[str]]:
         """Check portfolio constraints."""
         warnings = []
         constraints_satisfied = True
@@ -593,7 +591,7 @@ class PortfolioOptimizer:
         return constraints_satisfied, warnings
 
     def update_optimization_method(
-        self, new_method: OptimizationMethod, ml_model_id: Optional[str] = None
+        self, new_method: OptimizationMethod, ml_model_id: str | None = None
     ):
         """Update optimization method."""
         self.optimization_method = new_method

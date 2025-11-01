@@ -5,11 +5,9 @@ intraday ML extension, ensuring fairness validation and reproducibility.
 """
 
 import pathlib
-import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
 
@@ -105,7 +103,7 @@ def version() -> None:
     console.print(f"Intraday ML Extension v{__version__}")
 
 
-def _display_experiment_results(results: Dict[str, Any], experiment_name: str) -> None:
+def _display_experiment_results(results: dict[str, Any], experiment_name: str) -> None:
     """Display experiment results in a formatted table."""
     console.print(f"\n[bold green]Experiment Results: {experiment_name}[/bold green]")
 
@@ -137,7 +135,7 @@ def _display_experiment_results(results: Dict[str, Any], experiment_name: str) -
         console.print("[yellow]⚠ Checksum validation warnings detected[/yellow]")
 
 
-def _display_validation_results(validation_result: Dict[str, Any]) -> None:
+def _display_validation_results(validation_result: dict[str, Any]) -> None:
     """Display validation results."""
     if validation_result.get("valid", False):
         console.print("[green]✓ Experiment validation passed[/green]")

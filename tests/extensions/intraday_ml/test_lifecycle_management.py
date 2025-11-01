@@ -4,10 +4,8 @@ import sqlite3
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
-import numpy as np
-import pandas as pd
 import pytest
 
 from extensions.intraday_ml_lifecycle.version_manager import (
@@ -140,7 +138,7 @@ class TestVersionDatabase:
 
     def test_database_initialization(self, temp_db):
         """Test database initialization."""
-        db = VersionDatabase(temp_db)
+        VersionDatabase(temp_db)
 
         # Verify tables were created
         conn = sqlite3.connect(temp_db)
@@ -466,7 +464,7 @@ class TestVersionManager:
 
         try:
             # Create parent version
-            parent = manager.create_version(
+            manager.create_version(
                 model_id="test_model",
                 model_type=ModelType.REGRESSION,
                 file_path=model_file_path,
@@ -508,7 +506,7 @@ class TestVersionManager:
 
         try:
             # Create version
-            version = manager.create_version(
+            manager.create_version(
                 model_id="test_model",
                 model_type=ModelType.REGRESSION,
                 file_path=model_file_path,
@@ -544,7 +542,7 @@ class TestVersionManager:
 
         try:
             # Create version
-            version = manager.create_version(
+            manager.create_version(
                 model_id="test_model",
                 model_type=ModelType.REGRESSION,
                 file_path=model_file_path,
@@ -629,7 +627,7 @@ class TestVersionManager:
             ]
 
             for model_id, status in models_data:
-                version = manager.create_version(
+                manager.create_version(
                     model_id=model_id,
                     model_type=ModelType.REGRESSION,
                     file_path=model_file_path,
@@ -643,7 +641,7 @@ class TestVersionManager:
             production_models = manager.get_production_models()
             assert len(production_models) == 2
             assert all(v.status == ModelStatus.PRODUCTION for v in production_models)
-            assert set(v.model_id for v in production_models) == {"model_a", "model_c"}
+            assert {v.model_id for v in production_models} == {"model_a", "model_c"}
 
         finally:
             Path(model_file_path).unlink()

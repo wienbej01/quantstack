@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -99,7 +98,7 @@ def test_runner_contract(mock_load_model, setup_test_environment):
 
     trades_df = pd.read_parquet(report_dir / "trades.parquet")
     equity_df = pd.read_parquet(report_dir / "equity.parquet")
-    with open(report_dir / "run_meta.json", "r") as f:
+    with open(report_dir / "run_meta.json") as f:
         run_meta = json.load(f)
 
     assert not trades_df.empty

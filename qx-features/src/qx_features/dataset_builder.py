@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
 
 
@@ -403,9 +402,8 @@ class DatasetBuilder:
 
         # Check time ordering
         for split_name, split_df in splits.items():
-            if "ts" in split_df.columns:
-                if not split_df["ts"].is_monotonic_increasing:
-                    raise ValueError(f"Split {split_name} is not time-ordered")
+            if "ts" in split_df.columns and not split_df["ts"].is_monotonic_increasing:
+                raise ValueError(f"Split {split_name} is not time-ordered")
 
         # Check minimum training samples (warn but don't fail for testing)
         if len(splits["train"]) < self.min_train_samples:

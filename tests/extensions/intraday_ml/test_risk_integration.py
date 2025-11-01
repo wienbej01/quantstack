@@ -1,10 +1,9 @@
 """Tests for ML-powered risk management."""
 
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import numpy as np
-import pandas as pd
 import pytest
 
 from extensions.intraday_ml_risk.ml_risk_manager import (
@@ -321,7 +320,7 @@ class TestPositionRiskMonitor:
         entry_price = 150.0
         current_price = 155.0
 
-        risk_metrics = self.position_monitor.update_position(
+        self.position_monitor.update_position(
             position_id=position_id,
             symbol=symbol,
             size=size,
@@ -362,8 +361,8 @@ class TestPositionRiskMonitor:
         assert risk_metrics.risk_level in RiskLevel
 
         # Verify PnL calculation
-        expected_pnl_pct = (current_price - entry_price) / entry_price * 100
-        position_value = size * current_price
+        (current_price - entry_price) / entry_price * 100
+        size * current_price
         assert risk_metrics.max_drawdown <= 0  # Should be negative or zero for profit
 
     def test_get_position_risk(self):
@@ -778,13 +777,13 @@ class TestMLRiskManager:
         manager = MLRiskManager(risk_limits=sample_risk_limits)
 
         # Test no violation
-        assert manager._check_limit_violation(0.5, 0.8, "lt") == False
-        assert manager._check_limit_violation(0.8, 0.8, "lt") == False
-        assert manager._check_limit_violation(0.6, 0.8, "gt") == True
+        assert not manager._check_limit_violation(0.5, 0.8, "lt")
+        assert not manager._check_limit_violation(0.8, 0.8, "lt")
+        assert manager._check_limit_violation(0.6, 0.8, "gt")
 
         # Test violation
-        assert manager._check_limit_violation(0.9, 0.8, "lt") == True
-        assert manager._check_limit_violation(0.7, 0.8, "gt") == False
+        assert manager._check_limit_violation(0.9, 0.8, "lt")
+        assert not manager._check_limit_violation(0.7, 0.8, "gt")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,14 @@
+# Master config for Phase A pipeline
+artifacts: 'artefacts/extensions/intraday_ml/phaseA'
+
+data:
+  family: 'bars_10m'
+
+includes:
+  universe: 'configs/extensions/intraday_ml/universe_single.yaml'
+  splits: 'configs/extensions/intraday_ml/splits_pilot.yaml'
+  cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
+  features: 'configs/extensions/intraday_ml/features_10m.yaml'
+  targets: 'configs/extensions/intraday_ml/targets_loose.yaml'
+  model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
+  cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'

@@ -33,7 +33,7 @@ def create_simple_test_data():
     base_price = 100.0
     data = []
 
-    for i, date in enumerate(dates):
+    for _i, date in enumerate(dates):
         # Simple random walk
         price_change = np.random.randn() * 0.1
         base_price = max(base_price + price_change, 10.0)  # Ensure positive prices

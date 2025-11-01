@@ -7,7 +7,6 @@ and resilience to missing data.
 import numpy as np
 import pandas as pd
 import pytest
-
 from qx_features.regime.features import (
     adx_proxy,
     band_position,

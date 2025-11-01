@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 
 class FixedSizeOrderSizer:
@@ -7,7 +7,7 @@ class FixedSizeOrderSizer:
     def __init__(self, size: int = 1):
         self._size = int(size)
 
-    def __call__(self, signal: Dict[str, Any]) -> int:
+    def __call__(self, signal: dict[str, Any]) -> int:
         """Returns the fixed order size, ignoring the signal."""
         return self._size
 

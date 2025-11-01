@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import click
-
 from qx_cli.main import cli
 from qx_core.regime.detector import RegimeDetectorRules
 from qx_core.regime.monitoring import RegimeMonitor, RegimeMonitoringMetrics, RegimeType
@@ -100,7 +99,7 @@ def monitor(
                 if live:
                     # Print real-time status
                     if len(feature_df) % 100 == 0:  # Update every 100 bars
-                        summary = monitor.get_real_time_summary()
+                        monitor.get_real_time_summary()
                         click.echo(
                             f"  {timestamp.strftime('%H:%M:%S')} - "
                             f"Regime: {regime.value} "

@@ -380,7 +380,7 @@ class TestFeatureNaming:
         """Test that feature naming is consistent."""
         # Test VWAP naming
         assert get_feature_name("vwap", {"lookback_m": 20}) == "f__ta__vwap_20"
-        vwap_series = pd.Series([1.0, 2.0], name="test")
+        pd.Series([1.0, 2.0], name="test")
         # Note: vwap_m sets its own name, but should match the expected format
 
         # Test RVOL naming

@@ -7,14 +7,14 @@ and a cooldown period.
 """
 import argparse
 import logging
-import joblib
-import pandas as pd
-import numpy as np
-from pathlib import Path
 import sys
-import yaml
 import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import joblib
+import numpy as np
+import yaml
 
 # Add project paths
 sys.path.insert(0, str(Path(__file__).parent / "qx-core" / "src"))
@@ -22,11 +22,12 @@ sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-features" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-backtest" / "src"))
 
-from extensions.intraday_ml.data_prep import create_feature_set
-from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
-from qx_backtest.engine import BacktestEngine, BacktestConfig
+from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.order import Order, OrderSide, OrderType
 from qx_data.gold_loader import load_bars
+
+from extensions.intraday_ml.data_prep import create_feature_set
+from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
 
 # Try to import the performance summary display, handle if not available
 try:
@@ -59,7 +60,7 @@ def run_backtest(start_date: str, end_date: str):
     }
     policy = DecisionPolicy(policy_config)
 
-    with open(FEATURES_CONFIG_PATH, "r") as f:
+    with open(FEATURES_CONFIG_PATH) as f:
         features_config = yaml.safe_load(f)
 
     # --- 2. Load Trained Model ---
@@ -98,7 +99,7 @@ def run_backtest(start_date: str, end_date: str):
     logger.info(f"Generated {len(trade_signals)} non-neutral trade signals before policy filtering.")
 
     # --- 5. Prepare Bar Data for Backtest Engine ---
-    logger.info(f"Preparing bar data for backtest engine...")
+    logger.info("Preparing bar data for backtest engine...")
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
     dates = []

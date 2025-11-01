@@ -217,9 +217,7 @@ class MarketOrder(Order):
                 raise ValueError(f"Invalid order side: {self.side}") from exc
 
         # Ensure quantity stored as integer lots
-        if isinstance(self.quantity, float):
-            self.quantity = int(self.quantity)
-        elif not isinstance(self.quantity, int):
+        if isinstance(self.quantity, float) or not isinstance(self.quantity, int):
             self.quantity = int(self.quantity)
 
         # Generate unique order_id if not provided (for direct instantiation)

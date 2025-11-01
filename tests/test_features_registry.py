@@ -73,7 +73,7 @@ class TestFeatureRegistry:
         assert "custom" in features
 
         # Test using the registered feature
-        df = pd.DataFrame(
+        pd.DataFrame(
             {
                 "ts": [1640995200000000000],
                 "symbol": ["AAPL"],
@@ -208,7 +208,7 @@ class TestApplyFeatures:
         # Create unsorted dataframe
         unsorted_df = self.df.sample(frac=1).reset_index(drop=True)
 
-        original_order = unsorted_df.index.tolist()
+        unsorted_df.index.tolist()
 
         packs = [{"type": "core_basics"}]
         result = apply(unsorted_df, packs, sort_by_symbol_ts=False)
@@ -265,7 +265,7 @@ class TestFeatureHashing:
         assert "f__vol__atr_5" in hashes
 
         # Hashes should be strings
-        for feature, hash_val in hashes.items():
+        for _feature, hash_val in hashes.items():
             assert isinstance(hash_val, str)
             assert len(hash_val) == 64  # blake2b hash length
 

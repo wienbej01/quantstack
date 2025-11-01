@@ -290,7 +290,7 @@ class TestUtilityFunctions:
         assert isinstance(result, dict)
 
         # Check each timestamp has correct number of symbols
-        for ts, symbols in result.items():
+        for _ts, symbols in result.items():
             assert len(symbols) <= 2
             assert all(isinstance(s, str) for s in symbols)
 
@@ -308,7 +308,7 @@ class TestUtilityFunctions:
         result = screen(test_data, "relative_volume", top_n=3, whitelist=whitelist)
 
         assert isinstance(result, dict)
-        for ts, symbols in result.items():
+        for _ts, symbols in result.items():
             # All selected symbols should be in whitelist
             assert all(s in whitelist for s in symbols)
 

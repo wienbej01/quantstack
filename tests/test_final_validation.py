@@ -8,7 +8,6 @@ def test_final_integration_validation():
     """Final end-to-end validation of VWAP momentum implementation."""
     try:
         import pandas as pd
-
         from qx_backtest.policies import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -164,7 +163,7 @@ def test_complete_workflow_validation():
     policy.set_engine(engine)
 
     # Process bars
-    for idx, bar in bars_with_features.iterrows():
+    for _idx, bar in bars_with_features.iterrows():
         policy.process_bar(bar.to_dict())
 
     # Verify policy workflow - policy processes bars without crashing
@@ -236,7 +235,7 @@ def test_error_handling_and_edge_cases():
 
     # Test 2: Extreme parameter values
     try:
-        extreme_policy = VwapMomentumPolicy(
+        VwapMomentumPolicy(
             vwap_window=1,  # Very small window
             min_rvol=0.1,  # Very low RVOL threshold
             max_position_bars=1,  # Very short hold time
@@ -254,7 +253,7 @@ def test_error_handling_and_edge_cases():
     # Test 3: Zero and negative values where appropriate
     try:
         # Test with zero values (should be handled gracefully)
-        zero_policy = VwapMomentumPolicy(
+        VwapMomentumPolicy(
             position_size_pct=0.0,  # Zero position size
             max_positions=0,  # No positions allowed
         )
@@ -454,7 +453,6 @@ def test_complete_system_validation():
     """Complete system validation including all components."""
     try:
         import pandas as pd
-
         from qx_backtest.policies.vwap_momentum import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -588,7 +586,7 @@ def test_complete_system_validation():
 
     start_time = time.time()
 
-    for idx, bar in bars_with_features.iterrows():
+    for _idx, bar in bars_with_features.iterrows():
         bar_dict = bar.to_dict()
         basic_policy.process_bar(bar_dict)
         enhanced_policy.process_bar(bar_dict)
@@ -644,7 +642,6 @@ def test_comprehensive_final_system_validation():
     """Comprehensive final system validation with all components."""
     try:
         import pandas as pd
-
         from qx_backtest.policies.vwap_momentum import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -820,7 +817,7 @@ def test_comprehensive_final_system_validation():
         enhanced_policy.set_engine(enhanced_engine)
 
         # Process data
-        for idx, bar in bars_with_features.iterrows():
+        for _idx, bar in bars_with_features.iterrows():
             bar_dict = bar.to_dict()
             basic_policy.process_bar(bar_dict)
             enhanced_policy.process_bar(bar_dict)

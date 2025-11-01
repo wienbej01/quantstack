@@ -25,28 +25,28 @@ class TestM2FeatureIntegration:
     def feature_config(self):
         """Load the actual features.yaml configuration."""
         config_path = Path("configs/extensions/intraday_ml/features.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture
     def universe_config(self):
         """Load universe configuration."""
         config_path = Path("configs/extensions/intraday_ml/universe.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture
     def cuts_config(self):
         """Load cuts configuration."""
         config_path = Path("configs/extensions/intraday_ml/cuts.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture
     def splits_config(self):
         """Load splits configuration."""
         config_path = Path("configs/extensions/intraday_ml/splits.yaml")
-        with open(config_path, "r") as f:
+        with open(config_path) as f:
             return yaml.safe_load(f)
 
     @pytest.fixture

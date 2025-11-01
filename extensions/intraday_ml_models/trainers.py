@@ -3,19 +3,17 @@
 import hashlib
 import json
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
+from qx_core.hashers import hash_dataframe
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.metrics import accuracy_score, mean_squared_error, r2_score
+from sklearn.metrics import accuracy_score, r2_score
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC, SVR
-
-from qx_core.hashers import hash_dataframe
 
 from .registry import MLModelRegistry
 from .schemas import FeatureImportance, ModelConfig, ModelMetadata, ModelType
@@ -34,7 +32,7 @@ class MLModelTrainer:
         "SVR": SVR,
     }
 
-    def __init__(self, registry: Optional[MLModelRegistry] = None):
+    def __init__(self, registry: MLModelRegistry | None = None):
         """Initialize trainer.
 
         Args:
@@ -46,8 +44,8 @@ class MLModelTrainer:
         self,
         bars: pd.DataFrame,
         config: ModelConfig,
-        target_column: Optional[str] = None,
-    ) -> Tuple[pd.DataFrame, pd.Series]:
+        target_column: str | None = None,
+    ) -> tuple[pd.DataFrame, pd.Series]:
         """Prepare training data with proper feature/target alignment.
 
         Args:
@@ -100,7 +98,7 @@ class MLModelTrainer:
         # Group by symbol to avoid look-ahead across symbols
         targets = []
 
-        for symbol, group in bars.groupby("symbol"):
+        for _symbol, group in bars.groupby("symbol"):
             group_sorted = group.sort_values("ts")
 
             if target_column == "close" or target_column in ["open", "high", "low"]:
@@ -127,8 +125,8 @@ class MLModelTrainer:
         self,
         bars: pd.DataFrame,
         config: ModelConfig,
-        model_id: Optional[str] = None,
-        description: Optional[str] = None,
+        model_id: str | None = None,
+        description: str | None = None,
     ) -> ModelMetadata:
         """Train an ML model according to configuration.
 
@@ -231,7 +229,7 @@ class MLModelTrainer:
         target: pd.Series,
         test_split: float,
         val_split: float,
-    ) -> Tuple[
+    ) -> tuple[
         pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series
     ]:
         """Split data into train/val/test with time series awareness."""
@@ -254,7 +252,7 @@ class MLModelTrainer:
 
     def _train_with_hyperparameter_tuning(
         self,
-        model_class: Type[BaseEstimator],
+        model_class: type[BaseEstimator],
         X_train: pd.DataFrame,
         y_train: pd.Series,
         X_val: pd.DataFrame,
@@ -302,8 +300,8 @@ class MLModelTrainer:
             return r2_score(y, y_pred)
 
     def _calculate_feature_importance(
-        self, model: BaseEstimator, feature_names: List[str], model_type: ModelType
-    ) -> List[FeatureImportance]:
+        self, model: BaseEstimator, feature_names: list[str], model_type: ModelType
+    ) -> list[FeatureImportance]:
         """Calculate feature importance."""
         importance_scores = []
 
@@ -323,7 +321,7 @@ class MLModelTrainer:
 
         # Create feature importance objects
         feature_importance = []
-        for i, (feature, score) in enumerate(zip(feature_names, importance_scores)):
+        for i, (feature, score) in enumerate(zip(feature_names, importance_scores, strict=False)):
             feature_importance.append(
                 FeatureImportance(
                     feature_name=feature, importance=float(score), rank=i + 1

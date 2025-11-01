@@ -304,7 +304,7 @@ def add_time_bars(df: pd.DataFrame, interval: str = "1h") -> pd.DataFrame:
 def resample_bars(
     df: pd.DataFrame,
     interval: str = "1h",
-    price_cols: list = ["open", "high", "low", "close"],
+    price_cols: list = None,
     volume_col: str = "volume",
 ) -> pd.DataFrame:
     """Resample bars to different time interval.
@@ -318,6 +318,8 @@ def resample_bars(
     Returns:
         Resampled DataFrame
     """
+    if price_cols is None:
+        price_cols = ["open", "high", "low", "close"]
     df = df.copy()
 
     # Ensure datetime index

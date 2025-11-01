@@ -7,11 +7,10 @@ Implements first-hit logic for tri-class classification {-1, 0, +1}.
 import hashlib
 import warnings
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_features.core_basics import atr_m
 
 
@@ -20,14 +19,14 @@ class LabelResult:
     """Result of labeling operation with metadata."""
 
     labels: pd.Series
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     targets_hash: str
 
 
 class IntradayMLLabeler:
     """Creates ATR-thresholded labels with strict time discipline."""
 
-    def __init__(self, targets_config: Dict[str, Any]):
+    def __init__(self, targets_config: dict[str, Any]):
         """Initialize labeler with configuration.
 
         Args:
@@ -170,21 +169,19 @@ class IntradayMLLabeler:
 
         # Return the majority label (or 0 if no labels)
         if not labels:
-            return int(0)
+            return 0
 
         # For single symbol or clear majority, return that label
         # For mixed signals, return 0 (neutral)
         label_counts = pd.Series(labels).value_counts()
-        if len(label_counts) == 1:
-            return int(label_counts.index[0])
-        elif label_counts.iloc[0] > label_counts.iloc[1]:
+        if len(label_counts) == 1 or label_counts.iloc[0] > label_counts.iloc[1]:
             return int(label_counts.index[0])
         else:
-            return int(0)
+            return 0
 
     def _compute_atr_for_timestamp(
         self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp
-    ) -> Optional[float]:
+    ) -> float | None:
         """Compute ATR value for a specific timestamp using historical data.
 
         Args:
@@ -199,7 +196,7 @@ class IntradayMLLabeler:
 
         atr_values = []
 
-        for symbol, symbol_data in historical_data.groupby("symbol"):
+        for _symbol, symbol_data in historical_data.groupby("symbol"):
             symbol_data = symbol_data.sort_values("ts")
 
             # Need enough data for ATR computation
@@ -222,7 +219,7 @@ class IntradayMLLabeler:
         else:
             return None
 
-    def _get_current_prices(self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp) -> Dict[str, float]:
+    def _get_current_prices(self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp) -> dict[str, float]:
         """Get the most recent price for each symbol at or before current_timestamp.
 
         Args:
@@ -289,12 +286,12 @@ class IntradayMLLabeler:
 
             # Check if threshold is hit
             if fwd_return >= threshold:
-                return int(1)
+                return 1
             elif fwd_return <= -threshold:
-                return int(-1)
+                return -1
 
         # No threshold hit within horizon
-        return int(0)
+        return 0
 
     def _validate_no_peek(self, bars: pd.DataFrame, ts_cut: pd.Timestamp):
         """Validate that labeling respects no-peek rules."""
@@ -318,7 +315,7 @@ class IntradayMLLabeler:
         """Compute ATR values for historical bars."""
         atr_values = []
 
-        for symbol, group in historical_bars.groupby("symbol"):
+        for _symbol, group in historical_bars.groupby("symbol"):
             group = group.sort_values("ts")
             symbol_atr = atr_m(group, self.atr_window)
 
@@ -338,7 +335,7 @@ class IntradayMLLabeler:
         atr_values: pd.Series,
         horizon: int,
         ts_cut: pd.Timestamp,
-    ) -> Tuple[pd.Series, Dict[str, Any]]:
+    ) -> tuple[pd.Series, dict[str, Any]]:
         """Create labels for a specific horizon."""
         labels = []
         metadata = {
@@ -384,7 +381,7 @@ class IntradayMLLabeler:
         else:
             return pd.Series(dtype=int), metadata
 
-    def _get_latest_atr(self, atr_values: pd.Series, symbol: str) -> Optional[float]:
+    def _get_latest_atr(self, atr_values: pd.Series, symbol: str) -> float | None:
         """Get the latest ATR value for a symbol."""
         # Find the most recent ATR value for this symbol
         symbol_atrs = atr_values[
@@ -396,7 +393,7 @@ class IntradayMLLabeler:
         else:
             return None
 
-    def _get_symbol_indices(self, atr_values: pd.Series, symbol: str) -> List[int]:
+    def _get_symbol_indices(self, atr_values: pd.Series, symbol: str) -> list[int]:
         """Get indices for a specific symbol (placeholder implementation)."""
         # This is a simplified implementation
         # In practice, you'd need to track which indices belong to which symbol
@@ -424,7 +421,7 @@ class IntradayMLLabeler:
         """
         # Get the index of current row
         current_idx = current_row.name
-        current_idx_pos = group.index.get_loc(current_idx)
+        group.index.get_loc(current_idx)
 
         # Calculate horizon end
         horizon_end_ts = current_row["ts"] + pd.Timedelta(minutes=horizon)
@@ -443,7 +440,6 @@ class IntradayMLLabeler:
 
         # Track first hit
         first_hit = None
-        first_hit_time = None
 
         for _, future_row in future_bars.iterrows():
             # Calculate forward return
@@ -452,17 +448,17 @@ class IntradayMLLabeler:
             # Check if threshold is hit
             if fwd_return >= threshold:
                 first_hit = 1
-                first_hit_time = future_row["ts"]
+                future_row["ts"]
                 break
             elif fwd_return <= -threshold:
                 first_hit = -1
-                first_hit_time = future_row["ts"]
+                future_row["ts"]
                 break
 
         return first_hit if first_hit is not None else 0
 
     def _combine_horizon_labels(
-        self, horizon_labels: Dict[int, pd.Series]
+        self, horizon_labels: dict[int, pd.Series]
     ) -> pd.Series:
         """Combine labels across multiple horizons."""
         if not horizon_labels:
@@ -483,7 +479,7 @@ class IntradayMLLabeler:
         self,
         bars: pd.DataFrame,
         ts_cut: pd.Timestamp,
-        targets_config: Dict[str, Any],
+        targets_config: dict[str, Any],
         labels: pd.Series,
     ) -> str:
         """Compute hash for targets reproducibility."""
@@ -509,7 +505,7 @@ class IntradayMLLabeler:
 def intraday_ml_get_targets_hash(
     bars: pd.DataFrame,
     ts_cut: pd.Timestamp,
-    targets_config: Dict[str, Any],
+    targets_config: dict[str, Any],
     labels: pd.Series,
 ) -> str:
     """Compute targets hash for given data and configuration.

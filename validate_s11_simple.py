@@ -8,6 +8,7 @@ Validates core S11 components without complex dependencies.
 import json
 import pathlib
 import shutil
+import sys
 import tempfile
 from datetime import datetime
 
@@ -439,4 +440,4 @@ def main():
 
 if __name__ == "__main__":
     success = main()
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

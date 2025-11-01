@@ -5,16 +5,11 @@ experiment artifacts, including single-run analysis and A/B comparisons.
 """
 
 import pathlib
-import sys
-from typing import Any, Dict, List
+from typing import Any
 
 import typer
-import yaml
 from rich.console import Console
 from rich.table import Table
-
-from qx_report.readers import ExperimentReader, RunReader
-from qx_report.summaries import ABDiffTables, LeaderboardGenerator, PerRunSummaries
 
 from . import __version__
 
@@ -161,7 +156,7 @@ def version() -> None:
     console.print(f"Intraday ML Reporting v{__version__}")
 
 
-def _display_report_results(report_data: Dict[str, Any]) -> None:
+def _display_report_results(report_data: dict[str, Any]) -> None:
     """Display experiment report results."""
     if not report_data:
         console.print("[yellow]No report data available[/yellow]")
@@ -227,7 +222,7 @@ def _display_report_results(report_data: Dict[str, Any]) -> None:
         console.print("[yellow]No variant comparison data available[/yellow]")
 
 
-def _display_run_metrics(metrics: Dict[str, Any]) -> None:
+def _display_run_metrics(metrics: dict[str, Any]) -> None:
     """Display single run metrics."""
     if not metrics:
         console.print("[yellow]No metrics available[/yellow]")
