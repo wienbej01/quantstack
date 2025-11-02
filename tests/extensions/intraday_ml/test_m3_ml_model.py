@@ -466,7 +466,10 @@ class TestDecisionPolicy:
         # Should accept high probability (with sufficient ATR)
         high_probs = {1: 0.8, -1: 0.1, 0: 0.1}
         should_trade, direction, reason = policy.should_trade(
-            "AAPL", high_probs, 1.0, current_time  # Larger ATR value
+            "AAPL",
+            high_probs,
+            1.0,
+            current_time,  # Larger ATR value
         )
         assert should_trade
         assert direction == 1

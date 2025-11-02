@@ -1,12 +1,14 @@
-
 import numpy as np
 import pandas as pd
+
 from qx_data.resample import resample_data
 
 
 def test_resample_data():
     """Tests the resample_data function."""
-    dates = pd.to_datetime(pd.date_range("2024-01-01 09:30:00", periods=10, freq="1min"))
+    dates = pd.to_datetime(
+        pd.date_range("2024-01-01 09:30:00", periods=10, freq="1min")
+    )
     data = {
         "ts": dates.astype(np.int64),
         "symbol": ["AAPL"] * 10,

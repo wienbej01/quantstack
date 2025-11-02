@@ -216,13 +216,21 @@ class TestStrategyWrapper:
             }
         )
 
-        strategy = _create_strategy_wrapper(orders)
+        constraints = {
+            "flat_eod_time": "15:59:59",
+            "session_timezone": "America/New_York",
+        }
+        strategy = _create_strategy_wrapper(orders, constraints)
         mock_engine = Mock()
         mock_engine.get_position.return_value = None
 
         # Test with matching bars
         bars = pd.DataFrame(
-            {"ts": [2000, 3000, 4000], "symbol": ["AAPL", "GOOGL", "MSFT"], "close": [100, 200, 300]}
+            {
+                "ts": [2000, 3000, 4000],
+                "symbol": ["AAPL", "GOOGL", "MSFT"],
+                "close": [100, 200, 300],
+            }
         )
 
         for _, bar in bars.iterrows():
@@ -230,7 +238,7 @@ class TestStrategyWrapper:
 
         assert mock_engine.submit_order.call_count == 2
         submitted_orders = [c[0][0] for c in mock_engine.submit_order.call_args_list]
-        
+
         assert submitted_orders[0].symbol == "AAPL"
         assert submitted_orders[0].quantity == 100
         assert submitted_orders[0].stop_loss == pytest.approx(99.0)
@@ -241,19 +249,86 @@ class TestStrategyWrapper:
         assert submitted_orders[1].stop_loss == pytest.approx(202.0)
         assert submitted_orders[1].take_profit == pytest.approx(197.0)
 
-
     def test_strategy_wrapper_empty_orders(self):
         """Test strategy wrapper with empty orders."""
         orders = pd.DataFrame()
-        strategy = _create_strategy_wrapper(orders)
+        strategy = _create_strategy_wrapper(orders, {"flat_eod_time": "15:59:59"})
 
         mock_engine = Mock()
+        mock_engine.get_position.return_value = None
         bars = pd.DataFrame({"ts": [1000], "symbol": ["AAPL"], "close": [100]})
-        
+
         for _, bar in bars.iterrows():
             strategy(mock_engine, bar.to_dict())
 
         assert mock_engine.submit_order.call_count == 0
+
+    def test_strategy_wrapper_handles_timestamp_inputs(self):
+        """Strategy wrapper accepts Timestamp values for both orders and bars."""
+        event_ts = pd.Timestamp("2025-11-03 14:30:00", tz="UTC")
+        orders = pd.DataFrame(
+            {
+                "ts": [event_ts],
+                "symbol": ["AAPL"],
+                "side": ["long"],
+                "qty": [25],
+                "stop_loss_pct": [0.01],
+                "take_profit_pct": [0.02],
+            }
+        )
+
+        strategy = _create_strategy_wrapper(
+            orders,
+            {
+                "flat_eod_time": "15:59:59",
+                "session_timezone": "America/New_York",
+            },
+        )
+
+        mock_engine = Mock()
+        mock_engine.get_position.return_value = None
+
+        bar = {"ts": event_ts, "symbol": "AAPL", "close": 100.0}
+
+        strategy(mock_engine, bar)
+
+        assert mock_engine.submit_order.call_count == 1
+        submitted_order = mock_engine.submit_order.call_args[0][0]
+        assert submitted_order.timestamp == event_ts
+        assert submitted_order.symbol == "AAPL"
+
+    def test_strategy_wrapper_force_flat(self):
+        """Strategy forces flat positions at the configured cutoff time."""
+        orders = pd.DataFrame()
+        strategy = _create_strategy_wrapper(
+            orders,
+            {"flat_eod_time": "15:59:59", "session_timezone": "America/New_York"},
+        )
+
+        mock_engine = Mock()
+        mock_position = Mock()
+        mock_position.is_long = True
+        mock_position.is_short = False
+        mock_position.quantity = 50
+        mock_engine.get_position.return_value = mock_position
+
+        ts = (
+            pd.Timestamp("2025-11-03 16:00:00", tz="America/New_York")
+            .tz_convert("UTC")
+            .value
+        )
+        bar = {"ts": ts, "symbol": "AAPL", "close": 100.0}
+
+        strategy(mock_engine, bar)
+        assert mock_engine.submit_order.call_count == 1
+        forced_order = mock_engine.submit_order.call_args[0][0]
+        assert forced_order.symbol == "AAPL"
+        assert forced_order.quantity == 50
+        assert forced_order.tags.get("exit_reason") == "force_flat"
+
+        # Subsequent calls on the same day do not create duplicate forced exits
+        strategy(mock_engine, bar)
+        assert mock_engine.submit_order.call_count == 1
 
 
 class TestResultConversion:
@@ -315,16 +390,41 @@ class TestResultConversion:
     def test_calculate_metrics(self):
         """Test metrics calculation from artifacts."""
         artifacts = {
-            "trades": pd.DataFrame({"pnl": [10, -5, 15, -8], "symbol": ["A", "A", "B", "B"], "timestamp": [1,2,3,4], "side": ["BUY", "SELL", "BUY", "SELL"], "total_cost": [-10, 5, -15, 8], "order_id": [1,1,2,2]}),
-            "fills": pd.DataFrame({"commission": [1, 0.5, 1.2, 0.8]}),
+            "trades": pd.DataFrame(
+                {
+                    "pnl": [10, -5, 15, -8],
+                    "symbol": ["A", "A", "B", "B"],
+                    "timestamp": [1, 2, 3, 4],
+                    "side": ["BUY", "SELL", "BUY", "SELL"],
+                    "total_cost": [-10, 5, -15, 8],
+                    "order_id": [1, 1, 2, 2],
+                }
+            ),
+            "fills": pd.DataFrame(
+                {
+                    "commission": [1, 0.5, 1.2, 0.8],
+                    "timestamp": pd.to_datetime(
+                        [
+                            "2025-11-03 10:00:00",
+                            "2025-11-03 10:05:00",
+                            "2025-11-03 11:00:00",
+                            "2025-11-03 11:05:00",
+                        ],
+                        utc=True,
+                    ),
+                    "side": ["BUY", "SELL", "BUY", "SELL"],
+                    "quantity": [50, 50, 40, 40],
+                    "price": [100.0, 101.0, 50.0, 49.5],
+                }
+            ),
         }
 
         metrics = _calculate_metrics(artifacts)
 
         assert metrics["trades"] == 2
-        assert metrics["total_pnl"] == pytest.approx(12.0)
-        assert metrics["avg_R"] == pytest.approx(6.0)
-        assert metrics["win_rate"] == 1.0
+        assert metrics["total_pnl"] == pytest.approx(26.5)
+        assert metrics["avg_R"] == pytest.approx(13.25)
+        assert metrics["win_rate"] == pytest.approx(0.5)
         assert metrics["fees_total"] == 3.5
 
 
@@ -365,9 +465,28 @@ class TestIntegration:
         # Mock engine result
         mock_result = Mock()
         mock_result.metrics = {"trades": 1, "pnl": 20.0}
-        mock_result.equity_curve = pd.DataFrame({"timestamp": [1,2], "equity": [1000, 1020]})
+        mock_result.equity_curve = pd.DataFrame(
+            {"timestamp": [1, 2], "equity": [1000, 1020]}
+        )
         mock_result.positions_history = []
-        mock_result.trades_history = [{"pnl": 20, "order_id": 1, "symbol": "A", "timestamp": 1, "side": "BUY", "total_cost": -100}, {"pnl": 20, "order_id": 1, "symbol": "A", "timestamp": 2, "side": "SELL", "total_cost": 120}]
+        mock_result.trades_history = [
+            {
+                "pnl": 20,
+                "order_id": 1,
+                "symbol": "A",
+                "timestamp": 1,
+                "side": "BUY",
+                "total_cost": -100,
+            },
+            {
+                "pnl": 20,
+                "order_id": 1,
+                "symbol": "A",
+                "timestamp": 2,
+                "side": "SELL",
+                "total_cost": 120,
+            },
+        ]
         mock_result.orders_history = []
         mock_result.fills_history = []
         mock_engine.run.return_value = mock_result

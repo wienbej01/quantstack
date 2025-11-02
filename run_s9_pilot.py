@@ -46,7 +46,7 @@ def create_s9_experiment():
     results = []
 
     for i, variant in enumerate(variants):
-        print(f"\n🔄 Processing variant {i+1}/{len(variants)}: {variant}")
+        print(f"\n🔄 Processing variant {i + 1}/{len(variants)}: {variant}")
 
         run_id = run_ids[i]
         run_dir = pathlib.Path("runs") / run_id
@@ -257,43 +257,43 @@ def create_s9_experiment():
 
 ## 📋 Experiment Summary
 - **Experiment Type**: entry-ab A/B test
-- **Data Source**: {base_config['gold_root']} ({base_config['family']})
-- **Symbols**: {', '.join(base_config['symbols'])}
-- **Date Range**: {base_config['dates'][0]}
+- **Data Source**: {base_config["gold_root"]} ({base_config["family"]})
+- **Symbols**: {", ".join(base_config["symbols"])}
+- **Date Range**: {base_config["dates"][0]}
 - **Variants**: {len(variants)} (policy_a vs policy_b)
 - **Gold Data**: Read-only ✅
-- **Seed**: {base_config['seed']} (deterministic) ✅
+- **Seed**: {base_config["seed"]} (deterministic) ✅
 
 ## 📊 Results
 
 ### Trade Generation (✅ Non-empty)
 | Variant | rvol_min | Trades | Avg R | Win Rate | Sharpe CI High | Total P&L |
 |---------|----------|--------|-------|----------|---------------|-----------|
-| policy_a | 1.0 | {results[0]['trades']} | {results[0]['avg_R']:.3f} | {results[0]['win_rate']:.1%} | {results[0]['sharpe_CI_high']:.2f} | ${results[0]['total_pnl']:.0f} |
-| policy_b | 1.5 | {results[1]['trades']} | {results[1]['avg_R']:.3f} | {results[1]['win_rate']:.1%} | {results[1]['sharpe_CI_high']:.2f} | ${results[1]['total_pnl']:.0f} |
+| policy_a | 1.0 | {results[0]["trades"]} | {results[0]["avg_R"]:.3f} | {results[0]["win_rate"]:.1%} | {results[0]["sharpe_CI_high"]:.2f} | ${results[0]["total_pnl"]:.0f} |
+| policy_b | 1.5 | {results[1]["trades"]} | {results[1]["avg_R"]:.3f} | {results[1]["win_rate"]:.1%} | {results[1]["sharpe_CI_high"]:.2f} | ${results[1]["total_pnl"]:.0f} |
 
 ### Variant Separation (✅ Confirmed)
-- **Trade Count Difference**: {abs(results[0]['trades'] - results[1]['trades'])} trades
-- **Performance Difference**: {abs(results[0]['avg_R'] - results[1]['avg_R']):.3f} R-multiple
-- **Win Rate Difference**: {abs(results[0]['win_rate'] - results[1]['win_rate']):.1%}
-- **Winner**: **{winner['variant']}** (Sharpe CI: {winner['sharpe_CI_high']:.2f})
+- **Trade Count Difference**: {abs(results[0]["trades"] - results[1]["trades"])} trades
+- **Performance Difference**: {abs(results[0]["avg_R"] - results[1]["avg_R"]):.3f} R-multiple
+- **Win Rate Difference**: {abs(results[0]["win_rate"] - results[1]["win_rate"]):.1%}
+- **Winner**: **{winner["variant"]}** (Sharpe CI: {winner["sharpe_CI_high"]:.2f})
 
 ### Fairness Validation (✅ Equal Inputs)
 - **bars_norm_hash**: Same across variants ✅
 - **features_hash**: Same across variants ✅
 - **sip_hash**: Same across variants ✅
-- **seed**: Same across variants ({base_config['seed']}) ✅
+- **seed**: Same across variants ({base_config["seed"]}) ✅
 - **config_hash**: Different across variants (expected) ✅
 
 ## ✅ S9 Acceptance Criteria Met
 
 1. **✅ `runs/*/trades.parquet` non-empty**
-   - policy_a: {results[0]['trades']} trades
-   - policy_b: {results[1]['trades']} trades
+   - policy_a: {results[0]["trades"]} trades
+   - policy_b: {results[1]["trades"]} trades
 
 2. **✅ Variant separation: different trade counts or median R**
-   - Trade count separation: {results[0]['trades']} vs {results[1]['trades']}
-   - Performance separation: {results[0]['avg_R']:.3f} vs {results[1]['avg_R']:.3f} R-multiple
+   - Trade count separation: {results[0]["trades"]} vs {results[1]["trades"]}
+   - Performance separation: {results[0]["avg_R"]:.3f} vs {results[1]["avg_R"]:.3f} R-multiple
 
 3. **✅ `inputs_checksum.json` equal across variants**
    - All fairness hashes identical (bars_norm_hash, features_hash, sip_hash, seed)
@@ -306,7 +306,7 @@ def create_s9_experiment():
 The end-to-end VWAP A/B test successfully demonstrated:
 
 1. **Complete Pipeline Integration**: From Gold data loading through backtesting
-2. **Real Data Usage**: Read-only access to Gold bars ({base_config['gold_root']})
+2. **Real Data Usage**: Read-only access to Gold bars ({base_config["gold_root"]})
 3. **Non-Empty Trade Generation**: Both variants produced actual trades
 4. **Clear Variant Separation**: Different rvol_min parameters produced different results
 5. **Fairness Guarantees**: Equal inputs across variants ensured fair comparison
@@ -318,7 +318,7 @@ The end-to-end VWAP A/B test successfully demonstrated:
 
 *Generated: {datetime.now().isoformat()}*
 *Experiment ID: {exp_id}*
-*Gold Data Source: {base_config['gold_root']}*
+*Gold Data Source: {base_config["gold_root"]}*
 """
 
     with open(exp_dir / "compare.md", "w") as f:

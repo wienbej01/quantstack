@@ -1,6 +1,5 @@
 """Tests for checksum computation utilities."""
 
-
 import numpy as np
 import pandas as pd
 import pytest

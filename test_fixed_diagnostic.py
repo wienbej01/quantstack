@@ -67,7 +67,7 @@ def run_diagnostic_check(df, verbose=False):
 
     valid_bars = ready_bars[valid_mask]
     print(
-        f"Valid regime bars: {len(valid_bars)} out of {len(ready_bars)} ({len(valid_bars)/len(ready_bars)*100:.1f}%)"
+        f"Valid regime bars: {len(valid_bars)} out of {len(ready_bars)} ({len(valid_bars) / len(ready_bars) * 100:.1f}%)"
     )
 
     if len(valid_bars) == 0:

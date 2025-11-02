@@ -102,7 +102,7 @@ def analyze_real_data():
 
     valid_bars = df[valid_mask]
     print(
-        f"Valid regime bars: {len(valid_bars)} out of {len(df)} ({len(valid_bars)/len(df)*100:.1f}%)"
+        f"Valid regime bars: {len(valid_bars)} out of {len(df)} ({len(valid_bars) / len(df) * 100:.1f}%)"
     )
 
     if len(valid_bars) > 0:

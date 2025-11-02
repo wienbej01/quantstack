@@ -30,6 +30,13 @@ The pipeline is configured using a master YAML file that includes other configur
 - `cv`: Defines the cross-validation strategy.
 - `policy`: Defines the decision policy for generating orders.
 
+The policy configuration supports optional strategy-aware gating. Set
+`enabled_strategies` to a list containing any of `momentum`, `pullback`,
+`value_rotation`, or `sweep_reversion` to require the corresponding
+feature-backed checks before an order is submitted. When omitted the
+decision policy falls back to probability/conviction gating only, keeping
+the ML flow independent from non-ML strategy implementations.
+
 ## Artifacts
 
 The pipeline produces a set of artifacts in the directory specified in the master config (`artifacts_dir`). The artifacts include:

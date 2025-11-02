@@ -343,9 +343,16 @@ class TimeSeriesCVRunner:
             train_features = train_data.drop(columns=["target"]).set_index(
                 ["symbol", "ts"]
             )
-            train_labels = train_data["target"]
+            train_labels = train_data.set_index(["symbol", "ts"])["target"]
             val_features = val_data.drop(columns=["target"]).set_index(["symbol", "ts"])
-            val_labels = val_data["target"]
+            val_labels = val_data.set_index(["symbol", "ts"])["target"]
+
+            if train_labels.nunique() <= 1 or val_labels.nunique() == 0:
+                print(
+                    f"Skipping fold {split.fold}: insufficient class variety "
+                    f"(train classes={train_labels.nunique()}, val classes={val_labels.nunique()})"
+                )
+                continue
 
             # Compute hashes
             features_hash = compute_data_hash(train_features)
@@ -380,6 +387,11 @@ class TimeSeriesCVRunner:
             )
 
             fold_metrics.append(metrics)
+
+        if not fold_metrics:
+            raise ValueError(
+                "No valid CV folds were executed due to insufficient data variety."
+            )
 
         # Aggregate results
         aggregated_metrics = self._aggregate_metrics(fold_metrics)
@@ -481,7 +493,11 @@ class TimeSeriesCVRunner:
 
         # Feature importance
         feature_importance = dict(
-            zip(val_features.columns, training_result.model.feature_importances_, strict=False)
+            zip(
+                val_features.columns,
+                training_result.model.feature_importances_,
+                strict=False,
+            )
         )
         top_features = sorted(
             feature_importance.items(), key=lambda x: x[1], reverse=True

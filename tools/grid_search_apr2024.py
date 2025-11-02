@@ -18,6 +18,7 @@ from itertools import product
 
 import numpy as np
 import pandas as pd
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.fill import DefaultFiller
 from qx_backtest.policies.vwap_revert import VwapRevertPolicy

@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from jsonschema import ValidationError, validate
+
 from qx_core.schemas import (
     compare_report_schema,
     experiment_manifest_schema,

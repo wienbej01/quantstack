@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
+
 from qx_features.dataset_builder import DatasetBuilder
 from qx_features.ml_trainer import ModelTrainer, train_simple_classifier
 from qx_features.registry import apply

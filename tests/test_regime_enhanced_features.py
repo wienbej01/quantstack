@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import pytest
+
 from qx_features.regime_enhanced import (
     compute_all_regime_enhanced_features,
     compute_avwap_features,

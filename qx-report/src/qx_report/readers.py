@@ -132,7 +132,11 @@ class RunReader:
         equity_df = self.equity
         equity_metrics = {}
 
-        if equity_df is not None and not equity_df.empty and "equity" in equity_df.columns:
+        if (
+            equity_df is not None
+            and not equity_df.empty
+            and "equity" in equity_df.columns
+        ):
             equity_series = equity_df["equity"]
             returns = equity_series.pct_change().dropna()
 

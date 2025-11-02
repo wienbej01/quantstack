@@ -12,3 +12,32 @@ includes:
   targets: 'configs/extensions/intraday_ml/targets_loose.yaml'
   model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
   cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'
+
+policy:
+  prob_threshold_long: 0.6
+  prob_threshold_short: 0.6
+  cooldown_minutes: 30
+  min_time: "09:40:00"
+  max_time: "15:50:00"
+  stop_loss_pct: 0.006
+  take_profit_pct: 0.009
+  order_qty: 1
+  exit_threshold_long: 0.55
+  exit_threshold_short: 0.55
+  max_hold_minutes: 120
+  score_margin: 0.06
+  min_directional_gap: 0.15
+  min_conviction_score: 0.25
+  max_entries_per_day:
+  gap_exit_delay_minutes: 15
+  calibration:
+    enabled: true
+    quantiles: [0.5, 0.7, 0.85, 0.95]
+    prob_long_percentile: 0.8
+    prob_short_percentile: 0.8
+    gap_percentile: 0.75
+    conviction_percentile: 0.75
+    prob_exit_offset: 0.05
+    min_samples: 200
+    max_samples_per_symbol: 5000
+    stats_filename: "policy_calibration.json"

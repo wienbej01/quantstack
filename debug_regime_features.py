@@ -141,7 +141,7 @@ def main():
             nan_count = df_with_features[feature].isna().sum()
             total_count = len(df_with_features)
             print(
-                f"  {feature}: {nan_count}/{total_count} NaN values ({nan_count/total_count*100:.1f}%)"
+                f"  {feature}: {nan_count}/{total_count} NaN values ({nan_count / total_count * 100:.1f}%)"
             )
 
             if nan_count < total_count:

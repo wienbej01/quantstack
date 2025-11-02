@@ -104,9 +104,7 @@ class RegimeConfig(BaseModel):
         threshold_params = ["stress_threshold"]
         for param in threshold_params:
             if param in v and (not isinstance(v[param], (int, float)) or v[param] <= 0):
-                raise ValueError(
-                    f"Feature parameter {param} must be a positive number"
-                )
+                raise ValueError(f"Feature parameter {param} must be a positive number")
 
         return v
 

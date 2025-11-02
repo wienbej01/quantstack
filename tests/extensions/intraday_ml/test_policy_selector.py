@@ -5,10 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from extensions.intraday_ml_policies.base import (
-    BaseMLPolicy,
-    PolicySignal,
-)
+from extensions.intraday_ml_policies.base import BaseMLPolicy, PolicySignal
 from extensions.intraday_ml_policies.performance_tracker import (
     PerformanceMetrics,
     PolicyPerformanceTracker,

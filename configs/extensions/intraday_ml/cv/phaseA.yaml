@@ -1,5 +1,8 @@
-folds: 3
+n_folds: 3
 embargo_days: 5
 purge_days: 5
 walk_forward: false
 metrics: [f1_posneg, aucpr_posneg, brier, expectancy, trade_rate]
+min_observations_per_fold: 200
+min_symbols_per_fold: 1
+cross_symbol_consistency: false

@@ -110,7 +110,7 @@ class CostSweepExperiment(BaseExperiment):
         # Run backtest for each combination
         all_results = []
         for i, params in enumerate(param_combinations):
-            print(f"Running combination {i+1}/{len(param_combinations)}: {params}")
+            print(f"Running combination {i + 1}/{len(param_combinations)}: {params}")
 
             try:
                 backtest_result = self._run_single_backtest(params)
@@ -118,7 +118,7 @@ class CostSweepExperiment(BaseExperiment):
                 all_results.append(backtest_result)
 
             except Exception as e:
-                print(f"Failed to run combination {i+1}: {e}")
+                print(f"Failed to run combination {i + 1}: {e}")
                 continue
 
         # Analyze results

@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "qx-data" / "src"))
 
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.policies.regime_aligned import AVWAPMomentumPolicy
-
 from test_regime_pilot import (
     create_regime_detector,
     prepare_features,

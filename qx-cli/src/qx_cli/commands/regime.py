@@ -576,7 +576,7 @@ def analyze(
 
 @app.command()
 def validate_config(
-    config_path: str = typer.Argument(..., help="Path to regime configuration file")
+    config_path: str = typer.Argument(..., help="Path to regime configuration file"),
 ):
     """Validate regime configuration file."""
 

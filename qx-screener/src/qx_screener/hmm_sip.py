@@ -7,6 +7,7 @@ from typing import Literal
 
 import pandas as pd
 from pydantic import BaseModel, Field
+
 from qx_core.contracts import UniverseSelector
 from qx_core.hashers import hash_sip_map
 from qx_core.validators import validate_bars_dataframe

@@ -3,11 +3,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
-from qx_backtest.order import Order, OrderSide
-from qx_backtest.policies.base import Policy
-
 from extensions.intraday_ml_models.predictors import MLPredictor
 from extensions.intraday_ml_models.registry import MLModelRegistry
+from qx_backtest.order import Order, OrderSide
+from qx_backtest.policies.base import Policy
 
 
 class BaseMLPolicy(Policy, ABC):

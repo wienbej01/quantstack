@@ -1,4 +1,0 @@
-# Policy A overlay - less restrictive RVOL
-policy_params:
-  min_rvol: 1.0
-  vwap_lookback_m: 10

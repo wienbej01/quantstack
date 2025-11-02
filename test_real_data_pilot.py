@@ -391,13 +391,13 @@ def main():
     total_sessions = sum(regime_counts.values())
     print("\nRegime Distribution Summary (Session-based):")
     print(
-        f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions/(total_sessions or 1)*100:.1f}%) - Tradeable regimes"
+        f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions / (total_sessions or 1) * 100:.1f}%) - Tradeable regimes"
     )
     print(
-        f"  SIDEWAYS: {regime_counts.get('SIDEWAYS', 0)} sessions ({regime_counts.get('SIDEWAYS', 0)/(total_sessions or 1)*100:.1f}%) - Rotation strategy"
+        f"  SIDEWAYS: {regime_counts.get('SIDEWAYS', 0)} sessions ({regime_counts.get('SIDEWAYS', 0) / (total_sessions or 1) * 100:.1f}%) - Rotation strategy"
     )
     print(
-        f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0)/(total_sessions or 1)*100:.1f}%) - No trading"
+        f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0) / (total_sessions or 1) * 100:.1f}%) - No trading"
     )
 
     print(f"\n🎯 TOTAL TRADES GENERATED: {total_trades}")

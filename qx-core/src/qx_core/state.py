@@ -16,7 +16,7 @@ def write_state(outdir: str, metadata: dict) -> str:
         "data_range": metadata.get("data_range", {}),
         "symbols": metadata.get("symbols", []),
         "seeds": metadata.get("seeds", {}),
-        "artifacts": metadata.get("artifacts", {})
+        "artifacts": metadata.get("artifacts", {}),
     }
     path = Path(outdir) / "state" / "project_state.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)

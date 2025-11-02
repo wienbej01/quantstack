@@ -1,9 +1,9 @@
-
 import logging
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
+
 
 def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     """Resamples 1-minute bar data to a higher timeframe."""
@@ -21,13 +21,21 @@ def resample_data(df: pd.DataFrame, timeframe: str) -> pd.DataFrame:
     else:
         df_copy["ts"] = pd.to_datetime(df_copy["ts"], unit="ns", utc=True)
 
-    resampled_df = df_copy.set_index('ts').groupby('symbol').resample(timeframe).agg({
-        'open': 'first',
-        'high': 'max',
-        'low': 'min',
-        'close': 'last',
-        'volume': 'sum'
-    }).reset_index()
-    resampled_df['ts'] = resampled_df['ts'].astype('int64', copy=False)
+    resampled_df = (
+        df_copy.set_index("ts")
+        .groupby("symbol")
+        .resample(timeframe)
+        .agg(
+            {
+                "open": "first",
+                "high": "max",
+                "low": "min",
+                "close": "last",
+                "volume": "sum",
+            }
+        )
+        .reset_index()
+    )
+    resampled_df["ts"] = resampled_df["ts"].astype("int64", copy=False)
     logger.info(f"Resampled to {len(resampled_df)} {timeframe} bars.")
     return resampled_df

@@ -7,10 +7,11 @@ from typing import Any
 
 import pandas as pd
 import yaml
+from rich.console import Console
+
 from qx_cli.exp.entry_ab import deep_merge
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply_feature_packs
-from rich.console import Console
 
 from ..utils.checksums import compute_input_checksums
 from ..utils.validation import validate_config, validate_data_slice

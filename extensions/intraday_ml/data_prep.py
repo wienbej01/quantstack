@@ -25,194 +25,278 @@ Performance Notes:
 - Suitable for datasets with 100K+ timestamps
 """
 
-
-import time
+from collections.abc import Sequence
+from datetime import datetime, timedelta
+from typing import Any
 
 import pandas as pd
 
+from qx_data.gold_loader import load_bars
+from qx_data.resample import resample_data
+
 from .feature_pack import IntradayMLFeaturePack
 from .labeling import IntradayMLLabeler
+from .utils import normalize_timestamp_series
+from .utils.time_utils import DEFAULT_MARKET_TZ, TimestampOutput
 
 
-def create_training_dataset(
-    symbols: list[str],
+def create_training_dataset(  # noqa: PLR0913 - public API requires this signature
+    symbols: Sequence[str],
     start_date: str,
     end_date: str,
-    features_config: dict[str, any],
-    targets_config: dict[str, any],
-    data_loader_config: dict[str, any] | None = None,
+    features_config: dict[str, Any],
+    targets_config: dict[str, Any],
+    data_loader_config: dict[str, Any] | None = None,
     include_ohlcv: bool = False,
 ) -> pd.DataFrame:
-    """Create training dataset with aligned features and labels.
+    """Create a leak-free training dataset with aligned features and labels."""
+    if not symbols:
+        raise ValueError("symbols must be a non-empty sequence")
 
-    This function implements an optimized sliding window approach with rolling
-    feature computation to maintain consistent performance.
+    if features_config is None:
+        raise ValueError("features_config is required")
 
-    Args:
-        symbols: List of symbol names to include
-        start_date: Start date in YYYY-MM-DD format
-        end_date: End date in YYYY-MM-DD format
-        features_config: Feature configuration dictionary
-        targets_config: Targets/labeling configuration dictionary
-        data_loader_config: Optional data loader configuration
+    if targets_config is None:
+        raise ValueError("targets_config is required")
 
-    Returns:
-        DataFrame with features, label column, and multi-index (symbol, ts)
-    """
-    # Load the complete data window
     data_window = load_data_window(
-        symbols=symbols,
+        symbols=list(symbols),
         start_date=start_date,
         end_date=end_date,
-        config=data_loader_config
+        config=data_loader_config,
     )
 
     if data_window.empty:
         return pd.DataFrame()
 
-    # Initialize feature pack and labeler
+    required_columns = {"ts", "symbol", "open", "high", "low", "close", "volume"}
+    missing_columns = required_columns - set(data_window.columns)
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Loaded data is missing required columns: {missing}")
+
+    loader_options = data_loader_config or {}
+    market_timezone = loader_options.get("market_timezone", DEFAULT_MARKET_TZ)
+    assume_naive_as_market = loader_options.get("assume_naive_as_market", True)
+    timestamps = normalize_timestamp_series(
+        data_window["ts"],
+        market_tz=market_timezone,
+        output="naive_market",
+        assume_naive_as_market=assume_naive_as_market,
+    )
+    if timestamps.isna().any():
+        bad_rows = data_window.loc[timestamps.isna(), ["symbol", "ts"]].head()
+        raise ValueError(
+            f"Encountered non-parsable timestamps in data window. Examples:\n{bad_rows}"
+        )
+
+    window = data_window.copy()
+    window["ts"] = timestamps
+    window = (
+        window.sort_values(["symbol", "ts"])
+        .drop_duplicates(subset=["symbol", "ts"], keep="first")
+        .reset_index(drop=True)
+    )
+
     feature_pack = IntradayMLFeaturePack(features_config)
     labeler = IntradayMLLabeler(targets_config)
 
-    # Get unique timestamps to process
-    all_timestamps = sorted(data_window["ts"].unique())
+    symbol_frames: list[pd.DataFrame] = []
 
-    # Collect results
-    all_results = []
-
-    # Process each timestamp
-    total_timestamps = len(all_timestamps)
-    processed_count = 0
-    start_time = time.time()
-
-    print(f"Processing {total_timestamps} timestamps with optimized rolling window...")
-
-    # Calculate appropriate progress interval based on dataset size
-    if total_timestamps <= 1000:
-        progress_interval = 100  # Show every 100 for small datasets
-    elif total_timestamps <= 10000:
-        progress_interval = 1000  # Show every 1000 for medium datasets
-    else:
-        progress_interval = 10000  # Show every 10000 for large datasets
-
-    # ULTRA PERFORMANCE OPTIMIZATION: Vectorized batch processing
-    # Instead of processing timestamps one-by-one, process in batches with vectorized operations
-    batch_size = 500  # Process 500 timestamps at a time for optimal memory/CPU balance
-    max_lookback_minutes = 240  # 4 hours maximum lookback for most features
-
-    # Pre-compute labels for all timestamps at once (much faster)
-    print("Pre-computing labels for all timestamps...")
-    all_labels = {}
-    for symbol, symbol_group in data_window.groupby('symbol'):
-        for timestamp in all_timestamps:
-            label = compute_label_for_timestamp(
-                data_window=symbol_group,
-                current_timestamp=timestamp,
-                labeler=labeler
-            )
-            all_labels[(symbol, timestamp)] = label
-
-    print("Starting batch processing...")
-
-    # Process in batches for better performance
-    for batch_start in range(0, len(all_timestamps), batch_size):
-        batch_end = min(batch_start + batch_size, len(all_timestamps))
-        batch_timestamps = all_timestamps[batch_start:batch_end]
-
-        try:
-            # Get the full window needed for this batch (extend for lookback)
-            batch_min_time = batch_timestamps[0] - pd.Timedelta(minutes=max_lookback_minutes)
-            batch_max_time = batch_timestamps[-1]
-
-            # Extract batch data once (much faster than per-timestamp filtering)
-            batch_data = data_window[
-                (data_window["ts"] > batch_min_time) &
-                (data_window["ts"] <= batch_max_time)
-            ].copy()
-
-            # Process each timestamp in the batch
-            for symbol, symbol_group in batch_data.groupby('symbol'):
-                for timestamp in batch_timestamps:
-                    # Extract rolling window for this timestamp from batch data
-                    window_start = timestamp - pd.Timedelta(minutes=max_lookback_minutes)
-                    rolling_data = symbol_group[
-                        (symbol_group["ts"] > window_start) &
-                        (symbol_group["ts"] <= timestamp)
-                    ]
-
-                    if rolling_data.empty:
-                        continue
-
-                    # Generate features for this timestamp
-                    features = generate_features_for_timestamp_optimized(
-                        rolling_data=rolling_data,
-                        current_timestamp=timestamp,
-                        feature_pack=feature_pack
-                    )
-
-                    # Get pre-computed label
-                    label = all_labels.get((symbol, timestamp))
-                    if label is None:
-                        continue
-
-                    # Combine features and label
-                    if features is not None and not features.empty:
-                        result_row = features.to_dict()
-                        result_row["ts"] = timestamp
-                        result_row["label"] = label
-                        result_row["symbol"] = symbol
-                        all_results.append(result_row)
-                        processed_count += 1
-
-        except Exception as e:
-            # Log error but continue processing other batches
-            print(f"Warning: Failed to process batch starting at {batch_timestamps[0]}: {e}")
+    for symbol, symbol_frame in window.groupby("symbol", sort=False):
+        if symbol_frame.empty:
             continue
 
-        # Progress reporting (after each batch)
-        current_time = time.time()
-        elapsed = current_time - start_time
+        symbol_sorted = symbol_frame.sort_values("ts").reset_index(drop=True)
 
-        should_report = (
-            batch_end % progress_interval == 0 or  # Regular interval
-            batch_end == total_timestamps or      # Final update
-            elapsed > 30                           # Every 30 seconds minimum
+        features = feature_pack.compute_features(
+            df=symbol_sorted,
+            ts_cut=symbol_sorted["ts"].iloc[-1],
+            validate_time_discipline=True,
+        ).reindex(symbol_sorted.index)
+
+        labels = labeler.compute_label_series(symbol_sorted)
+
+        symbol_dataset = pd.DataFrame(
+            {
+                "symbol": symbol,
+                "ts": symbol_sorted["ts"],
+            }
         )
 
-        if should_report:
-            progress_pct = batch_end / total_timestamps * 100
-            rate = processed_count / elapsed if elapsed > 0 else 0
-            eta = (total_timestamps - batch_end) / rate if rate > 0 else 0
-
-            print(f"Progress: {batch_end}/{total_timestamps} ({progress_pct:.1f}%) - "
-                  f"{processed_count} successful | Rate: {rate:.1f}/s | ETA: {eta/60:.1f}min")
-
-    # Convert to DataFrame
-    if all_results:
-        result_df = pd.DataFrame(all_results)
         if include_ohlcv:
-            result_df = pd.merge(result_df, data_window[['ts', 'symbol', 'open', 'high', 'low', 'close', 'volume']], on=['ts', 'symbol'], how='left')
+            for column in ["open", "high", "low", "close", "volume"]:
+                symbol_dataset[column] = symbol_sorted[column].to_numpy()
 
-        # Set multi-index with symbol and timestamp
-        # For now, we'll keep symbol as a column since we're processing one symbol at a time
-        # In a more sophisticated implementation, we'd handle multiple symbols per timestamp
-        if "symbol" not in result_df.columns and not result_df.empty:
-            # Add symbol column from the first symbol in our data
-            result_df["symbol"] = symbols[0] if symbols else "UNKNOWN"
+        symbol_dataset = pd.concat(
+            [symbol_dataset, features.reset_index(drop=True)], axis=1
+        )
+        symbol_dataset["label"] = labels.to_numpy(dtype=int, copy=False)
 
-        # Sort by timestamp
-        result_df = result_df.sort_values("ts").reset_index(drop=True)
+        symbol_frames.append(symbol_dataset)
 
-        return result_df
-    else:
+    if not symbol_frames:
         return pd.DataFrame()
+
+    result = (
+        pd.concat(symbol_frames, ignore_index=True)
+        .sort_values(["symbol", "ts"])
+        .reset_index(drop=True)
+    )
+
+    base_columns = ["symbol", "ts"]
+    if include_ohlcv:
+        base_columns.extend(["open", "high", "low", "close", "volume"])
+
+    feature_columns = [col for col in result.columns if col.startswith("f__")]
+    ordered_columns = base_columns + feature_columns + ["label"]
+    remaining_columns = [col for col in result.columns if col not in ordered_columns]
+
+    return result[ordered_columns + remaining_columns]
+
+
+def _build_date_list(start_date: str, end_date: str) -> list[str]:
+    """Create an inclusive list of YYYY-MM-DD strings."""
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    if end_dt < start_dt:
+        raise ValueError(f"end_date {end_date} precedes start_date {start_date}")
+
+    total_days = (end_dt - start_dt).days + 1
+    return [
+        (start_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
+        for offset in range(total_days)
+    ]
+
+
+def _resolve_loader_options(
+    config: dict[str, Any] | None,
+) -> tuple[
+    dict[str, Any],
+    str | None,
+    str,
+    str,
+    bool,
+    TimestampOutput,
+]:
+    """Resolve loader configuration overrides and resample requirements."""
+    loader_config = dict(config or {})
+    requested_family = loader_config.get("family", "bars_1m")
+    market_timezone = loader_config.get("market_timezone", DEFAULT_MARKET_TZ)
+    assume_naive_as_market = loader_config.get("assume_naive_as_market", True)
+    output_mode: TimestampOutput = loader_config.get(
+        "output_timestamp_mode", "naive_market"
+    )
+
+    resample_frequency: str | None = None
+    loader_family = requested_family
+
+    if requested_family.startswith("bars_"):
+        suffix = requested_family.split("_", 1)[1]
+        if suffix.endswith("m"):
+            minutes = suffix[:-1]
+            if minutes.isdigit() and minutes != "1":
+                resample_frequency = f"{minutes}min"
+                loader_family = loader_config.get("resample_source_family", "bars_1m")
+
+    return (
+        loader_config,
+        resample_frequency,
+        loader_family,
+        market_timezone,
+        assume_naive_as_market,
+        output_mode,
+    )
+
+
+def _load_raw_bars(
+    symbols: list[str],
+    dates: list[str],
+    loader_config: dict[str, Any],
+    loader_family: str,
+) -> pd.DataFrame:
+    """Load raw bar data, retrying with uppercase tickers when needed."""
+    load_kwargs: dict[str, Any] = {
+        "root": loader_config.get("root", "/home/jacobw/gcs-mount"),
+        "family": loader_family,
+        "symbols": symbols,
+        "dates": dates,
+        "validate": loader_config.get("validate", True),
+        "sort": loader_config.get("sort", True),
+    }
+    if "columns" in loader_config:
+        load_kwargs["columns"] = loader_config["columns"]
+
+    try:
+        return load_bars(**load_kwargs)
+    except RuntimeError:
+        alt_symbols = sorted({symbol.upper() for symbol in symbols})
+        if alt_symbols == symbols:
+            raise
+        load_kwargs["symbols"] = alt_symbols
+        return load_bars(**load_kwargs)
+
+
+def _finalize_loaded_data(
+    data: pd.DataFrame,
+    *,
+    resample_frequency: str | None,
+    market_timezone: str,
+    assume_naive_as_market: bool,
+    output_mode: TimestampOutput,
+) -> pd.DataFrame:
+    """Normalise timestamps, optionally resample, and ensure deterministic order."""
+    if data.empty:
+        return data
+
+    data = data.copy()
+    data["ts"] = normalize_timestamp_series(
+        data["ts"],
+        market_tz=market_timezone,
+        output="aware_utc",
+        assume_naive_as_market=assume_naive_as_market,
+    )
+
+    if resample_frequency:
+        resampled = resample_data(data, resample_frequency)
+        resampled = resampled.dropna(subset=["open", "high", "low", "close"])
+        if resampled.empty:
+            return pd.DataFrame()
+        if "volume" in resampled:
+            resampled["volume"] = (
+                resampled["volume"].fillna(0).round().astype("int64", copy=False)
+            )
+
+        resampled["ts"] = normalize_timestamp_series(
+            resampled["ts"],
+            market_tz=market_timezone,
+            output=output_mode,
+            assume_naive_as_market=assume_naive_as_market,
+        )
+
+        base_cols = ["symbol", "ts", "open", "high", "low", "close", "volume"]
+        remaining_cols = [col for col in resampled.columns if col not in base_cols]
+        data = resampled[base_cols + remaining_cols]
+    else:
+        data["ts"] = normalize_timestamp_series(
+            data["ts"],
+            market_tz=market_timezone,
+            output=output_mode,
+            assume_naive_as_market=assume_naive_as_market,
+        )
+
+    return (
+        data.sort_values(["symbol", "ts"])
+        .drop_duplicates(subset=["symbol", "ts"], keep="first")
+        .reset_index(drop=True)
+    )
 
 
 def load_data_window(
     symbols: list[str],
     start_date: str,
     end_date: str,
-    config: dict[str, any] | None = None,
+    config: dict[str, Any] | None = None,
 ) -> pd.DataFrame:
     """Load continuous data block for the date range.
 
@@ -226,44 +310,108 @@ def load_data_window(
         DataFrame with OHLCV data, sorted by [symbol, ts]
     """
     try:
-        # Import here to avoid circular imports
-        # Generate date list
-        from datetime import datetime, timedelta
+        dates = _build_date_list(start_date, end_date)
+        (
+            loader_config,
+            resample_frequency,
+            loader_family,
+            market_timezone,
+            assume_naive_as_market,
+            output_mode,
+        ) = _resolve_loader_options(config)
 
-        from qx_data.gold_loader import load_bars
-        start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-        end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-
-        dates = []
-        current = start_dt
-        while current <= end_dt:
-            dates.append(current.strftime('%Y-%m-%d'))
-            current += timedelta(days=1)
-
-        # Load data using the gold loader function
-        data = load_bars(
-            root=config.get('root', '/home/jacobw/gcs-mount') if config else '/home/jacobw/gcs-mount',
-            family=config.get('family', 'bars_1m') if config else 'bars_1m',
-            symbols=symbols,
-            dates=dates,
-            validate=config.get('validate', True) if config else True,
-            sort=config.get('sort', True) if config else True
+        raw_data = _load_raw_bars(list(symbols), dates, loader_config, loader_family)
+        return _finalize_loaded_data(
+            raw_data,
+            resample_frequency=resample_frequency,
+            market_timezone=market_timezone,
+            assume_naive_as_market=assume_naive_as_market,
+            output_mode=output_mode,
         )
 
-        # Ensure proper sorting and timestamp conversion
-        if not data.empty:
-            # Convert timestamps from microseconds to datetime if needed
-            if data['ts'].dtype in ['int64', 'uint64']:
-                data['ts'] = pd.to_datetime(data['ts'], unit='us')
-
-            data = data.sort_values(["symbol", "ts"]).reset_index(drop=True)
-
-        return data
-
-    except Exception as e:
-        print(f"Error loading data: {e}")
+    except Exception as exc:
+        print(f"Error loading data: {exc}")
         # Return empty DataFrame - tests should mock this function
         return pd.DataFrame()
+
+
+def create_feature_set(  # noqa: PLR0913 - legacy compatibility signature
+    data_window: pd.DataFrame | None = None,
+    *,
+    symbols: list[str] | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    features_config: dict[str, Any] | None = None,
+    data_loader_config: dict[str, Any] | None = None,
+    include_ohlcv: bool = False,
+) -> pd.DataFrame:
+    """
+    Build a feature matrix for the requested window. Provides backward-compatible
+    wrapper used by legacy scripts that expect the old API.
+    """
+    if features_config is None:
+        raise ValueError("features_config is required")
+
+    if data_window is None:
+        if not symbols or not start_date or not end_date:
+            raise ValueError(
+                "Must provide either data_window or symbols/start_date/end_date"
+            )
+        loader_cfg = data_loader_config or {}
+        data_window = load_data_window(
+            symbols=symbols,
+            start_date=start_date,
+            end_date=end_date,
+            config=loader_cfg,
+        )
+
+    if data_window.empty:
+        return pd.DataFrame()
+
+    required_cols = {"ts", "symbol", "open", "high", "low", "close", "volume"}
+    missing_cols = required_cols - set(data_window.columns)
+    if missing_cols:
+        raise ValueError(
+            f"Missing required columns for feature generation: {sorted(missing_cols)}"
+        )
+
+    feature_pack = IntradayMLFeaturePack(features_config)
+    feature_frames: list[pd.DataFrame] = []
+
+    for symbol, group in data_window.groupby("symbol"):
+        group_sorted = group.sort_values("ts")
+        if group_sorted.empty:
+            continue
+
+        features_df = feature_pack.compute_features(
+            df=group_sorted,
+            ts_cut=group_sorted["ts"].max(),
+            validate_time_discipline=True,
+        )
+
+        if features_df.empty:
+            continue
+
+        # Align with the sorted group order
+        features_df = features_df.reindex(group_sorted.index)
+        features_df = features_df.reset_index(drop=True)
+
+        symbol_features = features_df.copy()
+        symbol_features["ts"] = group_sorted["ts"].reset_index(drop=True)
+        symbol_features["symbol"] = symbol
+
+        if include_ohlcv:
+            for column in ["open", "high", "low", "close", "volume"]:
+                symbol_features[column] = group_sorted[column].reset_index(drop=True)
+
+        feature_frames.append(symbol_features)
+
+    if not feature_frames:
+        return pd.DataFrame()
+
+    result = pd.concat(feature_frames, ignore_index=True)
+    result = result.sort_values(["symbol", "ts"]).reset_index(drop=True)
+    return result
 
 
 def generate_features_for_timestamp_optimized(
@@ -287,9 +435,7 @@ def generate_features_for_timestamp_optimized(
     try:
         # Compute features using rolling window (already filtered by time)
         features_df = feature_pack.compute_features(
-            df=rolling_data,
-            ts_cut=current_timestamp,
-            validate_time_discipline=True
+            df=rolling_data, ts_cut=current_timestamp, validate_time_discipline=True
         )
 
         # Get features for the current timestamp only
@@ -339,9 +485,7 @@ def generate_features_for_timestamp(
     try:
         # Compute features using only historical data
         features_df = feature_pack.compute_features(
-            df=historical_data,
-            ts_cut=current_timestamp,
-            validate_time_discipline=True
+            df=historical_data, ts_cut=current_timestamp, validate_time_discipline=True
         )
 
         # Get features for the current timestamp only

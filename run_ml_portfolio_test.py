@@ -701,7 +701,6 @@ def save_run_artifacts(run_id, results, bars, orders, config):
 
     # Handle dictionary results
     if isinstance(engine_result, dict):
-
         # Save trades
         if "trades" in engine_result:
             trades_df = engine_result["trades"]
@@ -741,7 +740,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
                     winning_trades = (paired_trades["pnl"] > 0).sum()
                     print(f"   💰 Total P&L: ${total_pnl:,.2f}")
                     print(
-                        f"   🎯 Win Rate: {winning_trades}/{len(paired_trades)} ({winning_trades/len(paired_trades)*100:.1f}%)"
+                        f"   🎯 Win Rate: {winning_trades}/{len(paired_trades)} ({winning_trades / len(paired_trades) * 100:.1f}%)"
                     )
                 else:
                     print(
@@ -994,7 +993,7 @@ def run_ml_portfolio_test():
                 for i, (_, trade) in enumerate(trades_df.head(3).iterrows()):
                     symbol = trade.get("symbol", "N/A")
                     pnl = trade.get("pnl", 0)
-                    print(f"      {i+1}. {symbol}: P&L ${pnl:,.2f}")
+                    print(f"      {i + 1}. {symbol}: P&L ${pnl:,.2f}")
             else:
                 print("⚠️  No trades found in backtest results")
 

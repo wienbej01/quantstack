@@ -11,6 +11,7 @@ from rich.table import Table
 
 console = Console()
 
+
 def scan_gcs_schemas(root_path: str = "/home/jacobw/gcs-mount") -> dict[str, Any]:
     """Scan GCS-like directory for Parquet schemas."""
     root = Path(root_path)
@@ -49,10 +50,13 @@ def scan_gcs_schemas(root_path: str = "/home/jacobw/gcs-mount") -> dict[str, Any
         unique_schemas = list(set(data["schemas"]))
         data["unique_schemas"] = len(unique_schemas)
         if len(unique_schemas) > 1:
-            issues.append(f"Family {family} has {len(unique_schemas)} different schemas.")
+            issues.append(
+                f"Family {family} has {len(unique_schemas)} different schemas."
+            )
 
     console.print(f"Total scanned: {total_scanned}")
     return {"families": families, "issues": issues}
+
 
 def main():
     """Main entry point."""
@@ -84,12 +88,15 @@ def main():
     table.add_column("Files", justify="right")
     table.add_column("Size (MB)", justify="right")
 
-    sorted_families = sorted(result["families"].items(), key=lambda x: x[1]["total_size"], reverse=True)
+    sorted_families = sorted(
+        result["families"].items(), key=lambda x: x[1]["total_size"], reverse=True
+    )
     for family, data in sorted_families[:10]:  # Top 10
         size_mb = data["total_size"] / (1024 * 1024)
         table.add_row(family, str(data["files"]), f"{size_mb:.2f}")
 
     console.print(table)
+
 
 if __name__ == "__main__":
     main()

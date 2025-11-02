@@ -6,7 +6,6 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
-from qx_core.hashers import hash_dataframe
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.linear_model import LinearRegression, LogisticRegression
@@ -14,6 +13,8 @@ from sklearn.metrics import accuracy_score, r2_score
 from sklearn.model_selection import GridSearchCV, TimeSeriesSplit
 from sklearn.preprocessing import StandardScaler
 from sklearn.svm import SVC, SVR
+
+from qx_core.hashers import hash_dataframe
 
 from .registry import MLModelRegistry
 from .schemas import FeatureImportance, ModelConfig, ModelMetadata, ModelType
@@ -321,7 +322,9 @@ class MLModelTrainer:
 
         # Create feature importance objects
         feature_importance = []
-        for i, (feature, score) in enumerate(zip(feature_names, importance_scores, strict=False)):
+        for i, (feature, score) in enumerate(
+            zip(feature_names, importance_scores, strict=False)
+        ):
             feature_importance.append(
                 FeatureImportance(
                     feature_name=feature, importance=float(score), rank=i + 1

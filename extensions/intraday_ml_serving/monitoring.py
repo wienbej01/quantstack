@@ -311,7 +311,9 @@ class AlertManager:
                 and state["first_breached"]
                 and (timestamp - state["first_breached"])
                 >= timedelta(minutes=config.duration_minutes)
-            ) and state["notifications_sent"] == 0:  # Only send once per breach
+            ) and state[
+                "notifications_sent"
+            ] == 0:  # Only send once per breach
                 self._send_alert(metric_name, current_value, config, timestamp)
                 state["notifications_sent"] = 1
 

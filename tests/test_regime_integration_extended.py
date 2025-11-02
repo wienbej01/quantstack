@@ -7,6 +7,7 @@ and complex multi-regime scenarios.
 import numpy as np
 import pandas as pd
 import pytest
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_core.regime.detector import RegimeDetectorConfig, RegimeDetectorRules
 from qx_core.regime_config import RegimeConfig

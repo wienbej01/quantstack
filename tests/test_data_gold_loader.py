@@ -100,16 +100,12 @@ class TestGoldLoaderBasics:
         mock_normalize.return_value = sample_df
 
         # Test with validation (default)
-        load_bars(
-            "/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=True
-        )
+        load_bars("/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=True)
         mock_validate.assert_called_once()
 
         # Test without validation
         mock_validate.reset_mock()
-        load_bars(
-            "/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=False
-        )
+        load_bars("/fake/path", "bars_1m", ["AAPL"], ["2020-01"], validate=False)
         mock_validate.assert_not_called()
 
 
@@ -124,7 +120,8 @@ class TestParquetPathResolution:
             paths = _get_parquet_paths("/fake", "bars_1m", "AAPL", "2020-01")
 
             expected_pattern = "/fake/stocks/1m/AAPL/2020/2020-01.parquet"
-            mock_glob.assert_called_once_with(expected_pattern)
+            called_patterns = [call.args[0] for call in mock_glob.call_args_list]
+            assert expected_pattern in called_patterns
             assert paths == ["/fake/stocks/1m/AAPL/2020/2020-01.parquet"]
 
     def test_get_parquet_paths_bars_1m_with_day(self):
@@ -135,7 +132,8 @@ class TestParquetPathResolution:
             _get_parquet_paths("/fake", "bars_1m", "AAPL", "2020-01-15")
 
             expected_pattern = "/fake/stocks/1m/AAPL/2020/2020-01.parquet"
-            mock_glob.assert_called_once_with(expected_pattern)
+            called_patterns = [call.args[0] for call in mock_glob.call_args_list]
+            assert expected_pattern in called_patterns
 
     def test_get_parquet_paths_other_families(self):
         """Test path resolution for non-bars_1m families."""
@@ -147,7 +145,8 @@ class TestParquetPathResolution:
             _get_parquet_paths("/fake", "features", "AAPL", "2020-01-15")
 
             expected_pattern = "/fake/features/symbol=AAPL/date=2020-01-15/*.parquet"
-            mock_glob.assert_called_once_with(expected_pattern)
+            called_patterns = [call.args[0] for call in mock_glob.call_args_list]
+            assert expected_pattern in called_patterns
 
     def test_get_parquet_paths_smoke_test(self):
         """Test path resolution for smoke test dates."""
@@ -157,7 +156,21 @@ class TestParquetPathResolution:
             _get_parquet_paths("/fake", "test", "AAPL", "SMOKE")
 
             expected_pattern = "/fake/test/symbol=AAPL/date=SMOKE/*.parquet"
-            mock_glob.assert_called_once_with(expected_pattern)
+            called_patterns = [call.args[0] for call in mock_glob.call_args_list]
+            assert expected_pattern in called_patterns
+
+    def test_get_parquet_paths_symbol_case_insensitive(self):
+        """Symbols are resolved in a case-insensitive manner."""
+
+        def side_effect(pattern):
+            if "AAPL" in pattern:
+                return ["/fake/stocks/1m/AAPL/2020/2020-01.parquet"]
+            return []
+
+        with patch("glob.glob", side_effect=side_effect) as mock_glob:
+            paths = _get_parquet_paths("/fake", "bars_1m", "aapl", "2020-01")
+            assert paths == ["/fake/stocks/1m/AAPL/2020/2020-01.parquet"]
+            assert mock_glob.call_count >= 2
 
 
 class TestDataNormalization:

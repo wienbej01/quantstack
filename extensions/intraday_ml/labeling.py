@@ -5,12 +5,14 @@ Implements first-hit logic for tri-class classification {-1, 0, +1}.
 """
 
 import hashlib
+import json
 import warnings
 from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 import pandas as pd
+
 from qx_features.core_basics import atr_m
 
 
@@ -52,9 +54,12 @@ class IntradayMLLabeler:
         """
         # Issue deprecation warning for this method
         warnings.warn(
-            "create_labels method is deprecated. Use compute_label_for_timestamp for new implementations.",
+            (
+                "create_labels method is deprecated. Use compute_label_for_timestamp "
+                "for new implementations."
+            ),
             DeprecationWarning,
-            stacklevel=2
+            stacklevel=2,
         )
 
         if validate_no_peek:
@@ -104,9 +109,6 @@ class IntradayMLLabeler:
     ) -> int:
         """Compute a tri-class label for a single timestamp using future data.
 
-        This method implements the sliding window approach where each timestamp
-        gets its own label computed from future price movements only.
-
         Args:
             data_window: DataFrame with OHLCV data containing both historical
                         and future data relative to current_timestamp
@@ -114,70 +116,126 @@ class IntradayMLLabeler:
                               data with timestamps > current_timestamp
 
         Returns:
-            Label value: +1 (significant up move), -1 (significant down move), or 0 (neutral/no move)
+            Label value: +1 (significant up move), -1 (significant down move),
+            or 0 (neutral/no move)
         """
-        # Validate inputs
         if not isinstance(data_window, pd.DataFrame) or data_window.empty:
             return 0
 
         if "ts" not in data_window.columns or "symbol" not in data_window.columns:
             return 0
 
-        required_columns = ["open", "high", "low", "close", "volume"]
-        if not all(col in data_window.columns for col in required_columns):
+        required_columns = {"open", "high", "low", "close", "volume"}
+        if not required_columns.issubset(data_window.columns):
             return 0
 
-        # Separate historical and future data
-        historical_data = data_window[data_window["ts"] <= current_timestamp].copy()
-        future_data = data_window[data_window["ts"] > current_timestamp].copy()
-
-        # If no future data available, return neutral label
-        if future_data.empty:
-            return 0
-
-        # Use the shortest horizon for single timestamp labeling
-        horizon = min(self.horizons)
-
-        # Compute ATR using historical data
-        atr_value = self._compute_atr_for_timestamp(historical_data, current_timestamp)
-
-        # If ATR computation failed or too small, use default
-        if atr_value is None or atr_value < self.config.get("require_min_atr", 0.01):
-            atr_value = 0.1  # Default fallback
-
-        # Calculate threshold
-        threshold = self.atr_multiplier * atr_value
-
-        # Get the current price for each symbol at current_timestamp
-        current_prices = self._get_current_prices(historical_data, current_timestamp)
-
-        # Compute labels for each symbol
         labels = []
-        for symbol, future_symbol_data in future_data.groupby("symbol"):
-            if symbol not in current_prices:
+
+        for _, symbol_data in data_window.groupby("symbol"):
+            symbol_sorted = symbol_data.sort_values("ts").reset_index(drop=True)
+
+            if symbol_sorted.empty:
                 continue
 
-            start_price = current_prices[symbol]
-            if start_price <= 0:
-                continue
-
-            # Compute label for this symbol
-            symbol_label = self._compute_single_symbol_label(
-                future_symbol_data, start_price, threshold, horizon, current_timestamp
+            label_series = self.compute_label_series(symbol_sorted)
+            normalized_ts = pd.to_datetime(symbol_sorted["ts"], utc=True).dt.tz_convert(
+                None
             )
-            labels.append(symbol_label)
+            target_ts = pd.to_datetime(current_timestamp, utc=True).tz_convert(None)
 
-        # Return the majority label (or 0 if no labels)
+            match_mask = normalized_ts == target_ts
+            if not match_mask.any():
+                continue
+
+            label_idx = match_mask[match_mask].index[0]
+            labels.append(int(label_series.iloc[label_idx]))
+
         if not labels:
             return 0
 
-        # For single symbol or clear majority, return that label
-        # For mixed signals, return 0 (neutral)
         label_counts = pd.Series(labels).value_counts()
         if len(label_counts) == 1 or label_counts.iloc[0] > label_counts.iloc[1]:
             return int(label_counts.index[0])
-        else:
-            return 0
+
+        return 0
+
+    def compute_label_series(
+        self,
+        bars: pd.DataFrame,
+        *,
+        horizon: int | None = None,
+    ) -> pd.Series:
+        """Compute tri-class labels for every row in a single-symbol dataset.
+
+        Args:
+            bars: DataFrame with OHLCV data for a single symbol, sorted by timestamp
+            horizon: Optional override for horizon minutes; defaults to min(self.horizons)
+
+        Returns:
+            Series of labels aligned with ``bars`` (values in {-1, 0, +1})
+        """
+        if bars.empty:
+            return pd.Series(dtype=int)
+
+        required_columns = {"ts", "open", "high", "low", "close", "volume", "symbol"}
+        missing_columns = required_columns - set(bars.columns)
+        if missing_columns:
+            raise ValueError(
+                f"Missing required columns for labeling: {sorted(missing_columns)}"
+            )
+
+        if bars["symbol"].nunique() != 1:
+            raise ValueError(
+                "compute_label_series expects data for a single symbol. "
+                "Call per-symbol before aggregating."
+            )
+
+        working = bars.sort_values("ts").reset_index(drop=True)
+        working["ts"] = pd.to_datetime(working["ts"], utc=True).dt.tz_convert(None)
+
+        # Compute ATR once for the entire symbol history
+        atr_values = atr_m(working, self.atr_window).reindex(working.index)
+
+        fallback_atr = float(self.config.get("require_min_atr", 0.01))
+        fallback_atr = max(fallback_atr, 1e-6)
+        thresholds = atr_values.fillna(fallback_atr).to_numpy(dtype=float, copy=False)
+        np.maximum(thresholds, fallback_atr, out=thresholds)
+        thresholds *= float(self.atr_multiplier)
+        threshold_floor = fallback_atr * float(self.atr_multiplier)
+
+        closes = working["close"].to_numpy(dtype=float, copy=False)
+        timestamps = working["ts"].to_numpy(dtype="datetime64[ns]", copy=False)
+
+        horizon_minutes = int(horizon if horizon is not None else min(self.horizons))
+        horizon_delta = np.timedelta64(horizon_minutes, "m")
+
+        labels = np.zeros(len(working), dtype=np.int8)
+
+        for idx in range(len(working)):
+            start_price = closes[idx]
+            if not np.isfinite(start_price) or start_price <= 0.0:
+                continue
+
+            threshold = (
+                thresholds[idx] if np.isfinite(thresholds[idx]) else threshold_floor
+            )
+            if threshold <= 0.0:
+                threshold = threshold_floor
+
+            horizon_end = timestamps[idx] + horizon_delta
+            next_idx = idx + 1
+
+            while next_idx < len(working) and timestamps[next_idx] <= horizon_end:
+                fwd_return = (closes[next_idx] - start_price) / start_price
+                if fwd_return >= threshold:
+                    labels[idx] = 1
+                    break
+                if fwd_return <= -threshold:
+                    labels[idx] = -1
+                    break
+                next_idx += 1
+
+        return pd.Series(labels, index=working.index, name="label")
 
     def _compute_atr_for_timestamp(
         self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp
@@ -194,17 +252,17 @@ class IntradayMLLabeler:
         if historical_data.empty:
             return None
 
-        atr_values = []
+        atr_values: list[float] = []
 
-        for _symbol, symbol_data in historical_data.groupby("symbol"):
-            symbol_data = symbol_data.sort_values("ts")
+        for _, per_symbol in historical_data.groupby("symbol"):
+            sorted_symbol = per_symbol.sort_values("ts")
 
             # Need enough data for ATR computation
-            if len(symbol_data) < self.atr_window:
+            if len(sorted_symbol) < self.atr_window:
                 continue
 
             try:
-                symbol_atr = atr_m(symbol_data, self.atr_window)
+                symbol_atr = atr_m(sorted_symbol, self.atr_window)
                 if not symbol_atr.empty:
                     # Get the most recent ATR value
                     latest_atr = symbol_atr.iloc[-1]
@@ -215,11 +273,12 @@ class IntradayMLLabeler:
 
         # Return the median ATR across symbols
         if atr_values:
-            return np.median(atr_values)
-        else:
-            return None
+            return float(np.median(atr_values))
+        return None
 
-    def _get_current_prices(self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp) -> dict[str, float]:
+    def _get_current_prices(
+        self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp
+    ) -> dict[str, float]:
         """Get the most recent price for each symbol at or before current_timestamp.
 
         Args:
@@ -229,15 +288,17 @@ class IntradayMLLabeler:
         Returns:
             Dictionary mapping symbol to current price
         """
-        current_prices = {}
+        current_prices: dict[str, float] = {}
 
-        for symbol, symbol_data in historical_data.groupby("symbol"):
+        for symbol, symbol_frame in historical_data.groupby("symbol"):
             # Get data up to current_timestamp
-            symbol_data = symbol_data[symbol_data["ts"] <= current_timestamp].sort_values("ts")
+            filtered_symbol = symbol_frame[
+                symbol_frame["ts"] <= current_timestamp
+            ].sort_values("ts")
 
-            if not symbol_data.empty:
+            if not filtered_symbol.empty:
                 # Use the most recent close price
-                current_price = symbol_data.iloc[-1]["close"]
+                current_price = filtered_symbol.iloc[-1]["close"]
                 if not np.isnan(current_price) and current_price > 0:
                     current_prices[symbol] = current_price
 
@@ -270,8 +331,8 @@ class IntradayMLLabeler:
 
         # Filter future data within horizon
         future_in_horizon = future_symbol_data[
-            (future_symbol_data["ts"] > current_timestamp) &
-            (future_symbol_data["ts"] <= horizon_end_ts)
+            (future_symbol_data["ts"] > current_timestamp)
+            & (future_symbol_data["ts"] <= horizon_end_ts)
         ]
 
         if future_in_horizon.empty:
@@ -313,14 +374,14 @@ class IntradayMLLabeler:
 
     def _compute_atr(self, historical_bars: pd.DataFrame) -> pd.Series:
         """Compute ATR values for historical bars."""
-        atr_values = []
+        atr_values: list[pd.Series] = []
 
-        for _symbol, group in historical_bars.groupby("symbol"):
-            group = group.sort_values("ts")
-            symbol_atr = atr_m(group, self.atr_window)
+        for _, per_symbol in historical_bars.groupby("symbol"):
+            sorted_symbol = per_symbol.sort_values("ts")
+            symbol_atr = atr_m(sorted_symbol, self.atr_window)
 
             # Create mapping from timestamp to ATR value
-            atr_map = pd.Series(symbol_atr.values, index=group.index)
+            atr_map = pd.Series(symbol_atr.values, index=sorted_symbol.index)
             atr_values.append(atr_map)
 
         if atr_values:
@@ -338,13 +399,14 @@ class IntradayMLLabeler:
     ) -> tuple[pd.Series, dict[str, Any]]:
         """Create labels for a specific horizon."""
         labels = []
-        metadata = {
+        threshold_hits: dict[str, int] = {"positive": 0, "negative": 0, "neutral": 0}
+        metadata: dict[str, Any] = {
             "horizon_minutes": horizon,
-            "threshold_hits": {"positive": 0, "negative": 0, "neutral": 0},
+            "threshold_hits": threshold_hits,
         }
 
-        for symbol, group in future_bars.groupby("symbol"):
-            group = group.sort_values("ts")
+        for symbol, per_symbol in future_bars.groupby("symbol"):
+            sorted_symbol = per_symbol.sort_values("ts")
 
             # Get the latest ATR value for this symbol (computed from historical data)
             symbol_atr = self._get_latest_atr(atr_values, symbol)
@@ -359,19 +421,19 @@ class IntradayMLLabeler:
             threshold = self.atr_multiplier * symbol_atr
 
             # Create labels for each timestamp as ts_cut
-            for _, row in group.iterrows():
+            for _, row in sorted_symbol.iterrows():
                 label = self._compute_first_hit_label(
-                    group, row, threshold, horizon, ts_cut
+                    sorted_symbol, row, threshold, horizon, ts_cut
                 )
                 labels.append(label)
 
                 # Update metadata
                 if label == 1:
-                    metadata["threshold_hits"]["positive"] += 1
+                    threshold_hits["positive"] += 1
                 elif label == -1:
-                    metadata["threshold_hits"]["negative"] += 1
+                    threshold_hits["negative"] += 1
                 else:
-                    metadata["threshold_hits"]["neutral"] += 1
+                    threshold_hits["neutral"] += 1
 
         if labels:
             label_series = pd.Series(
@@ -485,10 +547,7 @@ class IntradayMLLabeler:
         """Compute hash for targets reproducibility."""
         targets_info = {
             "symbols": sorted(bars["symbol"].unique().tolist()),
-            "date_range": [
-                bars["ts"].min().isoformat(),
-                bars["ts"].max().isoformat()
-            ],
+            "date_range": [bars["ts"].min().isoformat(), bars["ts"].max().isoformat()],
             "ts_cut": ts_cut.isoformat(),
             "targets_config": targets_config,
             "label_distribution": labels.value_counts().to_dict(),
@@ -527,8 +586,6 @@ def intraday_ml_get_targets_hash(
         "label_distribution": labels.value_counts().to_dict(),
         "total_labels": len(labels),
     }
-
-    import json
 
     targets_str = json.dumps(targets_info, sort_keys=True, default=str)
     return hashlib.blake2b(targets_str.encode()).hexdigest()

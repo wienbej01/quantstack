@@ -39,6 +39,10 @@ families:
   microstructure:
     enabled: false
 
+  conviction_signals:
+    enabled: true
+    windows: [3, 6, 12]
+
 max_total_features: 100
 warmup_multiplier: 3.0
 leakage_check: true

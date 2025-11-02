@@ -73,10 +73,11 @@ class TestBaseMLPolicy:
 
     def test_policy_initialization(self, mock_model_metadata):
         """Test policy initialization."""
-        with patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class, patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+        with (
+            patch(
+                "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
+            ) as mock_registry_class,
+            patch("extensions.intraday_ml_policies.base_ml_policy.MLPredictor"),
         ):
             # Setup mocks
             mock_registry = Mock()
@@ -99,11 +100,14 @@ class TestBaseMLPolicy:
 
     def test_feature_validation(self, sample_bar, mock_model_metadata):
         """Test feature validation in bar processing."""
-        with patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class, patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
-        ) as mock_predictor_class:
+        with (
+            patch(
+                "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
+            ) as mock_registry_class,
+            patch(
+                "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+            ) as mock_predictor_class,
+        ):
             # Setup mocks
             mock_registry = Mock()
             mock_registry.get_metadata.return_value = mock_model_metadata
@@ -131,11 +135,14 @@ class TestBaseMLPolicy:
 
     def test_position_limits(self, mock_engine, sample_bar, mock_model_metadata):
         """Test position limit checking."""
-        with patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
-        ) as mock_registry_class, patch(
-            "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
-        ) as mock_predictor_class:
+        with (
+            patch(
+                "extensions.intraday_ml_policies.base_ml_policy.MLModelRegistry"
+            ) as mock_registry_class,
+            patch(
+                "extensions.intraday_ml_policies.base_ml_policy.MLPredictor"
+            ) as mock_predictor_class,
+        ):
             # Setup mocks
             mock_registry = Mock()
             mock_registry.get_metadata.return_value = mock_model_metadata
@@ -168,9 +175,7 @@ class TestBaseMLPolicy:
 
             # Mock existing positions
             policy.engine.get_positions.return_value = ["MSFT", "GOOGL"]
-            assert (
-                policy._can_open_position("AAPL") is False
-            )  # Max positions reached
+            assert policy._can_open_position("AAPL") is False  # Max positions reached
 
 
 class TestMLClassificationPolicy:

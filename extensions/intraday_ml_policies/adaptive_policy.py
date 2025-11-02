@@ -14,10 +14,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .base import (
-    BaseMLPolicy,
-    PolicySignal,
-)
+from .base import BaseMLPolicy, PolicySignal
 
 
 class MarketRegime(Enum):
@@ -286,7 +283,6 @@ class AdaptiveMLPolicy(BaseMLPolicy):
                 and self.regime_state.duration_bars
                 >= self.regime_config.min_regime_duration_bars
             ):
-
                 # Record regime change
                 self._record_regime_change(new_regime, confidence)
 

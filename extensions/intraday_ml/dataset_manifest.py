@@ -13,6 +13,7 @@ from typing import Any
 
 import dateutil.relativedelta
 import pandas as pd
+
 from qx_core.hashers import hash_dataframe
 
 from .universe_adapter import IntradayMLUniverseAdapter
@@ -86,7 +87,7 @@ class DatasetManifestBuilder:
         # Build universe and compute hashes
         all_dates = []
         for _split_name, split_dates in date_ranges.items():
-            if split_dates and 'start' in split_dates and 'end' in split_dates:
+            if split_dates and "start" in split_dates and "end" in split_dates:
                 all_dates.extend(
                     self._get_date_list(split_dates["start"], split_dates["end"])
                 )
@@ -151,12 +152,12 @@ class DatasetManifestBuilder:
 
     def _generate_date_ranges(self) -> dict[str, dict[str, str]]:
         """Generate Train/Val/OOS date ranges from config."""
-        if 'train' in self.splits_config and 'start' in self.splits_config['train']:
+        if "train" in self.splits_config and "start" in self.splits_config["train"]:
             return {
-                "train": self.splits_config['train'],
-                "val": self.splits_config.get('val', {}),
-                "test": self.splits_config.get('test', {}),
-                "oos": self.splits_config.get('oos', {}),
+                "train": self.splits_config["train"],
+                "val": self.splits_config.get("val", {}),
+                "test": self.splits_config.get("test", {}),
+                "oos": self.splits_config.get("oos", {}),
             }
 
         # Fallback to original logic

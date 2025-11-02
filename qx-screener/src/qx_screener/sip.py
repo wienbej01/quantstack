@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+
 from qx_data.gold_loader import load_bars
 from qx_features.core_basics import rel_volume_m
 

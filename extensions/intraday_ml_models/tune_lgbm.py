@@ -15,10 +15,7 @@ import numpy as np
 import pandas as pd
 
 from extensions.intraday_ml.utils.checksums import compute_data_hash
-from extensions.intraday_ml_models.cv_runner import (
-    CVResult,
-    run_cross_validation,
-)
+from extensions.intraday_ml_models.cv_runner import CVResult, run_cross_validation
 from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
 
 

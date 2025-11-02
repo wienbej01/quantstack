@@ -69,9 +69,7 @@ class ModelCard:
 class ModelIO:
     """Handles versioned model saving and loading with model cards."""
 
-    def __init__(
-        self, model_dir: str | Path, config: dict[str, Any] | None = None
-    ):
+    def __init__(self, model_dir: str | Path, config: dict[str, Any] | None = None):
         """Initialize ModelIO with model directory.
 
         Args:

@@ -11,6 +11,8 @@ import numpy as np
 import pandas as pd
 import typer
 import yaml
+from rich.console import Console
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.fill import DefaultFiller
 from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
@@ -21,14 +23,12 @@ from qx_backtest.policies.vwap_revert import VwapRevertPolicy
 from qx_backtest.policies.vwap_revert import (
     generate_signals as generate_vwap_revert_signals,
 )
+from qx_cli.exp import app
 from qx_core.hashers import hash_dataframe, hash_sip_map
 from qx_data.gold_loader import load_bars
 from qx_features.registry import apply_feature_packs
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 from qx_screener.sip import screen
-from rich.console import Console
-
-from qx_cli.exp import app
 
 console = Console()
 

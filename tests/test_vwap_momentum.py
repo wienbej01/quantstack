@@ -758,6 +758,7 @@ def test_enhanced_exit_signal_with_atr():
 def test_legacy_generate_signals():
     """Test legacy signal generation function for compatibility."""
     import pandas as pd
+
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with breakout above VWAP
@@ -795,6 +796,7 @@ def test_legacy_generate_signals():
 def test_legacy_generate_signals_short():
     """Test legacy signal generation for short breakdowns."""
     import pandas as pd
+
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with breakdown below VWAP
@@ -831,6 +833,7 @@ def test_legacy_generate_signals_short():
 def test_legacy_generate_signals_timeout():
     """Test legacy signal generation timeout logic."""
     import pandas as pd
+
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data with position that times out
@@ -878,6 +881,7 @@ def test_legacy_generate_signals_timeout():
 def test_legacy_generate_signals_sip_filter():
     """Test legacy signal generation with SIP universe filtering."""
     import pandas as pd
+
     from qx_backtest.policies.vwap_momentum import generate_signals
 
     # Create test data

@@ -6,7 +6,9 @@ import pandas as pd
 import pytest
 
 from extensions.intraday_ml_models.wrappers.backtest_runner import run as run_backtest
-from extensions.intraday_ml_models.wrappers.metrics_consistency import run_metrics_consistency_check
+from extensions.intraday_ml_models.wrappers.metrics_consistency import (
+    run_metrics_consistency_check,
+)
 
 
 @pytest.fixture
@@ -22,8 +24,15 @@ def setup_test_environment(tmp_path: Path) -> dict:
 
     # Create synthetic features
     features_path = features_dir / "features.parquet"
-    timestamps = pd.to_datetime(["2024-01-09 15:55:00", "2024-01-09 15:56:00", "2024-01-10 09:30:00", "2024-01-10 09:31:00"])
-    features_df = pd.DataFrame({'atr': [1.0, 1.0, 1.0, 1.0]}, index=timestamps)
+    timestamps = pd.to_datetime(
+        [
+            "2024-01-09 15:55:00",
+            "2024-01-09 15:56:00",
+            "2024-01-10 09:30:00",
+            "2024-01-10 09:31:00",
+        ]
+    )
+    features_df = pd.DataFrame({"atr": [1.0, 1.0, 1.0, 1.0]}, index=timestamps)
     features_df.to_parquet(features_path)
 
     # Create configs
@@ -33,30 +42,25 @@ def setup_test_environment(tmp_path: Path) -> dict:
         "cooldown_minutes": 5,
         "block_new_entries_after_et": "15:30",
         "min_bars_to_close": 2,
-        "horizons_min": [30]
+        "horizons_min": [30],
     }
     backtest_config = {
-        'position_size': 1,
-        'commission_per_order': 0.35,
-        'slippage_bps': 0,
-        'annualize': {
-            'minute_bars_per_day': 390,
-            'trading_days_per_year': 252
-        },
-        'equity': {
-            'starting_equity': 100000.0
-        },
-        'timing': {
-            'timezone': "America/New_York",
-            'session_calendar': "XNYS",
-            'eod_liquidation_time': "15:59:59"
+        "position_size": 1,
+        "commission_per_order": 0.35,
+        "slippage_bps": 0,
+        "annualize": {"minute_bars_per_day": 390, "trading_days_per_year": 252},
+        "equity": {"starting_equity": 100000.0},
+        "timing": {
+            "timezone": "America/New_York",
+            "session_calendar": "XNYS",
+            "eod_liquidation_time": "15:59:59",
         },
         "paths": {
             "model_dir": str(model_dir),
             "features": str(features_path),
-            "labels": "", # Not used
-            "report_dir": str(report_dir)
-        }
+            "labels": "",  # Not used
+            "report_dir": str(report_dir),
+        },
     }
 
     policy_config_path = tmp_path / "policy.yaml"
@@ -71,7 +75,7 @@ def setup_test_environment(tmp_path: Path) -> dict:
         "policy_config_path": str(policy_config_path),
         "backtest_config_path": str(backtest_config_path),
         "report_dir": str(report_dir),
-        "backtest_config": backtest_config
+        "backtest_config": backtest_config,
     }
 
 
@@ -83,7 +87,7 @@ def test_runner_contract(mock_load_model, setup_test_environment):
 
     class MockModel:
         def predict_proba(self, df):
-            return pd.DataFrame({'prob_30': [0.7, 0.8, 0.9, 0.6]}, index=df.index)
+            return pd.DataFrame({"prob_30": [0.7, 0.8, 0.9, 0.6]}, index=df.index)
 
     mock_load_model.return_value = MockModel()
 
@@ -112,13 +116,13 @@ def test_runner_contract(mock_load_model, setup_test_environment):
 
 @patch("extensions.intraday_ml_models.wrappers.backtest_runner.load_model")
 def test_no_orders_scenario(mock_load_model, setup_test_environment):
-    """Tests that the backtest runner exits with a non-zero code if no orders are generated.""" 
+    """Tests that the backtest runner exits with a non-zero code if no orders are generated."""
     # Arrange
     env = setup_test_environment
 
     class MockModel:
         def predict_proba(self, df):
-            return pd.DataFrame({'prob_30': [0.1, 0.2, 0.3, 0.4]}, index=df.index)
+            return pd.DataFrame({"prob_30": [0.1, 0.2, 0.3, 0.4]}, index=df.index)
 
     mock_load_model.return_value = MockModel()
 

@@ -2,11 +2,11 @@
 label_type: "triclass_atr_threshold"
 
 horizons:
-  - 60 # 60 minutes
+  - 45  # shorter horizon for higher conviction
 
-atr_multiplier: 0.02 # Lower multiplier for more labels
+atr_multiplier: 0.015  # tighter threshold to surface directional moves
 
-atr_window: 14
+atr_window: 10
 atr_period_minutes: 1
 
 first_hit_logic:
@@ -17,7 +17,7 @@ first_hit_logic:
 min_observations_per_horizon: 10
 max_lookback_bars: 100
 
-require_min_atr: 0.01
+require_min_atr: 0.008
 exclude_flat_periods: true
 
 include_metadata: true

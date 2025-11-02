@@ -141,13 +141,6 @@ class Position:
                 f"fill_qty={fill.quantity}"
             )
 
-        if abs(self.quantity) > 0:
-            print(
-                f"[TRACE] Position {self.symbol} quantity={self.quantity} "
-                f"after fill {fill.order_id} side={fill.side.value} "
-                f"fill_qty={fill.quantity}"
-            )
-
     def update_market_value(self, current_price: float) -> None:
         """Update market value and unrealized P&L."""
         if self.quantity == 0:

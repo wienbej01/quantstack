@@ -528,7 +528,7 @@ def generate_real_data_report(
     print(f"   Total P&L:        ${total_pnl:,.2f}")
     print(f"   Avg P&L per Trade: ${avg_pnl:,.2f}")
     print(
-        f"   Return:           {total_pnl/100000*100:+.2f}%"
+        f"   Return:           {total_pnl / 100000 * 100:+.2f}%"
     )  # Assuming $100k starting capital
 
     # Directional analysis
@@ -557,7 +557,7 @@ def generate_real_data_report(
     exit_reasons = trades_df["exit_reason"].value_counts()
     print("\n📋 Exit Reasons:")
     for reason, count in exit_reasons.items():
-        print(f"   {reason}:           {count} trades ({count/total_trades:.1%})")
+        print(f"   {reason}:           {count} trades ({count / total_trades:.1%})")
 
     # Detailed trade list
     print("\n📋 Detailed Trade List:")

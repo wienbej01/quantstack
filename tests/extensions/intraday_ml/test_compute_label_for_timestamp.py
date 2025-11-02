@@ -46,8 +46,12 @@ class TestComputeLabelForTimestamp:
         np.random.seed(42)
 
         # Create timestamps for 2 days of trading
-        day1_dates = pd.date_range("2024-01-02 09:30:00", periods=390, freq="1min")  # Day 1
-        day2_dates = pd.date_range("2024-01-03 09:30:00", periods=100, freq="1min")   # Day 2 (partial)
+        day1_dates = pd.date_range(
+            "2024-01-02 09:30:00", periods=390, freq="1min"
+        )  # Day 1
+        day2_dates = pd.date_range(
+            "2024-01-03 09:30:00", periods=100, freq="1min"
+        )  # Day 2 (partial)
 
         all_dates = pd.concat([pd.Series(day1_dates), pd.Series(day2_dates)])
 
@@ -90,15 +94,17 @@ class TestComputeLabelForTimestamp:
 
             volume = max(50000, int(np.random.normal(200000, 50000)))
 
-            data.append({
-                "ts": ts,
-                "symbol": "BAC",
-                "open": open_price,
-                "high": max(high, open_price, close),
-                "low": min(low, open_price, close),
-                "close": close,
-                "volume": volume,
-            })
+            data.append(
+                {
+                    "ts": ts,
+                    "symbol": "BAC",
+                    "open": open_price,
+                    "high": max(high, open_price, close),
+                    "low": min(low, open_price, close),
+                    "close": close,
+                    "volume": volume,
+                }
+            )
 
         df = pd.DataFrame(data)
         return df.sort_values(["symbol", "ts"]).reset_index(drop=True)
@@ -106,7 +112,9 @@ class TestComputeLabelForTimestamp:
     @pytest.fixture
     def current_timestamp(self, sample_data_window):
         """Get the timestamp at start of second day (boundary between hist/future)."""
-        boundary_idx = sample_data_window[sample_data_window["ts"].dt.date == pd.Timestamp("2024-01-03").date()].index[0]
+        boundary_idx = sample_data_window[
+            sample_data_window["ts"].dt.date == pd.Timestamp("2024-01-03").date()
+        ].index[0]
         return sample_data_window.loc[boundary_idx, "ts"]
 
     def test_label_positive_move(self, labeler, sample_data_window, current_timestamp):
@@ -135,22 +143,22 @@ class TestComputeLabelForTimestamp:
         for i, ts in enumerate(down_dates):
             # Strong downtrend
             price = base_price - (i * 0.01)  # 1 cent per minute down
-            down_data.append({
-                "ts": ts,
-                "symbol": "BAC",
-                "open": price,
-                "high": price * 1.001,
-                "low": price * 0.999,
-                "close": price,
-                "volume": 200000
-            })
+            down_data.append(
+                {
+                    "ts": ts,
+                    "symbol": "BAC",
+                    "open": price,
+                    "high": price * 1.001,
+                    "low": price * 0.999,
+                    "close": price,
+                    "volume": 200000,
+                }
+            )
 
         down_df = pd.DataFrame(down_data)
-        down_move_start = down_df['ts'].iloc[20]  # Start testing from 20th minute
+        down_move_start = down_df["ts"].iloc[20]  # Start testing from 20th minute
 
-        label = labeler.compute_label_for_timestamp(
-            down_df, down_move_start
-        )
+        label = labeler.compute_label_for_timestamp(down_df, down_move_start)
 
         # Verify label is in valid range
         assert label in [-1, 0, 1]
@@ -170,22 +178,22 @@ class TestComputeLabelForTimestamp:
             # Very small random movements around base price
             noise = np.random.normal(0, 0.0001)  # Very small noise
             price = base_price * (1 + noise)
-            neutral_data.append({
-                "ts": ts,
-                "symbol": "BAC",
-                "open": price,
-                "high": price * 1.0001,
-                "low": price * 0.9999,
-                "close": price,
-                "volume": 200000
-            })
+            neutral_data.append(
+                {
+                    "ts": ts,
+                    "symbol": "BAC",
+                    "open": price,
+                    "high": price * 1.0001,
+                    "low": price * 0.9999,
+                    "close": price,
+                    "volume": 200000,
+                }
+            )
 
         neutral_df = pd.DataFrame(neutral_data)
-        neutral_time = neutral_df['ts'].iloc[20]
+        neutral_time = neutral_df["ts"].iloc[20]
 
-        label = labeler.compute_label_for_timestamp(
-            neutral_df, neutral_time
-        )
+        label = labeler.compute_label_for_timestamp(neutral_df, neutral_time)
 
         # Verify label is in valid range
         assert label in [-1, 0, 1]
@@ -198,14 +206,14 @@ class TestComputeLabelForTimestamp:
         # Use the very last timestamp
         last_timestamp = sample_data_window["ts"].max()
 
-        label = labeler.compute_label_for_timestamp(
-            sample_data_window, last_timestamp
-        )
+        label = labeler.compute_label_for_timestamp(sample_data_window, last_timestamp)
 
         # Should return neutral label when no future data
         assert label == 0
 
-    def test_atr_threshold_respected(self, labeler, sample_data_window, current_timestamp):
+    def test_atr_threshold_respected(
+        self, labeler, sample_data_window, current_timestamp
+    ):
         """Test that ATR threshold is properly applied."""
         # Test with different ATR multipliers by temporarily modifying config
         original_multiplier = labeler.atr_multiplier
@@ -216,14 +224,18 @@ class TestComputeLabelForTimestamp:
             label_high_threshold = labeler.compute_label_for_timestamp(
                 sample_data_window, current_timestamp
             )
-            assert label_high_threshold == 0, "High ATR multiplier should result in neutral label"
+            assert (
+                label_high_threshold == 0
+            ), "High ATR multiplier should result in neutral label"
 
             # Test with very low threshold (should return +/-1 for any move)
             labeler.atr_multiplier = 0.01
             label_low_threshold = labeler.compute_label_for_timestamp(
                 sample_data_window, current_timestamp
             )
-            assert label_low_threshold != 0, "Low ATR multiplier should result in non-neutral label"
+            assert (
+                label_low_threshold != 0
+            ), "Low ATR multiplier should result in non-neutral label"
 
         finally:
             # Restore original multiplier
@@ -266,15 +278,17 @@ class TestComputeLabelForTimestamp:
             base_price = 30.0 if symbol == "BAC" else 150.0
             for i, ts in enumerate(dates):
                 close = base_price + i * 0.01 + np.random.normal(0, 0.1)
-                data.append({
-                    "ts": ts,
-                    "symbol": symbol,
-                    "open": close,
-                    "high": close * 1.001,
-                    "low": close * 0.999,
-                    "close": close,
-                    "volume": 100000,
-                })
+                data.append(
+                    {
+                        "ts": ts,
+                        "symbol": symbol,
+                        "open": close,
+                        "high": close * 1.001,
+                        "low": close * 0.999,
+                        "close": close,
+                        "volume": 100000,
+                    }
+                )
 
         df = pd.DataFrame(data).sort_values(["symbol", "ts"])
         current_ts = dates[50]  # Middle timestamp
@@ -283,13 +297,17 @@ class TestComputeLabelForTimestamp:
         label = labeler.compute_label_for_timestamp(df, current_ts)
         assert label in [-1, 0, 1]
 
-    def test_lookahead_bias_prevention(self, labeler, sample_data_window, current_timestamp):
+    def test_lookahead_bias_prevention(
+        self, labeler, sample_data_window, current_timestamp
+    ):
         """Test that method prevents lookahead bias by using only future data."""
         # This test verifies the interface enforces no-lookahead
         # The actual implementation should only use data > current_timestamp for labels
 
         # Get all data up to current timestamp
-        historical_data = sample_data_window[sample_data_window["ts"] <= current_timestamp]
+        historical_data = sample_data_window[
+            sample_data_window["ts"] <= current_timestamp
+        ]
         future_data = sample_data_window[sample_data_window["ts"] > current_timestamp]
 
         # Ensure we have both historical and future data
@@ -312,15 +330,17 @@ class TestComputeLabelForTimestamp:
 
     def test_deprecation_warning(self, labeler):
         """Test that the old create_labels method shows deprecation warning."""
-        sample_data = pd.DataFrame({
-            "ts": pd.date_range("2024-01-02", periods=100, freq="1min"),
-            "symbol": "BAC",
-            "open": np.random.normal(30, 1, 100),
-            "high": np.random.normal(31, 1, 100),
-            "low": np.random.normal(29, 1, 100),
-            "close": np.random.normal(30, 1, 100),
-            "volume": np.random.normal(200000, 50000, 100),
-        })
+        sample_data = pd.DataFrame(
+            {
+                "ts": pd.date_range("2024-01-02", periods=100, freq="1min"),
+                "symbol": "BAC",
+                "open": np.random.normal(30, 1, 100),
+                "high": np.random.normal(31, 1, 100),
+                "low": np.random.normal(29, 1, 100),
+                "close": np.random.normal(30, 1, 100),
+                "volume": np.random.normal(200000, 50000, 100),
+            }
+        )
         ts_cut = sample_data["ts"].iloc[50]
 
         with warnings.catch_warnings(record=True) as w:
@@ -331,17 +351,20 @@ class TestComputeLabelForTimestamp:
 
             # Check that deprecation warning was issued
             assert len(w) > 0
-            assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
+            assert any(
+                issubclass(warning.category, DeprecationWarning) for warning in w
+            )
             assert any("deprecated" in str(warning.message).lower() for warning in w)
 
-    def test_method_signature_compatibility(self, labeler, sample_data_window, current_timestamp):
+    def test_method_signature_compatibility(
+        self, labeler, sample_data_window, current_timestamp
+    ):
         """Test that compute_label_for_timestamp has the expected signature."""
         # This test ensures the method exists and can be called with expected parameters
 
         # Should not raise any errors
         label = labeler.compute_label_for_timestamp(
-            data_window=sample_data_window,
-            current_timestamp=current_timestamp
+            data_window=sample_data_window, current_timestamp=current_timestamp
         )
 
         assert isinstance(label, int)
@@ -350,22 +373,26 @@ class TestComputeLabelForTimestamp:
     def test_edge_cases(self, labeler):
         """Test edge cases and error conditions."""
         # Empty DataFrame
-        empty_df = pd.DataFrame(columns=["ts", "symbol", "open", "high", "low", "close", "volume"])
+        empty_df = pd.DataFrame(
+            columns=["ts", "symbol", "open", "high", "low", "close", "volume"]
+        )
         test_ts = pd.Timestamp("2024-01-02 09:30:00")
 
         label = labeler.compute_label_for_timestamp(empty_df, test_ts)
         assert label == 0
 
         # Single row DataFrame
-        single_row = pd.DataFrame({
-            "ts": [test_ts],
-            "symbol": ["BAC"],
-            "open": [30.0],
-            "high": [30.1],
-            "low": [29.9],
-            "close": [30.0],
-            "volume": [100000],
-        })
+        single_row = pd.DataFrame(
+            {
+                "ts": [test_ts],
+                "symbol": ["BAC"],
+                "open": [30.0],
+                "high": [30.1],
+                "low": [29.9],
+                "close": [30.0],
+                "volume": [100000],
+            }
+        )
 
         label = labeler.compute_label_for_timestamp(single_row, test_ts)
         assert label == 0
@@ -379,7 +406,7 @@ class TestComputeLabelForTimestamp:
             start_price=30.0,
             trend=0.001,  # Up trend
             volatility=0.002,
-            duration_minutes=60
+            duration_minutes=60,
         )
         label_uptrend = labeler.compute_label_for_timestamp(
             uptrend_data, uptrend_data["ts"].iloc[0]
@@ -390,7 +417,7 @@ class TestComputeLabelForTimestamp:
             start_price=30.0,
             trend=-0.001,  # Down trend
             volatility=0.002,
-            duration_minutes=60
+            duration_minutes=60,
         )
         label_downtrend = labeler.compute_label_for_timestamp(
             downtrend_data, downtrend_data["ts"].iloc[0]
@@ -401,7 +428,7 @@ class TestComputeLabelForTimestamp:
             start_price=30.0,
             trend=0.0,  # No trend
             volatility=0.001,
-            duration_minutes=60
+            duration_minutes=60,
         )
         label_sideways = labeler.compute_label_for_timestamp(
             sideways_data, sideways_data["ts"].iloc[0]
@@ -415,9 +442,13 @@ class TestComputeLabelForTimestamp:
         # Directions should make sense (optional, as thresholds might prevent classification)
         # print(f"Uptrend label: {label_uptrend}, Downtrend label: {label_downtrend}, Sideways label: {label_sideways}")
 
-    def _create_price_scenario(self, start_price: float, trend: float, volatility: float, duration_minutes: int) -> pd.DataFrame:
+    def _create_price_scenario(
+        self, start_price: float, trend: float, volatility: float, duration_minutes: int
+    ) -> pd.DataFrame:
         """Helper to create a specific price scenario for testing."""
-        dates = pd.date_range("2024-01-02 09:30:00", periods=duration_minutes, freq="1min")
+        dates = pd.date_range(
+            "2024-01-02 09:30:00", periods=duration_minutes, freq="1min"
+        )
         data = []
 
         for i, ts in enumerate(dates):
@@ -431,15 +462,17 @@ class TestComputeLabelForTimestamp:
             low = close - high_low * (1 - np.random.random())
             open_price = low + (high - low) * np.random.random()
 
-            data.append({
-                "ts": ts,
-                "symbol": "TEST",
-                "open": open_price,
-                "high": max(high, open_price, close),
-                "low": min(low, open_price, close),
-                "close": close,
-                "volume": 100000,
-            })
+            data.append(
+                {
+                    "ts": ts,
+                    "symbol": "TEST",
+                    "open": open_price,
+                    "high": max(high, open_price, close),
+                    "low": min(low, open_price, close),
+                    "close": close,
+                    "volume": 100000,
+                }
+            )
 
         return pd.DataFrame(data)
 

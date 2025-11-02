@@ -5,11 +5,14 @@ while maintaining strict separation from core modules.
 """
 
 import json
+from collections import defaultdict
+from numbers import Integral
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 import yaml
+
 from qx_core.hashers import hash_dataframe
 
 
@@ -38,6 +41,8 @@ def intraday_ml_run_backtest(
 
     # Load and merge configuration
     config = _load_and_merge_config(cfg, config_path)
+    if "artifacts_path" not in config:
+        config["artifacts_path"] = config.get("artifacts_dir", "artifacts/intraday_ml")
 
     # Validate inputs
     _validate_inputs(bars, orders)
@@ -78,7 +83,9 @@ def intraday_ml_run_backtest(
     engine.filler = filler
 
     # Create strategy wrapper for our orders
-    strategy = _create_strategy_wrapper(processed_orders)
+    strategy = _create_strategy_wrapper(
+        processed_orders, config.get("intraday_constraints", {})
+    )
 
     # Run backtest using existing engine
     result = engine.run(processed_bars, strategy)
@@ -256,37 +263,115 @@ def _filter_eod_violations(
     return pd.DataFrame(valid_orders) if valid_orders else pd.DataFrame()
 
 
-def _create_strategy_wrapper(orders: pd.DataFrame):
+def _create_strategy_wrapper(
+    orders: pd.DataFrame, intraday_constraints: dict[str, Any]
+):
     """Create strategy function wrapper for pre-sized orders with position management."""
+
+    def _coerce_to_utc_timestamp(value: Any) -> tuple[int, pd.Timestamp]:
+        """Return nanosecond integer and UTC timestamp for the provided value."""
+        if isinstance(value, pd.Timestamp):
+            ts = value
+            if ts.tzinfo is None:
+                ts = ts.tz_localize("UTC")
+            else:
+                ts = ts.tz_convert("UTC")
+            return int(ts.value), ts
+
+        if isinstance(value, Integral):
+            ts = pd.to_datetime(int(value), utc=True, unit="ns")
+            return int(ts.value), ts
+
+        try:
+            ts = pd.to_datetime(value, utc=True)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Unsupported timestamp value: {value!r}") from exc
+
+        if ts.tzinfo is None:
+            ts = ts.tz_localize("UTC")
+        else:
+            ts = ts.tz_convert("UTC")
+        return int(ts.value), ts
+
+    if orders is None:
+        orders = pd.DataFrame()
+
+    if not orders.empty:
+        orders = orders.copy()
+        orders["ts"] = orders["ts"].apply(
+            lambda value: _coerce_to_utc_timestamp(value)[0]
+        )
+
+    session_timezone = intraday_constraints.get("session_timezone", "America/New_York")
+    flat_time_str = intraday_constraints.get("flat_eod_time", "15:59:59")
+    flat_time = pd.to_datetime(flat_time_str).time()
+    forced_flat_tracker: dict[str, set[str]] = defaultdict(set)
 
     def strategy(engine, bar_dict: dict) -> None:
         """Strategy function with proper LONG/SHORT handling and position management."""
-        if orders.empty:
-            return
-
         # Get current bar timestamp and symbol
         current_ts = bar_dict.get("ts")
         symbol = bar_dict.get("symbol")
         if current_ts is None or symbol is None:
             return
 
-        # Single position guard
-        if engine.get_position(symbol):
-            return
-
-        # Find orders matching current timestamp and symbol
-        matching_orders = orders[(orders["ts"] == current_ts) & (orders["symbol"] == symbol)]
-
-        # Submit matching orders to engine
+        ts_value, ts_utc = _coerce_to_utc_timestamp(current_ts)
+        ts_et = ts_utc.tz_convert(session_timezone)
+        date_key = ts_et.date().isoformat()
 
         from qx_backtest.order import Order, OrderSide, OrderType
 
+        position = engine.get_position(symbol)
+        current_qty = 0
+        if position:
+            qty_value = getattr(position, "quantity", 0)
+            try:
+                current_qty = int(qty_value)
+            except (TypeError, ValueError):
+                current_qty = 0
+
+        # Force flat at configured cutoff time
+        if (
+            position
+            and ts_et.time() >= flat_time
+            and date_key not in forced_flat_tracker[symbol]
+        ):
+            forced_flat_tracker[symbol].add(date_key)
+            exit_side = OrderSide.SELL if position.is_long else OrderSide.BUY
+            order_id = f"ml_force_flat_{ts_value}"
+            if abs(current_qty) > 0:
+                forced_order = Order(
+                    order_id=order_id,
+                    symbol=symbol,
+                    side=exit_side,
+                    quantity=abs(current_qty),
+                    order_type=OrderType.MARKET,
+                    timestamp=ts_value,
+                )
+                forced_order.tags = {"exit_reason": "force_flat"}
+                engine.submit_order(forced_order)
+            return
+
+        if orders.empty:
+            return
+
+        # Find orders matching current timestamp and symbol
+        matching_orders = orders[
+            (orders["ts"] == ts_value) & (orders["symbol"] == symbol)
+        ]
+
         for idx, (_, order) in enumerate(matching_orders.iterrows()):
             # Convert order to engine format and submit
-            order_id = f"ml_order_{current_ts}_{idx}"
+            order_id = f"ml_order_{ts_value}_{idx}"
 
             # Determine order side - handle both LONG and SHORT
             side = OrderSide.BUY if order["side"].lower() == "long" else OrderSide.SELL
+
+            # Respect single-position rule while allowing flattening trades
+            if current_qty > 0 and side == OrderSide.BUY:
+                continue  # would add to existing long
+            if current_qty < 0 and side == OrderSide.SELL:
+                continue  # would add to existing short
 
             # Create order with proper risk management
             order_obj = Order(
@@ -301,7 +386,7 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
             # Get current close price from bar_dict
             current_close = bar_dict.get("close")
             if current_close is None:
-                continue # Should not happen if bar_dict is valid
+                continue  # Should not happen if bar_dict is valid
 
             # Add stop-loss and take-profit if available
             if "stop_loss_pct" in order and pd.notna(order["stop_loss_pct"]):
@@ -321,6 +406,13 @@ def _create_strategy_wrapper(orders: pd.DataFrame):
                 order_obj.take_profit = take_profit_price
 
             engine.submit_order(order_obj)
+
+            # Update local estimate assuming order reduces exposure
+            qty_delta = int(order["qty"])
+            if side == OrderSide.BUY:
+                current_qty += qty_delta
+            else:
+                current_qty -= qty_delta
 
     return strategy
 
@@ -455,6 +547,10 @@ def _extract_metrics_from_result(
     """Extract metrics from BacktestResult object, but prioritize calculated metrics."""
     metrics = {}
 
+    # Include any metrics dict provided by the engine result first
+    if hasattr(result, "metrics") and isinstance(getattr(result, "metrics"), dict):
+        metrics.update(result.metrics)
+
     # Extract performance metrics from BacktestResult (excluding trade counts)
     metric_fields = [
         "total_return",
@@ -485,7 +581,11 @@ def _extract_metrics_from_result(
         ]
         for field in trade_fields:
             if field in calculated_metrics:
-                metrics[field] = calculated_metrics[field]
+                calculated_value = calculated_metrics[field]
+                existing_value = metrics.get(field)
+                if existing_value and not calculated_value:
+                    continue
+                metrics[field] = calculated_value
     else:
         # Fallback to BacktestResult trade metrics (but they're usually 0)
         trade_fields = [
@@ -515,72 +615,76 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
         "avg_trade_duration_minutes": 0.0,
     }
 
-    # Calculate from trades if available
-    if "trades" in artifacts and not artifacts["trades"].empty:
-        trades_df = artifacts["trades"]
+    fills_df = artifacts.get("fills")
+    if fills_df is not None and not fills_df.empty:
+        fills_df = fills_df.copy()
+        if (
+            "timestamp" in fills_df.columns
+            and not pd.api.types.is_datetime64_any_dtype(fills_df["timestamp"])
+        ):
+            fills_df["timestamp"] = pd.to_datetime(
+                fills_df["timestamp"], utc=True, errors="coerce"
+            )
 
-        # Count unique completed trades (pairs of entry/exit)
-        if "order_id" in trades_df.columns:
-            trade_count = trades_df["order_id"].nunique()
-        else:
-            trade_count = len(trades_df) // 2
-            
-        metrics["total_trades"] = trade_count
-        metrics["trades"] = trade_count  # Backward compatibility
+        fills_df = fills_df.sort_values("timestamp").reset_index(drop=True)
+        gross_pnl = 0.0
+        wins = 0
+        trade_count = 0
+        durations: list[float] = []
 
-        # Calculate P&L from total_cost if available
-        if "total_cost" in trades_df.columns:
-            total_pnl = 0
-            if "order_id" in trades_df.columns:
-                for order_id in trades_df["order_id"].unique():
-                    trade_group = trades_df[trades_df["order_id"] == order_id]
-                    if len(trade_group) == 2:
-                         total_pnl -= trade_group["total_cost"].sum()
+        # Track fees directly from fills
+        if "commission" in fills_df.columns:
+            metrics["fees_total"] = fills_df["commission"].sum()
+
+        i = 0
+        while i + 1 < len(fills_df):
+            entry = fills_df.iloc[i]
+            exit_fill = fills_df.iloc[i + 1]
+
+            if entry["side"] == exit_fill["side"]:
+                i += 1
+                continue
+
+            qty = min(entry["quantity"], exit_fill["quantity"])
+            if qty <= 0:
+                i += 2
+                continue
+
+            entry_price = entry["price"]
+            exit_price = exit_fill["price"]
+
+            if entry["side"] == "SELL":
+                pnl = (entry_price - exit_price) * qty
             else:
-                total_pnl = -trades_df["total_cost"].sum()
-            metrics["total_pnl"] = total_pnl
+                pnl = (exit_price - entry_price) * qty
 
-        # Calculate from commission if available (proxy for trading activity)
-        if "commission" in trades_df.columns:
-            metrics["fees_total"] = trades_df["commission"].sum()
+            gross_pnl += pnl
+            trade_count += 1
+            if pnl > 0:
+                wins += 1
 
-        # Calculate win rate based on direction and P&L - group by symbol to count complete trades
-        if "side" in trades_df.columns and "total_cost" in trades_df.columns and "order_id" in trades_df.columns:
-            wins = 0
-            for order_id in trades_df["order_id"].unique():
-                trade_group = trades_df[trades_df["order_id"] == order_id]
-                if len(trade_group) == 2:
-                    pnl = -trade_group["total_cost"].sum()
-                    if pnl > 0:
-                        wins += 1
-            metrics["win_rate"] = wins / trade_count if trade_count > 0 else 0.0
+            if isinstance(entry["timestamp"], pd.Timestamp) and isinstance(
+                exit_fill["timestamp"], pd.Timestamp
+            ):
+                durations.append(
+                    (exit_fill["timestamp"] - entry["timestamp"]).total_seconds() / 60.0
+                )
 
-        # Calculate average return per trade
-        if metrics["total_pnl"] != 0 and trade_count > 0:
-            metrics["avg_R"] = metrics["total_pnl"] / trade_count
+            i += 2
 
-        # Calculate trades per day
-        if "trades" in artifacts and not artifacts["trades"].empty:
-            trades_df = artifacts["trades"]
-            if "timestamp" in trades_df.columns:
-                trades_df["date"] = pd.to_datetime(trades_df["timestamp"], unit="ns").dt.date
-                num_trading_days = trades_df["date"].nunique()
-                if num_trading_days > 0:
-                    metrics["trades_per_day"] = trade_count / num_trading_days
+        metrics["total_trades"] = trade_count
+        metrics["trades"] = trade_count
+        net_pnl = gross_pnl - metrics["fees_total"]
+        metrics["total_pnl"] = net_pnl
+        metrics["win_rate"] = wins / trade_count if trade_count else 0.0
+        if trade_count:
+            metrics["avg_R"] = net_pnl / trade_count
 
-        # Calculate average trade duration
-        if "trades" in artifacts and not artifacts["trades"].empty:
-            trades_df = artifacts["trades"]
-            if "order_id" in trades_df.columns and "timestamp" in trades_df.columns:
-                durations = []
-                for order_id in trades_df["order_id"].unique():
-                    trade_group = trades_df[trades_df["order_id"] == order_id]
-                    if len(trade_group) == 2:
-                        duration = trade_group["timestamp"].max() - trade_group["timestamp"].min()
-                        durations.append(duration.total_seconds() / 60)
-                if durations:
-                    metrics["avg_trade_duration_minutes"] = sum(durations) / len(durations)
-
+        unique_days = fills_df["timestamp"].dt.date.nunique()
+        if unique_days:
+            metrics["trades_per_day"] = trade_count / unique_days
+        if durations:
+            metrics["avg_trade_duration_minutes"] = sum(durations) / len(durations)
 
     # Calculate fees from fills if available
     if "fills" in artifacts and not artifacts["fills"].empty:
@@ -599,13 +703,40 @@ def _write_artifacts(artifacts: dict[str, Any], config: dict[str, Any]):
     for name, df in artifacts.items():
         if isinstance(df, pd.DataFrame):
             if not df.empty:
-                if 'tags' in df.columns:
-                    df['tags'] = df['tags'].astype(str)
+                if "tags" in df.columns:
+                    df["tags"] = df["tags"].astype(str)
                 df.to_parquet(artifacts_dir / f"{name}.parquet", index=False)
         elif isinstance(df, dict):
             with open(artifacts_dir / f"{name}.json", "w") as f:
-                json.dump(df, f, indent=4)
+                json.dump(_json_safe(df), f, indent=4)
 
 
 # Import hash function
 from qx_core.hashers import hash_dict
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert nested structures to JSON-serializable types."""
+
+    if value.__class__.__module__ == "unittest.mock":  # pragma: no cover - test doubles
+        return str(value)
+
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, pd.Timedelta):
+        return value.total_seconds()
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+        try:
+            item_value = value.item()
+        except Exception:  # pragma: no cover - fallback for unusual scalars
+            return str(value)
+        if item_value is value:
+            return str(value)
+        return _json_safe(item_value)
+    if isinstance(value, (float, int, str, bool)) or value is None:
+        return value
+    return str(value)

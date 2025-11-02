@@ -14,11 +14,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .base import (
-    BaseMLPolicy,
-    PolicyDecision,
-    PolicySignal,
-)
+from .base import BaseMLPolicy, PolicyDecision, PolicySignal
 
 
 class RiskStrategy(Enum):

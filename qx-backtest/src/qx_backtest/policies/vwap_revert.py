@@ -3,6 +3,7 @@
 from typing import Any
 
 import pandas as pd
+
 from qx_risk.atr_stop import set_stops, size_order
 
 from ..order import OrderSide
@@ -401,7 +402,6 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
             and atr > 0  # Valid ATR
             and (vwap - close) >= (self.min_profit_atr * atr)
         ):  # Sufficient profit potential
-
             # Additional filter: avoid entering during extreme volatility
             volatility_ratio = atr / close
             if volatility_ratio > 0.1:  # More than 10% daily volatility

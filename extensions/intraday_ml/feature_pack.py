@@ -9,6 +9,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 from qx_core.utils import utc_ns_to_datetime
 from qx_features.core_basics import atr_m, vwap_m
 
@@ -108,6 +109,11 @@ class IntradayMLFeaturePack:
             features.append(micro_features)
             total_features += len(micro_features.columns)
 
+        if self.families.get("conviction_signals", {}).get("enabled", False):
+            conviction_features = self._compute_conviction_signals(df_filtered)
+            features.append(conviction_features)
+            total_features += len(conviction_features.columns)
+
         # Combine all features
         if features:
             all_features = pd.concat(features, axis=1)
@@ -131,8 +137,7 @@ class IntradayMLFeaturePack:
         # ts should already be datetime
         if df["ts"].max() > ts_cut:
             raise ValueError(
-                f"Input data contains timestamps after ts_cut: "
-                f"{df['ts'].max()} > {ts_cut}"
+                f"Input data contains timestamps after ts_cut: {df['ts'].max()} > {ts_cut}"
             )
 
     def _compute_returns_trend(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -537,3 +542,119 @@ class IntradayMLFeaturePack:
                 features.append(vwap_5.rename("f__vwap__5m"))
 
         return pd.concat(features, axis=1)
+
+    def _compute_conviction_signals(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute conviction-oriented features to boost directional separation."""
+        config = self.families["conviction_signals"]
+        windows = config.get("windows", [3, 6, 12])
+
+        feature_frames: list[pd.Series] = []
+
+        for _symbol, group in df.groupby("symbol"):
+            group = group.sort_values("ts")
+            close = group["close"].astype(float)
+            open_ = group["open"].astype(float)
+            high = group["high"].astype(float)
+            low = group["low"].astype(float)
+            volume = group["volume"].astype(float)
+            price_range = (high - low).replace(0.0, np.nan)
+            safe_range = price_range.fillna(1e-8)
+
+            # Pre-compute candlestick components used across windows
+            body = close - open_
+            upper_body = pd.concat([close, open_], axis=1).max(axis=1)
+            lower_body = pd.concat([close, open_], axis=1).min(axis=1)
+            upper_wick = high - upper_body
+            lower_wick = lower_body - low
+            wick_skew = (lower_wick - upper_wick) / (safe_range + 1e-8)
+            body_strength = body / (safe_range + 1e-8)
+
+            # Volume adjusted directional flow (Accumulation/Distribution)
+            adl_component = (
+                ((close - low) - (high - close)) / (safe_range + 1e-8) * volume
+            )
+
+            # On-balance volume style accumulator for conviction
+            price_direction = np.sign(close.diff().fillna(0.0))
+            obv = (price_direction * volume).fillna(0.0).cumsum()
+
+            for window in windows:
+                rolling_mean = close.rolling(window).mean()
+                rolling_std = close.rolling(window).std(ddof=0).replace(0, np.nan)
+                zscore = (close - rolling_mean) / (rolling_std + 1e-8)
+                feature_frames.append(
+                    pd.Series(
+                        zscore, index=group.index, name=f"f__conv__zscore_{window}"
+                    )
+                )
+
+                momentum = close.pct_change(window)
+                vol_mean = volume.rolling(window).mean()
+                vol_ratio = volume / (vol_mean + 1e-8)
+                feature_frames.append(
+                    pd.Series(
+                        momentum * vol_ratio,
+                        index=group.index,
+                        name=f"f__conv__mom_vol_{window}",
+                    )
+                )
+
+                rolling_range = (high - low).rolling(window).sum()
+                close_position = (close - low.rolling(window).min()) / (
+                    rolling_range + 1e-8
+                )
+                feature_frames.append(
+                    pd.Series(
+                        close_position,
+                        index=group.index,
+                        name=f"f__conv__range_pos_{window}",
+                    )
+                )
+
+                # Directional body dominance (positive near 1 indicates strong bullish closes)
+                body_strength_mean = body_strength.rolling(window).mean()
+                feature_frames.append(
+                    pd.Series(
+                        body_strength_mean,
+                        index=group.index,
+                        name=f"f__conv__body_strength_{window}",
+                    )
+                )
+
+                # Wick asymmetry (positive when lower wick dominates signalling absorption)
+                wick_skew_mean = wick_skew.rolling(window).mean()
+                feature_frames.append(
+                    pd.Series(
+                        wick_skew_mean,
+                        index=group.index,
+                        name=f"f__conv__wick_skew_{window}",
+                    )
+                )
+
+                # Rolling accumulation/distribution normalised by volume
+                adl_strength = adl_component.rolling(window).sum() / (
+                    volume.rolling(window).sum() + 1e-8
+                )
+                feature_frames.append(
+                    pd.Series(
+                        adl_strength,
+                        index=group.index,
+                        name=f"f__conv__adl_strength_{window}",
+                    )
+                )
+
+                # OBV momentum scaled by traded volume
+                obv_momentum = obv.diff(window) / (volume.rolling(window).sum() + 1e-8)
+                feature_frames.append(
+                    pd.Series(
+                        obv_momentum,
+                        index=group.index,
+                        name=f"f__conv__obv_mom_{window}",
+                    )
+                )
+
+        return (
+            pd.concat(feature_frames, axis=1)
+            if feature_frames
+            else pd.DataFrame(index=df.index)
+        )

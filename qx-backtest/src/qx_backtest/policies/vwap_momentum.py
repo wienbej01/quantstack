@@ -284,7 +284,6 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
             and atr > 0
             and breakout_pct >= self.min_breakout_strength
         ):
-
             # Additional filter: avoid entering during extreme volatility
             volatility_ratio = atr / close
             if volatility_ratio > 0.1:  # More than 10% daily volatility

@@ -4,7 +4,6 @@ Tests Bayesian hyperparameter optimization with composite objectives
 and trade-rate shaping functionality.
 """
 
-
 import numpy as np
 import pandas as pd
 import pytest

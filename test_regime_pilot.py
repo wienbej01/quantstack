@@ -26,9 +26,7 @@ from qx_core.regime.detector import create_default_detector
 from qx_data.gold_loader import load_bars
 from qx_features.core_basics import compute_all_core_features
 from qx_features.regime.features import compute_all_regime_features
-from qx_features.regime_enhanced import (
-    compute_all_regime_enhanced_features,
-)
+from qx_features.regime_enhanced import compute_all_regime_enhanced_features
 
 
 def load_test_data():
@@ -130,14 +128,14 @@ def prepare_features(df, verbose=False):
     sys.stdout.write("[DIAG] Starting compute_all_core_features...\n")
     sys.stdout.flush()
     df = compute_all_core_features(df)
-    print(f"Core features computed ({time.time()-start:.1f}s)", flush=True)
+    print(f"Core features computed ({time.time() - start:.1f}s)", flush=True)
 
     # Compute regime features (NEW)
     start = time.time()
     sys.stdout.write("[DIAG] Starting compute_all_regime_features...\n")
     sys.stdout.flush()
     df = compute_all_regime_features(df)
-    print(f"Regime features computed ({time.time()-start:.1f}s)", flush=True)
+    print(f"Regime features computed ({time.time() - start:.1f}s)", flush=True)
 
     # Compute enhanced features using unified function
     print("\n=== Computing Regime-Enhanced Features ===\n", flush=True)
@@ -148,7 +146,7 @@ def prepare_features(df, verbose=False):
 
     # Use the unified enhanced features function
     df = compute_all_regime_enhanced_features(df, verbose=verbose)
-    print(f"Enhanced features computed ({time.time()-start:.1f}s)", flush=True)
+    print(f"Enhanced features computed ({time.time() - start:.1f}s)", flush=True)
 
     # Unify warmup flags: drop existing and create one authoritative flag
     # Warmup horizon reduced to 45 bars; prepend prior-session bars when available
@@ -300,9 +298,6 @@ def _create_strategy_func(policy):
         policy.process_bar(bar)
 
     return strategy_func
-
-
-
 
 
 def save_backtest_results(result: BacktestResult, run_id: str, runs_dir: str = "runs"):
@@ -549,7 +544,7 @@ def run_diagnostic_check(df, detector, verbose=False):
 
     valid_bars = ready_bars[valid_mask]
     print(
-        f"Valid regime bars: {len(valid_bars)} out of {len(ready_bars)} ({len(valid_bars)/len(ready_bars)*100:.1f}%)"
+        f"Valid regime bars: {len(valid_bars)} out of {len(ready_bars)} ({len(valid_bars) / len(ready_bars) * 100:.1f}%)"
     )
 
     if len(valid_bars) == 0:
@@ -685,13 +680,13 @@ def main():
         total_sessions = sum(regime_counts.values())
         print("\nRegime Distribution Summary (Session-based):")
         print(
-            f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions/(total_sessions or 1)*100:.1f}%) - Tradeable regimes"
+            f"  BULL/BEAR: {trending_sessions} sessions ({trending_sessions / (total_sessions or 1) * 100:.1f}%) - Tradeable regimes"
         )
         print(
-            f"  SIDEWAYS: {regime_counts.get('SIDEWAYS', 0)} sessions ({regime_counts.get('SIDEWAYS', 0)/(total_sessions or 1)*100:.1f}%) - Rotation strategy"
+            f"  SIDEWAYS: {regime_counts.get('SIDEWAYS', 0)} sessions ({regime_counts.get('SIDEWAYS', 0) / (total_sessions or 1) * 100:.1f}%) - Rotation strategy"
         )
         print(
-            f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0)/(total_sessions or 1)*100:.1f}%) - No trading"
+            f"  STRESS: {regime_counts.get('STRESS', 0)} sessions ({regime_counts.get('STRESS', 0) / (total_sessions or 1) * 100:.1f}%) - No trading"
         )
         print(
             "\nNote: Regimes are set twice per day (AM session: 9:30-12:30 ET, PM session: 12:30-16:00 ET)"

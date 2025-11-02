@@ -136,7 +136,9 @@ class FeatureSelector:
         self.feature_names = X.columns.tolist()
 
         # Choose scoring function
-        score_func = mutual_info_regression if task_type == "regression" else mutual_info_classif
+        score_func = (
+            mutual_info_regression if task_type == "regression" else mutual_info_classif
+        )
 
         # Calculate mutual information scores
         scores = score_func(X, y, random_state=random_state)

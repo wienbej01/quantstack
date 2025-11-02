@@ -5,6 +5,7 @@ Out-of-Sample (OOS) Trading Backtest for Phase A Model
 Integrates a Decision Policy to filter trades based on model confidence
 and a cooldown period.
 """
+
 import argparse
 import logging
 import sys
@@ -22,12 +23,11 @@ sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-features" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-backtest" / "src"))
 
+from extensions.intraday_ml.data_prep import create_feature_set
+from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.order import Order, OrderSide, OrderType
 from qx_data.gold_loader import load_bars
-
-from extensions.intraday_ml.data_prep import create_feature_set
-from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
 
 # Try to import the performance summary display, handle if not available
 try:
@@ -43,6 +43,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def run_backtest(start_date: str, end_date: str):
     """Runs the backtest for a given period."""
     logger.info(f"🚀 Starting OOS Backtest for period {start_date} to {end_date}...")
@@ -56,7 +57,7 @@ def run_backtest(start_date: str, end_date: str):
 
     policy_config = {
         "probability_threshold": 0.65,  # Only trade if confidence is > 65%
-        "cooldown_minutes": 15,         # Wait 15 mins after a trade
+        "cooldown_minutes": 15,  # Wait 15 mins after a trade
     }
     policy = DecisionPolicy(policy_config)
 
@@ -79,24 +80,28 @@ def run_backtest(start_date: str, end_date: str):
             "family": "bars_1m",
         },
     )
-    
+
     if oos_features.empty:
         logger.warning("No feature data generated for the specified period. Exiting.")
         return
 
-    logger.info(f"Generated {len(oos_features.columns)} features for {len(oos_features)} OOS bars")
+    logger.info(
+        f"Generated {len(oos_features.columns)} features for {len(oos_features)} OOS bars"
+    )
 
     # --- 4. Generate Predictions with Probabilities ---
     logger.info("Generating trading signals and probabilities from model...")
     feature_columns = [col for col in oos_features.columns if col.startswith("f__")]
-    
+
     probabilities = model.predict_proba(oos_features[feature_columns])
-    
-    oos_features['probability'] = np.max(probabilities, axis=1)
-    oos_features['signal'] = model.classes_[np.argmax(probabilities, axis=1)]
-    
-    trade_signals = oos_features[oos_features['signal'] != 0].copy()
-    logger.info(f"Generated {len(trade_signals)} non-neutral trade signals before policy filtering.")
+
+    oos_features["probability"] = np.max(probabilities, axis=1)
+    oos_features["signal"] = model.classes_[np.argmax(probabilities, axis=1)]
+
+    trade_signals = oos_features[oos_features["signal"] != 0].copy()
+    logger.info(
+        f"Generated {len(trade_signals)} non-neutral trade signals before policy filtering."
+    )
 
     # --- 5. Prepare Bar Data for Backtest Engine ---
     logger.info("Preparing bar data for backtest engine...")
@@ -120,44 +125,55 @@ def run_backtest(start_date: str, end_date: str):
         return
 
     # --- 6. Define the Trading Strategy and Run Backtest ---
-    logger.info("Configuring and running the qx-backtest engine with Decision Policy...")
+    logger.info(
+        "Configuring and running the qx-backtest engine with Decision Policy..."
+    )
     signal_map = {
         (row.ts, row.symbol): (row.signal, row.probability)
         for row in trade_signals.itertuples()
     }
 
     def strategy_func(engine, bar_event):
-        lookup_key = (bar_event['ts'], bar_event['symbol'])
+        lookup_key = (bar_event["ts"], bar_event["symbol"])
         signal_data = signal_map.get(lookup_key)
 
         if signal_data:
             signal, probability = signal_data
-            symbol = bar_event['symbol']
-            timestamp = bar_event['ts']
+            symbol = bar_event["symbol"]
+            timestamp = bar_event["ts"]
 
             if policy.should_trade(symbol, probability, timestamp):
                 side = OrderSide.BUY if signal == 1 else OrderSide.SELL
-                
+
                 current_position = engine.get_position(symbol)
                 if current_position and current_position.quantity != 0:
-                    if (current_position.quantity > 0 and side == OrderSide.SELL) or \
-                       (current_position.quantity < 0 and side == OrderSide.BUY):
-                        engine.submit_order(Order(
-                            order_id=f"ml_close_{timestamp}_{uuid.uuid4().hex[:8]}",
-                            symbol=symbol,
-                            order_type=OrderType.MARKET,
-                            side=OrderSide.SELL if current_position.quantity > 0 else OrderSide.BUY,
-                            quantity=abs(current_position.quantity)
-                        ))
-                
-                engine.submit_order(Order(
-                    order_id=f"ml_order_{timestamp}_{uuid.uuid4().hex[:8]}",
-                    symbol=symbol,
-                    order_type=OrderType.MARKET,
-                    side=side,
-                    quantity=ORDER_SIZE
-                ))
-                
+                    if (current_position.quantity > 0 and side == OrderSide.SELL) or (
+                        current_position.quantity < 0 and side == OrderSide.BUY
+                    ):
+                        engine.submit_order(
+                            Order(
+                                order_id=f"ml_close_{timestamp}_{uuid.uuid4().hex[:8]}",
+                                symbol=symbol,
+                                order_type=OrderType.MARKET,
+                                side=(
+                                    OrderSide.SELL
+                                    if current_position.quantity > 0
+                                    else OrderSide.BUY
+                                ),
+                                quantity=abs(current_position.quantity),
+                            )
+                        )
+
+                engine.submit_order(
+                    Order(
+                        order_id=f"ml_order_{timestamp}_{uuid.uuid4().hex[:8]}",
+                        symbol=symbol,
+                        order_type=OrderType.MARKET,
+                        side=side,
+                        quantity=ORDER_SIZE,
+                    )
+                )
+
                 policy.record_trade(symbol, timestamp)
 
     backtest_config = BacktestConfig(
@@ -173,22 +189,27 @@ def run_backtest(start_date: str, end_date: str):
     if display_performance_summary:
         display_performance_summary(result)
     else:
-        logger.warning("Could not import display_performance_summary. Printing raw results.")
+        logger.warning(
+            "Could not import display_performance_summary. Printing raw results."
+        )
         print(result.to_dict())
 
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run OOS backtest for the Phase A model.")
+    parser = argparse.ArgumentParser(
+        description="Run OOS backtest for the Phase A model."
+    )
     parser.add_argument(
         "--start-date",
         type=str,
         required=True,
-        help="Start date for the backtest in YYYY-MM-DD format."
+        help="Start date for the backtest in YYYY-MM-DD format.",
     )
     parser.add_argument(
         "--end-date",
         type=str,
         required=True,
-        help="End date for the backtest in YYYY-MM-DD format."
+        help="End date for the backtest in YYYY-MM-DD format.",
     )
     args = parser.parse_args()
 

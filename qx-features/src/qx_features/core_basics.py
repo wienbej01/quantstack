@@ -4,6 +4,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 from qx_core.utils import utc_ns_to_datetime
 
 
@@ -169,10 +170,14 @@ def validate_feature_inputs(df: pd.DataFrame, required_cols: list) -> None:
         raise ValueError(f"Missing required columns: {missing_cols}")
 
     # Check that DataFrame is properly sorted by symbol, ts
-    if "symbol" in df.columns and "ts" in df.columns and (
-        not df.groupby("symbol", group_keys=False)
-        .apply(lambda g: g["ts"].is_monotonic_increasing)
-        .all()
+    if (
+        "symbol" in df.columns
+        and "ts" in df.columns
+        and (
+            not df.groupby("symbol", group_keys=False)
+            .apply(lambda g: g["ts"].is_monotonic_increasing)
+            .all()
+        )
     ):
         raise ValueError(
             "DataFrame must be sorted by [symbol, ts] for proper feature computation"

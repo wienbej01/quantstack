@@ -8,6 +8,7 @@ def test_final_integration_validation():
     """Final end-to-end validation of VWAP momentum implementation."""
     try:
         import pandas as pd
+
         from qx_backtest.policies import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -453,6 +454,7 @@ def test_complete_system_validation():
     """Complete system validation including all components."""
     try:
         import pandas as pd
+
         from qx_backtest.policies.vwap_momentum import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -642,6 +644,7 @@ def test_comprehensive_final_system_validation():
     """Comprehensive final system validation with all components."""
     try:
         import pandas as pd
+
         from qx_backtest.policies.vwap_momentum import (
             VwapMomentumPolicy,
             VwapMomentumPolicyEnhanced,
@@ -725,7 +728,7 @@ def test_comprehensive_final_system_validation():
             bars_data.append(
                 {
                     "ts": int(ts.timestamp() * 1e9),
-                    "symbol": f'TEST_{scenario["name"]}',
+                    "symbol": f"TEST_{scenario['name']}",
                     "open": open_price,
                     "high": high,
                     "low": low,

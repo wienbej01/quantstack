@@ -3,7 +3,6 @@
 Check AAPL trading sessions and time ranges available in GOLD data
 """
 
-
 import pandas as pd
 import pytz
 

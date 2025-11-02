@@ -73,7 +73,7 @@ def debug_baseline_strategy():
         sell_signal = close > vwap * 1.005
 
         print(
-            f"  Scenario {i+1}: Close=${close:.2f}, VWAP=${vwap:.2f}, Deviation={deviation_pct:.1f}%"
+            f"  Scenario {i + 1}: Close=${close:.2f}, VWAP=${vwap:.2f}, Deviation={deviation_pct:.1f}%"
         )
         print(f"    Buy signal: {buy_signal} (expected: {scenario['should_buy']})")
         print(f"    Sell signal: {sell_signal} (expected: {scenario['should_sell']})")

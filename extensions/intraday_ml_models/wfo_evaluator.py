@@ -195,7 +195,6 @@ class WalkForwardEvaluator:
                     len(train_data) >= self.min_observations_per_period
                     and len(oos_data) >= self.min_observations_per_period
                 ):
-
                     period = WFOPeriod(
                         period_id=period_id,
                         train_start=train_start_date,
@@ -545,7 +544,9 @@ class WalkForwardEvaluator:
         performance_by_quarter = {}
         for result in period_results:
             period = result.period
-            quarter = f"{period.oos_start.year}-Q{(period.oos_start.month-1)//3 + 1}"
+            quarter = (
+                f"{period.oos_start.year}-Q{(period.oos_start.month - 1) // 3 + 1}"
+            )
 
             if quarter not in performance_by_quarter:
                 performance_by_quarter[quarter] = []

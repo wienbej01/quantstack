@@ -14,10 +14,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from .base import (
-    BaseMLPolicy,
-    PolicySignal,
-)
+from .base import BaseMLPolicy, PolicySignal
 
 
 class EnsembleMethod(Enum):
@@ -388,7 +385,11 @@ class EnsemblePolicy(BaseMLPolicy):
         winners = [k for k, v in votes.items() if v == max_votes]
 
         # Use weighted votes to break ties
-        winner = winners[0] if len(winners) == 1 else max(weighted_votes, key=weighted_votes.get)
+        winner = (
+            winners[0]
+            if len(winners) == 1
+            else max(weighted_votes, key=weighted_votes.get)
+        )
 
         # Convert to numeric prediction
         if winner == "buy":

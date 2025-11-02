@@ -529,7 +529,10 @@ class VersionManager:
         versions_to_delete = []
 
         for version in versions:
-            if version.status in [ModelStatus.PRODUCTION, ModelStatus.STAGING] or len(versions_to_keep) < keep_count:
+            if (
+                version.status in [ModelStatus.PRODUCTION, ModelStatus.STAGING]
+                or len(versions_to_keep) < keep_count
+            ):
                 versions_to_keep.append(version)
             else:
                 versions_to_delete.append(version)

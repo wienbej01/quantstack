@@ -5,6 +5,7 @@ import json
 from typing import Any
 
 import pandas as pd
+
 from qx_core.hashers import hash_dataframe, hash_sip_map
 
 
@@ -68,8 +69,10 @@ def validate_checksum_consistency(
     return mismatches
 
 
-def compute_data_hash(data: pd.DataFrame) -> str:
-    """Compute hash of DataFrame for reproducibility."""
+def compute_data_hash(data: pd.DataFrame | pd.Series) -> str:
+    """Compute hash of DataFrame or Series for reproducibility."""
+    if isinstance(data, pd.Series):
+        data = data.to_frame(name=data.name or "value")
     return hash_dataframe(data, cols=data.columns.tolist())
 
 

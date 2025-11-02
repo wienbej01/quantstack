@@ -226,7 +226,8 @@ class PortfolioOptimizer:
             )
 
             weights_dict = {
-                asset: float(weight) for asset, weight in zip(assets, weights, strict=False)
+                asset: float(weight)
+                for asset, weight in zip(assets, weights, strict=False)
             }
 
             return OptimizationResult(
@@ -279,7 +280,8 @@ class PortfolioOptimizer:
             sharpe_ratio = (expected_return - self.risk_free_rate) / volatility
 
             weights_dict = {
-                asset: float(weight) for asset, weight in zip(assets, weights, strict=False)
+                asset: float(weight)
+                for asset, weight in zip(assets, weights, strict=False)
             }
 
             return OptimizationResult(

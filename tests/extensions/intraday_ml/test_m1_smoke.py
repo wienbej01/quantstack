@@ -73,10 +73,22 @@ def test_splits_config_loading():
     assert "embargo_days" in config
 
     # Validate durations
-    assert config["train_months"] == 12
+    assert config["train_months"] == 6
     assert config["val_months"] == 1
     assert config["oos_months"] == 1
     assert config["embargo_days"] == 5
+
+
+def test_pilot_splits_window_lengths():
+    """Pilot splits config uses shortened 6/1/1 window."""
+    config_path = Path("configs/extensions/intraday_ml/splits_pilot.yaml")
+
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    assert config["train"] == {"start": "2024-01-01", "end": "2024-06-30"}
+    assert config["test"] == {"start": "2024-07-01", "end": "2024-07-31"}
+    assert config["oos"] == {"start": "2024-08-01", "end": "2024-08-31"}
 
 
 def test_universe_adapter_initialization():
@@ -202,7 +214,6 @@ def test_smoke_build_pilot_symbols():
             return_value=mock_universe,
         ),
     ):
-
         builder = DatasetManifestBuilder(
             gold_root="/fake/gold/root",
             universe_config=universe_config,

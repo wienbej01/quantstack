@@ -13,6 +13,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
+
 from qx_core.hashers import hash_dataframe
 from qx_features.registry import apply
 

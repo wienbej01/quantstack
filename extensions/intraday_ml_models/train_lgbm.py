@@ -241,7 +241,6 @@ class LightGBMTrainer:
         # Calculate trade density proxy
         trade_density = np.mean(y_pred != 0)
 
-
         # Calculate metrics
         accuracy = accuracy_score(y_val, y_pred)
         precision, recall, f1, _ = precision_recall_fscore_support(
@@ -262,7 +261,9 @@ class LightGBMTrainer:
         )
 
         # Feature importance
-        feature_importance = dict(zip(X_val.columns, model.feature_importances_, strict=False))
+        feature_importance = dict(
+            zip(X_val.columns, model.feature_importances_, strict=False)
+        )
         top_features = sorted(
             feature_importance.items(), key=lambda x: x[1], reverse=True
         )[:10]

@@ -77,7 +77,7 @@ def diagnose_trade_gates(df):
     # Filter to warmed-up bars only
     warmed = df[df["f__warmup_ok"]].copy()
     print(
-        f"\n[2] Warmed-up bars: {len(warmed)}/{len(df)} ({len(warmed)/len(df)*100:.1f}%)"
+        f"\n[2] Warmed-up bars: {len(warmed)}/{len(df)} ({len(warmed) / len(df) * 100:.1f}%)"
     )
 
     if len(warmed) == 0:
@@ -95,7 +95,7 @@ def diagnose_trade_gates(df):
         regime_dist = warmed["f__regime__current"].value_counts()
         print("   Regime distribution:")
         for regime, count in regime_dist.items():
-            print(f"      {regime}: {count} bars ({count/len(warmed)*100:.1f}%)")
+            print(f"      {regime}: {count} bars ({count / len(warmed) * 100:.1f}%)")
     else:
         print(
             "   ⚠️  CRITICAL: Regime field missing - policies will see RegimeType.OFF!"
@@ -154,7 +154,7 @@ def diagnose_trade_gates(df):
             warmed["close"] > warmed["f__anchor__first_hour_avwap"]
         )
         print(
-            f"   Bars above both AVWAPs: {above_both.sum()}/{len(warmed)} ({above_both.sum()/len(warmed)*100:.1f}%)"
+            f"   Bars above both AVWAPs: {above_both.sum()}/{len(warmed)} ({above_both.sum() / len(warmed) * 100:.1f}%)"
         )
     else:
         print("   ❌ AVWAP features missing!")
@@ -174,16 +174,16 @@ def diagnose_trade_gates(df):
         fvg_bear = warmed["f__ict__fvg_bear_active"].sum()
 
         print(
-            f"   In discount zone: {in_discount} bars ({in_discount/len(warmed)*100:.1f}%)"
+            f"   In discount zone: {in_discount} bars ({in_discount / len(warmed) * 100:.1f}%)"
         )
         print(
-            f"   In premium zone: {in_premium} bars ({in_premium/len(warmed)*100:.1f}%)"
+            f"   In premium zone: {in_premium} bars ({in_premium / len(warmed) * 100:.1f}%)"
         )
         print(
-            f"   Bullish FVG active: {fvg_bull} bars ({fvg_bull/len(warmed)*100:.1f}%)"
+            f"   Bullish FVG active: {fvg_bull} bars ({fvg_bull / len(warmed) * 100:.1f}%)"
         )
         print(
-            f"   Bearish FVG active: {fvg_bear} bars ({fvg_bear/len(warmed)*100:.1f}%)"
+            f"   Bearish FVG active: {fvg_bear} bars ({fvg_bear / len(warmed) * 100:.1f}%)"
         )
     else:
         print("   ❌ ICT features missing!")
@@ -193,7 +193,7 @@ def diagnose_trade_gates(df):
     if "f__vol__atr_14" in warmed.columns:
         atr_ok = (warmed["f__vol__atr_14"] >= 0.5).sum()
         print(
-            f"   ATR >= 0.5: {atr_ok}/{len(warmed)} bars ({atr_ok/len(warmed)*100:.1f}%)"
+            f"   ATR >= 0.5: {atr_ok}/{len(warmed)} bars ({atr_ok / len(warmed) * 100:.1f}%)"
         )
         print(
             f"   ATR range: {warmed['f__vol__atr_14'].min():.3f} - {warmed['f__vol__atr_14'].max():.3f}"
@@ -254,14 +254,10 @@ def diagnose_trade_gates(df):
     )
 
     if not has_regime_current:
-        print(
-            "\n🔴 ROOT CAUSE: 'f__regime__current' field is NOT being added to bars!"
-        )
+        print("\n🔴 ROOT CAUSE: 'f__regime__current' field is NOT being added to bars!")
         print("   The backtest engine or test script needs to:")
         print("   1. Create a regime detector")
-        print(
-            "   2. Run detector.evaluate() or detector.evaluate_symbol() on each bar"
-        )
+        print("   2. Run detector.evaluate() or detector.evaluate_symbol() on each bar")
         print("   3. Add the result as bar['f__regime__current'] = signal.regime")
         print("   Without this, all policies see RegimeType.OFF and cannot trade!")
 

@@ -2,7 +2,7 @@
 # Defines Train/Validation/OOS time splits with purging and embargo
 
 # Split durations (in months)
-train_months: 12
+train_months: 6
 val_months: 1
 oos_months: 1
 

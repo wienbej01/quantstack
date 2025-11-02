@@ -20,7 +20,7 @@ cv:
 # Walk-forward evaluation configuration
 wfo:
   # Walk-forward schedule
-  train_months: 12             # Training window size in months
+  train_months: 6              # Training window size in months
   validation_months: 1          # Validation window size in months
   oos_months: 1                # Out-of-sample window size in months
 

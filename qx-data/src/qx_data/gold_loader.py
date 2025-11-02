@@ -1,14 +1,30 @@
 """Gold loader for read-only access to normalized bars."""
 
+import glob
 import os
+from datetime import datetime
 
 import pandas as pd
 import pyarrow.parquet as pq
+
 from qx_core.hashers import hash_dataframe
 from qx_core.validators import ValidationError, validate_bars_dataframe
 
 REQUIRED = ["ts", "symbol", "open", "high", "low", "close", "volume"]
 OPTIONAL = ["trades", "vwap", "session", "date_et"]
+
+
+def _symbol_variants(symbol: str) -> list[str]:
+    """Return common case variants for a symbol for case-insensitive lookups."""
+
+    variants = [symbol]
+    upper = symbol.upper()
+    lower = symbol.lower()
+    if upper not in variants:
+        variants.append(upper)
+    if lower not in variants:
+        variants.append(lower)
+    return variants
 
 
 def load_bars(
@@ -43,46 +59,70 @@ def load_bars(
     if not dates:
         raise ValueError("Dates list cannot be empty")
 
-    dfs = []
-    files_read = 0
+    internal_family = "bars_1m" if family in {"stocks", "bars_1m"} else family
+
+    dfs: list[pd.DataFrame] = []
     files_attempted = 0
 
-    # Collect unique year-month combinations from the dates
-    unique_year_months = set()
-    for date_str in dates:
-        parts = date_str.split("-")
-        if len(parts) >= 2:
-            unique_year_months.add(f"{parts[0]}-{parts[1]}")
+    month_filters = {
+        d[:7]
+        for d in dates
+        if len(d) >= 7 and d[4] == "-" and d[:4].isdigit() and d[5:7].isdigit()
+    }
+    day_filters = {
+        d
+        for d in dates
+        if len(d) >= 10 and d[4] == "-" and d[7] == "-" and d[:4].isdigit()
+    }
 
     for symbol in symbols:
-        for year_month in unique_year_months:
-            # Construct path for monthly parquet file
-            year, month = year_month.split("-")
-            path = os.path.join(
-                root, "stocks", "1m", symbol, year, f"{year}-{month}.parquet"
-            )
-            files_attempted += 1
+        seen_paths: set[str] = set()
 
-            try:
-                df = _read_parquet_with_validation(path, symbol, columns)
-                # Filter the monthly data to include only the requested dates
-                df["date_str"] = pd.to_datetime(df["ts"], unit="ns").dt.strftime("%Y-%m-%d")
-                df = df[df["date_str"].isin(dates)]
-                df = df.drop(columns=["date_str"])
+        for date_str in dates:
+            paths = _get_parquet_paths(root, internal_family, symbol, date_str)
+            if not paths:
+                files_attempted += 1
+            for path in paths:
+                if path in seen_paths:
+                    continue
+                seen_paths.add(path)
+                files_attempted += 1
+                try:
+                    df = _read_parquet_with_validation(path, symbol, columns)
+                except Exception as e:
+                    print(f"Warning: failed to read {path}: {e}")
+                    continue
 
-                if not df.empty:
-                    dfs.append(df)
-                    files_read += 1
-            except Exception as e:
-                # Log warning but continue
-                print(f"Warning: failed to read {path}: {e}")
+                if df.empty:
+                    continue
 
-    if files_read == 0:
+                if internal_family == "bars_1m" and (month_filters or day_filters):
+                    ts_index = pd.to_datetime(df["ts"], unit="ns")
+                    df["_date_month"] = ts_index.dt.strftime("%Y-%m")
+                    df["_date_day"] = ts_index.dt.strftime("%Y-%m-%d")
+                    mask_month = (
+                        df["_date_month"].isin(month_filters)
+                        if month_filters
+                        else False
+                    )
+                    mask_day = (
+                        df["_date_day"].isin(day_filters) if day_filters else False
+                    )
+                    combined_mask = mask_month | mask_day
+                    if combined_mask.any():
+                        df = df[combined_mask]
+                    df = df.drop(columns=["_date_month", "_date_day"])
+                    if df.empty:
+                        continue
+
+                dfs.append(df)
+
+    if not dfs:
         raise RuntimeError(
-            f"No parquet files could be read from {files_attempted} attempted files"
+            "No parquet files could be read for symbols "
+            f"{symbols} on dates {dates} under root '{root}' (family='{family}')."
         )
 
-    # Combine all dataframes
     combined = pd.concat(dfs, ignore_index=True)
     normalized = _normalize_in_memory(combined)
     # Deduplicate symbol/timestamp pairs for stable downstream processing
@@ -114,32 +154,42 @@ def list_available_symbols(root: str, family: str) -> set[str]:
     Returns:
         Set of available symbol names
     """
-    if family == "bars_1m":
-        # For 1m bars, structure is: root/stocks/1m/LETTER/...
-        base_path = os.path.join(root, "stocks", "1m")
-        if not os.path.exists(base_path):
-            return set()
-
+    search_roots = []
+    if family in {"bars_1m", "stocks"}:
+        for base in [root, os.path.join(root, "gold")]:
+            path = os.path.join(base, "stocks", "1m")
+            if os.path.exists(path):
+                search_roots.append(path)
         symbols = set()
-        for letter_dir in os.listdir(base_path):
-            letter_path = os.path.join(base_path, letter_dir)
-            if os.path.isdir(letter_path):
-                for symbol in os.listdir(letter_path):
-                    symbol_path = os.path.join(letter_path, symbol)
-                    if os.path.isdir(symbol_path):
-                        symbols.add(symbol)
+        for base_path in search_roots:
+            try:
+                letter_dirs = os.listdir(base_path)
+            except FileNotFoundError:
+                continue
+            for letter_dir in letter_dirs:
+                letter_path = os.path.join(base_path, letter_dir)
+                try:
+                    symbol_dirs = os.listdir(letter_path)
+                except FileNotFoundError:
+                    continue
+                for symbol in symbol_dirs:
+                    symbols.add(symbol)
+            if symbols:
+                break
         return symbols
     else:
-        # For other families, look for symbol= partitions
-        family_path = os.path.join(root, family)
-        if not os.path.exists(family_path):
-            return set()
-
         symbols = set()
-        for item in os.listdir(family_path):
-            if item.startswith("symbol="):
-                symbol = item.split("=", 1)[1]
-                symbols.add(symbol)
+        candidate_bases = [
+            os.path.join(root, family),
+            os.path.join(root, "gold", family),
+        ]
+        for family_path in candidate_bases:
+            if not os.path.exists(family_path):
+                continue
+            for item in os.listdir(family_path):
+                if item.startswith("symbol="):
+                    symbol = item.split("=", 1)[1]
+                    symbols.add(symbol)
         return symbols
 
 
@@ -154,33 +204,46 @@ def list_available_dates(root: str, family: str, symbol: str) -> set[str]:
     Returns:
         Set of available date strings in YYYY-MM format for 1m bars, YYYY-MM-DD for others
     """
-    if family == "bars_1m":
-        # Structure: root/stocks/1m/SYMBOL/2020/2020-10.parquet
-        base_path = os.path.join(root, "stocks", "1m", symbol[:1], symbol)
-        if not os.path.exists(base_path):
-            return set()
-
+    if family in {"bars_1m", "stocks"}:
         dates = set()
-        for year_dir in os.listdir(base_path):
-            year_path = os.path.join(base_path, year_dir)
-            if os.path.isdir(year_path):
-                for parquet_file in os.listdir(year_path):
+        candidate_bases = [
+            os.path.join(root, "stocks", "1m", symbol),
+            os.path.join(root, "gold", "stocks", "1m", symbol),
+        ]
+        for base_path in candidate_bases:
+            if not os.path.exists(base_path):
+                continue
+            try:
+                year_dirs = os.listdir(base_path)
+            except FileNotFoundError:
+                continue
+            for year_dir in year_dirs:
+                year_path = os.path.join(base_path, year_dir)
+                try:
+                    parquet_files = os.listdir(year_path)
+                except FileNotFoundError:
+                    continue
+                for parquet_file in parquet_files:
                     if parquet_file.endswith(".parquet"):
-                        # Extract YYYY-MM from filename like 2020-10.parquet
-                        date = parquet_file[:-8]  # Remove .parquet
+                        date = parquet_file[:-8]
                         dates.add(date)
+            if dates:
+                break
         return dates
     else:
         # Look for date= partitions
-        symbol_path = os.path.join(root, family, f"symbol={symbol}")
-        if not os.path.exists(symbol_path):
-            return set()
-
         dates = set()
-        for item in os.listdir(symbol_path):
-            if item.startswith("date="):
-                date = item.split("=", 1)[1]
-                dates.add(date)
+        candidate_paths = [
+            os.path.join(root, family, f"symbol={symbol}"),
+            os.path.join(root, "gold", family, f"symbol={symbol}"),
+        ]
+        for symbol_path in candidate_paths:
+            if not os.path.exists(symbol_path):
+                continue
+            for item in os.listdir(symbol_path):
+                if item.startswith("date="):
+                    date = item.split("=", 1)[1]
+                    dates.add(date)
         return dates
 
 
@@ -201,7 +264,54 @@ def get_bars_hash(root: str, family: str, symbols: list[str], dates: list[str]) 
     return hash_dataframe(df)
 
 
+def _get_parquet_paths(root: str, family: str, symbol: str, date_str: str) -> list[str]:
+    """Resolve parquet file paths for a given data family/date."""
+    candidates: list[str] = []
+    if family == "bars_1m":
+        try:
+            parsed = datetime.strptime(date_str[:7], "%Y-%m")
+        except ValueError as exc:
+            raise ValueError(f"Invalid date format for bars_1m: {date_str}") from exc
 
+        base_patterns = [
+            os.path.join(root, "stocks", "1m"),
+            os.path.join(root, "gold", "stocks", "1m"),
+        ]
+        for base in base_patterns:
+            for symbol_variant in _symbol_variants(symbol):
+                pattern = os.path.join(
+                    base,
+                    symbol_variant,
+                    f"{parsed.year:04d}",
+                    f"{parsed.year:04d}-{parsed.month:02d}.parquet",
+                )
+                matches = glob.glob(pattern)
+                candidates.extend(matches)
+                if matches:
+                    break
+            if candidates:
+                break
+    else:
+        base_patterns = [
+            os.path.join(root, family),
+            os.path.join(root, "gold", family),
+        ]
+        for base in base_patterns:
+            for symbol_variant in _symbol_variants(symbol):
+                pattern = os.path.join(
+                    base,
+                    f"symbol={symbol_variant}",
+                    f"date={date_str}",
+                    "*.parquet",
+                )
+                matches = glob.glob(pattern)
+                candidates.extend(matches)
+                if matches:
+                    break
+            if candidates:
+                break
+
+    return sorted(set(candidates))
 
 
 def _read_parquet_with_validation(
@@ -251,18 +361,32 @@ def _normalize_in_memory(df: pd.DataFrame) -> pd.DataFrame:
     """
     out = df.copy()
 
-    # Column name standardization
-    rename_map = {
-        "T": "symbol",
-        "t": "ts",
-        "o": "open",
-        "h": "high",
-        "l": "low",
-        "c": "close",
-        "v": "volume",
-    }
-    cols_lower = {c: c.lower() for c in out.columns}
-    out = out.rename(columns=cols_lower).rename(columns=rename_map)
+    # Column name standardization (case insensitive, handling symbol vs timestamp)
+    normalized_names = {}
+    for column in out.columns:
+        if column == "T":
+            normalized_names[column] = "symbol"
+            continue
+
+        key = column.lower()
+        if key == "symbol":
+            normalized_names[column] = "symbol"
+        elif key in {"t", "timestamp"}:
+            normalized_names[column] = "ts"
+        elif key in {"o", "open"}:
+            normalized_names[column] = "open"
+        elif key in {"h", "high"}:
+            normalized_names[column] = "high"
+        elif key in {"l", "low"}:
+            normalized_names[column] = "low"
+        elif key in {"c", "close"}:
+            normalized_names[column] = "close"
+        elif key in {"v", "volume"}:
+            normalized_names[column] = "volume"
+        else:
+            normalized_names[column] = column
+
+    out = out.rename(columns=normalized_names)
 
     # Ensure required columns exist
     missing = set(REQUIRED) - set(out.columns)
@@ -289,7 +413,7 @@ def _normalize_in_memory(df: pd.DataFrame) -> pd.DataFrame:
             out["ts"] *= 1_000_000
 
     # Symbol normalization
-    out["symbol"] = out["symbol"].astype(str)
+    out["symbol"] = out["symbol"].astype(str).str.lower()
 
     # Price columns normalization
     price_cols = ["open", "high", "low", "close"]

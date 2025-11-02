@@ -113,10 +113,10 @@ def _checksums_match(checksums: list) -> bool:
 
 def _generate_compare_md(exp_dir: pathlib.Path, data: dict) -> None:
     """Generate markdown report."""
-    md = f"""# Experiment Comparison: {data['experiment']}
+    md = f"""# Experiment Comparison: {data["experiment"]}
 
 ## Summary
-- Variants: {data['variants']}
+- Variants: {data["variants"]}
 
 ## Leaderboard
 | Run ID | Total Return | Sharpe Ratio | Win Rate |

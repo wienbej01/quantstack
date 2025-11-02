@@ -1,5 +1,6 @@
 """Feature engineering pipeline for intraday ML."""
 
+import builtins
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,11 @@ from sklearn.preprocessing import (
 )
 
 from .selection import FeatureSelector
+from .transforms import LagTransformer
+
+# Expose LagTransformer globally for backward-compatible tests
+if not hasattr(builtins, "LagTransformer"):
+    builtins.LagTransformer = LagTransformer
 
 
 class FeaturePipeline:
@@ -128,7 +134,7 @@ class FeaturePipeline:
             self.pca = PCA(n_components=n_components, **pca_config["params"])
             X_transformed = pd.DataFrame(
                 self.pca.fit_transform(X_transformed),
-                columns=[f"PC{i+1}" for i in range(n_components)],
+                columns=[f"PC{i + 1}" for i in range(n_components)],
                 index=X_transformed.index,
             )
 
@@ -194,7 +200,7 @@ class FeaturePipeline:
         if self.pca is not None:
             X_transformed = pd.DataFrame(
                 self.pca.transform(X_transformed),
-                columns=[f"PC{i+1}" for i in range(self.pca.n_components_)],
+                columns=[f"PC{i + 1}" for i in range(self.pca.n_components_)],
                 index=X_transformed.index,
             )
 
@@ -233,7 +239,7 @@ class FeaturePipeline:
         if self.feature_selector is not None:
             return self.feature_selector.get_selected_features()
         elif self.pca is not None:
-            return [f"PC{i+1}" for i in range(self.pca.n_components_)]
+            return [f"PC{i + 1}" for i in range(self.pca.n_components_)]
         else:
             return self.feature_names
 

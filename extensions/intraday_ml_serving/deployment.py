@@ -283,9 +283,7 @@ class DockerDeployment:
 class KubernetesDeployment:
     """Kubernetes-based deployment for ML models."""
 
-    def __init__(
-        self, namespace: str = "default", kubeconfig_path: str | None = None
-    ):
+    def __init__(self, namespace: str = "default", kubeconfig_path: str | None = None):
         """
         Initialize Kubernetes deployment manager.
 
@@ -704,9 +702,7 @@ class DeploymentManager:
                 self.deployer.run_container(image_tag, deployment_config)
                 endpoint_url = f"http://localhost:{deployment_config.port}"
             else:
-                self.deployer.create_deployment(
-                    deployment_config, image_tag
-                )
+                self.deployer.create_deployment(deployment_config, image_tag)
                 status = self.deployer.get_deployment_status(
                     deployment_config.deployment_name
                 )

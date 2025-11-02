@@ -196,7 +196,7 @@ def run_pilot():
 
     if sip_enabled:
         for date in config["dates"]:
-            print(f"\n{'='*20} Testing {date} {'='*20}")
+            print(f"\n{'=' * 20} Testing {date} {'=' * 20}")
 
             try:
                 # Filter to just this date's data
@@ -277,7 +277,7 @@ def run_pilot():
                         overlap_pct = 0.0
                     overlaps.append(overlap_pct)
                     print(
-                        f"  Day {i+1} vs Day {j+1}: {len(overlap)} overlapping symbols ({overlap_pct:.1f}%)"
+                        f"  Day {i + 1} vs Day {j + 1}: {len(overlap)} overlapping symbols ({overlap_pct:.1f}%)"
                     )
 
         if overlaps:

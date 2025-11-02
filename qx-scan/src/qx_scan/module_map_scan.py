@@ -27,6 +27,7 @@ LEGACY_REPOS = [
     "/home/jacobw/RL_trading",
 ]
 
+
 def parse_python_file(file_path: Path) -> dict[str, Any]:
     """Parse a Python file for imports, functions, classes."""
     try:
@@ -55,7 +56,9 @@ def parse_python_file(file_path: Path) -> dict[str, Any]:
             classes.append(node.name)
         elif isinstance(node, ast.Str):
             # Heuristic for file paths
-            if "/" in node.s and (".csv" in node.s or ".parquet" in node.s or "gcs" in node.s.lower()):
+            if "/" in node.s and (
+                ".csv" in node.s or ".parquet" in node.s or "gcs" in node.s.lower()
+            ):
                 io_paths.append(node.s)
 
     return {
@@ -65,9 +68,18 @@ def parse_python_file(file_path: Path) -> dict[str, Any]:
         "io_paths": io_paths,
     }
 
+
 def scan_repos() -> dict[str, Any]:
     """Scan legacy repos for module topology."""
-    topology = defaultdict(lambda: {"files": [], "imports": set(), "functions": set(), "classes": set(), "io_paths": set()})
+    topology = defaultdict(
+        lambda: {
+            "files": [],
+            "imports": set(),
+            "functions": set(),
+            "classes": set(),
+            "io_paths": set(),
+        }
+    )
 
     for repo_path in LEGACY_REPOS:
         repo = Path(repo_path)
@@ -75,7 +87,9 @@ def scan_repos() -> dict[str, Any]:
             continue
         for py_file in repo.rglob("*.py"):
             rel_path = py_file.relative_to(repo)
-            module_name = str(rel_path).replace("/", ".").replace("\\", ".").rstrip(".py")
+            module_name = (
+                str(rel_path).replace("/", ".").replace("\\", ".").rstrip(".py")
+            )
             parsed = parse_python_file(py_file)
             topology[module_name]["files"].append(str(py_file))
             topology[module_name]["imports"].update(parsed.get("imports", []))
@@ -92,6 +106,7 @@ def scan_repos() -> dict[str, Any]:
 
     return dict(topology)
 
+
 def generate_mermaid(topology: dict[str, Any]) -> str:
     """Generate Mermaid diagram."""
     lines = ["graph TD"]
@@ -101,6 +116,7 @@ def generate_mermaid(topology: dict[str, Any]) -> str:
             clean_imp = imp.replace(".", "_")
             lines.append(f"    {mod.replace('.', '_')} --> {clean_imp}")
     return "\n".join(lines)
+
 
 def main():
     """Main entry point."""
@@ -130,6 +146,7 @@ def main():
     mermaid = generate_mermaid(topology)
     with open(out_dir / "module_map.mmd", "w") as f:
         f.write(mermaid)
+
 
 if __name__ == "__main__":
     main()

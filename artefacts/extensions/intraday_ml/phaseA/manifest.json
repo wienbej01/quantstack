@@ -1,87 +1,108 @@
 {
-  "created_at": "2025-10-30T16:07:29.588744Z",
-  "gold_root": "/home/jacobw/gcs-mount",
+  "created_at": "2025-11-02T23:19:15.904373Z",
+  "gold_root": "/home/jacobw/gcs-mount/gold",
   "symbols": [
-    "BAC"
+    "bac"
   ],
   "date_ranges": {
     "train": {
       "start": "2024-01-01",
-      "end": "2024-12-31"
+      "end": "2024-06-30"
     },
-    "val": {
-      "start": "2025-01-01",
-      "end": "2025-01-31"
+    "val": {},
+    "test": {
+      "start": "2024-07-01",
+      "end": "2024-07-31"
     },
     "oos": {
-      "start": "2025-02-01",
-      "end": "2025-02-28"
+      "start": "2024-08-01",
+      "end": "2024-08-31"
     }
   },
-  "data_hash": "0396befd7d7c91d3d38074f7b46cd60514c022284426f0d0647ae1737f4f3ea1",
-  "config_hash": "0139665210e47f27cfcc1ab9cbcdb4255e74864552bb72c235be5218b203e0248fe7ae30ec2f071a40ade39c69c733f468a3d64b85746f06a2c7e0f33f07a7f2",
-  "universe_hash": "9188935c697bcada9306971f54b837e0d1743b2516fef027fefc40432a0adc75591c4e3e16fe12df326ff356dbba74c3c2eaf4c37f7067f67bfcf08892cf4ab5",
+  "data_hash": "3ebfb258553d865a704a738a45a018b4596c8f5e4c36b6a3001b1c18f063aab9",
+  "config_hash": "e4867ebe00cab21f22de44c1152b28762873f851fef2860a38db39e9d15a5aab42128e74523ba417c1e3aaef7f07406035338b302319608a9ddd2dd9b6e87a49",
+  "universe_hash": "63aa79f000e5fa7bd01476b5819849c3f3cc63f72e786c9a5572518cb3d8c62df4b471f3fe1f12e9b7b657e44bd2beded0172b19e20ab67acc394b6cdfa58ed2",
   "universe_config": {
-    "min_price": 5.0,
-    "max_price": 50.0,
-    "min_avg_daily_volume": 1000000,
-    "min_relative_volume": 0.8,
-    "min_trading_days": 18,
-    "lookback_days": 20,
-    "volume_window": 30,
-    "max_universe_size": 12,
-    "min_universe_size": 4,
-    "exclude_symbols": [
-      "XYZ"
-    ],
-    "min_minutes_per_day": 300,
-    "max_missing_minutes_ratio": 0.1
+    "symbols": [
+      "BAC"
+    ]
   },
   "cuts_config": {
     "timezone": "America/New_York",
     "market_open": "09:30:00",
     "market_close": "16:00:00",
     "decision_cuts": [
-      "09:35:00",
+      "09:40:00",
+      "09:50:00",
+      "10:00:00",
+      "10:10:00",
+      "10:20:00",
+      "10:30:00",
+      "10:40:00",
+      "10:50:00",
       "11:00:00",
+      "11:10:00",
+      "11:20:00",
+      "11:30:00",
+      "11:40:00",
+      "11:50:00",
+      "12:00:00",
+      "12:10:00",
+      "12:20:00",
+      "12:30:00",
+      "12:40:00",
+      "12:50:00",
+      "13:00:00",
+      "13:10:00",
+      "13:20:00",
       "13:30:00",
-      "14:30:00"
+      "13:40:00",
+      "13:50:00",
+      "14:00:00",
+      "14:10:00",
+      "14:20:00",
+      "14:30:00",
+      "14:40:00",
+      "14:50:00",
+      "15:00:00",
+      "15:10:00",
+      "15:20:00",
+      "15:30:00",
+      "15:40:00",
+      "15:50:00"
     ],
     "execution_delay_bars": 1,
     "force_flat_eod_time": "15:59:59",
-    "no_entry_first_minutes": 1,
-    "no_entry_last_minutes": 60,
-    "min_seconds_between_cuts": 300,
-    "max_cuts_per_day": 8
+    "no_entry_first_minutes": 10,
+    "no_entry_last_minutes": 10,
+    "min_seconds_between_cuts": 600,
+    "max_cuts_per_day": 39
   },
   "splits_config": {
-    "train_months": 12,
-    "val_months": 1,
-    "oos_months": 1,
-    "purge_days": 5,
-    "embargo_days": 5,
-    "pilot_start_date": "2024-01-01",
-    "validation_method": "purged_cv",
-    "n_folds": 3,
-    "require_min_trading_days": 18,
-    "allow_partial_months": true,
-    "skip_holiday_periods": true,
-    "strict_temporal_order": true,
-    "cross_symbol_consistency": true,
-    "split_seed": 42,
-    "deterministic": true
+    "train": {
+      "start": "2024-01-01",
+      "end": "2024-06-30"
+    },
+    "test": {
+      "start": "2024-07-01",
+      "end": "2024-07-31"
+    },
+    "oos": {
+      "start": "2024-08-01",
+      "end": "2024-08-31"
+    }
   },
   "total_symbols": 1,
-  "total_days": 425,
+  "total_days": 244,
   "universe_stats": {
     "total_symbols_screened": 1,
     "eligible_symbols": 1,
     "price_range": [
-      46.115,
-      46.115
+      40.74,
+      40.74
     ],
-    "avg_dollar_volume": 52928537.365,
-    "avg_relative_volume": 10.049927128283183
+    "avg_dollar_volume": 62812606.080000006,
+    "avg_relative_volume": 21.181136037358904
   },
   "features_hash": null,
   "version": "1.0"

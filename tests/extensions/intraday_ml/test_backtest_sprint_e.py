@@ -15,7 +15,9 @@ from extensions.intraday_ml.backtest import intraday_ml_run_backtest
 def sample_bars():
     """Returns a sample DataFrame of bars."""
     data = {
-        "ts": pd.to_datetime(["2025-11-03 10:00:00", "2025-11-03 10:01:00", "2025-11-03 10:02:00"]),
+        "ts": pd.to_datetime(
+            ["2025-11-03 10:00:00", "2025-11-03 10:01:00", "2025-11-03 10:02:00"]
+        ),
         "symbol": ["TEST", "TEST", "TEST"],
         "open": [100, 101, 102],
         "high": [101, 102, 103],
@@ -46,9 +48,10 @@ def test_sl_tp_and_single_position_guard(mock_engine_class, sample_bars, sample_
     # Mock the engine instance and its methods
     mock_engine = Mock()
     mock_engine_class.return_value = mock_engine
-    
+
     # Side effect for get_position to simulate position changes
     positions = {}
+
     def get_position_side_effect(symbol):
         return positions.get(symbol)
 
@@ -61,7 +64,7 @@ def test_sl_tp_and_single_position_guard(mock_engine_class, sample_bars, sample_
     # Mock the run result
     mock_result = Mock()
     mock_result.metrics = {}
-    mock_result.equity_curve = pd.DataFrame({'timestamp': [], 'equity': []})
+    mock_result.equity_curve = pd.DataFrame({"timestamp": [], "equity": []})
     mock_result.positions_history = []
     mock_result.trades_history = []
     mock_result.orders_history = []
@@ -90,11 +93,11 @@ def test_sl_tp_and_single_position_guard(mock_engine_class, sample_bars, sample_
     submitted_order = mock_engine.submit_order.call_args[0][0]
     assert submitted_order.symbol == "TEST"
     assert submitted_order.quantity == 1
-    
+
     # The order is at 10:00:00, but next_bar_execution shifts it to 10:01:00.
     # The strategy wrapper will be called with the 10:01:00 bar.
     # The close of that bar is 101.5.
-    
+
     expected_sl = 101.5 * (1 - 0.01)
     expected_tp = 101.5 * (1 + 0.015)
 

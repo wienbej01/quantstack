@@ -142,7 +142,6 @@ def test_warehouse_ingestion():
                 runs_path="runs",
                 experiments_path="experiments",
             ) as ingestor:
-
                 results = ingestor.ingest_all()
 
             print("✅ Ingestion completed:")

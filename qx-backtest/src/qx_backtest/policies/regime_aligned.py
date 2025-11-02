@@ -9,7 +9,15 @@ from .base import Policy
 
 
 @dataclass
-class MomentumParameters:
+class PolicyParameters:
+    """Base intraday policy parameters with shared risk controls."""
+
+    min_risk_reward: float = 1.0
+    min_atr_value: float = 0.005
+
+
+@dataclass
+class MomentumParameters(PolicyParameters):
     """Parameters for AVWAP Momentum strategy."""
 
     atr_stop_multiple: float = 1.0
@@ -163,7 +171,7 @@ class AVWAPMomentumPolicy(Policy):
 
 
 @dataclass
-class PullbackParameters:
+class PullbackParameters(PolicyParameters):
     """Parameters for AVWAP Pullback strategy."""
 
     atr_stop_multiple: float = 1.0
@@ -325,7 +333,7 @@ class AVWAPPullbackPolicy(Policy):
 
 
 @dataclass
-class ValueRotationParameters:
+class ValueRotationParameters(PolicyParameters):
     """Parameters for Value Rotation strategy."""
 
     atr_stop_multiple: float = 1.2
@@ -333,6 +341,19 @@ class ValueRotationParameters:
     entry_dev_multiple: float = 0.1  # % deviation outside value area for entry
     enabled_regimes: list[RegimeType] = field(
         default_factory=lambda: [RegimeType.SIDEWAYS]
+    )
+
+
+@dataclass
+class SweepReversionParameters(PolicyParameters):
+    """Parameters for sweep reversion strategy."""
+
+    atr_stop_multiple: float = 1.1
+    atr_target_multiple: float = 1.6
+    max_position_bars: int = 45
+    liquidity_threshold: float = 0.5
+    enabled_regimes: list[RegimeType] = field(
+        default_factory=lambda: [RegimeType.BULL, RegimeType.BEAR]
     )
 
 

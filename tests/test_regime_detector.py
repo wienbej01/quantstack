@@ -7,6 +7,7 @@ and detector configuration validation.
 import numpy as np
 import pandas as pd
 import pytest
+
 from qx_core.regime.detector import (
     RegimeDetectorConfig,
     RegimeDetectorRules,

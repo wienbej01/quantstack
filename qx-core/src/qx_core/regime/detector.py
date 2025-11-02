@@ -27,9 +27,9 @@ class RegimeDetectorConfig:
     """Configuration for regime detection rules."""
 
     # Trend detection thresholds
-    variance_ratio_bull: float = 1.1  # further reduced from 1.2
-    variance_ratio_bear: float = 0.9  # further increased from 0.8
-    adx_trend_threshold: float = 15.0  # reduced from 20.0
+    variance_ratio_bull: float = 1.2
+    variance_ratio_bear: float = 0.8
+    adx_trend_threshold: float = 20.0
     trend_confidence_min: float = 0.6
 
     # Volatility thresholds

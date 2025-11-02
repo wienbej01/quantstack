@@ -12,12 +12,8 @@ from extensions.intraday_ml_serving.deployment import (
     DeploymentManager,
     DeploymentStatus,
 )
-from extensions.intraday_ml_serving.inference_engine import (
-    InferenceEngine,
-)
-from extensions.intraday_ml_serving.model_server import (
-    ModelServer,
-)
+from extensions.intraday_ml_serving.inference_engine import InferenceEngine
+from extensions.intraday_ml_serving.model_server import ModelServer
 from extensions.intraday_ml_serving.monitoring import (
     AlertConfig,
     MonitoringMetrics,
@@ -443,7 +439,6 @@ class TestProductionIntegration:
             patch("extensions.intraday_ml_serving.inference_engine.MLModelRegistry"),
             patch("extensions.intraday_ml_serving.monitoring.MLModelRegistry"),
         ):
-
             self.server = ModelServer(cache_size=3)
             self.engine = InferenceEngine(cache_size=3)
             self.monitor = ProductionMonitor(enable_prometheus=False)

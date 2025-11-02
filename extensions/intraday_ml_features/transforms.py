@@ -94,9 +94,7 @@ class RollingTransformer(BaseEstimator, TransformerMixin):
         self.functions = functions
         self.feature_names = None
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> "RollingTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "RollingTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
         return self
@@ -305,9 +303,7 @@ class BinningTransformer(BaseEstimator, TransformerMixin):
         self.strategy = strategy
         self.bin_edges = {}
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> "BinningTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "BinningTransformer":
         """Fit binning transformer."""
         for col in X.columns:
             if self.strategy == "uniform":

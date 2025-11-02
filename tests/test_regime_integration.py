@@ -11,6 +11,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_core.regime.detector import RegimeDetectorConfig
 from qx_core.regime_config import RegimeConfig
@@ -296,7 +297,8 @@ class TestRegimeBacktestIntegration:
     def test_disabled_regime_detection(self, sample_ohlcv_data):
         """Test behavior when regime detection is disabled."""
         config = BacktestConfig(
-            regime_config={"enabled": False}, strategy_map={}  # Disabled
+            regime_config={"enabled": False},
+            strategy_map={},  # Disabled
         )
 
         engine = BacktestEngine(config)

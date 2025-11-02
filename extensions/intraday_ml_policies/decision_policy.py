@@ -3,6 +3,7 @@
 Decision Policy for filtering ML model signals.
 """
 
+
 class DecisionPolicy:
     """Filters raw model signals based on confidence and trading frequency."""
 
@@ -33,9 +34,7 @@ class DecisionPolicy:
 
         if self._timestamp_unit is None:
             self._timestamp_unit = self._infer_timestamp_unit(timestamp)
-            self._cooldown_duration = (
-                self.cooldown_minutes * 60 * self._timestamp_unit
-            )
+            self._cooldown_duration = self.cooldown_minutes * 60 * self._timestamp_unit
 
         cooldown_duration = self._cooldown_duration or 0
         # 2. Check cooldown period

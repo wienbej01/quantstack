@@ -21,6 +21,10 @@ sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-features" / "src"))
 sys.path.insert(0, str(Path(__file__).parent / "qx-backtest" / "src"))
 
+from extensions.intraday_ml.data_prep import create_training_dataset
+from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
+from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
+
 # --- Module Imports ---
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.order import Order, OrderSide, OrderType
@@ -28,13 +32,6 @@ from qx_core.regime.detector import RegimeDetectorRules
 from qx_core.schemas import RegimeType
 from qx_data.gold_loader import load_bars
 from qx_data.resample import resample_data
-
-from extensions.intraday_ml.data_prep import (
-    create_feature_set,
-    create_training_dataset,
-)
-from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
-from extensions.intraday_ml_policies.decision_policy import DecisionPolicy
 
 try:
     from qx_report.performance import display_performance_summary
@@ -82,7 +79,7 @@ def add_regime_feature(data: pd.DataFrame) -> pd.DataFrame:
 
 def run_workflow(
     train_start, train_end, test_start, test_end, benchmark_symbol: str = "SPY"
-):
+):  # noqa: PLR0915
     """Executes the full train-and-backtest workflow."""
 
     # --- Configuration ---
@@ -105,28 +102,28 @@ def run_workflow(
     logger.info("============== STARTING TRAINING PHASE ==============")
     logger.info(f"Training Period: {train_start} to {train_end} on {TIMEFRAME} bars")
 
-    # 1. Load and Resample Training Data
-    train_end_dt_buffer = datetime.strptime(train_end, "%Y-%m-%d") + timedelta(days=2)
-    train_dates = [
-        d.strftime("%Y-%m-%d") for d in pd.date_range(train_start, train_end_dt_buffer)
-    ]
-    training_bars_1m = load_bars(
-        root="/home/jacobw/gcs-mount",
-        family="bars_1m",
-        symbols=SYMBOLS,
-        dates=train_dates,
+    # 1. Create Training Dataset with buffer for label horizons
+    label_buffer_days = 7
+    train_end_dt = datetime.strptime(train_end, "%Y-%m-%d")
+    extended_train_end = (train_end_dt + timedelta(days=label_buffer_days)).strftime(
+        "%Y-%m-%d"
     )
-    training_bars_resampled = resample_data(training_bars_1m, TIMEFRAME)
+    loader_config = {
+        "root": "/home/jacobw/gcs-mount",
+        "family": "bars_1m",
+        "validate": True,
+        "sort": True,
+    }
 
-    # 2. Create Training Dataset
     training_data = create_training_dataset(
-        data_window=training_bars_resampled,
+        symbols=SYMBOLS,
+        start_date=train_start,
+        end_date=extended_train_end,
         features_config=features_config,
         targets_config=targets_config,
+        data_loader_config=loader_config,
     )
-    training_data = training_data[
-        training_data["ts"] <= pd.Timestamp(train_end).timestamp() * 1e9
-    ]
+    training_data = training_data[training_data["ts"] <= pd.Timestamp(train_end)]
 
     if training_data.empty or len(training_data["label"].unique()) <= 1:
         logger.error("Could not generate a valid training dataset. Exiting.")
@@ -163,24 +160,36 @@ def run_workflow(
     # 1. Load Model
     model = joblib.load(MODEL_PATH)
 
-    # 2. Load, Resample, and Create OOS Features
-    test_dates = [d.strftime("%Y-%m-%d") for d in pd.date_range(test_start, test_end)]
-    oos_bars_1m = load_bars(
-        root="/home/jacobw/gcs-mount",
-        family="bars_1m",
-        symbols=SYMBOLS,
-        dates=test_dates,
+    # 2. Create OOS features with buffer for label horizons
+    test_end_dt = datetime.strptime(test_end, "%Y-%m-%d")
+    extended_test_end = (test_end_dt + timedelta(days=label_buffer_days)).strftime(
+        "%Y-%m-%d"
     )
-    oos_bars_resampled = resample_data(oos_bars_1m, TIMEFRAME)
 
-    oos_features = create_feature_set(
-        data_window=oos_bars_resampled,
+    oos_features = create_training_dataset(
+        symbols=SYMBOLS,
+        start_date=test_start,
+        end_date=extended_test_end,
         features_config=features_config,
+        targets_config=targets_config,
+        data_loader_config=loader_config,
+        include_ohlcv=True,
     )
+    oos_features = oos_features[oos_features["ts"] <= pd.Timestamp(test_end)]
     if oos_features.empty:
         logger.error("Could not generate features for the backtest period. Exiting.")
         return
     oos_features = add_regime_feature(oos_features)
+
+    # Load bar data for backtest execution
+    test_dates = [d.strftime("%Y-%m-%d") for d in pd.date_range(test_start, test_end)]
+    oos_bars_1m = load_bars(
+        root=loader_config["root"],
+        family=loader_config["family"],
+        symbols=SYMBOLS,
+        dates=test_dates,
+    )
+    oos_bars_resampled = resample_data(oos_bars_1m, TIMEFRAME)
 
     # 3. Generate Predictions
     probabilities = model.predict_proba(oos_features[feature_columns])
@@ -204,7 +213,9 @@ def run_workflow(
             current_position = engine.get_position(symbol)
             if current_position and current_position.quantity != 0:
                 logger.info(f"EOD EXIT: Closing position for {symbol} at {bar_time}")
-                side = OrderSide.SELL if current_position.quantity > 0 else OrderSide.BUY
+                side = (
+                    OrderSide.SELL if current_position.quantity > 0 else OrderSide.BUY
+                )
                 engine.submit_order(
                     Order(
                         order_id=uuid.uuid4().hex,

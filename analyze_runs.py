@@ -309,14 +309,16 @@ def main():
     if "return_stats" in performance_analysis:
         rs = performance_analysis["return_stats"]
         print("\nReturn Statistics:")
-        print(f"  Mean return: {rs['mean_return']:.4f} ({rs['mean_return']*100:.2f}%)")
         print(
-            f"  Median return: {rs['median_return']:.4f} ({rs['median_return']*100:.2f}%)"
+            f"  Mean return: {rs['mean_return']:.4f} ({rs['mean_return'] * 100:.2f}%)"
         )
-        print(f"  Best return: {rs['max_return']:.4f} ({rs['max_return']*100:.2f}%)")
-        print(f"  Worst return: {rs['min_return']:.4f} ({rs['min_return']*100:.2f}%)")
         print(
-            f"  Positive returns: {rs['positive_returns']}/{len(runs_data)} ({rs['positive_returns']/len(runs_data)*100:.1f}%)"
+            f"  Median return: {rs['median_return']:.4f} ({rs['median_return'] * 100:.2f}%)"
+        )
+        print(f"  Best return: {rs['max_return']:.4f} ({rs['max_return'] * 100:.2f}%)")
+        print(f"  Worst return: {rs['min_return']:.4f} ({rs['min_return'] * 100:.2f}%)")
+        print(
+            f"  Positive returns: {rs['positive_returns']}/{len(runs_data)} ({rs['positive_returns'] / len(runs_data) * 100:.1f}%)"
         )
 
     print("\nHash Analysis:")
@@ -338,7 +340,7 @@ def main():
         print("\nTop 5 Performing Runs:")
         for run_id, return_pct, metrics in patterns["best_performing_runs"]:
             print(
-                f"  {run_id}: {return_pct:.4f} ({return_pct*100:.2f}%) - {metrics.get('trades', 0)} trades"
+                f"  {run_id}: {return_pct:.4f} ({return_pct * 100:.2f}%) - {metrics.get('trades', 0)} trades"
             )
 
     if patterns["zero_trade_runs"]:

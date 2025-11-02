@@ -5,6 +5,7 @@ import pathlib
 from typing import Any
 
 import numpy as np
+
 from qx_features.ml_trainer import ModelTrainer
 
 from ..order import OrderSide

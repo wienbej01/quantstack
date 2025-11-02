@@ -2,6 +2,7 @@
 """
 Test the logical flow of the OOS backtest script without running slow functions.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -19,30 +20,42 @@ import run_oos_backtest
 @pytest.fixture
 def mock_dependencies():
     """Mock all slow external dependencies."""
-    with (patch('run_oos_backtest.joblib.load') as mock_joblib_load,
-         patch('run_oos_backtest.create_feature_set') as mock_create_features,
-         patch('run_oos_backtest.load_bars') as mock_load_bars,
-         patch('run_oos_backtest.BacktestEngine') as mock_engine):
-
+    with (
+        patch("run_oos_backtest.joblib.load") as mock_joblib_load,
+        patch("run_oos_backtest.create_feature_set") as mock_create_features,
+        patch("run_oos_backtest.load_bars") as mock_load_bars,
+        patch("run_oos_backtest.BacktestEngine") as mock_engine,
+    ):
         # Configure mocks to return valid, empty data
         mock_joblib_load.return_value = MagicMock()
-        mock_create_features.return_value = pd.DataFrame({
-            'ts': [pd.Timestamp('2024-01-04 10:00:00')],
-            'symbol': ['BAC'],
-            'f__dummy': [1.0]
-        })
-        mock_load_bars.return_value = pd.DataFrame({
-            'ts': [pd.Timestamp('2024-01-04 10:00:00')],
-            'symbol': ['BAC'],
-            'open': [100], 'high': [101], 'low': [99], 'close': [100], 'volume': [1000]
-        })
-        
+        mock_create_features.return_value = pd.DataFrame(
+            {
+                "ts": [pd.Timestamp("2024-01-04 10:00:00")],
+                "symbol": ["BAC"],
+                "f__dummy": [1.0],
+            }
+        )
+        mock_load_bars.return_value = pd.DataFrame(
+            {
+                "ts": [pd.Timestamp("2024-01-04 10:00:00")],
+                "symbol": ["BAC"],
+                "open": [100],
+                "high": [101],
+                "low": [99],
+                "close": [100],
+                "volume": [1000],
+            }
+        )
+
         # Mock the engine's run result
         mock_engine_instance = mock_engine.return_value
         mock_engine_instance.run.return_value = MagicMock()
-        mock_engine_instance.run.return_value.to_dict.return_value = {'performance': {'total_return': 0.0}}
+        mock_engine_instance.run.return_value.to_dict.return_value = {
+            "performance": {"total_return": 0.0}
+        }
 
         yield
+
 
 def test_run_backtest_flow(mock_dependencies):
     """

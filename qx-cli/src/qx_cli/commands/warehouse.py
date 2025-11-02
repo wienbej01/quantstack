@@ -62,7 +62,6 @@ def ingest(
             runs_path=runs_path,
             experiments_path=experiments_path,
         ) as ingestor:
-
             if experiment_id:
                 # TODO: Implement single experiment ingestion
                 console.print(
@@ -135,7 +134,7 @@ def schema(
         "--warehouse-path",
         "-w",
         help="Path to warehouse database",
-    )
+    ),
 ) -> None:
     """Show warehouse schema."""
     try:
@@ -240,7 +239,7 @@ def views(
         "--warehouse-path",
         "-w",
         help="Path to warehouse database",
-    )
+    ),
 ) -> None:
     """List all available materialized views."""
     try:
@@ -406,7 +405,7 @@ def status(
         "--warehouse-path",
         "-w",
         help="Path to warehouse database",
-    )
+    ),
 ) -> None:
     """Show warehouse status and statistics."""
     try:
@@ -510,7 +509,7 @@ def lineage(
                 console.print("\nLineage Chain:", style="bold")
                 for i, node in enumerate(lineage):
                     console.print(
-                        f"   {i+1}. {node['type']}: {node['name']} ({node['id']})"
+                        f"   {i + 1}. {node['type']}: {node['name']} ({node['id']})"
                     )
                     console.print(f"      Hash: {node['hash']}")
                     console.print(f"      Created: {node['created_at']}")

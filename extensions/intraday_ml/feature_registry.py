@@ -301,7 +301,7 @@ class IntradayMLFeatureRegistry:
                     self._feature_metadata[name] = FeatureMetadata(
                         name=name,
                         family="time_seasonality",
-                        description=f"One-hot encoding for minute {minute}-{minute+4}",
+                        description=f"One-hot encoding for minute {minute}-{minute + 4}",
                         dtype="int",
                         dependencies=["ts"],
                         null_policy="zero_fill",
@@ -546,10 +546,11 @@ class IntradayMLFeatureRegistry:
                 else:  # Series case
                     actual_dtype = str(feature_data.dtype)
 
-                if expected_dtype == "float" and not pd.api.types.is_float_dtype(
-                    feature_data
-                ) or expected_dtype == "int" and not pd.api.types.is_integer_dtype(
-                    feature_data
+                if (
+                    expected_dtype == "float"
+                    and not pd.api.types.is_float_dtype(feature_data)
+                    or expected_dtype == "int"
+                    and not pd.api.types.is_integer_dtype(feature_data)
                 ):
                     validation_results["dtype_issues"].append(
                         {

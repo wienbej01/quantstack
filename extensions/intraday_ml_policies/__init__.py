@@ -22,9 +22,10 @@ from .base import (
     PolicyMetrics,
     PolicySignal,
 )
-from .base_ml_policy import BaseMLPolicy
+from .calibration import SymbolThresholdCalibrator
 from .classification_policy import MLClassificationPolicy
 from .ensemble_policy import EnsembleMethod, EnsemblePolicy, ModelConfig
+from .intraday_ml_decision_policy import IntradayMLDecisionPolicy
 from .performance_tracker import (
     PerformanceMetrics,
     PerformancePeriod,
@@ -40,6 +41,7 @@ from .policy_selector import (
 )
 from .regression_policy import MLRegressionPolicy
 from .risk_aware_policy import RiskAwareMLPolicy, RiskConfig, RiskStrategy
+from .strategy_checks import StrategyCheckRegistry
 
 __version__ = "0.2.0"
 __all__ = [
@@ -71,9 +73,12 @@ __all__ = [
     "SelectionCriteria",
     "SelectionMethod",
     "SelectionScore",
+    "IntradayMLDecisionPolicy",
     "PolicyPerformanceTracker",
     "PerformanceMetrics",
     "TradeRecord",
     "RegimePerformance",
     "PerformancePeriod",
+    "StrategyCheckRegistry",
+    "SymbolThresholdCalibrator",
 ]

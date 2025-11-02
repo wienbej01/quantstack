@@ -71,9 +71,9 @@ def load_test_data():
 
 def test_function_isolation(df, func_name, func, *args, **kwargs):
     """Test a single function and capture warnings."""
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Testing: {func_name}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     # Capture warnings and stack traces
     captured_warnings = []
@@ -157,9 +157,9 @@ def main():
                 warnings_found[func_name] = warnings_list
 
     # Summary
-    print(f"\n\n{'='*60}")
+    print(f"\n\n{'=' * 60}")
     print("DIAGNOSTIC SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     if warnings_found:
         print(f"⚠️  WARNINGS FOUND IN {len(warnings_found)} FUNCTION(S):\n")

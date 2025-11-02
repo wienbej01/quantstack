@@ -181,7 +181,6 @@ class TestM2FeatureIntegration:
                 return_value=mock_universe,
             ),
         ):
-
             builder = DatasetManifestBuilder(
                 gold_root="/fake/gold/root",
                 universe_config=universe_config,
