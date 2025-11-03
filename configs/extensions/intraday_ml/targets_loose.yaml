@@ -4,7 +4,7 @@ label_type: "triclass_atr_threshold"
 horizons:
   - 45  # shorter horizon for higher conviction
 
-atr_multiplier: 0.015  # tighter threshold to surface directional moves
+atr_multiplier: 0.012  # global multi-ticker threshold tuned for moderate volatility
 
 atr_window: 10
 atr_period_minutes: 1

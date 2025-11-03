@@ -5,6 +5,8 @@ Intraday ML Decision Policy for generating execution orders from model predictio
 
 from __future__ import annotations
 
+from numbers import Integral
+
 import pandas as pd
 
 from .calibration import SymbolThresholdCalibrator
@@ -44,28 +46,22 @@ class IntradayMLDecisionPolicy:
         self.gap_exit_delay_minutes = float(
             config.get("gap_exit_delay_minutes", max(5.0, cooldown_half))
         )
-        self.force_flat_time = pd.to_datetime(
-            config.get("force_flat_time", "15:59:59")
-        ).time()
+        self.force_flat_time = pd.to_datetime(config.get("force_flat_time", "15:59:59")).time()
         self.session_timezone = config.get("session_timezone", "America/New_York")
 
         # Order parameters
         self.stop_loss_pct = float(config.get("stop_loss_pct", 0.01))
         self.take_profit_pct = float(config.get("take_profit_pct", 0.015))
-        self.order_qty = config.get("order_qty", 1)
+        self.order_qty = config.get("order_qty", 100)
 
         # State tracking
-        self.last_trade_ts: dict[str, pd.Timestamp] = (
-            {}
-        )  # (symbol -> last trade ts) for cooldown
-        self.position_state: dict[str, dict[str, object]] = (
-            {}
-        )  # symbol -> {"side": str, "entry_ts": ts}
+        self.last_trade_ts: dict[str, pd.Timestamp] = {}  # (symbol -> last trade ts) for cooldown
+        self.position_state: dict[
+            str, dict[str, object]
+        ] = {}  # symbol -> {"side": str, "entry_ts": ts}
         self.entries_per_day: dict[tuple[str, pd.Timestamp], int] = {}
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
-        self.strategy_checks = StrategyCheckRegistry(
-            config.get("enabled_strategies", [])
-        )
+        self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
         self.required_feature_columns = set(self.strategy_checks.required_columns)
 
         self.base_thresholds = {
@@ -82,13 +78,9 @@ class IntradayMLDecisionPolicy:
         }
 
         calibration_config = config.get("calibration")
-        self.calibrator = SymbolThresholdCalibrator(
-            calibration_config, self.base_thresholds
-        )
+        self.calibrator = SymbolThresholdCalibrator(calibration_config, self.base_thresholds)
 
-    def process_signals(
-        self, signals: pd.DataFrame
-    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def process_signals(self, signals: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Processes a DataFrame of signals to generate orders and rejection logs.
 
@@ -124,9 +116,7 @@ class IntradayMLDecisionPolicy:
             min_directional_gap = thresholds["min_directional_gap"]
             min_conviction_score = thresholds["min_conviction_score"]
             max_entries_per_day = thresholds.get("max_entries_per_day")
-            gap_exit_delay = thresholds.get(
-                "gap_exit_delay_minutes", self.gap_exit_delay_minutes
-            )
+            gap_exit_delay = thresholds.get("gap_exit_delay_minutes", self.gap_exit_delay_minutes)
 
             # 1. Time filter (entry + exit decisions respect trading window)
             current_time = dt_et.time()
@@ -178,9 +168,7 @@ class IntradayMLDecisionPolicy:
                     side = "long"
                     exit_reason = "flatten_short"
                 else:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "holding_short")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "holding_short"))
                     continue
             elif position and position["side"] == "long":
                 exit_signal = prob_short >= exit_threshold_short or (
@@ -190,29 +178,21 @@ class IntradayMLDecisionPolicy:
                     side = "short"
                     exit_reason = "flatten_long"
                 else:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "holding_long")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "holding_long"))
                     continue
             else:
                 if max_entries_per_day and self.entries_per_day.get(day_key, 0) >= int(
                     max_entries_per_day
                 ):
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "max_entries_reached")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "max_entries_reached"))
                     continue
 
                 if directional_gap < min_directional_gap:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "gap_insufficient")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "gap_insufficient"))
                     continue
 
                 if min_conviction_score and conviction_score < min_conviction_score:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "conviction_low")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "conviction_low"))
                     continue
 
                 long_score = prob_long - max(prob_short, prob_neutral)
@@ -233,19 +213,13 @@ class IntradayMLDecisionPolicy:
                     side = "short"
                     exit_reason = "trade"
                 else:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, "below_threshold")
-                    )
+                    rejections.append(self._rejection_record(dt_utc, symbol, "below_threshold"))
                     continue
 
-                valid_strategy, strategy_name, detail = self.strategy_checks.validate(
-                    row, side
-                )
+                valid_strategy, strategy_name, detail = self.strategy_checks.validate(row, side)
                 if not valid_strategy:
                     rejections.append(
-                        self._rejection_record(
-                            dt_utc, symbol, f"strategy_check:{detail}"
-                        )
+                        self._rejection_record(dt_utc, symbol, f"strategy_check:{detail}")
                     )
                     side = None
                     continue
@@ -261,8 +235,8 @@ class IntradayMLDecisionPolicy:
             else:
                 qty = int(self.order_qty)
                 if entry_strategy is None:
-                    valid_strategy, strategy_name, strategy_detail = (
-                        self.strategy_checks.validate(row, side)
+                    valid_strategy, strategy_name, strategy_detail = self.strategy_checks.validate(
+                        row, side
                     )
                     if not valid_strategy:
                         rejections.append(
@@ -315,14 +289,10 @@ class IntradayMLDecisionPolicy:
 
         rejections_df = pd.DataFrame(rejections)
         if not rejections_df.empty:
-            rejections_df["timestamp"] = pd.to_datetime(
-                rejections_df["timestamp"], utc=True
-            )
+            rejections_df["timestamp"] = pd.to_datetime(rejections_df["timestamp"], utc=True)
             rejections_df["ts"] = rejections_df["timestamp"].astype("int64")
         else:
-            rejections_df = pd.DataFrame(
-                columns=["ts", "timestamp", "symbol", "reason"]
-            )
+            rejections_df = pd.DataFrame(columns=["ts", "timestamp", "symbol", "reason"])
 
         return orders_df, rejections_df
 
@@ -336,12 +306,23 @@ class IntradayMLDecisionPolicy:
             if "timestamp" in signals.columns:
                 signals = signals.rename(columns={"timestamp": "ts"})
             else:
-                raise KeyError(
-                    "Signals DataFrame must contain either 'ts' or 'timestamp'"
-                )
+                raise KeyError("Signals DataFrame must contain either 'ts' or 'timestamp'")
 
         prepared = signals.copy()
-        prepared["ts"] = pd.to_datetime(prepared["ts"], utc=True)
+
+        def _normalize(value: object) -> pd.Timestamp:
+            if isinstance(value, pd.Timestamp):
+                ts = value
+            elif isinstance(value, Integral):
+                ts = pd.to_datetime(int(value), utc=True, unit="ns")
+            else:
+                ts = pd.to_datetime(value, errors="raise")
+
+            if ts.tzinfo is None:
+                ts = ts.tz_localize(self.session_timezone)
+            return ts.tz_convert("UTC")
+
+        prepared["ts"] = prepared["ts"].apply(_normalize)
         prepared = prepared.sort_values("ts").reset_index(drop=True)
         return prepared
 
@@ -376,9 +357,7 @@ class IntradayMLDecisionPolicy:
         return True
 
     @staticmethod
-    def _rejection_record(
-        dt_utc: pd.Timestamp, symbol: str, reason: str
-    ) -> dict[str, object]:
+    def _rejection_record(dt_utc: pd.Timestamp, symbol: str, reason: str) -> dict[str, object]:
         """Create a rejection record."""
         return {
             "timestamp": dt_utc,

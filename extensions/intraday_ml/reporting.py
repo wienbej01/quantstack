@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -127,9 +128,7 @@ class ABComparator:
         df = pd.DataFrame(records, index=index)
         return df
 
-    def calculate_differences(
-        self, comparison_df: pd.DataFrame, baseline: str
-    ) -> pd.DataFrame:
+    def calculate_differences(self, comparison_df: pd.DataFrame, baseline: str) -> pd.DataFrame:
         """Compute absolute and percentage differences relative to baseline."""
         if baseline not in comparison_df.index:
             raise ValueError(f"Baseline variant '{baseline}' not found")
@@ -142,9 +141,7 @@ class ABComparator:
             if baseline_value == 0:
                 diff_df[f"{column}_pct_change"] = 0.0
             else:
-                diff_df[f"{column}_pct_change"] = (
-                    diff_df[f"{column}_diff"] / baseline_value * 100.0
-                )
+                diff_df[f"{column}_pct_change"] = diff_df[f"{column}_diff"] / baseline_value * 100.0
         return diff_df
 
     def generate_summary_table(self, comparison_df: pd.DataFrame) -> SummaryTable:
@@ -153,6 +150,89 @@ class ABComparator:
         for variant, row in comparison_df.iterrows():
             rows.append({"variant": variant, **row.to_dict()})
         return SummaryTable(rows=rows)
+
+
+def _json_safe(value: Any) -> Any:
+    """Convert nested objects to JSON-serialisable structures."""
+
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    if isinstance(value, pd.Timedelta):
+        return value.total_seconds()
+    if isinstance(value, (pd.Series, pd.Index)):
+        return [_json_safe(v) for v in value.tolist()]
+    if isinstance(value, pd.DataFrame):
+        return {_json_safe(k): _json_safe(v) for k, v in value.to_dict(orient="series").items()}
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+    if hasattr(value, "item") and not isinstance(value, (str, bytes)):
+        try:
+            return value.item()
+        except Exception:  # pragma: no cover - best effort fallback
+            return str(value)
+    return value
+
+
+def build_run_summary(
+    *,
+    metrics: dict[str, Any],
+    orders_df: pd.DataFrame,
+    rejections_df: pd.DataFrame,
+    policy_config: dict[str, Any],
+    artifacts_dir: Path,
+    feature_coverage_path: Path | None,
+    timestamp: datetime,
+) -> dict[str, Any]:
+    """Create a concise run summary for downstream reporting."""
+
+    entry_counts = (
+        orders_df[orders_df["reason"] == "trade"]["side"].value_counts().to_dict()
+        if not orders_df.empty
+        else {}
+    )
+    order_reason_counts = (
+        orders_df["reason"].value_counts().to_dict() if not orders_df.empty else {}
+    )
+    rejection_counts = (
+        rejections_df["reason"].value_counts().head(10).to_dict() if not rejections_df.empty else {}
+    )
+
+    summary = {
+        "status": "success",
+        "timestamp": timestamp.isoformat(),
+        "artifacts_dir": str(artifacts_dir),
+        "policy": {
+            "order_qty": policy_config.get("order_qty"),
+            "prob_threshold_long": policy_config.get("prob_threshold_long"),
+            "prob_threshold_short": policy_config.get("prob_threshold_short"),
+            "score_margin": policy_config.get("score_margin"),
+            "min_directional_gap": policy_config.get("min_directional_gap"),
+            "cooldown_minutes": policy_config.get("cooldown_minutes"),
+            "max_hold_minutes": policy_config.get("max_hold_minutes"),
+        },
+        "orders": {
+            "total": int(len(orders_df)),
+            "entry_side_counts": entry_counts,
+            "reason_counts": order_reason_counts,
+        },
+        "rejections": {
+            "total": int(len(rejections_df)),
+            "top_reasons": rejection_counts,
+        },
+        "performance": _json_safe(metrics),
+    }
+
+    if feature_coverage_path is not None:
+        summary["feature_coverage"] = str(feature_coverage_path)
+
+    return summary
+
+
+def write_run_summary(summary: dict[str, Any], output_path: Path | str) -> None:
+    output_path = Path(output_path)
+    output_path.write_text(json.dumps(_json_safe(summary), indent=2))
 
 
 def _list_variants(experiment_dir: Path) -> list[str]:

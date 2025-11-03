@@ -7,8 +7,8 @@ metric: "multi_logloss"
 lgbm_params:
   num_leaves: 31
   max_depth: -1
-  learning_rate: 0.05
-  n_estimators: 200
+  learning_rate: 0.04
+  n_estimators: 320
   subsample: 0.8
   colsample_bytree: 0.8
   random_state: 42
@@ -17,9 +17,9 @@ lgbm_params:
 
 # Class weights to handle imbalanced directional classes
 class_weights:
-  -1: 1.8
-  0: 0.4
-  1: 1.8
+  -1: 2.2
+  0: 0.5
+  1: 2.2
 
 training:
   early_stopping_rounds: 20
