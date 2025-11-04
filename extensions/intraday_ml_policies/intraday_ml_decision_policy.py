@@ -6,8 +6,10 @@ Intraday ML Decision Policy for generating execution orders from model predictio
 from __future__ import annotations
 
 from numbers import Integral
+import math
 
 import pandas as pd
+
 
 from .calibration import SymbolThresholdCalibrator
 from .strategy_checks import StrategyCheckRegistry
@@ -66,6 +68,19 @@ class IntradayMLDecisionPolicy:
         self.take_profit_pct = float(config.get("take_profit_pct", 0.015))
         self.order_qty = config.get("order_qty", 100)
 
+        # Dynamic risk management configuration
+        risk_cfg = config.get("risk", {})
+        self.use_dynamic_risk = True
+        self.risk_atr_feature = risk_cfg.get("atr_feature", "f__vol__atr_6")
+        self.risk_support_long_feature = risk_cfg.get("support_feature_long", "low")
+        self.risk_resistance_short_feature = risk_cfg.get("resistance_feature_short", "high")
+        self.risk_max_atr_multiple = float(risk_cfg.get("max_atr_multiple", 1.25))
+        self.risk_buffer_atr = float(risk_cfg.get("support_buffer_atr", 0.1))
+        self.risk_target_r_multiple = max(float(risk_cfg.get("target_r_multiple", 1.5)), 1.5)
+        self.risk_min_stop_pct = float(risk_cfg.get("min_stop_pct", 0.0005))
+        self.risk_max_stop_pct = float(risk_cfg.get("max_stop_pct", 0.05))
+        self.risk_allow_missing_support = bool(risk_cfg.get("allow_missing_support", True))
+
         # State tracking
         self.last_trade_ts: dict[str, pd.Timestamp] = {}  # (symbol -> last trade ts) for cooldown
         self.position_state: dict[
@@ -75,6 +90,13 @@ class IntradayMLDecisionPolicy:
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
         self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
         self.required_feature_columns = set(self.strategy_checks.required_columns)
+        self.required_feature_columns.update({
+            "close",
+            self.risk_atr_feature,
+            self.risk_support_long_feature,
+            self.risk_resistance_short_feature,
+        })
+        self.required_feature_columns.discard(None)
 
         self.base_thresholds = {
             "prob_threshold_long": self.prob_threshold_long,
@@ -113,6 +135,9 @@ class IntradayMLDecisionPolicy:
             symbol = row["symbol"]
             dt_et = dt_utc.tz_convert(self.session_timezone)
             day_key = (symbol, pd.Timestamp(dt_et.date()))
+            stop_loss_pct_dynamic: float | None = None
+            take_profit_pct_dynamic: float | None = None
+            risk_metadata: dict[str, object] | None = None
 
             if self._force_flat_if_needed(symbol, dt_utc, dt_et, orders):
                 self.last_trade_ts[symbol] = dt_utc
@@ -249,6 +274,16 @@ class IntradayMLDecisionPolicy:
                     rejections.append(self._rejection_record(dt_utc, symbol, "below_threshold"))
                     continue
 
+                if side:
+                    risk_calc = self._compute_risk_targets(row, side)
+                    if risk_calc is None:
+                        rejections.append(
+                            self._rejection_record(dt_utc, symbol, "risk_unavailable")
+                        )
+                        side = None
+                        continue
+                    (stop_loss_pct_dynamic, take_profit_pct_dynamic, risk_metadata) = risk_calc
+
                 valid_strategy, strategy_name, detail = self.strategy_checks.validate(row, side)
                 if not valid_strategy:
                     rejections.append(
@@ -286,6 +321,8 @@ class IntradayMLDecisionPolicy:
                     "qty": qty,
                     "entry_gap": directional_gap,
                     "entry_conviction": conviction_score,
+                    "entry_stop_pct": stop_loss_pct_dynamic,
+                    "entry_take_profit_pct": take_profit_pct_dynamic,
                 }
                 self.entries_per_day[day_key] = self.entries_per_day.get(day_key, 0) + 1
 
@@ -297,6 +334,17 @@ class IntradayMLDecisionPolicy:
                 reason=exit_reason or "trade",
                 strategy=strategy_name,
                 strategy_detail=strategy_detail if position is None else exit_reason,
+                stop_loss_pct=(
+                    stop_loss_pct_dynamic
+                    if position is None
+                    else position.get("entry_stop_pct")
+                ),
+                take_profit_pct=(
+                    take_profit_pct_dynamic
+                    if position is None
+                    else position.get("entry_take_profit_pct")
+                ),
+                metadata=risk_metadata if position is None else None,
             )
             orders.append(order)
 
@@ -386,6 +434,8 @@ class IntradayMLDecisionPolicy:
             reason="force_flat",
             strategy="force_flat",
             strategy_detail="session_close",
+            stop_loss_pct=position.get("entry_stop_pct"),
+            take_profit_pct=position.get("entry_take_profit_pct"),
         )
         orders.append(order)
         self.position_state.pop(symbol, None)
@@ -401,6 +451,113 @@ class IntradayMLDecisionPolicy:
             "reason": reason,
         }
 
+    def _get_numeric(self, row: pd.Series, column: str | None) -> float | None:
+        if not column or column not in row:
+            return None
+        value = row[column]
+        if value is None:
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(numeric):
+            return None
+        return numeric
+
+    def _compute_risk_targets(
+        self, row: pd.Series, side: str
+    ) -> tuple[float, float, dict[str, object]] | None:
+        price = self._get_numeric(row, "close")
+        if price is None or price <= 0:
+            return None
+
+        atr = self._get_numeric(row, self.risk_atr_feature)
+        if atr is None or atr <= 0:
+            return None
+
+        max_distance = atr * self.risk_max_atr_multiple
+        if max_distance <= 0:
+            return None
+        buffer_price = self.risk_buffer_atr * atr
+
+        stop_distance = None
+        stop_price = None
+        reference_level = None
+
+        if side == "long":
+            level = self._get_numeric(row, self.risk_support_long_feature)
+            if level is not None:
+                reference_level = level
+                stop_price_candidate = level - buffer_price
+                if stop_price_candidate >= price:
+                    return None
+                stop_distance_candidate = price - stop_price_candidate
+                if stop_distance_candidate <= 0:
+                    return None
+                if stop_distance_candidate > max_distance + 1e-9:
+                    return None
+                stop_price = stop_price_candidate
+                stop_distance = stop_distance_candidate
+            elif not self.risk_allow_missing_support:
+                return None
+            if stop_distance is None:
+                stop_distance = max_distance
+                stop_price = price - stop_distance
+        else:
+            level = self._get_numeric(row, self.risk_resistance_short_feature)
+            if level is not None:
+                reference_level = level
+                stop_price_candidate = level + buffer_price
+                if stop_price_candidate <= price:
+                    return None
+                stop_distance_candidate = stop_price_candidate - price
+                if stop_distance_candidate <= 0:
+                    return None
+                if stop_distance_candidate > max_distance + 1e-9:
+                    return None
+                stop_price = stop_price_candidate
+                stop_distance = stop_distance_candidate
+            elif not self.risk_allow_missing_support:
+                return None
+            if stop_distance is None:
+                stop_distance = max_distance
+                stop_price = price + stop_distance
+
+        if stop_distance is None or stop_distance <= 0:
+            return None
+
+        min_distance = price * self.risk_min_stop_pct
+        max_pct_distance = price * self.risk_max_stop_pct
+        stop_distance = max(stop_distance, min_distance)
+        stop_distance = min(stop_distance, max_distance)
+        stop_distance = min(stop_distance, max_pct_distance)
+
+        if stop_distance <= 0:
+            return None
+
+        stop_pct = stop_distance / price
+
+        if side == "long":
+            stop_price = price - stop_distance
+        else:
+            stop_price = price + stop_distance
+
+        target_distance = stop_distance * self.risk_target_r_multiple
+        take_profit_pct = target_distance / price
+        take_price = price + target_distance if side == "long" else price - target_distance
+
+        risk_metadata = {
+            "risk_stop_price": float(stop_price),
+            "risk_take_profit_price": float(take_price),
+            "risk_distance": float(stop_distance),
+            "risk_r_multiple": float(self.risk_target_r_multiple),
+        }
+        if reference_level is not None:
+            risk_metadata["risk_reference_level"] = float(reference_level)
+
+        return stop_pct, take_profit_pct, risk_metadata
+
     def _build_order(
         self,
         symbol: str,
@@ -410,20 +567,34 @@ class IntradayMLDecisionPolicy:
         reason: str,
         strategy: str,
         strategy_detail: str | None = None,
+        *,
+        stop_loss_pct: float | None = None,
+        take_profit_pct: float | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Construct a deterministic order dictionary."""
-        return {
+        sl_pct = float(stop_loss_pct) if stop_loss_pct is not None else self.stop_loss_pct
+        tp_pct = float(take_profit_pct) if take_profit_pct is not None else self.take_profit_pct
+
+        order = {
             "ts": dt_utc.value,
             "timestamp": dt_utc,
             "symbol": symbol,
             "side": side,
             "qty": int(qty),
-            "stop_loss_pct": self.stop_loss_pct,
-            "take_profit_pct": self.take_profit_pct,
+            "stop_loss_pct": sl_pct,
+            "take_profit_pct": tp_pct,
             "reason": reason,
             "strategy": strategy,
             "strategy_detail": strategy_detail or reason,
         }
+
+        if metadata:
+            for key, value in metadata.items():
+                if key not in order:
+                    order[key] = value
+
+        return order
 
     def _get_thresholds(self, symbol: str) -> dict[str, float]:
         """Retrieve (or cache) thresholds for the given symbol."""

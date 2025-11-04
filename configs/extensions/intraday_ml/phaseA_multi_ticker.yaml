@@ -35,6 +35,13 @@ policy:
   conviction_decay_min_hold_minutes: 30
   conviction_decay_gap_multiplier: 0.6
   conviction_decay_conv_multiplier: 0.6
+  risk:
+    atr_feature: "f__vol__atr_6"
+    support_feature_long: "low"
+    resistance_feature_short: "high"
+    max_atr_multiple: 1.25
+    support_buffer_atr: 0.1
+    target_r_multiple: 1.6
   calibration:
     enabled: true
     quantiles: [0.5, 0.7, 0.85, 0.95]

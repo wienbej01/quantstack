@@ -410,6 +410,9 @@ def main():
             "session_timezone": session_timezone,
         }
 
+        if "risk" in policy_section:
+            policy_config["risk"] = policy_section["risk"]
+
         if policy_calibration_cfg:
             calibration_cfg_for_policy = dict(policy_calibration_cfg)
             stats_filename = calibration_cfg_for_policy.pop("stats_filename", None)

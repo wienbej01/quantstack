@@ -24,6 +24,14 @@ def sample_policy_config():
         "take_profit_pct": 0.015,
         "order_qty": 1,
         "enabled_strategies": [],
+        "risk": {
+            "atr_feature": "atr",
+            "support_feature_long": "low",
+            "resistance_feature_short": "high",
+            "max_atr_multiple": 1.0,
+            "support_buffer_atr": 0.0,
+            "target_r_multiple": 1.5,
+        },
     }
 
 
@@ -49,6 +57,11 @@ def sample_signals():
         "symbol": ["TEST", "TEST", "TEST", "TEST", "TEST"],
         "prob_long": [0.7, 0.5, 0.8, 0.9, 0.95],
         "prob_short": [0.2, 0.4, 0.1, 0.05, 0.02],
+        "prob_neutral": [0.1, 0.1, 0.1, 0.05, 0.03],
+        "close": [100.0, 100.0, 100.0, 100.0, 100.0],
+        "low": [99.9, 99.9, 99.9, 99.9, 99.9],
+        "high": [100.1, 100.1, 100.1, 100.1, 100.1],
+        "atr": [0.2, 0.2, 0.2, 0.2, 0.2],
     }
     return pd.DataFrame(data)
 
@@ -151,9 +164,10 @@ def test_order_structure(sample_policy_config, sample_signals):
 
     order = orders.iloc[0]
     assert order["qty"] == 1
-    assert order["stop_loss_pct"] == 0.01
-    assert order["take_profit_pct"] == 0.015
+    assert pytest.approx(order["stop_loss_pct"], rel=1e-6) == 0.001
+    assert pytest.approx(order["take_profit_pct"], rel=1e-6) == 0.0015
     assert order["side"] == "long"
+    assert pytest.approx(order["risk_r_multiple"], rel=1e-6) == 1.5
 
 
 def test_strategy_check_momentum_valid():
@@ -169,6 +183,14 @@ def test_strategy_check_momentum_valid():
         "order_qty": 1,
         "enabled_strategies": ["momentum"],
     }
+    config["risk"] = {
+        "atr_feature": "atr",
+        "support_feature_long": "low",
+        "resistance_feature_short": "high",
+        "max_atr_multiple": 1.0,
+        "support_buffer_atr": 0.0,
+        "target_r_multiple": 1.5,
+    }
     policy = IntradayMLDecisionPolicy(config)
 
     ts = pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York").tz_convert("UTC")
@@ -180,6 +202,9 @@ def test_strategy_check_momentum_valid():
             "prob_short": [0.1],
             "prob_neutral": [0.1],
             "close": [100.5],
+            "low": [100.3],
+            "high": [100.7],
+            "atr": [0.25],
             "f__anchor__session_avwap": [99.8],
             "f__regime__current": ["BULL"],
             "f__regime__var_ratio_10_60": [1.4],
@@ -206,6 +231,14 @@ def test_strategy_check_failure_blocks_trade():
         "order_qty": 1,
         "enabled_strategies": ["momentum"],
     }
+    config["risk"] = {
+        "atr_feature": "atr",
+        "support_feature_long": "low",
+        "resistance_feature_short": "high",
+        "max_atr_multiple": 1.0,
+        "support_buffer_atr": 0.0,
+        "target_r_multiple": 1.5,
+    }
     policy = IntradayMLDecisionPolicy(config)
 
     ts = pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York").tz_convert("UTC")
@@ -217,6 +250,9 @@ def test_strategy_check_failure_blocks_trade():
             "prob_short": [0.05],
             "prob_neutral": [0.1],
             "close": [98.0],  # Below AVWAP -> fails momentum criteria
+            "low": [97.8],
+            "high": [98.2],
+            "atr": [0.2],
             "f__anchor__session_avwap": [99.8],
             "f__regime__current": ["BULL"],
             "f__regime__var_ratio_10_60": [1.4],
@@ -256,6 +292,10 @@ def test_force_flat_generates_exit(sample_policy_config):
             "prob_long": [0.85, 0.4],
             "prob_short": [0.1, 0.2],
             "prob_neutral": [0.05, 0.4],
+            "close": [100.0, 100.2],
+            "low": [99.9, 100.0],
+            "high": [100.1, 100.3],
+            "atr": [0.2, 0.2],
         }
     )
 
@@ -276,3 +316,7 @@ def test_required_feature_columns_exposed():
 
     assert "f__anchor__session_avwap" in columns
     assert "f__profile__poc" in columns
+    assert "close" in columns
+    assert "f__vol__atr_6" in columns
+    assert "low" in columns
+    assert "high" in columns
