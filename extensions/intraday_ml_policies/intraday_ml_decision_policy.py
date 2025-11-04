@@ -48,6 +48,18 @@ class IntradayMLDecisionPolicy:
         )
         self.force_flat_time = pd.to_datetime(config.get("force_flat_time", "15:59:59")).time()
         self.session_timezone = config.get("session_timezone", "America/New_York")
+        self.conviction_decay_min_hold_minutes = float(
+            config.get(
+                "conviction_decay_min_hold_minutes",
+                max(self.cooldown_minutes, 15.0),
+            )
+        )
+        self.conviction_decay_gap_multiplier = float(
+            config.get("conviction_decay_gap_multiplier", 0.5)
+        )
+        self.conviction_decay_conv_multiplier = float(
+            config.get("conviction_decay_conv_multiplier", 0.5)
+        )
 
         # Order parameters
         self.stop_loss_pct = float(config.get("stop_loss_pct", 0.01))
@@ -58,7 +70,7 @@ class IntradayMLDecisionPolicy:
         self.last_trade_ts: dict[str, pd.Timestamp] = {}  # (symbol -> last trade ts) for cooldown
         self.position_state: dict[
             str, dict[str, object]
-        ] = {}  # symbol -> {"side": str, "entry_ts": ts}
+        ] = {}  # symbol -> {"side": str, "entry_ts": ts, "entry_gap": float, "entry_conviction": float}
         self.entries_per_day: dict[tuple[str, pd.Timestamp], int] = {}
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
         self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
@@ -117,6 +129,7 @@ class IntradayMLDecisionPolicy:
             min_conviction_score = thresholds["min_conviction_score"]
             max_entries_per_day = thresholds.get("max_entries_per_day")
             gap_exit_delay = thresholds.get("gap_exit_delay_minutes", self.gap_exit_delay_minutes)
+            gap_exit_delay = float(gap_exit_delay) if gap_exit_delay is not None else None
 
             # 1. Time filter (entry + exit decisions respect trading window)
             current_time = dt_et.time()
@@ -144,18 +157,38 @@ class IntradayMLDecisionPolicy:
             hold_duration = None
             if position:
                 hold_duration = (dt_utc - position["entry_ts"]).total_seconds() / 60.0
+                entry_gap = float(position.get("entry_gap", directional_gap))
+                entry_conviction = float(position.get("entry_conviction", conviction_score))
+            else:
+                entry_gap = directional_gap
+                entry_conviction = conviction_score
 
-            shrinkage_trigger = directional_gap < (min_directional_gap / 2.0)
+            gap_threshold = max(
+                min_directional_gap,
+                entry_gap * self.conviction_decay_gap_multiplier,
+            )
+            if entry_gap <= 0:
+                gap_threshold = min_directional_gap
+            conviction_threshold = min_conviction_score
+            if entry_conviction > 0:
+                conviction_threshold = max(
+                    min_conviction_score,
+                    entry_conviction * self.conviction_decay_conv_multiplier,
+                )
+            shrinkage_trigger = directional_gap <= gap_threshold
             if min_conviction_score > 0.0:
                 shrinkage_trigger = shrinkage_trigger or (
-                    conviction_score < (min_conviction_score / 2.0)
+                    conviction_score <= conviction_threshold
                 )
+
+            hold_threshold = self.conviction_decay_min_hold_minutes
+            if gap_exit_delay is not None:
+                hold_threshold = max(hold_threshold, gap_exit_delay)
 
             if (
                 position
                 and hold_duration is not None
-                and gap_exit_delay is not None
-                and hold_duration >= gap_exit_delay
+                and hold_duration >= hold_threshold
                 and shrinkage_trigger
             ):
                 side = "long" if position["side"] == "short" else "short"
@@ -251,6 +284,8 @@ class IntradayMLDecisionPolicy:
                     "side": side,
                     "entry_ts": dt_utc,
                     "qty": qty,
+                    "entry_gap": directional_gap,
+                    "entry_conviction": conviction_score,
                 }
                 self.entries_per_day[day_key] = self.entries_per_day.get(day_key, 0) + 1
 

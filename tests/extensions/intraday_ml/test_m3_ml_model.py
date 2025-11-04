@@ -92,7 +92,11 @@ class TestLabeling:
         """Test labeler initializes correctly."""
         labeler = IntradayMLLabeler(targets_config)
         assert labeler.horizons == [30, 60, 90]
-        assert labeler.atr_multiplier == 1.0
+        assert labeler.atr_multiplier == pytest.approx(0.038, rel=1e-6)
+        assert labeler.base_long_multiplier == pytest.approx(0.036, rel=1e-6)
+        assert labeler.base_short_multiplier == pytest.approx(0.04, rel=1e-6)
+        assert labeler.volatility_scaling_enabled is True
+        assert labeler.directional_balance_enabled is True
         assert labeler.atr_window == 14
 
     def test_no_peek_validation(self, targets_config, sample_bars):
@@ -207,7 +211,8 @@ class TestLightGBMTraining:
         """Test trainer initializes correctly."""
         trainer = LightGBMTrainer(model_config)
         assert trainer.lgbm_params is not None
-        assert trainer.class_weights is not None
+        assert isinstance(trainer.class_weight_base, dict)
+        assert isinstance(trainer.class_weight_strategy, dict)
         assert trainer.calibration_config is not None
 
     def test_model_training(self, model_config, sample_features_and_labels):
@@ -275,9 +280,12 @@ class TestLightGBMTraining:
         trainer = LightGBMTrainer(model_config)
 
         # Check class weights are accessible
-        assert -1 in trainer.class_weights
-        assert 0 in trainer.class_weights
-        assert 1 in trainer.class_weights
+        for cls in (-1, 0, 1):
+            assert cls in trainer.class_weight_base
+
+        sample_weight = trainer._resolve_sample_weights(labels)
+        assert sample_weight is not None
+        assert len(sample_weight) == len(labels)
 
         # Training should not fail with class weights
         features_hash = "test_features_hash"
@@ -285,6 +293,7 @@ class TestLightGBMTraining:
 
         result = trainer.train_model(features, labels, features_hash, targets_hash)
         assert result is not None
+        assert result.training_metadata.get("class_weight_summary") is not None
 
     def test_cross_validation(self, model_config, sample_features_and_labels):
         """Test cross-validation functionality."""

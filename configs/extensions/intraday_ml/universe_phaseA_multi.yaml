@@ -1,0 +1,26 @@
+# Universe configuration for multi-ticker Phase A experiment
+
+# Provide a static candidate list to ensure required symbols are available.
+symbols:
+  - "TTD"
+  - "BKR"
+  - "BALL"
+  - "USB"
+  - "GIS"
+  - "LYB"
+  - "EXC"
+
+# Relax screening thresholds so listed symbols pass eligibility checks.
+min_price: 1.0
+max_price: 250.0
+min_avg_daily_volume: 0.0
+min_relative_volume: 0.0
+min_trading_days: 10
+
+# Universe size settings (keep comfortably above candidate count).
+max_universe_size: 10
+min_universe_size: 4
+
+# Lookback windows for screener metrics.
+lookback_days: 20
+volume_window: 30

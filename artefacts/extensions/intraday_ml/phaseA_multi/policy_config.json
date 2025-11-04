@@ -51,6 +51,6 @@
     },
     "min_samples": 200,
     "max_samples_per_symbol": 5000,
-    "stats_path": "artefacts/extensions/intraday_ml/phaseA/policy_calibration.json"
+    "stats_path": "artefacts/extensions/intraday_ml/phaseA_multi/policy_calibration.json"
   }
 }

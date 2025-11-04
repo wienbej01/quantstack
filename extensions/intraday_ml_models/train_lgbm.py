@@ -45,7 +45,14 @@ class LightGBMTrainer:
         self.lgbm_params = model_config.get("lgbm_params", {})
         self.training_params = model_config.get("training", {})
         self.calibration_config = model_config.get("calibration", {})
-        self.class_weights = model_config.get("class_weights", {})
+        class_weights_cfg = model_config.get("class_weights", {})
+        if isinstance(class_weights_cfg, dict) and "base" in class_weights_cfg:
+            self.class_weight_base = class_weights_cfg.get("base", {})
+            self.class_weight_strategy = class_weights_cfg.get("auto_balance", {})
+        else:
+            self.class_weight_base = class_weights_cfg or {}
+            self.class_weight_strategy = {}
+        self._last_weight_summary: dict[str, Any] | None = None
 
     def train_model(
         self,
@@ -68,6 +75,7 @@ class LightGBMTrainer:
             TrainingResult with trained model and metrics
         """
         start_time = time.time()
+        self._last_weight_summary = None
 
         # Prepare data
         X, y = self._prepare_data(features, labels)
@@ -105,6 +113,7 @@ class LightGBMTrainer:
             "features_hash": features_hash,
             "targets_hash": targets_hash,
             "class_distribution": y_train.value_counts().to_dict(),
+            "class_weight_summary": self._last_weight_summary,
             "model_params": self.lgbm_params,
             "training_config": self.config,
         }
@@ -177,14 +186,7 @@ class LightGBMTrainer:
         params["objective"] = "multiclass"
         params["num_class"] = len(np.unique(y_train))
 
-        # Add class weights if specified
-        if self.class_weights:
-            # Map class weights to sample weights
-            sample_weight = np.ones(len(y_train))
-            for class_label, weight in self.class_weights.items():
-                sample_weight[y_train == class_label] = weight
-        else:
-            sample_weight = None
+        sample_weight = self._resolve_sample_weights(y_train)
 
         # Create callbacks
         callbacks = []
@@ -205,6 +207,116 @@ class LightGBMTrainer:
         )
 
         return model
+
+    def _resolve_sample_weights(self, y_train: pd.Series) -> np.ndarray | None:
+        """Determine sample weights based on configured strategies."""
+        if y_train.empty:
+            return None
+
+        weights_map: dict[int, float] = {}
+
+        if self.class_weight_strategy.get("enabled"):
+            weights_map = self._compute_auto_weights(y_train)
+        elif self.class_weight_base:
+            weights_map = {
+                int(class_label): float(weight)
+                for class_label, weight in self.class_weight_base.items()
+            }
+            counts = {
+                int(cls): int(count)
+                for cls, count in y_train.value_counts().items()
+            }
+            self._last_weight_summary = {
+                "auto": False,
+                "weights": dict(sorted(weights_map.items())),
+                "counts": counts,
+            }
+
+        if not weights_map:
+            return None
+
+        sample_weight = np.ones(len(y_train), dtype=float)
+        for class_label, weight in weights_map.items():
+            mask = y_train == class_label
+            if mask.any():
+                sample_weight[mask] = float(max(weight, 1e-6))
+
+        return sample_weight
+
+    def _compute_auto_weights(self, y_train: pd.Series) -> dict[int, float]:
+        """Blend base class weights with inverse-frequency balancing."""
+        strategy = self.class_weight_strategy or {}
+        base = {
+            int(cls): float(self.class_weight_base.get(cls, 1.0))
+            for cls in (-1, 0, 1)
+        }
+        counts = {int(cls): int(count) for cls, count in y_train.value_counts().items()}
+        total = float(len(y_train))
+        mix = float(strategy.get("mix", 0.65))
+        mix = min(max(mix, 0.0), 1.0)
+        missing_multiplier = float(strategy.get("missing_class_weight", 1.3))
+
+        balanced = {}
+        for cls in (-1, 0, 1):
+            count = counts.get(cls, 0)
+            if count <= 0:
+                balanced[cls] = base.get(cls, 1.0) * missing_multiplier
+            else:
+                balanced[cls] = total / (3.0 * count)
+
+        weights = {}
+        for cls in (-1, 0, 1):
+            base_weight = base.get(cls, 1.0)
+            balanced_weight = balanced.get(cls, 1.0)
+            weights[cls] = (base_weight ** (1.0 - mix)) * (balanced_weight ** mix)
+
+        if strategy.get("equalize_directional", True):
+            directional_weight = float(
+                np.mean([weights.get(-1, 1.0), weights.get(1, 1.0)])
+            )
+            weights[-1] = directional_weight
+            weights[1] = directional_weight
+
+        target_ratio = float(strategy.get("target_ratio", 1.0))
+        tolerance = float(strategy.get("tolerance", 0.15))
+        ratio_adjust = float(strategy.get("ratio_adjust", 0.35))
+
+        long_count = counts.get(1, 0)
+        short_count = counts.get(-1, 0)
+        if long_count > 0 and short_count > 0:
+            ratio = long_count / max(short_count, 1)
+            if ratio > target_ratio + tolerance:
+                weights[1] *= max(1.0 - ratio_adjust, 0.05)
+                weights[-1] *= 1.0 + ratio_adjust
+            elif ratio < target_ratio - tolerance:
+                weights[1] *= 1.0 + ratio_adjust
+                weights[-1] *= max(1.0 - ratio_adjust, 0.05)
+
+        neutral_floor = float(strategy.get("neutral_weight_floor", 0.3))
+        neutral_cap = float(strategy.get("neutral_weight_cap", 0.7))
+        weights[0] = float(np.clip(weights.get(0, 1.0), neutral_floor, neutral_cap))
+
+        min_weight = float(strategy.get("min_weight", 0.05))
+        max_weight = float(strategy.get("max_weight", 5.0))
+        for cls in list(weights):
+            weights[cls] = float(
+                np.clip(weights[cls], min_weight, max_weight)
+            )
+
+        if strategy.get("normalize", True):
+            mean_weight = float(np.mean(list(weights.values())))
+            if mean_weight > 0.0 and np.isfinite(mean_weight):
+                for cls in list(weights):
+                    weights[cls] = float(weights[cls] / mean_weight)
+
+        self._last_weight_summary = {
+            "auto": True,
+            "weights": dict(sorted((int(k), float(v)) for k, v in weights.items())),
+            "counts": {int(k): counts.get(k, 0) for k in (-1, 0, 1)},
+            "mix": mix,
+            "target_ratio": target_ratio,
+        }
+        return weights
 
     def _calibrate_model(
         self, model: lgb.LGBMClassifier, X_train: pd.DataFrame, y_train: pd.Series

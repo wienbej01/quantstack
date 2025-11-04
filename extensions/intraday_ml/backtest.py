@@ -10,6 +10,7 @@ from numbers import Integral
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -200,25 +201,49 @@ def _apply_intraday_constraints(
     return bars, orders
 
 
+def _to_ns_timestamp(value: Any) -> int:
+    """Convert assorted timestamp representations into UTC nanoseconds."""
+    if isinstance(value, Integral):
+        return int(value)
+
+    if isinstance(value, pd.Timestamp):
+        ts = value
+    elif isinstance(value, np.datetime64):
+        ts = pd.Timestamp(value)
+    else:
+        ts = pd.to_datetime(value, errors="raise", utc=True)
+
+    if ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    else:
+        ts = ts.tz_convert("UTC")
+    return int(ts.value)
+
+
 def _shift_to_next_bar(orders: pd.DataFrame, bars: pd.DataFrame) -> pd.DataFrame:
     """Shift order execution to next bar after signal."""
     # Build next bar mapping
-    bars_sorted = bars.sort_values(["symbol", "ts"])
+    bars_sorted = bars.sort_values(["symbol", "ts"]).copy()
+    bars_sorted["ts_ns"] = bars_sorted["ts"].apply(_to_ns_timestamp)
     next_bar = {}
 
     for symbol, group in bars_sorted.groupby("symbol"):
-        timestamps = group["ts"].values
+        timestamps = group["ts_ns"].values
         for i in range(len(timestamps) - 1):
             next_bar[(symbol, timestamps[i])] = timestamps[i + 1]
 
     # Apply next bar execution
     shifted_orders = []
     for _, order in orders.iterrows():
-        key = (order["symbol"], order["ts"])
+        original_ts_ns = _to_ns_timestamp(order["ts"])
+        key = (order["symbol"], original_ts_ns)
         if key in next_bar:
             shifted_order = order.copy()
-            shifted_order["ts"] = next_bar[key]
-            shifted_order["original_signal_ts"] = order["ts"]
+            next_ts = next_bar[key]
+            shifted_order["original_signal_ts"] = original_ts_ns
+            shifted_order["ts"] = next_ts
+            if "timestamp" in shifted_order:
+                shifted_order["timestamp"] = pd.to_datetime(next_ts, unit="ns", utc=True)
             shifted_orders.append(shifted_order)
 
     return pd.DataFrame(shifted_orders) if shifted_orders else pd.DataFrame()

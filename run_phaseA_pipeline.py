@@ -153,13 +153,55 @@ def main():
             splits_config=configs["splits"],
         )
         manifest_path = artifact_dir / "manifest.json"
+        candidate_symbols = configs["universe"].get("symbols", ["BAC"])
         manifest = builder.build_manifest(
-            candidate_symbols=configs["universe"].get("symbols", ["BAC"]),
+            candidate_symbols=candidate_symbols,
             output_path=manifest_path,
         )
         print(f"✅ Manifest created: {manifest_path}")
         print(f"   Symbols: {manifest.symbols}")
         print(f"   Total days: {manifest.total_days}")
+
+        available_symbols = sorted({str(symbol).upper() for symbol in manifest.symbols})
+
+        def _normalize_symbols(symbols: list[str]) -> list[str]:
+            return sorted({str(symbol).upper() for symbol in symbols})
+
+        training_symbols_cfg = master_config.get("training_symbols")
+        deployment_symbols_cfg = master_config.get("deployment_symbols")
+
+        if training_symbols_cfg:
+            training_symbols = _normalize_symbols(training_symbols_cfg)
+        else:
+            training_symbols = available_symbols.copy()
+
+        if deployment_symbols_cfg:
+            deployment_symbols = _normalize_symbols(deployment_symbols_cfg)
+        else:
+            deployment_symbols = available_symbols.copy()
+
+        if args.symbol:
+            override_symbol = str(args.symbol).upper()
+            training_symbols = [override_symbol]
+            deployment_symbols = [override_symbol]
+
+        missing_training = sorted(set(training_symbols) - set(available_symbols))
+        missing_deployment = sorted(set(deployment_symbols) - set(available_symbols))
+        if missing_training:
+            raise RuntimeError(
+                "Training symbols missing from manifest: "
+                + ", ".join(missing_training)
+                + ". Check universe configuration."
+            )
+        if missing_deployment:
+            raise RuntimeError(
+                "Deployment symbols missing from manifest: "
+                + ", ".join(missing_deployment)
+                + ". Check universe configuration."
+            )
+
+        print(f"   Training symbols: {training_symbols}")
+        print(f"   Deployment symbols: {deployment_symbols}")
 
         # Step 2: Data Preparation (Features + Labels using sliding window)
         print("\n🔧 Step 2: Data preparation with aligned features and labels...")
@@ -180,7 +222,7 @@ def main():
         training_data_path = artifact_dir / "training_data.parquet"
 
         training_data = create_training_dataset(
-            symbols=manifest.symbols,
+            symbols=training_symbols,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=extended_end_date.strftime("%Y-%m-%d"),
             features_config=configs["features"],
@@ -284,7 +326,7 @@ def main():
         oos_end_date = datetime.strptime(oos_dates["end"], "%Y-%m-%d")
 
         oos_data = create_training_dataset(
-            symbols=manifest.symbols,
+            symbols=deployment_symbols,
             start_date=oos_start_date.strftime("%Y-%m-%d"),
             end_date=oos_end_date.strftime("%Y-%m-%d"),
             features_config=configs["features"],
@@ -491,7 +533,9 @@ def main():
             print(f"   - {artifact.name} ({size_mb:.1f} MB)")
 
         print("\n📋 Phase A Summary:")
-        print(f"   - Ticker(s): {', '.join(manifest.symbols)}")
+        print(f"   - Manifest symbols: {', '.join(available_symbols)}")
+        print(f"   - Training symbols: {', '.join(training_symbols)}")
+        print(f"   - Deployment symbols: {', '.join(deployment_symbols)}")
         print(f"   - Train: {train_dates['start']} to {train_dates['end']}")
         test_dates = configs["splits"].get("test", {})
         oos_split = configs["splits"].get("oos", {})
@@ -507,6 +551,20 @@ def main():
         print(f"   - OOS: {_format_range(oos_split)}")
         print("   - Data: Aligned features+labels via sliding window")
         print("   - Model: LightGBM tri-class")
+
+        status_path = artifact_dir / "phaseA_status.json"
+        phase_status = {
+            "phase": "A",
+            "manifest_symbols": available_symbols,
+            "training_symbols": training_symbols,
+            "deployment_symbols": deployment_symbols,
+            "train_window": train_dates,
+            "test_window": test_dates,
+            "oos_window": oos_split,
+        }
+        with open(status_path, "w") as f:
+            json.dump(phase_status, f, indent=2)
+        print(f"   - Status file: {status_path}")
 
         cv_summary = "skipped"
         if master_config.get("run_cv", True):

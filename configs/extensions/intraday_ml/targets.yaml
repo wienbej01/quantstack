@@ -10,12 +10,36 @@ horizons:
   - 60    # 60 minutes
   - 90    # 90 minutes
 
-# ATR threshold multiplier (k*ATR)
-atr_multiplier: 0.05  # k = 0.05 for prominent moves (further reduced for testing)
+# ATR threshold multipliers. Base value is volatility-adjusted per symbol.
+atr_multiplier: 0.038
+atr_multiplier_long: 0.036
+atr_multiplier_short: 0.040
 
 # ATR calculation parameters
 atr_window: 14       # 14-period ATR on 1-minute bars
 atr_period_minutes: 1  # ATR computed on 1-minute regular bars
+
+volatility_scaling:
+  enabled: true
+  target_move_pct: 0.009
+  price_quantile: 0.55
+  atr_quantile: 0.75
+  mix: 0.55
+  multiplier_bounds:
+    min: 0.004
+    max: 0.08
+
+directional_balance:
+  enabled: true
+  target_ratio: 1.0
+  tolerance: 0.2
+  max_iterations: 8
+  adjust_step: 0.1
+  growth_factor: 0.7
+  min_directional: 40
+  multiplier_bounds:
+    min: 0.004
+    max: 0.09
 
 # First-hit logic parameters
 first_hit_logic:

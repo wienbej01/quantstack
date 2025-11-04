@@ -48,6 +48,19 @@ def _metric_summary(values: pd.Series, quantiles: Iterable[float]) -> dict[str, 
     return summary
 
 
+def _directional_bias(summary: dict[str, Any]) -> float | None:
+    """Compute directional bias from probability summaries."""
+    long_stats = summary.get("prob_long", {})
+    short_stats = summary.get("prob_short", {})
+    long_mean = long_stats.get("mean")
+    short_mean = short_stats.get("mean")
+    if long_mean is None or short_mean is None:
+        return None
+    if not np.isfinite(long_mean) or not np.isfinite(short_mean):
+        return None
+    return float(long_mean - short_mean)
+
+
 def compute_policy_calibration_stats(
     model: Any,
     data: pd.DataFrame,
@@ -126,6 +139,7 @@ def compute_policy_calibration_stats(
             "conviction": _metric_summary(group["conviction"], quantiles),
             "prob_max": _metric_summary(group["prob_max"], quantiles),
         }
+        summary["directional_bias"] = _directional_bias(summary)
         symbols_stats[symbol] = summary
 
     global_summary = {
@@ -136,12 +150,14 @@ def compute_policy_calibration_stats(
         "conviction": _metric_summary(stats_frame["conviction"], quantiles),
         "prob_max": _metric_summary(stats_frame["prob_max"], quantiles),
     }
+    global_summary["directional_bias"] = _directional_bias(global_summary)
 
     return {
         "metadata": {
             "quantiles": quantiles,
             "classes": classes,
             "total_samples": int(len(stats_frame)),
+            "directional_bias": global_summary.get("directional_bias"),
         },
         "symbols": symbols_stats,
         "global": global_summary,
@@ -165,7 +181,40 @@ class SymbolThresholdCalibrator:
         self.gap_percentile = self.config.get("gap_percentile", 0.75)
         self.conviction_percentile = self.config.get("conviction_percentile", 0.75)
         self.prob_exit_offset = self.config.get("prob_exit_offset", 0.05)
+        self.bias_config = self.config.get("bias_correction", {})
+        self.bias_enabled = bool(self.bias_config.get("enabled", False))
         self._reported_symbols: set[str] = set()
+
+        floors_cfg = self.config.get("floors", {})
+        ceilings_cfg = self.config.get("ceilings", {})
+        self.floors = {
+            "prob_threshold_long": self._maybe_float(floors_cfg.get("prob_threshold_long")),
+            "prob_threshold_short": self._maybe_float(floors_cfg.get("prob_threshold_short")),
+            "exit_threshold_long": self._maybe_float(floors_cfg.get("exit_threshold_long")),
+            "exit_threshold_short": self._maybe_float(floors_cfg.get("exit_threshold_short")),
+            "min_directional_gap": self._maybe_float(floors_cfg.get("min_directional_gap")),
+            "min_conviction_score": self._maybe_float(floors_cfg.get("min_conviction_score")),
+        }
+        self.ceilings = {
+            "prob_threshold_long": self._maybe_float(
+                ceilings_cfg.get("prob_threshold_long"), default=0.999
+            ),
+            "prob_threshold_short": self._maybe_float(
+                ceilings_cfg.get("prob_threshold_short"), default=0.999
+            ),
+            "exit_threshold_long": self._maybe_float(
+                ceilings_cfg.get("exit_threshold_long")
+            ),
+            "exit_threshold_short": self._maybe_float(
+                ceilings_cfg.get("exit_threshold_short")
+            ),
+            "min_directional_gap": self._maybe_float(
+                ceilings_cfg.get("min_directional_gap"), default=1.0
+            ),
+            "min_conviction_score": self._maybe_float(
+                ceilings_cfg.get("min_conviction_score"), default=1.0
+            ),
+        }
 
         stats_path = self.config.get("stats_path")
         if not stats_path:
@@ -204,56 +253,60 @@ class SymbolThresholdCalibrator:
         conviction_value = self._select(stats, "conviction", self.conviction_percentile)
 
         if prob_long is not None:
-            raw_long = max(prob_long, thresholds["prob_threshold_long"])
-            thresholds["prob_threshold_long"] = min(
-                _sanitize(raw_long, thresholds["prob_threshold_long"]), 0.999
+            thresholds["prob_threshold_long"] = self._bounded_threshold(
+                "prob_threshold_long",
+                prob_long,
+                thresholds["prob_threshold_long"],
+                default_ceiling=0.999,
             )
         else:
             thresholds["prob_threshold_long"] = float(thresholds["prob_threshold_long"])
 
         if prob_short is not None:
-            raw_short = max(prob_short, thresholds["prob_threshold_short"])
-            thresholds["prob_threshold_short"] = min(
-                _sanitize(raw_short, thresholds["prob_threshold_short"]), 0.999
+            thresholds["prob_threshold_short"] = self._bounded_threshold(
+                "prob_threshold_short",
+                prob_short,
+                thresholds["prob_threshold_short"],
+                default_ceiling=0.999,
             )
         else:
             thresholds["prob_threshold_short"] = float(
                 thresholds["prob_threshold_short"]
             )
 
-        thresholds["exit_threshold_long"] = min(
-            _sanitize(
-                max(
-                    thresholds["exit_threshold_long"],
-                    thresholds["prob_threshold_long"] - self.prob_exit_offset,
-                ),
-                thresholds["exit_threshold_long"],
-            ),
-            0.999,
+        thresholds = self._apply_bias_correction(thresholds, stats)
+
+        exit_long_candidate = thresholds["prob_threshold_long"] - self.prob_exit_offset
+        thresholds["exit_threshold_long"] = self._bounded_threshold(
+            "exit_threshold_long",
+            exit_long_candidate,
+            thresholds["exit_threshold_long"],
+            default_ceiling=thresholds["prob_threshold_long"],
         )
-        thresholds["exit_threshold_short"] = min(
-            _sanitize(
-                max(
-                    thresholds["exit_threshold_short"],
-                    thresholds["prob_threshold_short"] - self.prob_exit_offset,
-                ),
-                thresholds["exit_threshold_short"],
-            ),
-            0.999,
+        exit_short_candidate = thresholds["prob_threshold_short"] - self.prob_exit_offset
+        thresholds["exit_threshold_short"] = self._bounded_threshold(
+            "exit_threshold_short",
+            exit_short_candidate,
+            thresholds["exit_threshold_short"],
+            default_ceiling=thresholds["prob_threshold_short"],
         )
 
         if gap_value is not None:
-            raw_gap = max(gap_value, thresholds["min_directional_gap"])
-            thresholds["min_directional_gap"] = min(
-                _sanitize(raw_gap, thresholds["min_directional_gap"]), 0.999
+            thresholds["min_directional_gap"] = self._bounded_threshold(
+                "min_directional_gap",
+                gap_value,
+                thresholds["min_directional_gap"],
+                default_ceiling=1.0,
             )
         else:
             thresholds["min_directional_gap"] = float(thresholds["min_directional_gap"])
 
         if conviction_value is not None:
-            raw_conviction = max(conviction_value, thresholds["min_conviction_score"])
-            thresholds["min_conviction_score"] = min(
-                _sanitize(raw_conviction, thresholds["min_conviction_score"]), 0.999
+            thresholds["min_conviction_score"] = self._bounded_threshold(
+                "min_conviction_score",
+                conviction_value,
+                thresholds["min_conviction_score"],
+                default_ceiling=1.0,
             )
         else:
             thresholds["min_conviction_score"] = float(
@@ -283,3 +336,123 @@ class SymbolThresholdCalibrator:
         if value is None:
             value = metric_stats.get("mean")
         return value if value is None else float(value)
+
+    def _apply_bias_correction(
+        self, thresholds: dict[str, float], stats: dict[str, Any] | None
+    ) -> dict[str, float]:
+        """Apply bias correction to directional thresholds when long/short probabilities diverge."""
+        if not self.bias_enabled or not stats:
+            return thresholds
+
+        metric_key = self.bias_config.get("metric", "mean")
+        scale = float(self.bias_config.get("scale", 0.5))
+        max_adjustment = float(self.bias_config.get("max_adjustment", 0.05))
+        apply_to_exit = bool(self.bias_config.get("apply_to_exit", True))
+
+        prob_long_metric = self._metric_value(stats, "prob_long", metric_key)
+        prob_short_metric = self._metric_value(stats, "prob_short", metric_key)
+
+        if (
+            prob_long_metric is None
+            or prob_short_metric is None
+            or not np.isfinite(prob_long_metric)
+            or not np.isfinite(prob_short_metric)
+        ):
+            return thresholds
+
+        bias_delta = float(prob_long_metric - prob_short_metric)
+        if abs(bias_delta) < 1e-6:
+            return thresholds
+
+        adjustment = float(
+            np.clip(-bias_delta * scale, -max_adjustment, max_adjustment)
+        )
+
+        base_long = float(self.base_thresholds.get("prob_threshold_long", 0.0))
+        base_short = float(self.base_thresholds.get("prob_threshold_short", 0.0))
+
+        current_long = thresholds["prob_threshold_long"]
+        current_short = thresholds["prob_threshold_short"]
+        adjusted_long = current_long - adjustment
+        adjusted_short = current_short + adjustment
+        min_long = max(0.0, base_long - max_adjustment)
+        min_short = max(0.0, base_short - max_adjustment)
+        thresholds["prob_threshold_long"] = self._bounded_threshold(
+            "prob_threshold_long",
+            max(adjusted_long, min_long),
+            current_long,
+            default_ceiling=0.999,
+        )
+        thresholds["prob_threshold_short"] = self._bounded_threshold(
+            "prob_threshold_short",
+            max(adjusted_short, min_short),
+            current_short,
+            default_ceiling=0.999,
+        )
+
+        if apply_to_exit:
+            exit_long = thresholds["exit_threshold_long"]
+            exit_short = thresholds["exit_threshold_short"]
+            thresholds["exit_threshold_long"] = self._bounded_threshold(
+                "exit_threshold_long",
+                exit_long - adjustment,
+                exit_long,
+                default_ceiling=thresholds["prob_threshold_long"],
+            )
+            thresholds["exit_threshold_short"] = self._bounded_threshold(
+                "exit_threshold_short",
+                exit_short + adjustment,
+                exit_short,
+                default_ceiling=thresholds["prob_threshold_short"],
+            )
+
+        return thresholds
+
+    def _metric_value(
+        self, stats: dict[str, Any], field: str, metric_key: str
+    ) -> float | None:
+        """Fetch a metric/quantile value from calibration stats."""
+        metric_stats = stats.get(field)
+        if not metric_stats:
+            return None
+
+        if metric_key == "mean":
+            return metric_stats.get("mean")
+        if metric_key == "max":
+            return metric_stats.get("max")
+        if metric_key == "min":
+            return metric_stats.get("min")
+
+        if metric_key.startswith("p"):
+            quantiles = metric_stats.get("quantiles", {})
+            return quantiles.get(metric_key)
+
+        return metric_stats.get("mean")
+
+    @staticmethod
+    def _maybe_float(value: Any, *, default: float | None = None) -> float | None:
+        if value is None:
+            return default
+        return float(value)
+
+    def _bounded_threshold(
+        self,
+        key: str,
+        candidate: float | None,
+        fallback: float,
+        *,
+        default_ceiling: float,
+    ) -> float:
+        """Clamp candidate threshold using configured floors/ceilings with fallback."""
+        if candidate is None:
+            return float(fallback)
+
+        value = _sanitize(candidate, fallback)
+        floor = self.floors.get(key)
+        if floor is not None:
+            value = max(value, float(floor))
+        ceiling = self.ceilings.get(key)
+        if ceiling is None:
+            ceiling = default_ceiling
+        value = min(value, float(ceiling))
+        return value

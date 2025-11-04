@@ -24,10 +24,24 @@ lgbm_params:
 
 # Class weights (to handle class imbalance)
 class_weights:
-  # Amplify directional samples and down-weight neutral regimes to boost conviction
-  -1: 1.8
-  0: 0.4
-  1: 1.8
+  base:
+    # Amplify directional samples and down-weight neutral regimes to boost conviction
+    -1: 1.7
+    0: 0.45
+    1: 1.7
+  auto_balance:
+    enabled: true
+    mix: 0.65
+    target_ratio: 1.0
+    tolerance: 0.18
+    ratio_adjust: 0.3
+    equalize_directional: true
+    neutral_weight_floor: 0.35
+    neutral_weight_cap: 0.65
+    missing_class_weight: 1.4
+    min_weight: 0.08
+    max_weight: 4.5
+    normalize: true
 
 # Training parameters
 training:

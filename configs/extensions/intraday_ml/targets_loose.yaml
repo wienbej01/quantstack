@@ -1,13 +1,38 @@
-# Loose target configuration for more signals
+# Loose target configuration for more signals across multi-ticker runs
 label_type: "triclass_atr_threshold"
 
 horizons:
   - 45  # shorter horizon for higher conviction
 
-atr_multiplier: 0.012  # global multi-ticker threshold tuned for moderate volatility
+# Base ATR scaling (direction-specific overrides still optional)
+atr_multiplier: 0.012
+atr_multiplier_long: 0.011
+atr_multiplier_short: 0.013
 
 atr_window: 10
 atr_period_minutes: 1
+
+volatility_scaling:
+  enabled: true
+  target_move_pct: 0.0075
+  price_quantile: 0.5
+  atr_quantile: 0.7
+  mix: 0.6
+  multiplier_bounds:
+    min: 0.003
+    max: 0.05
+
+directional_balance:
+  enabled: true
+  target_ratio: 1.0
+  tolerance: 0.25
+  max_iterations: 6
+  adjust_step: 0.12
+  growth_factor: 0.6
+  min_directional: 30
+  multiplier_bounds:
+    min: 0.003
+    max: 0.06
 
 first_hit_logic:
   enabled: true

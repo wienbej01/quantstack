@@ -1,124 +1,54 @@
 {
   "status": "success",
-  "execution_time_seconds": -2.384185791015625e-07,
-  "configuration": {
-    "ticker": "BAC",
-    "period": "2024-01-02 to 2024-01-03",
-    "samples": 390,
-    "features": 29,
-    "atr_multiplier": 0.05
+  "timestamp": "2025-11-03T23:15:40.673437+00:00",
+  "artifacts_dir": "artefacts/extensions/intraday_ml/phaseA",
+  "policy": {
+    "order_qty": 100,
+    "prob_threshold_long": 0.55,
+    "prob_threshold_short": 0.55,
+    "score_margin": 0.05,
+    "min_directional_gap": 0.06,
+    "cooldown_minutes": 20,
+    "max_hold_minutes": 90
   },
-  "performance": {
-    "accuracy": 0.8846153846153846,
-    "brier_improvement": 0.03916698416510489,
-    "training_metrics": {
-      "accuracy": 0.8846153846153846,
-      "precision_macro": 0.9199999999999999,
-      "recall_macro": 0.7675585284280938,
-      "f1_macro": 0.8153594771241829,
-      "brier_score": 0.17302842488803002,
-      "brier_score_calibrated": 0.13386144072292513,
-      "brier_improvement": 0.03916698416510489,
-      "log_loss": 0.32613312039356107,
-      "log_loss_calibrated": 0.6990250519345882,
-      "class_metrics": {
-        "-1": {
-          "precision": 0.88,
-          "recall": 0.8461538461538461,
-          "f1": 0.8627450980392157
-        },
-        "0": {
-          "precision": 1.0,
-          "recall": 0.5,
-          "f1": 0.6666666666666666
-        },
-        "1": {
-          "precision": 0.88,
-          "recall": 0.9565217391304348,
-          "f1": 0.9166666666666666
-        }
-      },
-      "feature_importance": {
-        "f__ret__simple_1": "52",
-        "f__ret__simple_5": "56",
-        "f__ret__simple_10": "114",
-        "f__vol__atr_5": "61",
-        "f__vol__atr_14": "158",
-        "f__vol__rolling_std_5": "100",
-        "f__vol__rolling_std_20": "200",
-        "f__range__ratio_1.0": "157",
-        "f__vol__sum_5": "140",
-        "f__vol__sum_20": "209",
-        "f__vwap__value_5": "328",
-        "f__vwap__value_20": "169",
-        "f__vol__rel_20": "0",
-        "f__vwap__dist_5": "69",
-        "f__vwap__z_5_20": "89",
-        "f__vwap__dist_20": "166",
-        "f__vwap__z_20_20": "222",
-        "f__time__hour_sin": "17",
-        "f__time__hour_cos": "73",
-        "f__time__dow_sin": "0",
-        "f__time__dow_cos": "0",
-        "f__mom__roc_1": "9",
-        "f__mom__roc_5": "12",
-        "f__mom__roc_10": "16",
-        "f__mom__rsi_14": "187",
-        "f__ma__ratio_5": "66",
-        "f__ma__ratio_20": "103",
-        "f__micro__spread_5": "59",
-        "f__micro__imbalance_5": "130"
-      },
-      "top_features": [
-        [
-          "f__vwap__value_5",
-          "328"
-        ],
-        [
-          "f__vwap__z_20_20",
-          "222"
-        ],
-        [
-          "f__vol__sum_20",
-          "209"
-        ],
-        [
-          "f__vol__rolling_std_20",
-          "200"
-        ],
-        [
-          "f__mom__rsi_14",
-          "187"
-        ],
-        [
-          "f__vwap__value_20",
-          "169"
-        ],
-        [
-          "f__vwap__dist_20",
-          "166"
-        ],
-        [
-          "f__vol__atr_14",
-          "158"
-        ],
-        [
-          "f__range__ratio_1.0",
-          "157"
-        ],
-        [
-          "f__vol__sum_5",
-          "140"
-        ]
-      ],
-      "num_features": 29
+  "orders": {
+    "total": 12,
+    "entry_side_counts": {
+      "short": 4,
+      "long": 2
+    },
+    "reason_counts": {
+      "trade": 6,
+      "conviction_decay": 6
     }
   },
-  "artifacts": {
-    "manifest": "artefacts/extensions/intraday_ml/phaseA/manifest.json",
-    "training_data": "artefacts/extensions/intraday_ml/phaseA/training_data.parquet",
-    "model_dir": "artefacts/extensions/intraday_ml/phaseA/model_lgbm"
+  "rejections": {
+    "total": 2406,
+    "top_reasons": {
+      "gap_insufficient": 1963,
+      "below_threshold": 273,
+      "conviction_low": 93,
+      "time_filter": 62,
+      "cooldown": 12,
+      "holding_short": 3
+    }
   },
-  "architecture": "optimized_sliding_window_no_lookahead",
-  "timestamp": "2025-10-31T00:25:48.537487"
+  "performance": {
+    "total_return": -0.004814024063939826,
+    "annualized_return": -0.0005027947712777925,
+    "volatility": 0.00015437373038718947,
+    "sharpe_ratio": -132.8127183287863,
+    "max_drawdown": -0.0048143290639398595,
+    "max_drawdown_duration": 2160,
+    "total_commissions": 385.00000000000546,
+    "total_slippage": 0.0,
+    "fill_rate": 0.5,
+    "total_trades": 5,
+    "trades": 5,
+    "win_rate": 0.6,
+    "avg_R": -0.2120285907975739,
+    "total_pnl": -1.0601429539878695,
+    "fees_total": 3.85
+  },
+  "feature_coverage": "artefacts/extensions/intraday_ml/phaseA/feature_coverage.csv"
 }

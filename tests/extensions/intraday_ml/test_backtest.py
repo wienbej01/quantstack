@@ -151,6 +151,44 @@ class TestIntradayConstraints:
         assert shifted.iloc[1]["ts"] == 3000  # Shifted to next bar
         assert "original_signal_ts" in shifted.columns
 
+    def test_shift_to_next_bar_with_datetime(self):
+        """Ensure next-bar shift works when bars use timezone-aware timestamps."""
+        bars = pd.DataFrame(
+            {
+                "ts": pd.to_datetime(
+                    [
+                        "2025-04-01 13:30:00+00:00",
+                        "2025-04-01 13:40:00+00:00",
+                        "2025-04-01 13:50:00+00:00",
+                    ],
+                    utc=True,
+                ),
+                "symbol": ["BAC", "BAC", "BAC"],
+            }
+        )
+        orders = pd.DataFrame(
+            {
+                "ts": [pd.Timestamp("2025-04-01 13:30:00+00:00")],
+                "timestamp": [pd.Timestamp("2025-04-01 13:30:00+00:00")],
+                "symbol": ["BAC"],
+                "side": ["BUY"],
+                "qty": [100],
+            }
+        )
+
+        shifted = _shift_to_next_bar(orders, bars)
+
+        assert len(shifted) == 1
+        # Expect nanosecond integer matching the second bar
+        expected_ts = int(pd.Timestamp("2025-04-01 13:40:00+00:00").value)
+        assert shifted.iloc[0]["ts"] == expected_ts
+        assert shifted.iloc[0]["original_signal_ts"] == int(
+            pd.Timestamp("2025-04-01 13:30:00+00:00").value
+        )
+        assert shifted.iloc[0]["timestamp"] == pd.Timestamp(
+            "2025-04-01 13:40:00+00:00", tz="UTC"
+        )
+
     def test_filter_eod_violations(self):
         """Test filtering orders that would violate EOD flat constraint."""
         # Create simple test data - the EOD filtering is complex and timezone-dependent

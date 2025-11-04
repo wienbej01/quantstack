@@ -17,9 +17,23 @@ lgbm_params:
 
 # Class weights to handle imbalanced directional classes
 class_weights:
-  -1: 2.2
-  0: 0.5
-  1: 2.2
+  base:
+    -1: 1.9
+    0: 0.42
+    1: 1.9
+  auto_balance:
+    enabled: true
+    mix: 0.6
+    target_ratio: 1.0
+    tolerance: 0.2
+    ratio_adjust: 0.32
+    equalize_directional: true
+    neutral_weight_floor: 0.3
+    neutral_weight_cap: 0.6
+    missing_class_weight: 1.5
+    min_weight: 0.08
+    max_weight: 5.0
+    normalize: true
 
 training:
   early_stopping_rounds: 20

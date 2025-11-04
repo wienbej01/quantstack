@@ -16,6 +16,14 @@ import pandas as pd
 
 from qx_core.hashers import hash_dataframe
 
+
+def _ts_to_iso(value: Any) -> str:
+    """Convert assorted timestamp representations to ISO8601 strings."""
+    ts = pd.to_datetime(value, utc=True, errors="coerce")
+    if pd.isna(ts):
+        return str(value)
+    return ts.isoformat()
+
 from .universe_adapter import IntradayMLUniverseAdapter
 
 
@@ -262,7 +270,10 @@ class DatasetManifestBuilder:
         """
         feature_info = {
             "symbols": sorted(bars["symbol"].unique().tolist()),
-            "date_range": [bars["ts"].min().isoformat(), bars["ts"].max().isoformat()],
+            "date_range": [
+                _ts_to_iso(bars["ts"].min()),
+                _ts_to_iso(bars["ts"].max()),
+            ],
             "features_config": features_config,
             "data_hash": hash_dataframe(
                 bars, cols=["open", "high", "low", "close", "volume"]
@@ -317,7 +328,10 @@ def intraday_ml_get_features_hash(
     """
     feature_info = {
         "symbols": sorted(bars["symbol"].unique().tolist()),
-        "date_range": [bars["ts"].min().isoformat(), bars["ts"].max().isoformat()],
+        "date_range": [
+            _ts_to_iso(bars["ts"].min()),
+            _ts_to_iso(bars["ts"].max()),
+        ],
         "features_config": features_config,
         "data_hash": hash_dataframe(
             bars, cols=["open", "high", "low", "close", "volume"]

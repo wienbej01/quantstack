@@ -1,31 +1,52 @@
 {
-  "created_at": "2025-11-03T23:09:38.343319Z",
+  "created_at": "2025-11-04T00:36:14.431200Z",
   "gold_root": "/home/jacobw/gcs-mount/gold",
   "symbols": [
-    "bac"
+    "lyb",
+    "usb",
+    "gis",
+    "ball",
+    "exc",
+    "ttd",
+    "bkr"
   ],
   "date_ranges": {
     "train": {
-      "start": "2024-01-01",
-      "end": "2024-12-30"
+      "start": "2024-06-01",
+      "end": "2024-08-31"
     },
     "val": {},
     "test": {
-      "start": "2025-01-01",
-      "end": "2025-03-30"
+      "start": "2024-09-01",
+      "end": "2024-09-30"
     },
     "oos": {
-      "start": "2025-04-01",
-      "end": "2025-06-30"
+      "start": "2024-10-01",
+      "end": "2024-10-31"
     }
   },
-  "data_hash": "19ce1d8a3ee596ef9b1d9ac7bff37f803e2422af9fa17f95ac75d9a24fc16853",
-  "config_hash": "039fa16c7470652fdc81b3f740cc56776af43057da4af7af3628eed09419ec2a0c44e347ccb5d33c1de052870c52b22c2e4c99eb6a5dd635daadb7c1d19be4ce",
-  "universe_hash": "e56ca430d0488d0b3e9048d4111de5d368391da1a7190be55bfa350a3e16ce2b04dd5f1a2d63a5f3bd2355ff6b1a8d9c5343aa535481c3a3fbd9690a9823ae7d",
+  "data_hash": "a982c4d7faedea1c4593d3a8f34c484fc955bcf53ab665bd6507f826be31054f",
+  "config_hash": "5ca48912032c892eaa3ae3db56dc65855b24f0f7d1f4aa3f36bdaaa2ea9420d31ed10a387ae4774011480da8e805ff8904cd11d335f69890d9cee75c057363e2",
+  "universe_hash": "547eb766423b0810718b0aba34f945db108f131635cece18dfda21177d73e5142ff0dbf31a65c2600d7329a965353e0a8449a1ddc1287f2d4a09665b96ef9aea",
   "universe_config": {
     "symbols": [
-      "BAC"
-    ]
+      "TTD",
+      "BKR",
+      "BALL",
+      "USB",
+      "GIS",
+      "LYB",
+      "EXC"
+    ],
+    "min_price": 1.0,
+    "max_price": 250.0,
+    "min_avg_daily_volume": 0.0,
+    "min_relative_volume": 0.0,
+    "min_trading_days": 10,
+    "max_universe_size": 10,
+    "min_universe_size": 4,
+    "lookback_days": 20,
+    "volume_window": 30
   },
   "cuts_config": {
     "timezone": "America/New_York",
@@ -80,29 +101,29 @@
   },
   "splits_config": {
     "train": {
-      "start": "2024-01-01",
-      "end": "2024-12-30"
+      "start": "2024-06-01",
+      "end": "2024-08-31"
     },
     "test": {
-      "start": "2025-01-01",
-      "end": "2025-03-30"
+      "start": "2024-09-01",
+      "end": "2024-09-30"
     },
     "oos": {
-      "start": "2025-04-01",
-      "end": "2025-06-30"
+      "start": "2024-10-01",
+      "end": "2024-10-31"
     }
   },
-  "total_symbols": 1,
-  "total_days": 545,
+  "total_symbols": 7,
+  "total_days": 153,
   "universe_stats": {
-    "total_symbols_screened": 1,
-    "eligible_symbols": 1,
+    "total_symbols_screened": 7,
+    "eligible_symbols": 7,
     "price_range": [
-      47.28,
-      47.28
+      38.07,
+      120.21
     ],
-    "avg_dollar_volume": 73241211.60000001,
-    "avg_relative_volume": 16.956194314809935
+    "avg_dollar_volume": 11534909.762857143,
+    "avg_relative_volume": 11.751437110010183
   },
   "features_hash": null,
   "version": "1.0"

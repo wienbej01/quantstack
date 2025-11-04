@@ -138,8 +138,24 @@ max_total_features: 150
 ```yaml
 label_type: "triclass_atr_threshold"
 horizons: [30, 60, 90]  # minutes
-atr_multiplier: 1.0
+atr_multiplier: 0.038
+atr_multiplier_long: 0.036
+atr_multiplier_short: 0.040
 atr_window: 14
+volatility_scaling:
+  enabled: true
+  target_move_pct: 0.009
+  price_quantile: 0.55
+  atr_quantile: 0.75
+  mix: 0.55
+  multiplier_bounds: {min: 0.004, max: 0.08}
+directional_balance:
+  enabled: true
+  target_ratio: 1.0
+  tolerance: 0.2
+  max_iterations: 8
+  adjust_step: 0.1
+  multiplier_bounds: {min: 0.004, max: 0.09}
 first_hit_logic:
   enabled: true
   stop_at_hit: true
@@ -174,6 +190,7 @@ python run_phaseA_pipeline.py
 ### Model Performance
 - **Accuracy**: 40-60% (typical for tri-class financial prediction)
 - **Calibration**: Brier score improvement 5-15%
+- **Probability balance**: Auto-balanced class weights keep long/short probabilities within ±0.05.
 - **Feature Count**: 50-150 features (configurable)
 - **Training Time**: 1-5 minutes for full year of data
 
@@ -203,7 +220,8 @@ python -m pytest tests/extensions/intraday_ml/test_m1_smoke.py
 ### Common Issues
 
 **Q: All labels are 0 (neutral)**
-A: Check ATR multiplier - too high prevents any labels. Try `atr_multiplier: 0.5`.
+A: Review `volatility_scaling.target_move_pct` and `directional_balance` bounds; lowering the
+target move or the long/short multipliers will relax thresholds.
 
 **Q: Pipeline runs slowly**
 A: Reduce feature families or date range. Progress tracking shows current status.

@@ -1,0 +1,12 @@
+# Train for three months, validate one month, deploy one month.
+train:
+  start: "2024-06-01"
+  end: "2024-08-31"
+
+test:
+  start: "2024-09-01"
+  end: "2024-09-30"
+
+oos:
+  start: "2024-10-01"
+  end: "2024-10-31"

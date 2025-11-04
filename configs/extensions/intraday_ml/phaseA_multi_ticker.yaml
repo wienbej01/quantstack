@@ -1,17 +1,20 @@
-# Master config for Phase A pipeline
-artifacts: 'artefacts/extensions/intraday_ml/phaseA'
+# Master config for multi-ticker Phase A training / deployment
+artifacts: 'artefacts/extensions/intraday_ml/phaseA_multi'
 
 data:
   family: 'bars_10m'
 
 includes:
-  universe: 'configs/extensions/intraday_ml/universe_single.yaml'
-  splits: 'configs/extensions/intraday_ml/splits_pilot.yaml'
+  universe: 'configs/extensions/intraday_ml/universe_phaseA_multi.yaml'
+  splits: 'configs/extensions/intraday_ml/splits_2024_multi.yaml'
   cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
   features: 'configs/extensions/intraday_ml/features_10m.yaml'
   targets: 'configs/extensions/intraday_ml/targets_loose.yaml'
   model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
   cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'
+
+training_symbols: ["TTD", "BKR", "BALL", "USB", "GIS"]
+deployment_symbols: ["GIS", "LYB", "EXC"]
 
 policy:
   prob_threshold_long: 0.55
@@ -28,7 +31,6 @@ policy:
   score_margin: 0.05
   min_directional_gap: 0.06
   min_conviction_score: 0.015
-  max_entries_per_day:
   gap_exit_delay_minutes: 15
   conviction_decay_min_hold_minutes: 30
   conviction_decay_gap_multiplier: 0.6
