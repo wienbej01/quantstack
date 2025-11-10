@@ -5,7 +5,7 @@ data:
   family: 'bars_10m'
 
 sip_filter:
-  enabled: false
+  enabled: true
   mode: "sip_only"
   membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
 

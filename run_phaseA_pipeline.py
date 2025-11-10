@@ -21,7 +21,14 @@ from extensions.intraday_ml.dataset_manifest import DatasetManifestBuilder
 from extensions.intraday_ml_models.cv_runner import TimeSeriesCVRunner
 from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
 from extensions.intraday_ml_policies.calibration import compute_policy_calibration_stats
-from extensions.intraday_ml.reporting import build_run_summary, write_run_summary
+from typing import Any
+from extensions.intraday_ml.reporting import (
+    build_run_summary,
+    summarize_round_trip_trades,
+    write_run_summary,
+    write_trade_report,
+)
+from extensions.intraday_ml.sip_membership import get_phase_symbols_with_sip
 
 
 def _summarize_feature_coverage(
@@ -133,6 +140,10 @@ def main():
         data_loader_config.setdefault("root", "/home/jacobw/gcs-mount/gold")
         data_loader_config.setdefault("validate", True)
         data_loader_config.setdefault("sort", True)
+        
+        # SIP filter config
+        sip_config = master_config.get("sip_filter", {"enabled": False})
+
 
         # Step 1: Build Dataset Manifest
         print("\n🔧 Step 1: Building dataset manifest...")
@@ -200,8 +211,29 @@ def main():
                 + ". Check universe configuration."
             )
 
-        print(f"   Training symbols: {training_symbols}")
-        print(f"   Deployment symbols: {deployment_symbols}")
+        print(f"   Initial training symbols: {training_symbols}")
+        print(f"   Initial deployment symbols: {deployment_symbols}")
+
+        # Apply SIP filtering if enabled
+        sip_log = lambda message: print(f"   {message}")
+        training_symbols = get_phase_symbols_with_sip(
+            splits_config=configs["splits"],
+            sip_config=sip_config,
+            candidate_symbols=training_symbols,
+            phase="train",
+            log_fn=sip_log,
+        )
+        deployment_symbols = get_phase_symbols_with_sip(
+            splits_config=configs["splits"],
+            sip_config=sip_config,
+            candidate_symbols=deployment_symbols,
+            phase="oos",
+            log_fn=sip_log,
+        )
+
+        print(f"   Final training symbols: {training_symbols}")
+        print(f"   Final deployment symbols: {deployment_symbols}")
+
 
         # Step 2: Data Preparation (Features + Labels using sliding window)
         print("\n🔧 Step 2: Data preparation with aligned features and labels...")
@@ -228,6 +260,7 @@ def main():
             features_config=configs["features"],
             targets_config=configs["targets"],
             data_loader_config=data_loader_config,
+            include_ohlcv=True,
         )
 
         # Check if we got any data
@@ -306,12 +339,23 @@ def main():
                 [col for col in training_data_for_cv.columns if col.startswith("f__")]
             ]
             labels_for_cv = training_data_for_cv["label"]
+            context_columns_for_cv = [
+                column
+                for column in ["open", "high", "low", "close", "volume"]
+                if column in training_data_for_cv.columns
+            ]
+            context_data_for_cv = (
+                training_data_for_cv[context_columns_for_cv]
+                if context_columns_for_cv
+                else None
+            )
 
             cv_result = cv_runner.run_cv(
                 features=features_for_cv,
                 labels=labels_for_cv,
                 model_trainer=trainer,
                 model_config=configs["model"],
+                context_data=context_data_for_cv,
             )
             cv_runner.save_cv_results(cv_result, cv_report_path)
             print(f"✅ Cross-validation completed: {cv_report_path}")
@@ -515,6 +559,24 @@ def main():
             print("   Metrics:")
             for k, v in metrics_dict.items():
                 print(f"     - {k}: {v}")
+
+        trade_orders_df = backtest_artifacts.get(
+            "policy_orders", backtest_artifacts.get("orders")
+        )
+        trade_summary_df = summarize_round_trip_trades(
+            backtest_artifacts.get("fills"), trade_orders_df
+        )
+        if not trade_summary_df.empty:
+            trade_summary_path = artifact_dir / "trade_summary.parquet"
+            trade_summary_df.to_parquet(trade_summary_path, index=False)
+            trade_report_path = artifact_dir / "trade_summary.md"
+            write_trade_report(trade_summary_df, trade_report_path, max_rows=50)
+            print(
+                f"   Trade summary saved: {trade_summary_path} "
+                f"({len(trade_summary_df)} trades)"
+            )
+        else:
+            print("   Trade summary: no completed trades")
 
         run_summary = build_run_summary(
             metrics=metrics_dict,

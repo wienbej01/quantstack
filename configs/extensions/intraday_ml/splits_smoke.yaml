@@ -1,7 +1,12 @@
+# Smoke test splits (3 months train, 1 month val, 1 month oos)
 train:
-  start: 2024-01-02
-  end: 2024-01-03
+  start: "2024-01-02"
+  end:   "2024-03-31"
+
+val:
+  start: "2024-04-01"
+  end:   "2024-04-30"
 
 oos:
-  start: 2024-01-04
-  end: 2024-01-04
+  start: "2024-05-01"
+  end:   "2024-05-31"

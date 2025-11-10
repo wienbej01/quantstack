@@ -1,0 +1,50 @@
+# Master config for a smoke test of the Phase A pipeline with SIP enabled.
+#
+# This configuration is designed for a quick validation run. It uses a small
+# universe and a short date range.
+#
+# To run this smoke test, you must first generate a corresponding SIP membership file
+# for the dates and symbols defined in the included smoke test configs. 
+#
+# Example commands:
+#
+# 1. Generate SIP membership for the smoke test period:
+#    python -m extensions.intraday_ml.cli_build_sip_membership \
+#        --start-date 2023-01-02 \
+#        --end-date 2023-01-10 \
+#        --universe-config configs/extensions/intraday_ml/universe_smoke.yaml \
+#        --gold-root /path/to/your/gold_data
+#
+# 2. Run the Phase A pipeline with the smoke test config:
+#    python run_phaseA_pipeline.py --config configs/extensions/intraday_ml/phaseA_sip_smoke.yaml
+#
+
+artifacts: 'artefacts/extensions/intraday_ml/phaseA_smoke'
+
+data:
+  family: 'bars_10m'
+
+sip_filter:
+  enabled: true
+  mode: "sip_only"
+  # This path should point to where the SIP membership data is stored.
+  # For the smoke test, this would be the output of the cli_build_sip_membership command.
+  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+
+includes:
+  universe: 'configs/extensions/intraday_ml/universe_smoke.yaml'
+  splits: 'configs/extensions/intraday_ml/splits_smoke.yaml'
+  cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
+  features: 'configs/extensions/intraday_ml/features_10m.yaml'
+  targets: 'configs/extensions/intraday_ml/targets_loose.yaml'
+  model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
+  cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'
+
+# Using a minimal policy section for the smoke test
+policy:
+  prob_threshold_long: 0.55
+  prob_threshold_short: 0.55
+  cooldown_minutes: 20
+  min_time: "09:40:00"
+  max_time: "15:50:00"
+
