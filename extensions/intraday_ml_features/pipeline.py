@@ -147,13 +147,9 @@ class FeaturePipeline:
             self.feature_selector = FeatureSelector()
 
             if method == "mutual_info":
-                result = self.feature_selector.select_mutual_info(
-                    X_transformed, y, **params
-                )
+                result = self.feature_selector.select_mutual_info(X_transformed, y, **params)
             elif method == "univariate":
-                result = self.feature_selector.select_univariate(
-                    X_transformed, y, **params
-                )
+                result = self.feature_selector.select_univariate(X_transformed, y, **params)
             elif method == "rfe":
                 result = self.feature_selector.select_rfe(X_transformed, y, **params)
             elif method == "lasso":
@@ -216,9 +212,7 @@ class FeaturePipeline:
 
         return X_transformed
 
-    def fit_transform(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> pd.DataFrame:
+    def fit_transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
         """
         Fit pipeline and transform data.
 

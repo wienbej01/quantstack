@@ -34,7 +34,5 @@ class ModelValidator:
         if not feature_list:
             return ValidationResult(is_valid=False, issues=["No features provided"])
         if len(set(feature_list)) != len(feature_list):
-            return ValidationResult(
-                is_valid=False, issues=["Duplicate features present"]
-            )
+            return ValidationResult(is_valid=False, issues=["Duplicate features present"])
         return ValidationResult(is_valid=True, issues=[])

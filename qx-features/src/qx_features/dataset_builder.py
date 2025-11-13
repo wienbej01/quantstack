@@ -131,15 +131,9 @@ class DatasetBuilder:
 
         # Combine all symbols
         result = {
-            "train": (
-                pd.concat(train_dfs, ignore_index=True) if train_dfs else pd.DataFrame()
-            ),
-            "valid": (
-                pd.concat(valid_dfs, ignore_index=True) if valid_dfs else pd.DataFrame()
-            ),
-            "test": (
-                pd.concat(test_dfs, ignore_index=True) if test_dfs else pd.DataFrame()
-            ),
+            "train": (pd.concat(train_dfs, ignore_index=True) if train_dfs else pd.DataFrame()),
+            "valid": (pd.concat(valid_dfs, ignore_index=True) if valid_dfs else pd.DataFrame()),
+            "test": (pd.concat(test_dfs, ignore_index=True) if test_dfs else pd.DataFrame()),
         }
 
         return result
@@ -215,9 +209,7 @@ class DatasetBuilder:
             # Calculate statistics
             stats = {
                 "n_samples": len(split_df),
-                "n_symbols": (
-                    split_df["symbol"].nunique() if "symbol" in split_df.columns else 0
-                ),
+                "n_symbols": (split_df["symbol"].nunique() if "symbol" in split_df.columns else 0),
                 "start_time": (
                     pd.Timestamp(split_df["ts"].min()).isoformat()
                     if "ts" in split_df.columns
@@ -229,14 +221,10 @@ class DatasetBuilder:
                     else None
                 ),
                 "target_mean": (
-                    float(split_df[target_col].mean())
-                    if target_col in split_df.columns
-                    else None
+                    float(split_df[target_col].mean()) if target_col in split_df.columns else None
                 ),
                 "target_std": (
-                    float(split_df[target_col].std())
-                    if target_col in split_df.columns
-                    else None
+                    float(split_df[target_col].std()) if target_col in split_df.columns else None
                 ),
             }
 
@@ -258,9 +246,7 @@ class DatasetBuilder:
         total_samples = sum(len(df) for df in splits.values())
         manifest["statistics"]["total_samples"] = total_samples
         manifest["statistics"]["train_ratio"] = (
-            len(splits.get("train", pd.DataFrame())) / total_samples
-            if total_samples > 0
-            else 0
+            len(splits.get("train", pd.DataFrame())) / total_samples if total_samples > 0 else 0
         )
 
         return manifest
@@ -422,9 +408,7 @@ class DatasetBuilder:
         for i, (name_i, times_i) in enumerate(all_timestamps):
             for j, (name_j, times_j) in enumerate(all_timestamps):
                 if i < j and times_i & times_j:
-                    raise ValueError(
-                        f"Data leakage detected between {name_i} and {name_j}"
-                    )
+                    raise ValueError(f"Data leakage detected between {name_i} and {name_j}")
 
         return True
 
@@ -462,16 +446,12 @@ def create_ml_dataset_from_features(
     df_features = apply(df, feature_configs)
 
     # Extract feature columns
-    feature_cols = [
-        col for col in df_features.columns if col.startswith(("f__", "p__", "conf__"))
-    ]
+    feature_cols = [col for col in df_features.columns if col.startswith(("f__", "p__", "conf__"))]
 
     # Simple target definition for now (e.g., next period return)
     if target_definition == "next_return":
         df_features = df_features.sort_values(["symbol", "ts"]).reset_index(drop=True)
-        df_features["target"] = (
-            df_features.groupby("symbol")["close"].pct_change().shift(-1)
-        )
+        df_features["target"] = df_features.groupby("symbol")["close"].pct_change().shift(-1)
         target_col = "target"
     else:
         # Assume target already exists

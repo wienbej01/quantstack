@@ -8,6 +8,7 @@ recomputing SIP on-the-fly and ensures consistency.
 The core logic for *calculating* SIP is handled by `qx_screener.hmm_sip.HMMSIPUniverseSelector`
 in `legacy` mode. This module is only responsible for the I/O layer.
 """
+
 from __future__ import annotations
 
 import logging
@@ -69,9 +70,7 @@ def save_sip_membership(df: pd.DataFrame, gold_root: str | Path) -> None:
 
     # Normalize data types for consistent storage
     df_to_save = df.copy()
-    df_to_save["trade_date"] = pd.to_datetime(df_to_save["trade_date"]).dt.strftime(
-        "%Y-%m-%d"
-    )
+    df_to_save["trade_date"] = pd.to_datetime(df_to_save["trade_date"]).dt.strftime("%Y-%m-%d")
     df_to_save["symbol"] = df_to_save["symbol"].astype(str)
     df_to_save["is_sip"] = df_to_save["is_sip"].astype(bool)
 

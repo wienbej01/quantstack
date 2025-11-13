@@ -50,9 +50,7 @@ def scan_gcs_schemas(root_path: str = "/home/jacobw/gcs-mount") -> dict[str, Any
         unique_schemas = list(set(data["schemas"]))
         data["unique_schemas"] = len(unique_schemas)
         if len(unique_schemas) > 1:
-            issues.append(
-                f"Family {family} has {len(unique_schemas)} different schemas."
-            )
+            issues.append(f"Family {family} has {len(unique_schemas)} different schemas.")
 
     console.print(f"Total scanned: {total_scanned}")
     return {"families": families, "issues": issues}

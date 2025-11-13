@@ -93,12 +93,9 @@ class PolicyMetrics:
             self.avg_signal_strength = decision.signal_strength
         else:
             alpha = 0.1  # Smoothing factor
-            self.avg_confidence = (
-                alpha * decision.confidence + (1 - alpha) * self.avg_confidence
-            )
+            self.avg_confidence = alpha * decision.confidence + (1 - alpha) * self.avg_confidence
             self.avg_signal_strength = (
-                alpha * decision.signal_strength
-                + (1 - alpha) * self.avg_signal_strength
+                alpha * decision.signal_strength + (1 - alpha) * self.avg_signal_strength
             )
 
 
@@ -143,9 +140,7 @@ class BaseMLPolicy(ABC):
 
         # Configuration parameters
         self.min_confidence_threshold = self.config.get("min_confidence_threshold", 0.6)
-        self.signal_strength_threshold = self.config.get(
-            "signal_strength_threshold", 0.3
-        )
+        self.signal_strength_threshold = self.config.get("signal_strength_threshold", 0.3)
         self.position_size_method = self.config.get("position_size_method", "fixed")
         self.max_position_size = self.config.get("max_position_size", 1.0)
         self.risk_adjustment_enabled = self.config.get("risk_adjustment_enabled", True)
@@ -229,9 +224,7 @@ class BaseMLPolicy(ABC):
                 return None
 
             prediction_result = prediction_results[0]
-            prediction = (
-                prediction_result.prediction[0] if prediction_result.prediction else 0.0
-            )
+            prediction = prediction_result.prediction[0] if prediction_result.prediction else 0.0
             confidence = (
                 prediction_result.prediction_probability[0]
                 if prediction_result.prediction_probability
@@ -249,9 +242,7 @@ class BaseMLPolicy(ABC):
                 confidence = self._adjust_confidence(confidence, features, market_data)
 
             # Create policy decision
-            decision = self._create_decision(
-                signal, signal_strength, confidence, features
-            )
+            decision = self._create_decision(signal, signal_strength, confidence, features)
 
             # Update metrics
             self.metrics.update(decision)
@@ -335,9 +326,7 @@ class BaseMLPolicy(ABC):
             self.logger.error(f"Error extracting features: {e}")
             return None
 
-    def _get_market_data_context(
-        self, bar: pd.Series, portfolio: dict[str, Any]
-    ) -> pd.DataFrame:
+    def _get_market_data_context(self, bar: pd.Series, portfolio: dict[str, Any]) -> pd.DataFrame:
         """Get market data context for decision making."""
         # This is a simplified implementation
         # In practice, this would fetch recent market data for context
@@ -391,9 +380,7 @@ class BaseMLPolicy(ABC):
         symbol = features.get("symbol", "default")
         current_position = self.position_state.get(symbol, 0.0)
         position_ratio = (
-            abs(current_position) / self.max_position_size
-            if self.max_position_size > 0
-            else 0
+            abs(current_position) / self.max_position_size if self.max_position_size > 0 else 0
         )
 
         if position_ratio > 0.8:

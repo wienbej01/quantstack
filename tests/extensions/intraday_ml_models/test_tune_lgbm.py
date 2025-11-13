@@ -165,9 +165,7 @@ class TestBayesianLightGBMTuner:
         assert tuner.trade_rate_weight == 0.3
         assert tuner.max_trade_rate == 0.1
 
-    def test_initialize_parameter_bounds(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_initialize_parameter_bounds(self, model_config, cv_config, objective_config):
         """Test parameter bounds initialization."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -239,9 +237,7 @@ class TestBayesianLightGBMTuner:
         assert trial_config["decision_policy"]["probability_threshold"] == 0.7
         assert trial_config["decision_policy"]["cooldown"]["base_minutes"] == 15
 
-    def test_calculate_composite_objective(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_calculate_composite_objective(self, model_config, cv_config, objective_config):
         """Test composite objective calculation."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -264,9 +260,7 @@ class TestBayesianLightGBMTuner:
             total_time_seconds=60.0,
         )
 
-        objective_value, component_scores = tuner._calculate_composite_objective(
-            mock_cv_result
-        )
+        objective_value, component_scores = tuner._calculate_composite_objective(mock_cv_result)
 
         assert isinstance(objective_value, float)
         assert isinstance(component_scores, dict)
@@ -285,9 +279,7 @@ class TestBayesianLightGBMTuner:
         calculated_objective = sum(component_scores.values())
         assert np.isclose(objective_value, calculated_objective)
 
-    def test_calculate_trade_rate_penalty(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_calculate_trade_rate_penalty(self, model_config, cv_config, objective_config):
         """Test trade rate penalty calculation."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -307,9 +299,7 @@ class TestBayesianLightGBMTuner:
         penalty_very_high = tuner._calculate_trade_rate_penalty(0.5)
         assert penalty_very_high > penalty_above_max
 
-    def test_propose_next_parameters_random_phase(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_propose_next_parameters_random_phase(self, model_config, cv_config, objective_config):
         """Test parameter proposal in random phase."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -318,9 +308,7 @@ class TestBayesianLightGBMTuner:
         assert isinstance(params, dict)
         assert len(params) > 0
 
-    def test_propose_next_parameters_with_history(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_propose_next_parameters_with_history(self, model_config, cv_config, objective_config):
         """Test parameter proposal with optimization history."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -356,9 +344,7 @@ class TestBayesianLightGBMTuner:
         assert isinstance(params, dict)
         assert len(params) > 0
 
-    def test_calculate_convergence_info(
-        self, model_config, cv_config, objective_config
-    ):
+    def test_calculate_convergence_info(self, model_config, cv_config, objective_config):
         """Test convergence information calculation."""
         tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
 
@@ -400,9 +386,7 @@ class TestBayesianLightGBMTuner:
         assert convergence["total_trials"] == 25
 
     @pytest.mark.skip(reason="Integration test with actual optimization")
-    def test_optimize_integration(
-        self, model_config, cv_config, objective_config, sample_data
-    ):
+    def test_optimize_integration(self, model_config, cv_config, objective_config, sample_data):
         """Integration test for complete optimization."""
         features, targets = sample_data
         BayesianLightGBMTuner(model_config, cv_config, objective_config)

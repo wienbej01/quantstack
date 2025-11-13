@@ -163,15 +163,11 @@ def test_basic_linting():
             text=True,
             timeout=30,
         )
-        error_count = (
-            len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
-        )
+        error_count = len(result.stdout.strip().split("\n")) if result.stdout.strip() else 0
         if error_count == 0:
             print("   ✅ No critical syntax errors in qx-core")
         else:
-            print(
-                f"   ⚠️  {error_count} potential issues found (acceptable for development)"
-            )
+            print(f"   ⚠️  {error_count} potential issues found (acceptable for development)")
     except subprocess.TimeoutExpired:
         print("   ⚠️  Linting timeout (may be acceptable)")
 

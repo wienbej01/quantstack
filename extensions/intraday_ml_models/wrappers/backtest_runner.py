@@ -19,9 +19,7 @@ import yaml
 def load_model(model_dir: str) -> Any:
     class DummyModel:
         def predict_proba(self, df: pd.DataFrame) -> pd.DataFrame:
-            return pd.DataFrame(
-                {"prob_30": 0.6, "prob_60": 0.65, "prob_90": 0.55}, index=df.index
-            )
+            return pd.DataFrame({"prob_30": 0.6, "prob_60": 0.65, "prob_90": 0.55}, index=df.index)
 
     return DummyModel()
 
@@ -59,9 +57,9 @@ def decision_policy(features, probabilities, **kwargs):
     # Apply the probability threshold
     if "probability_threshold" in kwargs:
         # Assuming single horizon for simplicity
-        signals["signal"] = (
-            probabilities["prob_30"] >= kwargs["probability_threshold"]
-        ).astype(int)
+        signals["signal"] = (probabilities["prob_30"] >= kwargs["probability_threshold"]).astype(
+            int
+        )
     else:
         signals["signal"] = 1
     signals["expected_value"] = 0.1  # Dummy expected value
@@ -72,9 +70,7 @@ def decision_policy(features, probabilities, **kwargs):
 
 from extensions.intraday_ml_models.wrappers.order_sizer_fixed1 import get_sizer
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def run(policy_config_path: str, backtest_config: dict) -> None:

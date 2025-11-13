@@ -119,9 +119,7 @@ class TestInputValidation:
                 "volume": [1000],
             }
         )
-        orders = pd.DataFrame(
-            {"ts": [2], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
-        )
+        orders = pd.DataFrame({"ts": [2], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]})
 
         # Should not raise exception
         _validate_inputs(bars, orders)
@@ -132,9 +130,7 @@ class TestIntradayConstraints:
 
     def test_shift_to_next_bar(self):
         """Test shifting order execution to next bar."""
-        bars = pd.DataFrame(
-            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
-        )
+        bars = pd.DataFrame({"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]})
         orders = pd.DataFrame(
             {
                 "ts": [1000, 2000],
@@ -185,17 +181,13 @@ class TestIntradayConstraints:
         assert shifted.iloc[0]["original_signal_ts"] == int(
             pd.Timestamp("2025-04-01 13:30:00+00:00").value
         )
-        assert shifted.iloc[0]["timestamp"] == pd.Timestamp(
-            "2025-04-01 13:40:00+00:00", tz="UTC"
-        )
+        assert shifted.iloc[0]["timestamp"] == pd.Timestamp("2025-04-01 13:40:00+00:00", tz="UTC")
 
     def test_filter_eod_violations(self):
         """Test filtering orders that would violate EOD flat constraint."""
         # Create simple test data - the EOD filtering is complex and timezone-dependent
         # For this test, we just verify the function runs without error
-        bars = pd.DataFrame(
-            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
-        )
+        bars = pd.DataFrame({"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]})
 
         orders = pd.DataFrame(
             {
@@ -215,12 +207,8 @@ class TestIntradayConstraints:
 
     def test_apply_intraday_constraints(self):
         """Test applying all intraday constraints."""
-        bars = pd.DataFrame(
-            {"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]}
-        )
-        orders = pd.DataFrame(
-            {"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
-        )
+        bars = pd.DataFrame({"ts": [1000, 2000, 3000], "symbol": ["AAPL", "AAPL", "AAPL"]})
+        orders = pd.DataFrame({"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]})
 
         config = {
             "intraday_constraints": {
@@ -230,9 +218,7 @@ class TestIntradayConstraints:
             }
         }
 
-        processed_bars, processed_orders = _apply_intraday_constraints(
-            bars, orders, config
-        )
+        processed_bars, processed_orders = _apply_intraday_constraints(bars, orders, config)
 
         assert len(processed_orders) == 1
         assert processed_orders.iloc[0]["ts"] == 2000  # Shifted to next bar
@@ -350,11 +336,7 @@ class TestStrategyWrapper:
         mock_position.quantity = 50
         mock_engine.get_position.return_value = mock_position
 
-        ts = (
-            pd.Timestamp("2025-11-03 16:00:00", tz="America/New_York")
-            .tz_convert("UTC")
-            .value
-        )
+        ts = pd.Timestamp("2025-11-03 16:00:00", tz="America/New_York").tz_convert("UTC").value
         bar = {"ts": ts, "symbol": "AAPL", "close": 100.0}
 
         strategy(mock_engine, bar)
@@ -377,9 +359,7 @@ class TestResultConversion:
         # Mock result object
         result = Mock()
         result.metrics = {"trades": 10, "pnl": 1000.0}
-        result.equity_curve = pd.DataFrame(
-            {"timestamp": [1, 2], "equity": [1000, 1100]}
-        )
+        result.equity_curve = pd.DataFrame({"timestamp": [1, 2], "equity": [1000, 1100]})
         result.positions_history = [{"timestamp": 1, "position": 100}]
         result.trades_history = [{"timestamp": 1, "pnl": 10}]
         result.orders_history = [{"timestamp": 1, "symbol": "AAPL"}]
@@ -503,9 +483,7 @@ class TestIntegration:
         # Mock engine result
         mock_result = Mock()
         mock_result.metrics = {"trades": 1, "pnl": 20.0}
-        mock_result.equity_curve = pd.DataFrame(
-            {"timestamp": [1, 2], "equity": [1000, 1020]}
-        )
+        mock_result.equity_curve = pd.DataFrame({"timestamp": [1, 2], "equity": [1000, 1020]})
         mock_result.positions_history = []
         mock_result.trades_history = [
             {
@@ -542,9 +520,7 @@ class TestIntegration:
             }
         )
 
-        orders = pd.DataFrame(
-            {"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]}
-        )
+        orders = pd.DataFrame({"ts": [1000], "symbol": ["AAPL"], "side": ["BUY"], "qty": [100]})
 
         cfg = {"initial_cash": 1000000.0}
 

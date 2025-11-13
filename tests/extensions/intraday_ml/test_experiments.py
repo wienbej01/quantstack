@@ -59,8 +59,7 @@ class TestExperimentOrchestration:
         """Create test bars DataFrame."""
         return pd.DataFrame(
             {
-                "ts": [1704230400000000000, 1704230460000000000]
-                * 2,  # 2 timestamps for 2 symbols
+                "ts": [1704230400000000000, 1704230460000000000] * 2,  # 2 timestamps for 2 symbols
                 "symbol": ["AAPL", "AAPL", "MSFT", "MSFT"],
                 "open": [150.0, 151.0, 250.0, 251.0],
                 "high": [152.0, 153.0, 252.0, 253.0],
@@ -126,9 +125,7 @@ class TestExperimentOrchestration:
 
         # Add VWAP for signal generation
         test_bars["vwap"] = test_bars["close"]  # Simple VWAP
-        test_bars["deviation"] = (test_bars["close"] - test_bars["vwap"]) / test_bars[
-            "vwap"
-        ]
+        test_bars["deviation"] = (test_bars["close"] - test_bars["vwap"]) / test_bars["vwap"]
 
         screened_universe = pd.DataFrame({"symbol": ["AAPL", "MSFT"]})
         config = self._create_test_config()
@@ -332,9 +329,7 @@ class TestPipelineExecution:
     @patch("extensions.intraday_ml.experiments.intraday_ml_size_orders")
     @patch("extensions.intraday_ml.experiments.intraday_ml_screen_universe")
     @patch("extensions.intraday_ml.experiments.intraday_ml_apply_features")
-    def test_run_single_pipeline(
-        self, mock_features, mock_screen, mock_risk, mock_backtest
-    ):
+    def test_run_single_pipeline(self, mock_features, mock_screen, mock_risk, mock_backtest):
         """Test single variant pipeline execution."""
         base_data, config = self._create_test_pipeline_data()
 

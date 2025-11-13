@@ -1,0 +1,78 @@
+# Master config for Phase A pipeline (Sprint 2 big-move targets)
+artifacts: 'artefacts/extensions/intraday_ml/phaseA_bigmove'
+
+data:
+  family: 'bars_10m'
+
+sip_filter:
+  enabled: true
+  mode: "sip_only"
+  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+
+label_buffer_days: 10
+
+includes:
+  universe: 'configs/extensions/intraday_ml/universe_single.yaml'
+  splits: 'configs/extensions/intraday_ml/splits_pilot.yaml'
+  cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
+  features: 'configs/extensions/intraday_ml/features_10m.yaml'
+  targets: 'configs/extensions/intraday_ml/targets_bigmove.yaml'
+  model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
+  cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'
+
+policy:
+  prob_threshold_long: 0.68
+  prob_threshold_short: 0.68
+  cooldown_minutes: 25
+  min_time: "09:45:00"
+  max_time: "15:45:00"
+  stop_loss_pct: 0.008
+  take_profit_pct: 0.018
+  order_qty: 75
+  exit_threshold_long: 0.6
+  exit_threshold_short: 0.6
+  max_hold_minutes: 120
+  score_margin: 0.08
+  min_directional_gap: 0.08
+  min_conviction_score: 0.025
+  max_entries_per_day: 3
+  gap_exit_delay_minutes: 20
+  conviction_decay_min_hold_minutes: 45
+  conviction_decay_gap_multiplier: 0.5
+  conviction_decay_conv_multiplier: 0.5
+  risk:
+    atr_feature: "f__vol__atr_6"
+    support_feature_long: "low"
+    resistance_feature_short: "high"
+    max_atr_multiple: 1.1
+    support_buffer_atr: 0.15
+    target_r_multiple: 2.0
+  calibration:
+    enabled: true
+    quantiles: [0.55, 0.75, 0.9, 0.97]
+    prob_long_percentile: 0.85
+    prob_short_percentile: 0.85
+    gap_percentile: 0.8
+    conviction_percentile: 0.8
+    prob_exit_offset: 0.04
+    floors:
+      prob_threshold_long: 0.6
+      prob_threshold_short: 0.6
+      exit_threshold_long: 0.55
+      exit_threshold_short: 0.55
+      min_directional_gap: 0.06
+      min_conviction_score: 0.02
+    ceilings:
+      prob_threshold_long: 0.9
+      prob_threshold_short: 0.9
+      min_directional_gap: 0.25
+      min_conviction_score: 0.35
+    bias_correction:
+      enabled: true
+      metric: "median"
+      scale: 0.5
+      max_adjustment: 0.05
+      apply_to_exit: true
+    min_samples: 150
+    max_samples_per_symbol: 4000
+    stats_filename: "policy_calibration_bigmove.json"

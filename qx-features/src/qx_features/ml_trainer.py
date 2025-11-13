@@ -156,9 +156,7 @@ class ModelTrainer:
         # Validation metrics if validation data provided
         valid_metrics = {}
         if X_valid is not None and y_valid is not None:
-            X_valid_prep, y_valid_prep = self.prepare_data(
-                X_valid, y_valid, scale_features
-            )
+            X_valid_prep, y_valid_prep = self.prepare_data(X_valid, y_valid, scale_features)
             valid_pred = self.model.predict(X_valid_prep)
             valid_proba = (
                 self.model.predict_proba(X_valid_prep)[:, 1]
@@ -172,9 +170,7 @@ class ModelTrainer:
             }
 
             if valid_proba is not None:
-                valid_metrics["roc_auc"] = float(
-                    roc_auc_score(y_valid_prep, valid_proba)
-                )
+                valid_metrics["roc_auc"] = float(roc_auc_score(y_valid_prep, valid_proba))
 
         # Store training metadata
         self.training_metadata = {

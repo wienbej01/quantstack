@@ -27,12 +27,8 @@ def entry_ab(
         help="Variant overlay files pattern, e.g., configs/extensions/intraday_ml/overlays/*.yaml",
     ),
     name: str = typer.Option(..., "--name", help="Experiment ID"),
-    force: bool = typer.Option(
-        False, "--force", help="Force run even if checksums differ"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Show experiment plan without executing"
-    ),
+    force: bool = typer.Option(False, "--force", help="Force run even if checksums differ"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Show experiment plan without executing"),
 ) -> None:
     """Run entry A/B test with multiple intraday ML policy variants."""
     console.print(f"[bold blue]Intraday ML Entry/A/B Experiment[/bold blue]: {name}")

@@ -17,9 +17,7 @@ from extensions.intraday_ml_monitoring.validator import ModelValidator
 @pytest.fixture
 def sample_intraday_data():
     """Create realistic intraday data for testing."""
-    dates = pd.date_range(
-        "2024-01-01 09:30:00", periods=390, freq="1min"
-    )  # One trading day
+    dates = pd.date_range("2024-01-01 09:30:00", periods=390, freq="1min")  # One trading day
     np.random.seed(42)  # For reproducible tests
 
     # Simulate price movement with trend and volatility
@@ -48,9 +46,7 @@ def sample_intraday_data():
     data["f__rel_volume_30"] = data["volume"] / data["volume"].rolling(30).mean()
     data["f__atr_14"] = data["high"] - data["low"]  # Simplified ATR
     data["f__vwap_distance"] = (data["close"] - data["f__vwap_30"]) / data["f__vwap_30"]
-    data["f__price_position"] = (data["close"] - data["low"]) / (
-        data["high"] - data["low"]
-    )
+    data["f__price_position"] = (data["close"] - data["low"]) / (data["high"] - data["low"])
 
     return data.dropna()
 
@@ -116,9 +112,7 @@ class TestEndToEndWorkflow:
     def test_feature_selection_integration(self, sample_intraday_data):
         """Test feature selection integration."""
         # Prepare data
-        features = sample_intraday_data.drop(
-            columns=["close", "open", "high", "low", "volume"]
-        )
+        features = sample_intraday_data.drop(columns=["close", "open", "high", "low", "volume"])
         target = sample_intraday_data["close"].pct_change(3).shift(-3).dropna()
         features = features.iloc[:-3]
 
@@ -126,9 +120,7 @@ class TestEndToEndWorkflow:
         selector = FeatureSelector()
 
         # Univariate selection
-        result_univariate = selector.select_univariate(
-            X=features, y=target, method="k_best", k=3
-        )
+        result_univariate = selector.select_univariate(X=features, y=target, method="k_best", k=3)
 
         # Mutual information selection
         result_mutual = selector.select_mutual_info(X=features, y=target, k=3)
@@ -160,16 +152,12 @@ class TestEndToEndWorkflow:
         assert reg_metrics["mse"] >= 0
 
         # Rolling metrics
-        rolling_metrics = calculator.calculate_rolling_metrics(
-            predictions, actuals, window=30
-        )
+        rolling_metrics = calculator.calculate_rolling_metrics(predictions, actuals, window=30)
         assert isinstance(rolling_metrics, pd.DataFrame)
         assert "rolling_mse" in rolling_metrics.columns
 
         # Uncertainty metrics
-        uncertainty = calculator.calculate_uncertainty_metrics(
-            probabilities, predictions
-        )
+        uncertainty = calculator.calculate_uncertainty_metrics(probabilities, predictions)
         assert "avg_confidence" in uncertainty
         assert 0 <= uncertainty["avg_confidence"] <= 1
 
@@ -397,12 +385,8 @@ class TestPerformanceRequirements:
         ).iloc[:-3]
 
         # Run selection twice with same seed
-        result1 = selector.select_mutual_info(
-            X=features, y=target, k=3, random_state=42
-        )
-        result2 = selector.select_mutual_info(
-            X=features, y=target, k=3, random_state=42
-        )
+        result1 = selector.select_mutual_info(X=features, y=target, k=3, random_state=42)
+        result2 = selector.select_mutual_info(X=features, y=target, k=3, random_state=42)
 
         # Results should be identical
         assert result1.selected_features == result2.selected_features

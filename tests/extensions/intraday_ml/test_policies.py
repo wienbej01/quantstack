@@ -317,9 +317,7 @@ class TestMLRegressionPolicy:
             mock_registry.get_metadata.return_value = regression_metadata
             mock_registry_class.return_value = mock_registry
 
-            policy = MLRegressionPolicy(
-                model_id="test_model", prediction_threshold=0.01
-            )
+            policy = MLRegressionPolicy(model_id="test_model", prediction_threshold=0.01)
 
             # Test positive prediction (expected return)
             positive_prediction = PredictionResult(

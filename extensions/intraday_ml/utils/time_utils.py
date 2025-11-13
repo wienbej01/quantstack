@@ -48,9 +48,7 @@ def normalize_timestamp_series(
 
     series = _coerce_to_series(values)
     if series.empty:
-        return pd.Series(
-            [], index=series.index, name=series.name, dtype="datetime64[ns]"
-        )
+        return pd.Series([], index=series.index, name=series.name, dtype="datetime64[ns]")
 
     market_zone = ZoneInfo(market_tz)
     utc_series = _coerce_to_utc(series, market_zone, assume_naive_as_market)

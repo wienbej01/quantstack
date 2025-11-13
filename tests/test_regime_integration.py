@@ -42,9 +42,7 @@ def sample_ohlcv_data():
                 continue
 
             # Simulate market data with regime characteristics
-            base_price = (
-                100.0 if symbol == "AAPL" else (150.0 if symbol == "MSFT" else 200.0)
-            )
+            base_price = 100.0 if symbol == "AAPL" else (150.0 if symbol == "MSFT" else 200.0)
 
             # Add some randomness and trend
             noise = np.random.normal(0, 0.001)
@@ -165,9 +163,7 @@ class TestRegimeBacktestIntegration:
         assert "cached_segments" in stats
         assert "current_segment" in stats
 
-    def test_strategy_gating_in_different_regimes(
-        self, sample_ohlcv_data, regime_config
-    ):
+    def test_strategy_gating_in_different_regimes(self, sample_ohlcv_data, regime_config):
         """Test strategy gating behavior in different regimes."""
         # Add regime features
         features_config = [{"type": "regime_basics"}]
@@ -436,17 +432,13 @@ class TestRegimeRiskIntegration:
                 "regime_adjustments": {
                     engine.get_current_regime().value: {
                         "risk_multiplier": (
-                            0.8
-                            if engine.get_current_regime() == RegimeType.BEAR
-                            else 1.0
+                            0.8 if engine.get_current_regime() == RegimeType.BEAR else 1.0
                         )
                     }
                 },
             }
 
-            size = size_order(
-                signal, equity, atr, risk_params, engine.get_current_regime()
-            )
+            size = size_order(signal, equity, atr, risk_params, engine.get_current_regime())
             if size:
                 position_sizes.append(
                     {
@@ -562,10 +554,7 @@ class TestEndToEndRegimeWorkflow:
             # Different strategies for different regimes
             if current_regime == RegimeType.BULL:
                 # Momentum strategy
-                if (
-                    bar["f__ta__vwap_30"]
-                    and bar["close"] > bar["f__ta__vwap_30"] * 1.01
-                ):
+                if bar["f__ta__vwap_30"] and bar["close"] > bar["f__ta__vwap_30"] * 1.01:
                     order = engine.order_factory.create_order(
                         symbol=bar["symbol"],
                         side="BUY",
@@ -578,10 +567,7 @@ class TestEndToEndRegimeWorkflow:
 
             elif current_regime in [RegimeType.BEAR, RegimeType.SIDEWAYS]:
                 # Reversion strategy
-                if (
-                    bar["f__ta__vwap_30"]
-                    and bar["close"] < bar["f__ta__vwap_30"] * 0.99
-                ):
+                if bar["f__ta__vwap_30"] and bar["close"] < bar["f__ta__vwap_30"] * 0.99:
                     order = engine.order_factory.create_order(
                         symbol=bar["symbol"],
                         side="BUY",

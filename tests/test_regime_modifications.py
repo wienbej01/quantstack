@@ -82,21 +82,21 @@ class TestRegimeThresholdDefaults:
         config = RegimeDetectorConfig()
 
         # Check all the updated threshold values
-        assert (
-            config.variance_ratio_bull == 1.2
-        ), f"Expected variance_ratio_bull = 1.2, got {config.variance_ratio_bull}"
-        assert (
-            config.variance_ratio_bear == 0.8
-        ), f"Expected variance_ratio_bear = 0.8, got {config.variance_ratio_bear}"
-        assert (
-            config.adx_trend_threshold == 20.0
-        ), f"Expected adx_trend_threshold = 20.0, got {config.adx_trend_threshold}"
-        assert (
-            config.volatility_high_threshold == 1.6
-        ), f"Expected volatility_high_threshold = 1.6, got {config.volatility_high_threshold}"
-        assert (
-            config.volatility_low_threshold == 0.8
-        ), f"Expected volatility_low_threshold = 0.8, got {config.volatility_low_threshold}"
+        assert config.variance_ratio_bull == 1.2, (
+            f"Expected variance_ratio_bull = 1.2, got {config.variance_ratio_bull}"
+        )
+        assert config.variance_ratio_bear == 0.8, (
+            f"Expected variance_ratio_bear = 0.8, got {config.variance_ratio_bear}"
+        )
+        assert config.adx_trend_threshold == 20.0, (
+            f"Expected adx_trend_threshold = 20.0, got {config.adx_trend_threshold}"
+        )
+        assert config.volatility_high_threshold == 1.6, (
+            f"Expected volatility_high_threshold = 1.6, got {config.volatility_high_threshold}"
+        )
+        assert config.volatility_low_threshold == 0.8, (
+            f"Expected volatility_low_threshold = 0.8, got {config.volatility_low_threshold}"
+        )
         assert config.persistence_bars in (
             2,
             3,
@@ -127,12 +127,12 @@ class TestPolicyParameterThresholds:
         params = PolicyParameters()
 
         # Check the updated risk parameters
-        assert (
-            params.min_risk_reward == 1.0
-        ), f"Expected min_risk_reward = 1.0, got {params.min_risk_reward}"
-        assert (
-            params.min_atr_value == 0.005
-        ), f"Expected min_atr_value = 0.005, got {params.min_atr_value}"
+        assert params.min_risk_reward == 1.0, (
+            f"Expected min_risk_reward = 1.0, got {params.min_risk_reward}"
+        )
+        assert params.min_atr_value == 0.005, (
+            f"Expected min_atr_value = 0.005, got {params.min_atr_value}"
+        )
 
         print("✓ Base PolicyParameters defaults are correct")
 
@@ -150,12 +150,12 @@ class TestPolicyParameterThresholds:
             params = param_class()
 
             # All should inherit the new base defaults
-            assert (
-                params.min_risk_reward == 1.0
-            ), f"{param_class.__name__} expected min_risk_reward = 1.0, got {params.min_risk_reward}"
-            assert (
-                params.min_atr_value == 0.005
-            ), f"{param_class.__name__} expected min_atr_value = 0.005, got {params.min_atr_value}"
+            assert params.min_risk_reward == 1.0, (
+                f"{param_class.__name__} expected min_risk_reward = 1.0, got {params.min_risk_reward}"
+            )
+            assert params.min_atr_value == 0.005, (
+                f"{param_class.__name__} expected min_atr_value = 0.005, got {params.min_atr_value}"
+            )
 
         print("✓ All strategy-specific parameters inherit new defaults")
 
@@ -168,9 +168,9 @@ class TestNoSyntheticDataUsage:
         import test_regime_pilot
 
         # Assert that create_synthetic_data function does not exist
-        assert not hasattr(
-            test_regime_pilot, "create_synthetic_data"
-        ), "test_regime_pilot still has create_synthetic_data function"
+        assert not hasattr(test_regime_pilot, "create_synthetic_data"), (
+            "test_regime_pilot still has create_synthetic_data function"
+        )
 
         print("✓ test_regime_pilot.py does not have create_synthetic_data function")
 
@@ -187,24 +187,22 @@ class TestNoSyntheticDataUsage:
         source = inspect.getsource(test_regime_pilot.load_test_data)
 
         # Verify it contains the proper error messages
-        assert (
-            "synthetic data is forbidden" in source
-        ), "load_test_data missing synthetic data prohibition message"
-        assert (
-            "Real data is required" in source
-        ), "load_test_data missing real data requirement message"
+        assert "synthetic data is forbidden" in source, (
+            "load_test_data missing synthetic data prohibition message"
+        )
+        assert "Real data is required" in source, (
+            "load_test_data missing real data requirement message"
+        )
 
         # Verify it does NOT contain any references to synthetic data creation
-        assert (
-            "create_synthetic_data" not in source
-        ), "load_test_data still references create_synthetic_data"
-        assert (
-            "synthetic" not in source.lower() or "synthetic data is forbidden" in source
-        ), "load_test_data contains unwanted synthetic data references"
-
-        print(
-            "✓ load_test_data has proper fail-fast behavior without synthetic fallback"
+        assert "create_synthetic_data" not in source, (
+            "load_test_data still references create_synthetic_data"
         )
+        assert "synthetic" not in source.lower() or "synthetic data is forbidden" in source, (
+            "load_test_data contains unwanted synthetic data references"
+        )
+
+        print("✓ load_test_data has proper fail-fast behavior without synthetic fallback")
 
     def test_no_synthetic_data_in_test_files(self):
         """Test that no test files contain create_synthetic_data references."""
@@ -227,12 +225,12 @@ class TestNoSyntheticDataUsage:
                 if "create_synthetic_data(" in content:
                     synthetic_calls_found.append(os.path.basename(file_path))
 
-        assert (
-            len(synthetic_functions_found) == 0
-        ), f"Found create_synthetic_data function definitions in: {synthetic_functions_found}"
-        assert (
-            len(synthetic_calls_found) == 0
-        ), f"Found create_synthetic_data function calls in: {synthetic_calls_found}"
+        assert len(synthetic_functions_found) == 0, (
+            f"Found create_synthetic_data function definitions in: {synthetic_functions_found}"
+        )
+        assert len(synthetic_calls_found) == 0, (
+            f"Found create_synthetic_data function calls in: {synthetic_calls_found}"
+        )
 
         print(f"✓ No synthetic data functions found in {len(test_files)} test files")
 
@@ -265,9 +263,7 @@ class TestIntegrationSmoke:
             and not col.startswith("f__vpa__")
             and not col.startswith("f__stress__")
         ]
-        regime_features = [
-            col for col in df_features.columns if col.startswith("f__regime__")
-        ]
+        regime_features = [col for col in df_features.columns if col.startswith("f__regime__")]
         enhanced_features = [
             col
             for col in df_features.columns

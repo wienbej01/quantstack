@@ -26,11 +26,7 @@ def _create_mock_engine() -> type:
             return self.portfolio.positions.get(symbol)
 
         def get_pending_orders(self, symbol: str) -> list[Any]:
-            return [
-                o
-                for o in self.orders
-                if o.symbol == symbol and hasattr(o, "is_pending")
-            ]
+            return [o for o in self.orders if o.symbol == symbol and hasattr(o, "is_pending")]
 
         def submit_order(self, order: MockOrder) -> None:
             self.orders.append(order)
@@ -152,9 +148,7 @@ def test_vwap_momentum_integration_simple() -> None:
 
     # Verify order properties
     buy_orders = [
-        o
-        for o in engine.orders
-        if hasattr(o, "side") and (o.side == "BUY" or str(o.side) == "BUY")
+        o for o in engine.orders if hasattr(o, "side") and (o.side == "BUY" or str(o.side) == "BUY")
     ]
     sell_orders = [
         o
@@ -286,8 +280,6 @@ def test_vwap_momentum_enhanced_integration() -> None:
         assert "atr" in first_order.tags, "ATR information missing from order tags"
         print(f"✅ ATR information in order tags: {first_order.tags.get('atr')}")
     else:
-        print(
-            "⚠️  No orders generated (market conditions may not have triggered signals)"
-        )
+        print("⚠️  No orders generated (market conditions may not have triggered signals)")
 
     print("✅ Enhanced integration test completed")

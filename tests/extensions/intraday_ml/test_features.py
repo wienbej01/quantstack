@@ -128,9 +128,7 @@ class TestFeatureSelector:
         """Set up test environment."""
         self.selector = FeatureSelector()
 
-    def test_select_univariate_regression(
-        self, sample_feature_data, sample_target_data
-    ):
+    def test_select_univariate_regression(self, sample_feature_data, sample_target_data):
         """Test univariate feature selection for regression."""
         result = self.selector.select_univariate(
             X=sample_feature_data,
@@ -145,9 +143,7 @@ class TestFeatureSelector:
         assert len(result.feature_scores) == len(sample_feature_data.columns)
         assert result.selection_method == "univariate_k_best"
 
-    def test_select_univariate_classification(
-        self, sample_feature_data, sample_target_data
-    ):
+    def test_select_univariate_classification(self, sample_feature_data, sample_target_data):
         """Test univariate feature selection for classification."""
         # Create binary target
         binary_target = (sample_target_data > 0).astype(int)
@@ -205,18 +201,14 @@ class TestFeatureSelector:
             "f__vwap_30"
         ] + np.random.normal(0, 0.1, len(sample_feature_data))
 
-        result = self.selector.select_correlation_filter(
-            X=sample_feature_data, threshold=0.95
-        )
+        result = self.selector.select_correlation_filter(X=sample_feature_data, threshold=0.95)
 
         assert isinstance(result, SelectionResult)
         # Should remove one of the highly correlated features
         assert len(result.selected_features) < len(sample_feature_data.columns)
         assert result.selection_method == "correlation_filter"
 
-    def test_transform_with_fitted_selector(
-        self, sample_feature_data, sample_target_data
-    ):
+    def test_transform_with_fitted_selector(self, sample_feature_data, sample_target_data):
         """Test transforming data with fitted selector."""
         # Fit selector
         self.selector.select_univariate(

@@ -15,9 +15,7 @@ from extensions.intraday_ml.backtest import intraday_ml_run_backtest
 def sample_bars():
     """Returns a sample DataFrame of bars."""
     data = {
-        "ts": pd.to_datetime(
-            ["2025-11-03 10:00:00", "2025-11-03 10:01:00", "2025-11-03 10:02:00"]
-        ),
+        "ts": pd.to_datetime(["2025-11-03 10:00:00", "2025-11-03 10:01:00", "2025-11-03 10:02:00"]),
         "symbol": ["TEST", "TEST", "TEST"],
         "open": [100, 101, 102],
         "high": [101, 102, 103],

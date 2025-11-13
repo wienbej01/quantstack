@@ -199,19 +199,13 @@ class TestRegimeDetectorRules:
             )
 
         morning_ts = (
-            pd.Timestamp("2024-01-02 10:00:00", tz="America/New_York")
-            .tz_convert("UTC")
-            .value
+            pd.Timestamp("2024-01-02 10:00:00", tz="America/New_York").tz_convert("UTC").value
         )
         afternoon_ts = (
-            pd.Timestamp("2024-01-02 14:00:00", tz="America/New_York")
-            .tz_convert("UTC")
-            .value
+            pd.Timestamp("2024-01-02 14:00:00", tz="America/New_York").tz_convert("UTC").value
         )
         late_afternoon_ts = (
-            pd.Timestamp("2024-01-02 15:30:00", tz="America/New_York")
-            .tz_convert("UTC")
-            .value
+            pd.Timestamp("2024-01-02 15:30:00", tz="America/New_York").tz_convert("UTC").value
         )
 
         morning_features = build_features(1.4, 40.0, 0.7, 1.2, 0.2)
@@ -265,9 +259,7 @@ class TestRegimeDetectorRules:
     def test_stress_detection(self, sample_features):
         """Test stress regime detection."""
         detector = RegimeDetectorRules()
-        config = RegimeDetectorConfig(
-            volatility_stress_threshold=2.0, stress_confidence_min=0.8
-        )
+        config = RegimeDetectorConfig(volatility_stress_threshold=2.0, stress_confidence_min=0.8)
         detector.config = config
 
         # Use stress period data
@@ -284,9 +276,7 @@ class TestRegimeDetectorRules:
         detector = RegimeDetectorRules()
 
         # Use bull period data
-        bull_data = sample_features[
-            (sample_features.index >= 50) & (sample_features.index < 100)
-        ]
+        bull_data = sample_features[(sample_features.index >= 50) & (sample_features.index < 100)]
         ts = bull_data.iloc[0]["ts"]
 
         signal = detector.evaluate(bull_data, ts)
@@ -301,9 +291,7 @@ class TestRegimeDetectorRules:
         detector = RegimeDetectorRules()
 
         # Use bear period data
-        bear_data = sample_features[
-            (sample_features.index >= 120) & (sample_features.index < 170)
-        ]
+        bear_data = sample_features[(sample_features.index >= 120) & (sample_features.index < 170)]
         ts = bear_data.iloc[0]["ts"]
 
         signal = detector.evaluate(bear_data, ts)
@@ -581,9 +569,7 @@ class TestRegimeConfig:
         with pytest.raises(
             ValueError, match="sideways_band_min must be less than sideways_band_max"
         ):
-            RegimeConfig(
-                detector_params={"sideways_band_min": 0.8, "sideways_band_max": 0.2}
-            )
+            RegimeConfig(detector_params={"sideways_band_min": 0.8, "sideways_band_max": 0.2})
 
     def test_validate_regime_config_function(self):
         """Test regime config validation function."""

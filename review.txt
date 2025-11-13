@@ -1,0 +1,244 @@
+This run is screaming “something’s structurally wrong” in a very polite, JSON-driven way.
+
+Let’s walk through it.
+
+---
+
+## 1. What this setup is actually doing
+
+**Config & universe**
+
+* Master: `phaseA_sip_full.yaml`
+* Universe: `universe_gold_full.yaml` (510 candidates)
+* SIP filter: `mode='sip_only'` for train/val/oos
+* After SIP filtering:
+
+  * **Train symbols:** 142
+  * **Deployment symbols:** 10 mega caps
+    `[AAPL, AMZN, GOOGL, JNJ, JPM, META, MSFT, NVDA, TSLA, V]`
+
+So: you train cross-sectionally on a wide SIP universe (142 names), and plan to deploy on a very tight top-10 pool. That’s reasonable as a concept: learn generic intraday patterns on “stocks in play” and then deploy on the big boys.
+
+**Time splits (`splits_smoke.yaml` converted):**
+
+* Train: 2023-10-02 → 2024-04-15
+* Val:   2024-04-16 → 2024-04-30
+* OOS:   2024-05-01 → 2024-05-31
+  Total days reported: 243 (so manifest is train+val+oos combined).
+
+So this is a ~7-month window with a ~2-week validation and 1-month OOS. Structurally fine.
+
+---
+
+## 2. Data & labels: this part actually looks decent
+
+**Aligned training data**
+
+* File: `artefacts/extensions/intraday_ml/phaseA_full_sip/training_data.parquet`
+* Shape: `(737,989, 54)`
+
+  * 46 features
+  * 8 other columns (timestamps, symbol, label, weights etc.)
+
+So you’re training on ~738k 10-minute bars. That’s not tiny.
+
+**Label distribution (using `targets_bigmove.yaml`):**
+
+```text
+{0: 579,070, 1: 88,859, -1: 70,060}
+```
+
+Percentages:
+
+* Class 0: ~78.5%
+* Class +1: ~12.0%
+* Class −1: ~9.5%
+
+So:
+
+* This is **not** insanely imbalanced anymore. Roughly 1 in 5 bars is “big move” up or down.
+* For a `targets_bigmove` config, that’s… generous. These aren’t really “tail of the tail” events; more like “top ~20%” of moves.
+
+What that implies for your goal:
+
+* You still rely on **policy selection** (thresholds / top-K) to get down to ~3–5 trades/day.
+* But semantically, your “big move” labels are not ultra-rare; they mark a fairly thick slice of the return distribution.
+
+That’s not automatically wrong, but it means class ±1 are not some sparse anomaly – the model should *definitely* be able to learn them.
+
+Label guard report exists:
+
+* `label_guard_report.json` was written, meaning you at least have some sanity checks being run.
+* No crash implies labels are at least structurally valid (no NaNs / crazy values).
+
+Up to here, the pipeline looks healthy.
+
+---
+
+## 3. That multi_logloss = 2.64914 is a five-alarm fire
+
+From training:
+
+```text
+Training until validation scores don't improve for 75 rounds
+Did not meet early stopping. Best iteration is:
+[900]   valid_0's multi_logloss: 2.64914
+```
+
+Let’s unpack that:
+
+### 3.1. How bad is 2.65, in context?
+
+For a 3-class problem, if you just always predict the class frequencies:
+
+* p(0) ≈ 0.785
+* p(+1) ≈ 0.120
+* p(−1) ≈ 0.095
+
+The expected multi-logloss (natural log) is just the entropy of that distribution. That works out to roughly:
+
+> **Baseline “do nothing clever” logloss ≈ 0.67**
+
+Your model at 2.65 is:
+
+* Worse than a dumb frequency baseline by about **+1.98** logloss.
+* That implies the model’s average probability on the *true* class is around `exp(-2.65) ≈ 7%`.
+
+So the model is not “weakly useful.” It’s **actively bad** *or* the metric is being computed on the wrong labels / wrong mapping / wrong samples.
+
+Random uniform probabilities across 3 classes give logloss ≈ 1.10.
+You’re at 2.65. So the model is doing worse than random guessing, by a factor of several in cross-entropy space.
+
+That’s why this is a structural red flag, not a “meh, could be better” situation.
+
+### 3.2. What could cause such catastrophic logloss?
+
+A few usual suspects:
+
+1. **Label encoding mismatch with LightGBM**
+
+   * Multi-class LightGBM expects labels in `{0, 1, 2}` when `num_class = 3`.
+   * If you pass labels `{ -1, 0, 1 }` or remapped values but then interpret them as `{0, 1, 2}` inconsistently between training and evaluation, you can easily destroy logloss.
+   * Example failure pattern:
+
+     * Data stores labels as `{-1, 0, 1}`.
+     * Some wrapper silently remaps them, but your evaluation code assumes a different order → probabilities are matched to the wrong class index.
+
+2. **Massively skewed sample weights / custom objective**
+
+   * If `targets_bigmove.yaml` or model config applies huge weights to certain examples (e.g. big losses) and the model can’t fit them, the **weighted** logloss can balloon.
+   * In that case, unweighted logloss might be sane, but LightGBM reports the weighted version.
+
+3. **Features / labels misaligned in time**
+
+   * If your “aligned training data” is actually misaligned such that features at time t are paired with labels that belong to some other bar (e.g. wrong symbol/time shift), the model sees garbage:
+
+     * It will not find stable relationships.
+     * Probabilities will be close to nonsense and logloss becomes huge.
+   * The fact that it happily runs to 900 iterations without early stopping just means:
+
+     * It’s making *tiny* improvements on a fundamentally broken mapping; still ends up terrible.
+
+4. **Using the wrong dataset for validation**
+
+   * If `valid_0` is evaluating on some bizarre subset (e.g. extreme edge cases, or mis-filtered data) rather than a normal validation split, your reported logloss may not reflect the actual train/val behaviour.
+
+5. **Bug in how predictions vs labels are aligned for metric calculation**
+
+   * Even if labels and features are aligned, if you reorder rows or filter them between prediction and loss computation (without applying the same transformation to both), logloss is garbage.
+
+Given your earlier run got **0.26** logloss on a smaller 3-class problem, jumping to **2.65** with a more sensible label distribution is not “oh, bigmove is harder.” It screams “wiring issue.”
+
+---
+
+## 4. How this lines up with your trading goal (3–5 sniper trades/day)
+
+From a *pure PnL* perspective, you don’t care about logloss per se. But:
+
+* When logloss is **this** bad, it usually means either:
+
+  * The model is *not* learning any coherent mapping from features to labels.
+  * Or you’re measuring the wrong thing.
+
+Either way, the probabilities coming out of this model are very likely:
+
+* Miscalibrated to the point of uselessness.
+* Potentially inverted or systematically wrong.
+
+If you then try to build a “3–5 trades/day” policy on top of those probabilities (top-K by `p_up` / `trade_score`), you risk:
+
+* Trading the **worst** bars, not the best.
+* Or at minimum, trading something close to random noise.
+
+So before you even talk Sharpe / Sortino, you need to:
+
+* Confirm that the model’s outputs are meaningfully related to realized returns at all.
+* Fix the target/label/metric plumbing if they aren’t.
+
+---
+
+## 5. Concrete next steps (what I’d do next if I were forced to touch this codebase)
+
+No questions, just a hit list:
+
+1. **Inspect the label column in `training_data.parquet`**
+
+   * Print:
+
+     * Unique values.
+     * Value counts.
+   * Confirm labels are exactly `{0,1,2}` or `{−1,0,1}` and how the training script maps them for LightGBM.
+
+2. **Check the LightGBM training call**
+
+   * Confirm:
+
+     * `objective='multiclass'` or `multiclassova` with `num_class=3`.
+     * That the labels passed to LightGBM match what it expects.
+   * If labels are `{-1,0,1}`, explicitly remap them to `{0,1,2}` and keep that mapping consistent in evaluation.
+
+3. **Recompute a naive baseline logloss in code**
+
+   * On the exact validation set used for `valid_0`, compute:
+
+     * Baseline prediction = class frequencies.
+     * Baseline logloss.
+   * Compare: if baseline ≈ 0.7 and model at 2.65, you know it’s not just “hard data,” it’s broken logic.
+
+4. **Verify time & symbol alignment**
+
+   * Pick a random sample from the validation set:
+
+     * Check that the label assigned to (symbol, timestamp) corresponds to the actual forward return based on the candles.
+   * If you see systematic 1-bar shifts or mismatches, fix the alignment.
+
+5. **Check `label_guard_report.json`**
+
+   * See if it flags:
+
+     * Extreme label skew by symbol/period.
+     * NaNs, infinities, or anything suspicious.
+   * Anything weird there is a clue.
+
+6. **Only then** re-run training and look at:
+
+   * New `valid_0 multi_logloss`.
+   * More importantly: **tail PnL metrics** on validation/OOS (top-K trades/day).
+
+---
+
+## 6. Quick verdict
+
+* **Data & universe design:**
+  Solid. 142 SIP names for training, 10 mega caps for deployment is a coherent design.
+
+* **Label distribution with `targets_bigmove`:**
+  Reasonable from a learning standpoint (22% events), maybe a bit generous for “big moves,” but can be handled via policy (top-K).
+
+* **Training outcome (`multi_logloss = 2.64914` at iter 900):**
+  Completely unacceptable. In a healthy setup you’d expect:
+
+  * Something comfortably below the ~0.67 frequency baseline.
+  * Not a value that implies the model is, on average, assigning ~7% probability to the true class.
+
+So your infrastructure is fine; the plumbing between labels, model, and metric is very likely wrong somewhere. Fix that first, *then* we can talk about how well this thing finds 3–5 big trades a day instead of feeding a PnL shredder.

@@ -34,9 +34,7 @@ class TestScreenerIntegration:
 
         # Filter original data to screened symbols
         top_symbols = screened_symbols["symbol"].tolist()
-        filtered_data = self.sample_data[
-            self.sample_data["symbol"].isin(top_symbols)
-        ].copy()
+        filtered_data = self.sample_data[self.sample_data["symbol"].isin(top_symbols)].copy()
 
         # Apply features to filtered data
         feature_packs = [
@@ -129,9 +127,7 @@ class TestScreenerIntegration:
         screener = SipScreener(ScreenerConfig(top_n=5))
 
         # Get latest data per symbol with features
-        latest_data = feature_data.sort_values(
-            ["symbol", "ts"], ascending=[True, False]
-        )
+        latest_data = feature_data.sort_values(["symbol", "ts"], ascending=[True, False])
         latest_per_symbol = latest_data.groupby("symbol").head(1)
 
         # Apply filters using feature data
@@ -166,9 +162,7 @@ class TestScreenerIntegration:
 
             # Performance should be reasonable (less than 1 second for these sizes)
             processing_time = end_time - start_time
-            assert (
-                processing_time < 1.0
-            ), f"Screener took {processing_time:.3f}s for {size} rows"
+            assert processing_time < 1.0, f"Screener took {processing_time:.3f}s for {size} rows"
 
     def test_screener_edge_cases(self):
         """Test screener edge cases and boundary conditions."""
@@ -190,9 +184,7 @@ class TestScreenerIntegration:
         assert high_filter_result.empty
 
         # Test with single symbol
-        single_symbol_data = self.sample_data[
-            self.sample_data["symbol"] == "AAPL"
-        ].copy()
+        single_symbol_data = self.sample_data[self.sample_data["symbol"] == "AAPL"].copy()
         single_result = screener.screen_universe(single_symbol_data)
 
         assert len(single_result) <= 1
@@ -219,9 +211,7 @@ class TestScreenerIntegration:
     def test_screener_integration_workflow(self):
         """Test complete screener integration workflow."""
         # Step 1: Screen universe
-        screener = SipScreener(
-            ScreenerConfig(top_n=5, min_relative_volume=0.5, min_price=50.0)
-        )
+        screener = SipScreener(ScreenerConfig(top_n=5, min_relative_volume=0.5, min_price=50.0))
         screened_data = screener.screen_universe(self.sample_data)
 
         if screened_data.empty:
@@ -231,9 +221,7 @@ class TestScreenerIntegration:
         selected_symbols = screened_data["symbol"].tolist()
 
         # Step 3: Filter data to selected symbols
-        filtered_data = self.sample_data[
-            self.sample_data["symbol"].isin(selected_symbols)
-        ].copy()
+        filtered_data = self.sample_data[self.sample_data["symbol"].isin(selected_symbols)].copy()
 
         # Step 4: Apply feature engineering
         feature_packs = [
@@ -270,9 +258,7 @@ class TestScreenerIntegration:
                     assert (vwap_values > 0).all()
                     # VWAP should be in same general magnitude as close price (with more lenient bounds for synthetic data)
                     vwap_close_ratio = vwap_values / close_values
-                    assert (vwap_close_ratio >= 0.1).all() and (
-                        vwap_close_ratio <= 10.0
-                    ).all()
+                    assert (vwap_close_ratio >= 0.1).all() and (vwap_close_ratio <= 10.0).all()
 
 
 if __name__ == "__main__":

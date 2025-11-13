@@ -87,9 +87,7 @@ def _parse_grid(grid_str: str) -> dict[str, list[float]]:
     return {key: values}
 
 
-def _generate_grid_points(
-    grid_params: dict[str, list[float]]
-) -> list[dict[str, float]]:
+def _generate_grid_points(grid_params: dict[str, list[float]]) -> list[dict[str, float]]:
     """Generate all combinations of grid points."""
     # Simple single param for now
     points = []

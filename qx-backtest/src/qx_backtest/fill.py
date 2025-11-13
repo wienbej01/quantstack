@@ -64,9 +64,7 @@ class Filler(ABC):
     """Abstract base class for fill simulation."""
 
     @abstractmethod
-    def simulate_fill(
-        self, order: Order, bar_data: dict[str, Any], timestamp: int
-    ) -> list[Fill]:
+    def simulate_fill(self, order: Order, bar_data: dict[str, Any], timestamp: int) -> list[Fill]:
         """Simulate fills for an order against bar data.
 
         Args:
@@ -110,9 +108,7 @@ class DefaultFiller(Filler):
         self.fill_probability = fill_probability
         self._fill_counter = 0
 
-    def simulate_fill(
-        self, order: Order, bar_data: dict[str, Any], timestamp: int
-    ) -> list[Fill]:
+    def simulate_fill(self, order: Order, bar_data: dict[str, Any], timestamp: int) -> list[Fill]:
         log_debug(f"Simulating fill for order {order.order_id}")
         fills = []
 
@@ -211,9 +207,7 @@ class PerfectFiller(Filler):
         """Initialize perfect filler."""
         self._fill_counter = 0
 
-    def simulate_fill(
-        self, order: Order, bar_data: dict[str, Any], timestamp: int
-    ) -> list[Fill]:
+    def simulate_fill(self, order: Order, bar_data: dict[str, Any], timestamp: int) -> list[Fill]:
         """Simulate perfect fills."""
         fills = []
 

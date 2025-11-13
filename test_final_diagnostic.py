@@ -39,9 +39,9 @@ def run_corrected_diagnostic(df, verbose=False):
         return
 
     # Add date and session info for session-based counting
-    ready_bars["dt_et"] = pd.to_datetime(
-        ready_bars["ts"], unit="ns", utc=True
-    ).dt.tz_convert("America/New_York")
+    ready_bars["dt_et"] = pd.to_datetime(ready_bars["ts"], unit="ns", utc=True).dt.tz_convert(
+        "America/New_York"
+    )
     ready_bars["date"] = ready_bars["dt_et"].dt.date
     ready_bars["session"] = ready_bars["dt_et"].apply(
         lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
@@ -83,15 +83,9 @@ def run_corrected_diagnostic(df, verbose=False):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif (
-            features["var_ratio"] > BULL_VAR_RATIO_MIN
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BULL"
-        elif (
-            features["var_ratio"] < BEAR_VAR_RATIO_MAX
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
@@ -112,12 +106,8 @@ def run_corrected_diagnostic(df, verbose=False):
     if regime_counts["BULL"] + regime_counts["BEAR"] == 0:
         print("No trending regimes detected - policies may not generate trades")
     else:
-        trending_pct = (
-            (regime_counts["BULL"] + regime_counts["BEAR"]) / total_bars * 100
-        )
-        print(
-            f"Trending regimes (BULL/BEAR): {trending_pct:.1f}% - Tradeable conditions"
-        )
+        trending_pct = (regime_counts["BULL"] + regime_counts["BEAR"]) / total_bars * 100
+        print(f"Trending regimes (BULL/BEAR): {trending_pct:.1f}% - Tradeable conditions")
 
     return regime_counts
 

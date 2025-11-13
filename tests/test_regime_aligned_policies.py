@@ -255,9 +255,7 @@ def test_momentum_policy_generates_short_order():
     if len(engine.orders) == 0:
         import pytest
 
-        pytest.skip(
-            "No short order generated - test data may not meet all entry conditions"
-        )
+        pytest.skip("No short order generated - test data may not meet all entry conditions")
 
     assert len(engine.orders) == 1
     order = engine.orders[0]
@@ -282,13 +280,8 @@ def test_policy_uses_atr_stop_manager():
 
     # Verify default configuration
     default_config = policy.atr_stop_manager.get_default_config()
-    assert (
-        policy.atr_stop_manager.stop_atr_multiple == default_config["stop_atr_multiple"]
-    )
-    assert (
-        policy.atr_stop_manager.target_atr_multiple
-        == default_config["target_atr_multiple"]
-    )
+    assert policy.atr_stop_manager.stop_atr_multiple == default_config["stop_atr_multiple"]
+    assert policy.atr_stop_manager.target_atr_multiple == default_config["target_atr_multiple"]
 
     # Test configuration update
     policy.atr_stop_manager.configure(stop_atr_multiple=1.5, target_atr_multiple=2.0)
@@ -340,14 +333,14 @@ def test_market_order_ts_submitted_equals_signal_bar_ts():
     order = engine.orders[0]
 
     # Verify ts_submitted equals signal bar timestamp
-    assert (
-        order.ts_submitted == signal_bar_ts
-    ), f"Order ts_submitted ({order.ts_submitted}) should equal signal bar ts ({signal_bar_ts})"
+    assert order.ts_submitted == signal_bar_ts, (
+        f"Order ts_submitted ({order.ts_submitted}) should equal signal bar ts ({signal_bar_ts})"
+    )
 
     # Verify order quantity equals max_position_size parameter
-    assert (
-        order.quantity == policy.params.max_position_size
-    ), f"Order quantity ({order.quantity}) should equal max_position_size ({policy.params.max_position_size})"
+    assert order.quantity == policy.params.max_position_size, (
+        f"Order quantity ({order.quantity}) should equal max_position_size ({policy.params.max_position_size})"
+    )
 
 
 def test_atr_stop_manager_integration():
@@ -369,31 +362,27 @@ def test_atr_stop_manager_integration():
     target_price = policy.atr_stop_manager.compute_target(entry_price, atr, side)
 
     # Verify stop is below entry for long positions
-    assert (
-        stop_price < entry_price
-    ), f"Stop price ({stop_price}) should be below entry price ({entry_price}) for long positions"
+    assert stop_price < entry_price, (
+        f"Stop price ({stop_price}) should be below entry price ({entry_price}) for long positions"
+    )
     # Verify target is above entry for long positions
-    assert (
-        target_price > entry_price
-    ), f"Target price ({target_price}) should be above entry price ({entry_price}) for long positions"
+    assert target_price > entry_price, (
+        f"Target price ({target_price}) should be above entry price ({entry_price}) for long positions"
+    )
 
     # Test short position
     side_short = "short"
-    stop_price_short = policy.atr_stop_manager.compute_stop(
-        entry_price, atr, side_short
-    )
-    target_price_short = policy.atr_stop_manager.compute_target(
-        entry_price, atr, side_short
-    )
+    stop_price_short = policy.atr_stop_manager.compute_stop(entry_price, atr, side_short)
+    target_price_short = policy.atr_stop_manager.compute_target(entry_price, atr, side_short)
 
     # Verify stop is above entry for short positions
-    assert (
-        stop_price_short > entry_price
-    ), f"Stop price ({stop_price_short}) should be above entry price ({entry_price}) for short positions"
+    assert stop_price_short > entry_price, (
+        f"Stop price ({stop_price_short}) should be above entry price ({entry_price}) for short positions"
+    )
     # Verify target is below entry for short positions
-    assert (
-        target_price_short < entry_price
-    ), f"Target price ({target_price_short}) should be below entry price ({entry_price}) for short positions"
+    assert target_price_short < entry_price, (
+        f"Target price ({target_price_short}) should be below entry price ({entry_price}) for short positions"
+    )
 
     # Test trailing stop functionality
     # Enable trailing stops for this test
@@ -405,9 +394,9 @@ def test_atr_stop_manager_integration():
 
     # Trailing stop should be higher than initial stop (moved up with price)
     assert trailing_stop is not None, "Trailing stop should not be None when enabled"
-    assert (
-        trailing_stop >= stop_price
-    ), f"Trailing stop ({trailing_stop}) should be at least initial stop ({stop_price}) when price moves up"
+    assert trailing_stop >= stop_price, (
+        f"Trailing stop ({trailing_stop}) should be at least initial stop ({stop_price}) when price moves up"
+    )
 
     # Test ATRStopManager reset functionality
     policy.atr_stop_manager.reset()

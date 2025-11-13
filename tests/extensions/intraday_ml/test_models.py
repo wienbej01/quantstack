@@ -19,9 +19,7 @@ def sample_bars():
     n_samples = 1000
 
     data = {
-        "ts": pd.date_range("2024-01-01", periods=n_samples, freq="1min").astype(
-            np.int64
-        ),
+        "ts": pd.date_range("2024-01-01", periods=n_samples, freq="1min").astype(np.int64),
         "symbol": ["AAPL"] * n_samples,
         "open": 150.0 + np.random.randn(n_samples) * 2,
         "high": 152.0 + np.random.randn(n_samples) * 2,
@@ -90,8 +88,7 @@ class TestMLModelRegistry:
             val_score=0.65,
             test_score=0.68,
             feature_importance=[
-                FeatureImportance(feature_name=f, importance=0.3, rank=1)
-                for f in features
+                FeatureImportance(feature_name=f, importance=0.3, rank=1) for f in features
             ],
             random_seed=42,
             data_hash="test_hash",
@@ -158,9 +155,7 @@ class TestMLModelTrainer:
 
     def test_prepare_training_data(self, trainer, sample_bars, sample_config):
         """Test training data preparation."""
-        features_df, target_series = trainer.prepare_training_data(
-            sample_bars, sample_config
-        )
+        features_df, target_series = trainer.prepare_training_data(sample_bars, sample_config)
 
         # Verify features
         assert list(features_df.columns) == sample_config.features
@@ -257,8 +252,7 @@ class TestMLPredictor:
             val_score=0.65,
             test_score=0.68,
             feature_importance=[
-                FeatureImportance(feature_name=f, importance=0.3, rank=1)
-                for f in features
+                FeatureImportance(feature_name=f, importance=0.3, rank=1) for f in features
             ],
             random_seed=42,
             data_hash="test_hash",
@@ -292,9 +286,7 @@ class TestMLPredictor:
     def test_predict_batch(self, predictor, sample_bars, trained_model):
         """Test batch prediction."""
         # Use subset of features for prediction
-        features_df = sample_bars[["f__vwap_30", "f__rel_volume_30", "f__atr_14"]].iloc[
-            :10
-        ]
+        features_df = sample_bars[["f__vwap_30", "f__rel_volume_30", "f__atr_14"]].iloc[:10]
 
         results = predictor.predict(
             model_id=trained_model,

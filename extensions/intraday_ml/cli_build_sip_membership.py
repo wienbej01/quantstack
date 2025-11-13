@@ -17,30 +17,136 @@ Example usage (to be run from the terminal):
       --gold-root /path/to/your/gold_data \
       --top-k 40
 """
+
 from __future__ import annotations
 
 import argparse
 import logging
+import re
+from collections.abc import Sequence
 from datetime import timedelta
+from pathlib import Path
 
 import pandas as pd
 import yaml
-from qx_data.gold_loader import load_bars
+from qx_data.gold_loader import load_bars, list_available_symbols
 
 from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 from extensions.intraday_ml.sip_membership import save_sip_membership
+from extensions.intraday_ml.utils import MonthlyBarsCache
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
+
+
+def _normalize_timestamp_units(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensure timestamps are in nanoseconds (Gold data can be microseconds).
+    """
+    if df.empty or "ts" not in df.columns:
+        return df
+
+    ts = df["ts"].astype("int64")
+    max_ts = int(ts.max()) if not ts.empty else 0
+
+    # Gold bars often arrive in microseconds (<1e17). Convert once to ns.
+    if 0 < max_ts < 10**17:
+        ts = ts * 1000
+
+    df = df.copy()
+    df["ts"] = ts
+    return df
+
+
+_SYMBOL_TOKEN = re.compile(r"^[A-Z0-9]{1,5}$")
+
+
+def _load_symbols_from_config(path: str) -> list[str]:
+    with open(path) as f:
+        config = yaml.safe_load(f)
+
+    symbols = config.get("symbols")
+    if not symbols:
+        raise ValueError(f"No 'symbols' found in universe config: {path}")
+
+    normalized = []
+    for symbol in symbols:
+        token = str(symbol).strip()
+        if not token:
+            continue
+        normalized.append(token.upper())
+
+    unique = sorted(dict.fromkeys(normalized))
+    if not unique:
+        raise ValueError(f"No valid symbols found in universe config: {path}")
+    return unique
+
+
+def _load_symbols_from_list_file(path: str) -> list[str]:
+    file_path = Path(path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"Universe list file not found: {path}")
+
+    tokens: list[str] = []
+    for raw_line in file_path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        cleaned = line.replace("├──", " ").replace("└──", " ").replace("│", " ").replace("─", " ")
+        for token in cleaned.replace(",", " ").split():
+            candidate = token.strip()
+            if not candidate:
+                continue
+            if candidate.upper() != candidate:
+                continue
+            if _SYMBOL_TOKEN.match(candidate):
+                tokens.append(candidate)
+
+    unique = list(dict.fromkeys(tokens))
+    if not unique:
+        raise ValueError(f"No symbols could be parsed from {path}.")
+    return unique
+
+
+def _resolve_candidate_symbols(
+    *,
+    gold_root: str,
+    universe_config_path: str | None,
+    universe_list_file: str | None,
+    use_gold_universe: bool,
+) -> list[str]:
+    selections = [
+        bool(universe_config_path),
+        bool(universe_list_file),
+        bool(use_gold_universe),
+    ]
+    if sum(selections) == 0:
+        raise ValueError(
+            "Specify one of --universe-config, --universe-list-file, or "
+            "--use-gold-universe to define the candidate symbols."
+        )
+    if sum(selections) > 1:
+        raise ValueError("Please choose only one universe source: config, list file, or full Gold.")
+
+    if universe_config_path:
+        return _load_symbols_from_config(universe_config_path)
+    if universe_list_file:
+        return _load_symbols_from_list_file(universe_list_file)
+
+    symbols = sorted(list_available_symbols(gold_root, "bars_1m"))
+    if not symbols:
+        raise ValueError(
+            f"No symbols discovered under Gold root '{gold_root}'. "
+            "Verify the path or specify a universe config."
+        )
+    return symbols
 
 
 def build_sip_for_range(
     start_date: str,
     end_date: str,
-    universe_config_path: str,
+    candidate_symbols: Sequence[str],
     gold_root: str,
     top_k: int,
     score_floor: float,
@@ -49,17 +155,10 @@ def build_sip_for_range(
     """
     Computes and saves SIP membership for a given date range and universe.
     """
-    # Load symbol universe from the YAML config
-    with open(universe_config_path) as f:
-        universe_config = yaml.safe_load(f)
-    candidate_symbols = universe_config.get("symbols")
     if not candidate_symbols:
-        raise ValueError(
-            f"No 'symbols' found in universe config: {universe_config_path}"
-        )
-    logger.info(
-        f"Loaded {len(candidate_symbols)} symbols from {universe_config_path}"
-    )
+        raise ValueError("candidate_symbols cannot be empty.")
+    candidate_symbols = sorted({str(symbol).upper() for symbol in candidate_symbols})
+    logger.info("Using %d candidate symbols for SIP generation.", len(candidate_symbols))
 
     # Configure the HMM SIP selector to use the legacy mode
     sip_config = HMMSIPConfig(
@@ -70,36 +169,77 @@ def build_sip_for_range(
     )
     selector = HMMSIPUniverseSelector(cfg=sip_config)
 
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    if end_dt < start_dt:
+        raise ValueError("end_date must be on or after start_date.")
+
+    lookback_days = 5
+    cache_start = start_dt - timedelta(days=lookback_days)
+    cache = MonthlyBarsCache(
+        root=gold_root,
+        family="bars_1m",
+        symbols=candidate_symbols,
+        start_date=cache_start,
+        end_date=end_dt,
+    )
+
+    if cache.is_empty():
+        raise RuntimeError(
+            "Failed to preload Gold bars. Ensure the gold root and symbols are correct."
+        )
+
     # Iterate over each date in the specified range
-    current_date = pd.to_datetime(start_date)
-    end_date_dt = pd.to_datetime(end_date)
+    current_date = start_dt
+    end_date_dt = end_dt
 
     while current_date <= end_date_dt:
         date_str = current_date.strftime("%Y-%m-%d")
         logger.info(f"Processing SIP for {date_str}...")
 
-        try:
-            # For the selector's fallback mechanism to work, we need to provide bar data.
-            # We load data for the target date plus a lookback for context (e.g., previous close).
-            load_start = (current_date - timedelta(days=5)).strftime("%Y-%m-%d")
-            
-            # The load_bars function expects a list of dates.
-            # We'll create a date range string list.
-            date_range = [d.strftime("%Y-%m-%d") for d in pd.date_range(load_start, date_str)]
+        if current_date.weekday() >= 5:
+            logger.info("Skipping %s (non-trading day).", date_str)
+            current_date += timedelta(days=1)
+            continue
 
-            bars_utc = load_bars(
-                root=gold_root,
-                family="equities",
+        try:
+            window_start = current_date - timedelta(days=lookback_days)
+            window_end = current_date + timedelta(days=1) - timedelta(microseconds=1)
+            bars_utc = cache.get_window(
+                start_date=window_start,
+                end_date=window_end,
                 symbols=candidate_symbols,
-                dates=date_range,
-                validate=True,
-                sort=True,
             )
 
             if bars_utc.empty:
-                logger.warning(f"No bar data found for {date_str}. Skipping.")
+                logger.info(
+                    "Cache empty for %s (window start %s). Loading Gold directly.",
+                    date_str,
+                    window_start.strftime("%Y-%m-%d"),
+                )
+                fallback_dates = pd.bdate_range(window_start, current_date)
+                fallback_str_dates = [d.strftime("%Y-%m-%d") for d in fallback_dates]
+                if fallback_str_dates:
+                    try:
+                        bars_utc = load_bars(
+                            root=gold_root,
+                            family="bars_1m",
+                            symbols=candidate_symbols,
+                            dates=fallback_str_dates,
+                            validate=True,
+                            sort=True,
+                        )
+                    except RuntimeError:
+                        bars_utc = pd.DataFrame()
+
+            if bars_utc.empty:
+                logger.info(
+                    "No Gold data available for %s. Likely market holiday. Skipping.",
+                    date_str,
+                )
                 current_date += timedelta(days=1)
                 continue
+            bars_utc = _normalize_timestamp_units(bars_utc)
 
             # The selector returns a map of {timestamp: {symbols...}}.
             # We need to get the union of all selected symbols for the day.
@@ -111,9 +251,7 @@ def build_sip_for_range(
                 for symbols in sip_map.values():
                     sip_symbols_for_day.update(symbols)
 
-            logger.info(
-                f"Found {len(sip_symbols_for_day)} SIP symbols for {date_str}"
-            )
+            logger.info(f"Found {len(sip_symbols_for_day)} SIP symbols for {date_str}")
 
             # Create the membership DataFrame for the day
             membership_records = []
@@ -161,8 +299,20 @@ def main():
     parser.add_argument(
         "--universe-config",
         type=str,
-        required=True,
         help="Path to the YAML universe configuration file.",
+    )
+    parser.add_argument(
+        "--universe-list-file",
+        type=str,
+        help=(
+            "Path to a text file containing symbols (one per line or tree output). "
+            "Mutually exclusive with --universe-config and --use-gold-universe."
+        ),
+    )
+    parser.add_argument(
+        "--use-gold-universe",
+        action="store_true",
+        help="Automatically use every symbol found under the Gold root.",
     )
     parser.add_argument(
         "--gold-root",
@@ -193,10 +343,16 @@ def main():
     args = parser.parse_args()
 
     logger.info("Starting SIP membership pre-computation job.")
+    candidate_symbols = _resolve_candidate_symbols(
+        gold_root=args.gold_root,
+        universe_config_path=args.universe_config,
+        universe_list_file=args.universe_list_file,
+        use_gold_universe=args.use_gold_universe,
+    )
     build_sip_for_range(
         start_date=args.start_date,
         end_date=args.end_date,
-        universe_config_path=args.universe_config,
+        candidate_symbols=candidate_symbols,
         gold_root=args.gold_root,
         top_k=args.top_k,
         score_floor=args.score_floor,

@@ -109,9 +109,7 @@ class RunReader:
             trade_metrics = {
                 "trade_count": int(len(trades_df)),
                 "avg_trade_pnl": (
-                    float(trades_df["pnl"].mean())
-                    if "pnl" in trades_df.columns
-                    else 0.0
+                    float(trades_df["pnl"].mean()) if "pnl" in trades_df.columns else 0.0
                 ),
                 "median_r_multiple": (
                     float(trades_df["r_multiple"].median())
@@ -119,34 +117,22 @@ class RunReader:
                     else 0.0
                 ),
                 "win_rate": (
-                    float((trades_df["pnl"] > 0).mean())
-                    if "pnl" in trades_df.columns
-                    else 0.0
+                    float((trades_df["pnl"] > 0).mean()) if "pnl" in trades_df.columns else 0.0
                 ),
-                "total_pnl": (
-                    float(trades_df["pnl"].sum()) if "pnl" in trades_df.columns else 0.0
-                ),
+                "total_pnl": (float(trades_df["pnl"].sum()) if "pnl" in trades_df.columns else 0.0),
             }
 
         # Extract equity curve metrics if available
         equity_df = self.equity
         equity_metrics = {}
 
-        if (
-            equity_df is not None
-            and not equity_df.empty
-            and "equity" in equity_df.columns
-        ):
+        if equity_df is not None and not equity_df.empty and "equity" in equity_df.columns:
             equity_series = equity_df["equity"]
             returns = equity_series.pct_change().dropna()
 
             equity_metrics = {
-                "initial_equity": (
-                    float(equity_series.iloc[0]) if len(equity_series) > 0 else 0.0
-                ),
-                "final_equity": (
-                    float(equity_series.iloc[-1]) if len(equity_series) > 0 else 0.0
-                ),
+                "initial_equity": (float(equity_series.iloc[0]) if len(equity_series) > 0 else 0.0),
+                "final_equity": (float(equity_series.iloc[-1]) if len(equity_series) > 0 else 0.0),
                 "total_return": (
                     float(equity_series.iloc[-1] / equity_series.iloc[0] - 1)
                     if len(equity_series) > 1

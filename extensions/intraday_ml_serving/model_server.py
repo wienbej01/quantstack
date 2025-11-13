@@ -82,9 +82,7 @@ class PredictionMetrics:
 
             # Keep only last minute of predictions
             self._recent_predictions = [
-                (t, l)
-                for t, l in self._recent_predictions
-                if now - t < timedelta(minutes=1)
+                (t, l) for t, l in self._recent_predictions if now - t < timedelta(minutes=1)
             ]
 
             self._update_metrics()
@@ -105,9 +103,7 @@ class PredictionMetrics:
                 "error_rate": self.error_rate,
                 "predictions_per_minute": self.predictions_per_minute,
                 "last_prediction_time": (
-                    self.last_prediction_time.isoformat()
-                    if self.last_prediction_time
-                    else None
+                    self.last_prediction_time.isoformat() if self.last_prediction_time else None
                 ),
             }
 
@@ -157,9 +153,7 @@ class ModelCache:
         if not self._access_times:
             return
 
-        lru_model_id = min(
-            self._access_times.keys(), key=lambda k: self._access_times[k]
-        )
+        lru_model_id = min(self._access_times.keys(), key=lambda k: self._access_times[k])
         del self._cache[lru_model_id]
         del self._access_times[lru_model_id]
 
@@ -241,9 +235,7 @@ class ModelServer:
                 metadata = self.registry.get_metadata(model_id)
                 return asdict(metadata)
             except Exception:
-                raise HTTPException(
-                    status_code=404, detail=f"Model {model_id} not found"
-                )
+                raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
 
         @self.app.get("/metrics")
         async def get_metrics() -> dict[str, float]:
@@ -251,9 +243,7 @@ class ModelServer:
             return self.metrics.get_metrics()
 
         @self.app.post("/models/{model_id}/reload")
-        async def reload_model(
-            model_id: str, background_tasks: BackgroundTasks
-        ) -> dict[str, str]:
+        async def reload_model(model_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
             """Reload model in background."""
             background_tasks.add_task(self._reload_model_background, model_id)
             return {"message": f"Model {model_id} reload started"}
@@ -299,9 +289,7 @@ class ModelServer:
                     latency_ms=latency_ms,
                     metadata={
                         "server_timestamp": datetime.now().isoformat(),
-                        "model_version": model.get("metadata", {}).get(
-                            "version", "unknown"
-                        ),
+                        "model_version": model.get("metadata", {}).get("version", "unknown"),
                     },
                 )
 

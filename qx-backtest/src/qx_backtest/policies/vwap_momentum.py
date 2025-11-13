@@ -52,11 +52,7 @@ class VwapMomentumPolicy(Policy):
         vwap_col = f"f__ta__vwap_{self.vwap_window}"
         rvol_col = f"f__vol__rel_volume_{self.vwap_window}"
 
-        if (
-            vwap_col not in bar
-            or rvol_col not in bar
-            or not bar.get("f__warmup_ok", True)
-        ):
+        if vwap_col not in bar or rvol_col not in bar or not bar.get("f__warmup_ok", True):
             return
 
         vwap = bar[vwap_col]
@@ -69,17 +65,13 @@ class VwapMomentumPolicy(Policy):
 
         if not self.is_allowed():
             if position and not position.is_flat:
-                self._check_exit_signal(
-                    symbol, bar, position, close, vwap, high, low, timestamp
-                )
+                self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
             return
 
         if position is None or position.is_flat:
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
         else:
-            self._check_exit_signal(
-                symbol, bar, position, close, vwap, high, low, timestamp
-            )
+            self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
 
     def _check_entry_signal(
         self,
@@ -254,9 +246,7 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
 
         if position is None or position.is_flat:
             # Enhanced entry signal
-            self._check_entry_signal_enhanced(
-                symbol, bar, close, vwap, rvol, atr, timestamp
-            )
+            self._check_entry_signal_enhanced(symbol, bar, close, vwap, rvol, atr, timestamp)
         else:
             # Enhanced exit signal
             self._check_exit_signal_enhanced(
@@ -279,11 +269,7 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
         breakout_pct = breakout_strength * 100
 
         # Entry criteria with additional filters
-        if (
-            rvol >= self.min_rvol
-            and atr > 0
-            and breakout_pct >= self.min_breakout_strength
-        ):
+        if rvol >= self.min_rvol and atr > 0 and breakout_pct >= self.min_breakout_strength:
             # Additional filter: avoid entering during extreme volatility
             volatility_ratio = atr / close
             if volatility_ratio > 0.1:  # More than 10% daily volatility
@@ -418,7 +404,9 @@ class VwapMomentumPolicyEnhanced(VwapMomentumPolicy):
                         "pnl_per_atr": (
                             (close - position.avg_cost) / atr
                             if atr > 0 and is_long_position
-                            else (position.avg_cost - close) / atr if atr > 0 else 0
+                            else (position.avg_cost - close) / atr
+                            if atr > 0
+                            else 0
                         ),
                     },
                 )
@@ -462,9 +450,7 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             in_sip = symbol in sip_universe[ts]
 
         # Get position state from START of bar
-        pos_before_decision = position_tracker.get(
-            symbol, {"entry_ts": None, "bars_held": 0}
-        )
+        pos_before_decision = position_tracker.get(symbol, {"entry_ts": None, "bars_held": 0})
 
         # Calculate breakout strength
         breakout_strength = (close - vwap) / vwap
@@ -493,9 +479,7 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             position_tracker[symbol] = {"entry_ts": ts, "bars_held": 1}
 
         # Get position state AFTER decision for the current bar
-        pos_after_decision = position_tracker.get(
-            symbol, {"entry_ts": None, "bars_held": 0}
-        )
+        pos_after_decision = position_tracker.get(symbol, {"entry_ts": None, "bars_held": 0})
 
         # Generate signal based on the state AFTER the decision
         signal = 1 if pos_after_decision["entry_ts"] is not None else 0

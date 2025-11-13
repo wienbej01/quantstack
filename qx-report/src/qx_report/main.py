@@ -30,9 +30,7 @@ def summarize(
 
     try:
         # Create summary table
-        summary_df = PerRunSummaries.create_summary_table(
-            experiment_id, experiments_dir
-        )
+        summary_df = PerRunSummaries.create_summary_table(experiment_id, experiments_dir)
 
         if summary_df.empty:
             console.print("No data found for this experiment.", style="yellow")
@@ -87,9 +85,7 @@ def compare(
 
     try:
         # Create comparison table
-        comparison_df = ABDiffTables.create_comparison_table(
-            experiment_id, experiments_dir
-        )
+        comparison_df = ABDiffTables.create_comparison_table(experiment_id, experiments_dir)
 
         if comparison_df.empty:
             console.print(
@@ -107,8 +103,7 @@ def compare(
 
         for metric in comparison_df.index:
             row_values = [
-                f"{val:.4f}" if not pd.isna(val) else "N/A"
-                for val in comparison_df.loc[metric]
+                f"{val:.4f}" if not pd.isna(val) else "N/A" for val in comparison_df.loc[metric]
             ]
             comp_table.add_row(metric, *row_values)
 
@@ -132,9 +127,7 @@ def compare(
                     diff_table.add_column(f"{variant} (%)", justify="right")
 
                 for _, row in formatted_diff.iterrows():
-                    values = [
-                        row[col] for col in formatted_df.columns if col != "metric"
-                    ]
+                    values = [row[col] for col in formatted_df.columns if col != "metric"]
                     diff_table.add_row(row["metric"], *values)
 
                 console.print(diff_table)
@@ -146,9 +139,7 @@ def compare(
         try:
             winner_info = ABDiffTables.identify_winner(experiment_id, experiments_dir)
             if "error" not in winner_info:
-                console.print(
-                    f"\n🏆 Winner: {winner_info['winner']}", style="green bold"
-                )
+                console.print(f"\n🏆 Winner: {winner_info['winner']}", style="green bold")
                 console.print(
                     f"Primary metric ({winner_info['primary_metric']}): {winner_info['primary_value']:.4f}"
                 )

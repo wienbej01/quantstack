@@ -76,9 +76,7 @@ class TestDataFrameHashing:
         hash1 = hash_dataframe(df1)
         hash2 = hash_dataframe(df2)
 
-        assert (
-            hash1 == hash2
-        ), f"Hashes differ for dtype equivalent frames: {hash1} != {hash2}"
+        assert hash1 == hash2, f"Hashes differ for dtype equivalent frames: {hash1} != {hash2}"
 
     def test_column_subset_hashing(self):
         """Test hashing with column subset."""
@@ -96,12 +94,10 @@ class TestDataFrameHashing:
         hash_subset = hash_dataframe(df, cols=["symbol", "ts", "close"])
         hash_different_subset = hash_dataframe(df, cols=["symbol", "volume"])
 
-        assert (
-            hash_all != hash_subset
-        ), "Hash with all columns should differ from subset"
-        assert (
-            hash_subset != hash_different_subset
-        ), "Different subsets should have different hashes"
+        assert hash_all != hash_subset, "Hash with all columns should differ from subset"
+        assert hash_subset != hash_different_subset, (
+            "Different subsets should have different hashes"
+        )
 
     def test_datetime_handling(self):
         """Test datetime handling in hashing."""
@@ -131,9 +127,9 @@ class TestDataFrameHashing:
         hash_dt = hash_dataframe(df_dt)
         hash_ns = hash_dataframe(df_ns)
 
-        assert (
-            hash_dt == hash_ns
-        ), f"Datetime and nanosecond hashes should match: {hash_dt} != {hash_ns}"
+        assert hash_dt == hash_ns, (
+            f"Datetime and nanosecond hashes should match: {hash_dt} != {hash_ns}"
+        )
 
     def test_nan_handling(self):
         """Test NaN value handling."""
@@ -171,9 +167,7 @@ class TestDataFrameHashing:
         hash_blake = hash_dataframe(df, algo="blake2b")
         hash_sha = hash_dataframe(df, algo="sha256")
 
-        assert (
-            hash_blake != hash_sha
-        ), "Different algorithms should produce different hashes"
+        assert hash_blake != hash_sha, "Different algorithms should produce different hashes"
         assert len(hash_blake) == 64, "blake2b should produce 64-character hash"
         assert len(hash_sha) == 64, "sha256 should produce 64-character hash"
 
@@ -389,9 +383,7 @@ class TestHashStability:
         # Test identical DataFrames
         df3 = df1.copy()
         is_different_identical = hash_difference(df1, df3)
-        assert (
-            not is_different_identical
-        ), "Hashes should be identical for identical DataFrames"
+        assert not is_different_identical, "Hashes should be identical for identical DataFrames"
 
 
 class TestErrorHandling:

@@ -15,9 +15,7 @@ class CostSweepConfig(ExperimentConfig):
     """Configuration for cost sweep experiment."""
 
     # Cost parameters to sweep
-    commission_per_share: list[float] = field(
-        default_factory=lambda: [0.001, 0.0035, 0.005, 0.01]
-    )
+    commission_per_share: list[float] = field(default_factory=lambda: [0.001, 0.0035, 0.005, 0.01])
     commission_min: list[float] = field(default_factory=lambda: [0.0, 0.35, 1.0])
     slippage_bps: list[int] = field(default_factory=lambda: [0, 2, 5, 10])
     tick_size: list[float] = field(default_factory=lambda: [0.01, 0.001])
@@ -257,11 +255,7 @@ class CostSweepExperiment(BaseExperiment):
         # For now, create synthetic data
         np.random.seed(42)
 
-        symbols = (
-            self.config.symbols[:3]
-            if self.config.symbols
-            else ["AAPL", "GOOGL", "MSFT"]
-        )
+        symbols = self.config.symbols[:3] if self.config.symbols else ["AAPL", "GOOGL", "MSFT"]
         dates = pd.date_range("2023-01-01", "2023-01-31", freq="D")
 
         bars = []

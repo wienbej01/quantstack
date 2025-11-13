@@ -21,9 +21,7 @@ def enhanced_entry_ab(
         help="Variant overlay files pattern, e.g., test_config/variant_*.json",
     ),
     name: str = typer.Option(..., "--name", help="Experiment ID"),
-    force: bool = typer.Option(
-        False, "--force", help="Force run even if checksums differ"
-    ),
+    force: bool = typer.Option(False, "--force", help="Force run even if checksums differ"),
     allow_unfair: bool = typer.Option(
         False,
         "--allow-unfair",
@@ -35,9 +33,7 @@ def enhanced_entry_ab(
 
     # Parse variant files
     if "," in variants:
-        variant_files = [
-            pathlib.Path(f.strip()) for f in variants.split(",") if f.strip()
-        ]
+        variant_files = [pathlib.Path(f.strip()) for f in variants.split(",") if f.strip()]
     else:
         import glob
 
@@ -72,9 +68,7 @@ def enhanced_entry_ab(
             else:
                 console.print(f"⚠️  Fairness issues: {fairness.reason}", style="yellow")
             if fairness.warnings:
-                console.print(
-                    f"Warnings: {', '.join(fairness.warnings)}", style="yellow"
-                )
+                console.print(f"Warnings: {', '.join(fairness.warnings)}", style="yellow")
 
         # Print performance summary
         console.print("\nPerformance Summary:")

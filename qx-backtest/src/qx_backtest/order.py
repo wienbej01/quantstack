@@ -60,9 +60,7 @@ class Order:
     time_in_force: TimeInForce = TimeInForce.DAY
 
     # Metadata
-    timestamp: int = field(
-        default_factory=lambda: int(datetime.now().timestamp() * 1e9)
-    )
+    timestamp: int = field(default_factory=lambda: int(datetime.now().timestamp() * 1e9))
     status: OrderStatus = OrderStatus.PENDING
     filled_quantity: int = 0
     avg_fill_price: float = 0.0
@@ -124,9 +122,7 @@ class Order:
         # Update filled quantity and average price
         total_cost = self.filled_quantity * self.avg_fill_price + quantity * price
         self.filled_quantity += quantity
-        self.avg_fill_price = (
-            total_cost / self.filled_quantity if self.filled_quantity > 0 else 0.0
-        )
+        self.avg_fill_price = total_cost / self.filled_quantity if self.filled_quantity > 0 else 0.0
 
         # Record fill
         fill_info = {
@@ -226,9 +222,7 @@ class MarketOrder(Order):
 
         import logging
 
-        logging.debug(
-            f"MarketOrder created for {self.symbol} with quantity {self.quantity}"
-        )
+        logging.debug(f"MarketOrder created for {self.symbol} with quantity {self.quantity}")
         # Call parent validation
         super().__post_init__()
 
@@ -247,9 +241,7 @@ class MarketOrder(Order):
             ts_submitted = int(datetime.now().timestamp() * 1e9)
 
         if quantity > 1:
-            print(
-                f"[ORDER DEBUG] strategy={strategy_id} submitting quantity={quantity}"
-            )
+            print(f"[ORDER DEBUG] strategy={strategy_id} submitting quantity={quantity}")
 
         return cls(
             order_id=uuid.uuid4().hex,

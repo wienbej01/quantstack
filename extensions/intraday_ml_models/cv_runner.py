@@ -9,7 +9,7 @@ import json
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,10 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
+from extensions.intraday_ml.eval.eval_trading_performance import (
+    SelectionPolicy,
+    evaluate_trading_performance,
+)
 from extensions.intraday_ml.utils.checksums import compute_data_hash
 from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer, TrainingResult
 
@@ -84,6 +88,8 @@ class CVMetrics:
 
     # Timing
     train_time_seconds: float
+    # Trading evaluator metrics per policy
+    trading_metrics: dict[str, dict[str, float]] | None = None
 
 
 @dataclass
@@ -118,9 +124,7 @@ class TimeSeriesCVRunner:
         self.cross_symbol_consistency = cv_config.get("cross_symbol_consistency", True)
 
         # Data quality controls
-        self.min_observations_per_fold = cv_config.get(
-            "min_observations_per_fold", 1000
-        )
+        self.min_observations_per_fold = cv_config.get("min_observations_per_fold", 1000)
         self.min_symbols_per_fold = cv_config.get("min_symbols_per_fold", 2)
 
         # Metrics configuration
@@ -134,9 +138,16 @@ class TimeSeriesCVRunner:
             self.economic_metrics = []
             self.trade_density_metrics = []
 
-    def create_splits(
-        self, data: pd.DataFrame, date_column: str = "ts"
-    ) -> list[CVSplit]:
+        self.trading_eval_cfg = cv_config.get("trading_evaluation", {})
+        self.trading_eval_enabled = bool(self.trading_eval_cfg.get("enabled", False))
+        self.trading_context_columns = self.trading_eval_cfg.get("context_columns", ["close"])
+        self.trading_horizon = int(self.trading_eval_cfg.get("horizon_minutes", 30))
+        self.trading_cost_bps = float(self.trading_eval_cfg.get("transaction_cost_bps", 10.0))
+        self.trading_policies = self._build_trading_policies(
+            self.trading_eval_cfg.get("policies", [])
+        )
+
+    def create_splits(self, data: pd.DataFrame, date_column: str = "ts") -> list[CVSplit]:
         """Create purged, embargoed CV splits.
 
         Args:
@@ -155,9 +166,31 @@ class TimeSeriesCVRunner:
         else:
             raise ValueError(f"Unknown validation method: {self.validation_method}")
 
-    def _create_purged_splits(
-        self, data: pd.DataFrame, date_column: str
-    ) -> list[CVSplit]:
+    def _build_trading_policies(
+        self, policy_cfgs: Sequence[dict[str, Any]]
+    ) -> list[SelectionPolicy]:
+        """Build selection policies from configuration."""
+        policies: list[SelectionPolicy] = []
+        for cfg in policy_cfgs:
+            if not isinstance(cfg, dict):
+                continue
+            try:
+                policies.append(
+                    SelectionPolicy(
+                        name=cfg["name"],
+                        kind=cfg["kind"],
+                        prob_threshold=cfg.get("prob_threshold"),
+                        min_edge=cfg.get("min_edge", 0.0),
+                        min_score=cfg.get("min_score", 0.0),
+                        top_k=cfg.get("top_k"),
+                        score_column=cfg.get("score_column", "trade_score"),
+                    )
+                )
+            except KeyError as exc:
+                print(f"Skipping trading policy due to missing key: {exc}")
+        return policies
+
+    def _create_purged_splits(self, data: pd.DataFrame, date_column: str) -> list[CVSplit]:
         """Create purged CV splits with proper temporal ordering."""
         # Ensure data is sorted by timestamp
         data = data.sort_values(date_column)
@@ -185,9 +218,7 @@ class TimeSeriesCVRunner:
             # Validation period
             val_start_date = unique_dates[val_start_idx]
             val_end_date = (
-                unique_dates[val_end_idx - 1]
-                + pd.Timedelta(days=1)
-                - pd.Timedelta(seconds=1)
+                unique_dates[val_end_idx - 1] + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             )
 
             # Training period (all data before validation)
@@ -197,9 +228,7 @@ class TimeSeriesCVRunner:
 
             train_start_date = unique_dates[0]
             train_end_date = (
-                unique_dates[train_end_idx - 1]
-                + pd.Timedelta(days=1)
-                - pd.Timedelta(seconds=1)
+                unique_dates[train_end_idx - 1] + pd.Timedelta(days=1) - pd.Timedelta(seconds=1)
             )
 
             # Apply purge period
@@ -215,12 +244,10 @@ class TimeSeriesCVRunner:
 
             # Get symbols in each period
             train_data = data[
-                (data[date_column] >= train_start_date)
-                & (data[date_column] <= train_end_date)
+                (data[date_column] >= train_start_date) & (data[date_column] <= train_end_date)
             ]
             val_data = data[
-                (data[date_column] >= val_start_date)
-                & (data[date_column] <= val_end_date)
+                (data[date_column] >= val_start_date) & (data[date_column] <= val_end_date)
             ]
 
             train_symbols = sorted(train_data["symbol"].unique().tolist())
@@ -255,30 +282,22 @@ class TimeSeriesCVRunner:
                 val_symbols=val_symbols,
                 train_size=len(train_data),
                 val_size=len(val_data),
-                purge_start=(
-                    purge_start_date if purge_start_date < val_start_date else None
-                ),
+                purge_start=(purge_start_date if purge_start_date < val_start_date else None),
                 purge_end=purge_end_date if purge_end_date > train_end_date else None,
-                embargo_end=(
-                    embargo_end_date if embargo_end_date > train_end_date else None
-                ),
+                embargo_end=(embargo_end_date if embargo_end_date > train_end_date else None),
             )
 
             splits.append(split)
 
         return splits
 
-    def _create_expanding_splits(
-        self, data: pd.DataFrame, date_column: str
-    ) -> list[CVSplit]:
+    def _create_expanding_splits(self, data: pd.DataFrame, date_column: str) -> list[CVSplit]:
         """Create expanding window CV splits."""
         # Similar implementation to purged splits but with expanding windows
         # For now, delegate to purged splits
         return self._create_purged_splits(data, date_column)
 
-    def _create_rolling_splits(
-        self, data: pd.DataFrame, date_column: str
-    ) -> list[CVSplit]:
+    def _create_rolling_splits(self, data: pd.DataFrame, date_column: str) -> list[CVSplit]:
         """Create rolling window CV splits."""
         # Similar implementation to purged splits but with fixed-size windows
         # For now, delegate to purged splits
@@ -290,6 +309,7 @@ class TimeSeriesCVRunner:
         labels: pd.Series,
         model_trainer: LightGBMTrainer,
         model_config: dict[str, Any],
+        context_data: pd.DataFrame | None = None,
     ) -> CVResult:
         """Run complete CV evaluation.
 
@@ -308,7 +328,15 @@ class TimeSeriesCVRunner:
         self._validate_cv_inputs(features, labels)
 
         # Create splits
+        feature_columns = features.columns.tolist()
         combined_data = features.copy()
+        if context_data is not None:
+            aligned_context = context_data.reindex(features.index)
+            context_cols = [
+                col for col in aligned_context.columns if col not in combined_data.columns
+            ]
+            if context_cols:
+                combined_data = pd.concat([combined_data, aligned_context[context_cols]], axis=1)
         combined_data["target"] = labels
         combined_data = combined_data.reset_index()
 
@@ -340,11 +368,17 @@ class TimeSeriesCVRunner:
             val_data = combined_data[val_mask]
 
             # Prepare features and labels
-            train_features = train_data.drop(columns=["target"]).set_index(
-                ["symbol", "ts"]
+            train_features = (
+                train_data.set_index(["symbol", "ts"])[feature_columns]
+                if feature_columns
+                else pd.DataFrame(index=train_data.set_index(["symbol", "ts"]).index)
             )
             train_labels = train_data.set_index(["symbol", "ts"])["target"]
-            val_features = val_data.drop(columns=["target"]).set_index(["symbol", "ts"])
+            val_features = (
+                val_data.set_index(["symbol", "ts"])[feature_columns]
+                if feature_columns
+                else pd.DataFrame(index=val_data.set_index(["symbol", "ts"]).index)
+            )
             val_labels = val_data.set_index(["symbol", "ts"])["target"]
 
             if train_labels.nunique() <= 1 or val_labels.nunique() == 0:
@@ -357,9 +391,7 @@ class TimeSeriesCVRunner:
             # Compute hashes
             features_hash = compute_data_hash(train_features)
             targets_hash = compute_data_hash(train_labels)
-            config_hash = compute_data_hash(
-                pd.Series([json.dumps(model_config, sort_keys=True)])
-            )
+            config_hash = compute_data_hash(pd.Series([json.dumps(model_config, sort_keys=True)]))
 
             hash_key = (features_hash, targets_hash, config_hash)
             if hash_key in hashes_used:
@@ -380,6 +412,7 @@ class TimeSeriesCVRunner:
                 training_result,
                 val_features,
                 val_labels,
+                val_data,
                 split,
                 features_hash,
                 targets_hash,
@@ -389,9 +422,7 @@ class TimeSeriesCVRunner:
             fold_metrics.append(metrics)
 
         if not fold_metrics:
-            raise ValueError(
-                "No valid CV folds were executed due to insufficient data variety."
-            )
+            raise ValueError("No valid CV folds were executed due to insufficient data variety.")
 
         # Aggregate results
         aggregated_metrics = self._aggregate_metrics(fold_metrics)
@@ -440,6 +471,7 @@ class TimeSeriesCVRunner:
         training_result: TrainingResult,
         val_features: pd.DataFrame,
         val_labels: pd.Series,
+        val_full_data: pd.DataFrame,
         split: CVSplit,
         features_hash: str,
         targets_hash: str,
@@ -458,15 +490,11 @@ class TimeSeriesCVRunner:
         )
 
         # Brier score and calibration
-        brier_score = brier_score_loss(
-            val_labels, y_proba, labels=calibrated_model.classes_
-        )
+        brier_score = brier_score_loss(val_labels, y_proba, labels=calibrated_model.classes_)
 
         # Class-specific metrics
-        precision_per_class, recall_per_class, f1_per_class, _ = (
-            precision_recall_fscore_support(
-                val_labels, y_pred, average=None, labels=calibrated_model.classes_
-            )
+        precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(
+            val_labels, y_pred, average=None, labels=calibrated_model.classes_
         )
 
         class_metrics = {}
@@ -477,19 +505,15 @@ class TimeSeriesCVRunner:
                 "f1": float(f1_per_class[i]),
             }
 
-        # Economic metrics (simplified - would need price data for full calculation)
-        expectancy = 0.0  # Placeholder
-        sharpe_ratio = 0.0  # Placeholder
-        max_drawdown = 0.0  # Placeholder
-        win_rate = accuracy  # Simplified approximation
+        expectancy = 0.0
+        sharpe_ratio = 0.0
+        max_drawdown = 0.0
+        win_rate = accuracy
 
-        # Trade density metrics (simplified)
-        trades_per_ticker_day = len(y_pred) / (
-            len(split.val_symbols) * 1
-        )  # 1 day approximation
-        micro_trade_rate = 0.0  # Would need trade sizes
-        avg_holding_time = 0.0  # Would need holding period data
-        abstention_rate = 0.0  # Would need abstention logic
+        trades_per_ticker_day = len(y_pred) / max(len(split.val_symbols), 1)
+        micro_trade_rate = 0.0
+        avg_holding_time = 0.0
+        abstention_rate = 0.0
 
         # Feature importance
         feature_importance = dict(
@@ -499,9 +523,21 @@ class TimeSeriesCVRunner:
                 strict=False,
             )
         )
-        top_features = sorted(
-            feature_importance.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+        top_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:10]
+
+        trading_metrics = self._compute_trading_metrics(
+            val_full_data, y_proba, training_result.calibrated_model.classes_
+        )
+
+        if trading_metrics:
+            first_policy_metrics = next(iter(trading_metrics.values()))
+            expectancy = first_policy_metrics.get("avg_return", expectancy)
+            sharpe_ratio = first_policy_metrics.get("sharpe", sharpe_ratio)
+            max_drawdown = first_policy_metrics.get("max_drawdown", max_drawdown)
+            win_rate = first_policy_metrics.get("win_rate", win_rate)
+            total_trades = first_policy_metrics.get("total_trades")
+            if total_trades is not None:
+                trades_per_ticker_day = total_trades / max(len(split.val_symbols), 1)
 
         return CVMetrics(
             fold=split.fold,
@@ -525,11 +561,70 @@ class TimeSeriesCVRunner:
             abstention_rate=abstention_rate,
             feature_importance=feature_importance,
             top_features=top_features,
+            trading_metrics=trading_metrics,
             features_hash=features_hash,
             targets_hash=targets_hash,
             config_hash=config_hash,
             train_time_seconds=training_result.training_time_seconds,
         )
+
+    def _compute_trading_metrics(
+        self,
+        val_full_data: pd.DataFrame,
+        y_proba: np.ndarray,
+        classes: np.ndarray,
+    ) -> dict[str, dict[str, float]] | None:
+        """Compute trading metrics using the evaluator."""
+        if not self.trading_eval_enabled or not self.trading_policies or val_full_data.empty:
+            return None
+
+        required_cols = ["symbol", "ts"] + self.trading_context_columns
+        missing_cols = [col for col in required_cols if col not in val_full_data.columns]
+        if missing_cols:
+            print(
+                "⚠️  Trading evaluation skipped due to missing columns: " + ", ".join(missing_cols)
+            )
+            return None
+
+        # Ensure close column exists for realized return computation
+        if "close" not in self.trading_context_columns:
+            print("⚠️  Trading evaluation requires 'close' column in context data. Skipping.")
+            return None
+
+        bars = (
+            val_full_data[required_cols].copy().sort_values(["symbol", "ts"]).reset_index(drop=True)
+        )
+
+        # Build prediction DataFrame
+        preds = val_full_data[["symbol", "ts"]].copy().reset_index(drop=True)
+        class_to_idx = {int(cls): idx for idx, cls in enumerate(classes)}
+
+        def _prob_for(label: int) -> np.ndarray:
+            if label not in class_to_idx:
+                return np.zeros(len(preds), dtype=float)
+            return y_proba[:, class_to_idx[label]]
+
+        preds["prob_long"] = _prob_for(1)
+        preds["prob_short"] = _prob_for(-1)
+        preds["prob_neutral"] = _prob_for(0)
+
+        try:
+            results = evaluate_trading_performance(
+                bars=bars,
+                predictions=preds,
+                policies=self.trading_policies,
+                horizon_minutes=self.trading_horizon,
+                transaction_cost_bps=self.trading_cost_bps,
+            )
+        except Exception as exc:  # pragma: no cover - best effort
+            print(f"⚠️  Trading evaluation failed: {exc}")
+            return None
+
+        metrics: dict[str, dict[str, float]] = {}
+        for policy_name, result in results.items():
+            metrics[policy_name] = result.metrics
+
+        return metrics or None
 
     def _aggregate_metrics(self, fold_metrics: list[CVMetrics]) -> dict[str, Any]:
         """Aggregate metrics across folds."""
@@ -561,11 +656,25 @@ class TimeSeriesCVRunner:
             aggregated[f"{metric}_max"] = np.max(values)
             aggregated[f"{metric}_median"] = np.median(values)
 
+        trading_bucket: dict[str, dict[str, list[float]]] = {}
+        for metric in fold_metrics:
+            if not metric.trading_metrics:
+                continue
+            for policy, policy_metrics in metric.trading_metrics.items():
+                bucket = trading_bucket.setdefault(policy, {})
+                for key, value in policy_metrics.items():
+                    if isinstance(value, (int, float)):
+                        bucket.setdefault(key, []).append(float(value))
+
+        for policy, policy_metrics in trading_bucket.items():
+            for metric_name, values in policy_metrics.items():
+                key_prefix = f"trading_{policy}_{metric_name}"
+                aggregated[f"{key_prefix}_mean"] = float(np.mean(values))
+                aggregated[f"{key_prefix}_std"] = float(np.std(values))
+
         return aggregated
 
-    def _calculate_stability_metrics(
-        self, fold_metrics: list[CVMetrics]
-    ) -> dict[str, Any]:
+    def _calculate_stability_metrics(self, fold_metrics: list[CVMetrics]) -> dict[str, Any]:
         """Calculate stability metrics across folds."""
         # Coefficient of variation for primary metrics
         primary_metrics = ["accuracy", "f1_macro", "precision_macro", "recall_macro"]
@@ -578,9 +687,7 @@ class TimeSeriesCVRunner:
             cv = std_val / mean_val if mean_val != 0 else float("inf")
 
             stability[f"{metric}_cv"] = cv
-            stability[f"{metric}_stability_score"] = 1 / (
-                1 + cv
-            )  # Higher = more stable
+            stability[f"{metric}_stability_score"] = 1 / (1 + cv)  # Higher = more stable
 
         # Feature importance stability
         all_features = set()
@@ -589,12 +696,8 @@ class TimeSeriesCVRunner:
 
         feature_correlations = []
         for i, j in itertools.combinations(range(len(fold_metrics)), 2):
-            features_i = [
-                fold_metrics[i].feature_importance.get(f, 0) for f in all_features
-            ]
-            features_j = [
-                fold_metrics[j].feature_importance.get(f, 0) for f in all_features
-            ]
+            features_i = [fold_metrics[i].feature_importance.get(f, 0) for f in all_features]
+            features_j = [fold_metrics[j].feature_importance.get(f, 0) for f in all_features]
             corr = np.corrcoef(features_i, features_j)[0, 1]
             if not np.isnan(corr):
                 feature_correlations.append(corr)
@@ -602,15 +705,11 @@ class TimeSeriesCVRunner:
         stability["feature_importance_mean_correlation"] = (
             np.mean(feature_correlations) if feature_correlations else 0.0
         )
-        stability["feature_importance_stability"] = stability[
-            "feature_importance_mean_correlation"
-        ]
+        stability["feature_importance_stability"] = stability["feature_importance_mean_correlation"]
 
         return stability
 
-    def _calculate_calibration_metrics(
-        self, fold_metrics: list[CVMetrics]
-    ) -> dict[str, Any]:
+    def _calculate_calibration_metrics(self, fold_metrics: list[CVMetrics]) -> dict[str, Any]:
         """Calculate calibration metrics across folds."""
         # Simplified calibration metrics
         brier_scores = [m.brier_score for m in fold_metrics]
@@ -618,8 +717,7 @@ class TimeSeriesCVRunner:
         calibration = {
             "mean_brier_score": np.mean(brier_scores),
             "brier_score_std": np.std(brier_scores),
-            "brier_score_consistency": 1
-            / (1 + np.std(brier_scores)),  # Higher = more consistent
+            "brier_score_consistency": 1 / (1 + np.std(brier_scores)),  # Higher = more consistent
         }
 
         return calibration
@@ -659,6 +757,7 @@ def run_cross_validation(
     model_config: dict[str, Any],
     cv_config: dict[str, Any],
     output_path: Path | None = None,
+    context_data: pd.DataFrame | None = None,
 ) -> CVResult:
     """Convenience function to run cross-validation.
 
@@ -677,7 +776,7 @@ def run_cross_validation(
     cv_runner = TimeSeriesCVRunner(cv_config)
 
     # Run CV
-    result = cv_runner.run_cv(features, labels, trainer, model_config)
+    result = cv_runner.run_cv(features, labels, trainer, model_config, context_data=context_data)
 
     # Save results if path provided
     if output_path:

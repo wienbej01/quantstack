@@ -17,9 +17,7 @@ class TestComputeInputChecksums:
     def sample_bars_df(self):
         """Create sample bars DataFrame."""
         np.random.seed(42)
-        timestamps = pd.date_range(
-            "2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC"
-        )
+        timestamps = pd.date_range("2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC")
 
         data = {
             "ts": timestamps.astype(np.int64),
@@ -36,9 +34,7 @@ class TestComputeInputChecksums:
     def sample_features_df(self):
         """Create sample features DataFrame."""
         np.random.seed(42)
-        timestamps = pd.date_range(
-            "2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC"
-        )
+        timestamps = pd.date_range("2024-01-02 09:30:00", periods=100, freq="1min", tz="UTC")
 
         data = {
             "ts": timestamps.astype(np.int64),
@@ -64,13 +60,9 @@ class TestComputeInputChecksums:
             },
         }
 
-    def test_checksum_computation_basic(
-        self, sample_bars_df, sample_features_df, sample_config
-    ):
+    def test_checksum_computation_basic(self, sample_bars_df, sample_features_df, sample_config):
         """Test basic checksum computation."""
-        checksums = compute_input_checksums(
-            sample_bars_df, sample_features_df, sample_config
-        )
+        checksums = compute_input_checksums(sample_bars_df, sample_features_df, sample_config)
 
         # Check required checksums are present
         required_keys = ["bars_norm_hash", "features_hash", "config_hash", "seed"]
@@ -84,12 +76,8 @@ class TestComputeInputChecksums:
         config1 = {"test": "config1"}
         config2 = {"test": "config2"}
 
-        checksums1 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config1
-        )
-        checksums2 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config2
-        )
+        checksums1 = compute_input_checksums(sample_bars_df, sample_features_df, config1)
+        checksums2 = compute_input_checksums(sample_bars_df, sample_features_df, config2)
 
         # Bars hash should be same regardless of config
         assert checksums1["bars_norm_hash"] == checksums2["bars_norm_hash"]
@@ -109,12 +97,8 @@ class TestComputeInputChecksums:
         config1 = {"policy_params": {"min_rvol": 1.0}}
         config2 = {"policy_params": {"min_rvol": 1.5}}
 
-        checksums1 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config1
-        )
-        checksums2 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config2
-        )
+        checksums1 = compute_input_checksums(sample_bars_df, sample_features_df, config1)
+        checksums2 = compute_input_checksums(sample_bars_df, sample_features_df, config2)
 
         # Config hashes should be different
         assert checksums1["config_hash"] != checksums2["config_hash"]
@@ -123,12 +107,8 @@ class TestComputeInputChecksums:
         """Test seed hash computation."""
         config = {"test": "config"}
 
-        checksums1 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config, seed=42
-        )
-        checksums2 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config, seed=123
-        )
+        checksums1 = compute_input_checksums(sample_bars_df, sample_features_df, config, seed=42)
+        checksums2 = compute_input_checksums(sample_bars_df, sample_features_df, config, seed=123)
 
         # Seed hashes should be different
         assert checksums1["seed"] != checksums2["seed"]
@@ -167,12 +147,8 @@ class TestComputeInputChecksums:
             "git_commit": "def456",  # Different commit
         }
 
-        checksums1 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config1
-        )
-        checksums2 = compute_input_checksums(
-            sample_bars_df, sample_features_df, config2
-        )
+        checksums1 = compute_input_checksums(sample_bars_df, sample_features_df, config1)
+        checksums2 = compute_input_checksums(sample_bars_df, sample_features_df, config2)
 
         # Config hashes should be same despite different seeds/commits
         assert checksums1["config_hash"] == checksums2["config_hash"]

@@ -120,9 +120,7 @@ class SipScreener:
         ]
 
         # Relative volume filter
-        filtered = filtered[
-            filtered["relative_volume"] >= self.config.min_relative_volume
-        ]
+        filtered = filtered[filtered["relative_volume"] >= self.config.min_relative_volume]
 
         # Dollar volume filter (close * volume)
         filtered["dollar_volume"] = filtered["close"] * filtered["volume"]
@@ -137,9 +135,7 @@ class SipScreener:
     def _rank_by_relative_volume(self, data: pd.DataFrame) -> pd.DataFrame:
         """Rank symbols by relative volume (descending)."""
         ranked = data.copy()
-        ranked["rvol_rank"] = ranked["relative_volume"].rank(
-            ascending=False, method="min"
-        )
+        ranked["rvol_rank"] = ranked["relative_volume"].rank(ascending=False, method="min")
         ranked = ranked.sort_values("rvol_rank")
         return ranked
 
@@ -173,9 +169,7 @@ def compute_relative_volume_rank(
     ranked = screener._rank_by_relative_volume(latest_per_symbol)
 
     # Return only relevant columns
-    result = ranked[
-        ["symbol", "relative_volume", "rvol_rank", "close", "volume"]
-    ].copy()
+    result = ranked[["symbol", "relative_volume", "rvol_rank", "close", "volume"]].copy()
     result["dollar_volume"] = result["close"] * result["volume"]
 
     return result

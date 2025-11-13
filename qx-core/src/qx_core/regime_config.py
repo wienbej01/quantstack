@@ -29,9 +29,7 @@ class RegimeConfig(BaseModel):
     )
 
     # Persistence and cooldown
-    persistence_bars: int = Field(
-        3, ge=1, le=20, description="Minimum bars for regime persistence"
-    )
+    persistence_bars: int = Field(3, ge=1, le=20, description="Minimum bars for regime persistence")
     cooldown_minutes: int = Field(
         15, ge=0, le=120, description="Cooldown period after regime changes"
     )
@@ -96,9 +94,7 @@ class RegimeConfig(BaseModel):
 
         for param in window_params:
             if param in v and (not isinstance(v[param], int) or v[param] <= 0):
-                raise ValueError(
-                    f"Feature parameter {param} must be a positive integer"
-                )
+                raise ValueError(f"Feature parameter {param} must be a positive integer")
 
         # Check for valid thresholds
         threshold_params = ["stress_threshold"]
@@ -148,9 +144,7 @@ class RegimeConfig(BaseModel):
         # Check band position bounds
         if "sideways_band_min" in v and "sideways_band_max" in v:
             if v["sideways_band_min"] >= v["sideways_band_max"]:
-                raise ValueError(
-                    "sideways_band_min must be less than sideways_band_max"
-                )
+                raise ValueError("sideways_band_min must be less than sideways_band_max")
 
         return v
 
@@ -183,9 +177,7 @@ def create_default_regime_config() -> dict[str, Any]:
     return config.dict()
 
 
-def merge_regime_config(
-    base: dict[str, Any], overlay: dict[str, Any]
-) -> dict[str, Any]:
+def merge_regime_config(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     """Merge regime configuration overlay into base configuration.
 
     Args:

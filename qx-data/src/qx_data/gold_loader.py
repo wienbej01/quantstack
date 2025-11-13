@@ -65,14 +65,10 @@ def load_bars(
     files_attempted = 0
 
     month_filters = {
-        d[:7]
-        for d in dates
-        if len(d) >= 7 and d[4] == "-" and d[:4].isdigit() and d[5:7].isdigit()
+        d[:7] for d in dates if len(d) >= 7 and d[4] == "-" and d[:4].isdigit() and d[5:7].isdigit()
     }
     day_filters = {
-        d
-        for d in dates
-        if len(d) >= 10 and d[4] == "-" and d[7] == "-" and d[:4].isdigit()
+        d for d in dates if len(d) >= 10 and d[4] == "-" and d[7] == "-" and d[:4].isdigit()
     }
 
     for symbol in symbols:
@@ -100,14 +96,8 @@ def load_bars(
                     ts_index = pd.to_datetime(df["ts"], unit="ns")
                     df["_date_month"] = ts_index.dt.strftime("%Y-%m")
                     df["_date_day"] = ts_index.dt.strftime("%Y-%m-%d")
-                    mask_month = (
-                        df["_date_month"].isin(month_filters)
-                        if month_filters
-                        else False
-                    )
-                    mask_day = (
-                        df["_date_day"].isin(day_filters) if day_filters else False
-                    )
+                    mask_month = df["_date_month"].isin(month_filters) if month_filters else False
+                    mask_day = df["_date_day"].isin(day_filters) if day_filters else False
                     combined_mask = mask_month | mask_day
                     if combined_mask.any():
                         df = df[combined_mask]
@@ -126,9 +116,7 @@ def load_bars(
     combined = pd.concat(dfs, ignore_index=True)
     normalized = _normalize_in_memory(combined)
     # Deduplicate symbol/timestamp pairs for stable downstream processing
-    normalized = normalized.drop_duplicates(subset=["symbol", "ts"]).reset_index(
-        drop=True
-    )
+    normalized = normalized.drop_duplicates(subset=["symbol", "ts"]).reset_index(drop=True)
 
     # Validate schema if requested
     if validate:
@@ -423,17 +411,13 @@ def _normalize_in_memory(df: pd.DataFrame) -> pd.DataFrame:
             print(f"Warning: {col} contains NaN values after conversion")
 
     # Volume normalization
-    out["volume"] = (
-        pd.to_numeric(out["volume"], errors="coerce").fillna(0).astype("int64")
-    )
+    out["volume"] = pd.to_numeric(out["volume"], errors="coerce").fillna(0).astype("int64")
 
     # Optional columns - ensure they exist with proper types if present
     for col in OPTIONAL:
         if col in out.columns:
             if col in ["trades"]:
-                out[col] = (
-                    pd.to_numeric(out[col], errors="coerce").fillna(0).astype("int64")
-                )
+                out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0).astype("int64")
             elif col in ["vwap"]:
                 out[col] = pd.to_numeric(out[col], errors="coerce")
             else:  # string columns

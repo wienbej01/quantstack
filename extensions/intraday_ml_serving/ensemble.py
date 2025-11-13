@@ -127,15 +127,11 @@ class EnsembleModel:
 
         with ThreadPoolExecutor(max_workers=len(self.predictors)) as executor:
             future_to_model = {
-                executor.submit(
-                    self._predict_single, model_id, predictor, features
-                ): model_id
+                executor.submit(self._predict_single, model_id, predictor, features): model_id
                 for model_id, predictor in self.predictors.items()
             }
 
-            for future in as_completed(
-                future_to_model, timeout=self.config.timeout_seconds
-            ):
+            for future in as_completed(future_to_model, timeout=self.config.timeout_seconds):
                 model_id = future_to_model[future]
                 try:
                     result = future.result()
@@ -165,9 +161,7 @@ class EnsembleModel:
             self.logger.error(f"Single prediction failed for {model_id}: {e}")
             raise
 
-    def _voting_ensemble(
-        self, individual_results: dict[str, dict[str, float]]
-    ) -> dict[str, float]:
+    def _voting_ensemble(self, individual_results: dict[str, dict[str, float]]) -> dict[str, float]:
         """Voting ensemble method."""
         predictions = [r["prediction"] for r in individual_results.values()]
         confidences = [r["confidence"] for r in individual_results.values()]
@@ -184,9 +178,7 @@ class EnsembleModel:
             avg_confidence = positive_votes / len(predictions)
 
         # Calculate consensus score
-        consensus_score = 1.0 - np.std(predictions) / (
-            np.mean(np.abs(predictions)) + 1e-8
-        )
+        consensus_score = 1.0 - np.std(predictions) / (np.mean(np.abs(predictions)) + 1e-8)
         variance = np.var(predictions)
 
         return {
@@ -315,9 +307,7 @@ class EnsembleModel:
         rmse = np.sqrt(mse)
 
         # Correlation
-        correlation = (
-            np.corrcoef(predictions, targets)[0, 1] if len(predictions) > 1 else 0.0
-        )
+        correlation = np.corrcoef(predictions, targets)[0, 1] if len(predictions) > 1 else 0.0
 
         # Confidence calibration
         confidence_error = np.mean(np.abs(confidences - np.abs(predictions - targets)))
@@ -329,10 +319,7 @@ class EnsembleModel:
             "correlation": float(correlation) if not np.isnan(correlation) else 0.0,
             "confidence_error": float(confidence_error),
             "avg_prediction_time_ms": np.mean(
-                [
-                    r.prediction_time_ms
-                    for r in [self.predict(f) for f in test_features[:10]]
-                ]
+                [r.prediction_time_ms for r in [self.predict(f) for f in test_features[:10]]]
             ),
         }
 

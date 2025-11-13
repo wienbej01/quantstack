@@ -15,6 +15,14 @@
   "min_conviction_score": 0.015,
   "gap_exit_delay_minutes": 15,
   "session_timezone": "America/New_York",
+  "risk": {
+    "atr_feature": "f__vol__atr_6",
+    "support_feature_long": "low",
+    "resistance_feature_short": "high",
+    "max_atr_multiple": 1.25,
+    "support_buffer_atr": 0.1,
+    "target_r_multiple": 1.6
+  },
   "calibration": {
     "enabled": true,
     "quantiles": [

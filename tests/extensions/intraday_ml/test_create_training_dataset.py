@@ -69,9 +69,7 @@ class TestCreateTrainingDataset:
             timestamps = pd.date_range(day_start, periods=390, freq="1min")
 
             # Daily trend and volatility
-            daily_trend, daily_vol = DAY_CHARACTERISTICS.get(
-                day_idx, DEFAULT_DAY_CHARACTERISTIC
-            )
+            daily_trend, daily_vol = DAY_CHARACTERISTICS.get(day_idx, DEFAULT_DAY_CHARACTERISTIC)
 
             for minute_idx, ts in enumerate(timestamps):
                 # Time-of-day effects (higher volume at open/close)
@@ -86,9 +84,7 @@ class TestCreateTrainingDataset:
                     vol_multiplier = 1.0
 
                 # Calculate price with trend, intraday pattern, and noise
-                intraday_pattern = 0.001 * np.sin(
-                    2 * np.pi * minute_idx / TRADING_DAY_MINUTES
-                )
+                intraday_pattern = 0.001 * np.sin(2 * np.pi * minute_idx / TRADING_DAY_MINUTES)
                 trend_component = daily_trend * minute_idx / TRADING_DAY_MINUTES
                 noise = np.random.normal(0, daily_vol * vol_multiplier)
 
@@ -96,9 +92,7 @@ class TestCreateTrainingDataset:
                 close = base_price + price_change
 
                 # Generate OHLC with proper relationships
-                high_low_range = (
-                    abs(np.random.normal(0, 0.003 * vol_multiplier)) * close
-                )
+                high_low_range = abs(np.random.normal(0, 0.003 * vol_multiplier)) * close
                 high = close + high_low_range * np.random.random()
                 low = close - high_low_range * (1 - np.random.random())
 
@@ -111,9 +105,7 @@ class TestCreateTrainingDataset:
 
                 # Volume with time-of-day effects
                 base_volume = 200000
-                volume = max(
-                    50000, int(np.random.normal(base_volume * volume_multiplier, 50000))
-                )
+                volume = max(50000, int(np.random.normal(base_volume * volume_multiplier, 50000)))
 
                 all_data.append(
                     {
@@ -181,9 +173,7 @@ class TestCreateTrainingDataset:
         ], "Result should have symbol information"
 
     @patch("extensions.intraday_ml.data_prep.load_data_window")
-    def test_no_nan_labels(
-        self, mock_load_data, bac_week_data, features_config, targets_config
-    ):
+    def test_no_nan_labels(self, mock_load_data, bac_week_data, features_config, targets_config):
         """Test that there are no NaN values in the label column."""
         mock_load_data.return_value = bac_week_data
 
@@ -196,15 +186,11 @@ class TestCreateTrainingDataset:
         )
 
         # Check that label column has no NaN values
-        assert (
-            not result_df["label"].isna().any()
-        ), "Label column should not contain NaN values"
+        assert not result_df["label"].isna().any(), "Label column should not contain NaN values"
 
         # Check that all labels are valid (-1, 0, 1)
         unique_labels = set(result_df["label"].unique())
-        assert unique_labels.issubset(
-            {-1, 0, 1}
-        ), f"Invalid labels found: {unique_labels}"
+        assert unique_labels.issubset({-1, 0, 1}), f"Invalid labels found: {unique_labels}"
 
     @patch("extensions.intraday_ml.data_prep.load_data_window")
     def test_manual_verification_no_lookahead(
@@ -228,9 +214,7 @@ class TestCreateTrainingDataset:
 
         # Find the row for our middle timestamp
         if "symbol" in result_df.columns:
-            mask = (result_df["symbol"] == "BAC") & (
-                result_df["ts"] == middle_timestamp
-            )
+            mask = (result_df["symbol"] == "BAC") & (result_df["ts"] == middle_timestamp)
             matching_rows = result_df[mask]
         else:
             # If symbol is in index
@@ -249,15 +233,11 @@ class TestCreateTrainingDataset:
 
             print(f"\nManual verification for timestamp {middle_timestamp}:")
             print(f"Label: {label}")
-            feature_count = len(
-                [col for col in result_df.columns if col.startswith("f__")]
-            )
+            feature_count = len([col for col in result_df.columns if col.startswith("f__")])
             print(f"Number of features: {feature_count}")
 
             # Print first few feature values for verification
-            feature_cols = [col for col in result_df.columns if col.startswith("f__")][
-                :5
-            ]
+            feature_cols = [col for col in result_df.columns if col.startswith("f__")][:5]
             print("Sample feature values:")
             for col in feature_cols:
                 if col in feature_vector:
@@ -300,16 +280,14 @@ class TestCreateTrainingDataset:
         )
 
         # Verify that every row has both features and label
-        assert len(result_df) == len(
-            result_df.dropna(subset=["label"])
-        ), "All rows should have labels"
+        assert len(result_df) == len(result_df.dropna(subset=["label"])), (
+            "All rows should have labels"
+        )
 
         # Check that features are aligned (same number of rows)
         feature_columns = [col for col in result_df.columns if col.startswith("f__")]
         for col in feature_columns[:5]:  # Check first 5 features
-            assert (
-                len(result_df[col].dropna()) > 0
-            ), f"Feature {col} should have non-NaN values"
+            assert len(result_df[col].dropna()) > 0, f"Feature {col} should have non-NaN values"
 
     @patch("extensions.intraday_ml.data_prep.load_data_window")
     def test_multiple_symbols(self, mock_load_data, features_config, targets_config):
@@ -352,9 +330,7 @@ class TestCreateTrainingDataset:
         else:
             unique_symbols = result_df.index.get_level_values("symbol").unique()
 
-        assert (
-            len(unique_symbols) == EXPECTED_SYMBOL_COUNT
-        ), "Should have data for both symbols"
+        assert len(unique_symbols) == EXPECTED_SYMBOL_COUNT, "Should have data for both symbols"
         assert set(unique_symbols) == {"BAC", "AAPL"}, "Should have BAC and AAPL"
 
         # All rows should have labels
@@ -374,9 +350,7 @@ class TestCreateTrainingDataset:
             targets_config=targets_config,
         )
 
-        assert isinstance(
-            result_df, pd.DataFrame
-        ), "Should return DataFrame even for empty input"
+        assert isinstance(result_df, pd.DataFrame), "Should return DataFrame even for empty input"
         assert len(result_df) == 0, "Empty input should produce empty output"
 
     @patch("extensions.intraday_ml.data_prep.load_data_window")
@@ -406,9 +380,9 @@ class TestCreateTrainingDataset:
             assert isinstance(result_df, pd.DataFrame)
         except Exception as e:
             # If it fails, error should be informative
-            assert isinstance(
-                e, (ValueError, KeyError)
-            ), f"Expected informative error, got {type(e)}"
+            assert isinstance(e, (ValueError, KeyError)), (
+                f"Expected informative error, got {type(e)}"
+            )
 
     def test_reproducibility(self, features_config, targets_config):
         """Test that results are reproducible with same inputs."""
@@ -420,9 +394,7 @@ class TestCreateTrainingDataset:
             np.random.seed(42)
             test_data = pd.DataFrame(
                 {
-                    "ts": pd.date_range(
-                        "2024-01-02 09:30:00", periods=100, freq="1min"
-                    ),
+                    "ts": pd.date_range("2024-01-02 09:30:00", periods=100, freq="1min"),
                     "symbol": "BAC",
                     "open": np.random.normal(30, 0.1, 100),
                     "high": np.random.normal(30.1, 0.1, 100),

@@ -35,9 +35,7 @@ def compute_input_checksums(
     else:
         # Empty universe hash
         empty_sip = json.dumps({}, sort_keys=True)
-        checksums["sip_hash"] = hashlib.blake2b(
-            empty_sip.encode(), digest_size=32
-        ).hexdigest()
+        checksums["sip_hash"] = hashlib.blake2b(empty_sip.encode(), digest_size=32).hexdigest()
 
     # Configuration hash
     config_copy = json.loads(json.dumps(config, sort_keys=True, default=str))
@@ -45,9 +43,7 @@ def compute_input_checksums(
     for key in ["seed", "git_commit"]:
         config_copy.pop(key, None)
     config_str = json.dumps(config_copy, sort_keys=True)
-    checksums["config_hash"] = hashlib.blake2b(
-        config_str.encode(), digest_size=32
-    ).hexdigest()
+    checksums["config_hash"] = hashlib.blake2b(config_str.encode(), digest_size=32).hexdigest()
 
     # Seed hash
     seed_str = str(seed)
@@ -56,9 +52,7 @@ def compute_input_checksums(
     return checksums
 
 
-def validate_checksum_consistency(
-    expected: dict[str, str], actual: dict[str, str]
-) -> list[str]:
+def validate_checksum_consistency(expected: dict[str, str], actual: dict[str, str]) -> list[str]:
     """Validate that checksums are consistent between expected and actual."""
     mismatches = []
     for key, expected_value in expected.items():

@@ -1,0 +1,73 @@
+# Big-Move Target Configuration
+# Focus on higher-magnitude directional moves for Sprint 2 experiments.
+
+label_type: "triclass_atr_threshold"
+
+# Larger horizons favour moves that persist beyond quick scalps.
+horizons:
+  - 45
+  - 75
+  - 120
+
+# ATR multipliers operate on ATR expressed as a return (% of price) so moves
+# align with ≥1.5R payoffs once paired with risk_reward parameters below.
+atr_multiplier: 1.35
+atr_multiplier_long: 1.42
+atr_multiplier_short: 1.55
+
+# Slightly longer ATR to stabilise volatility estimates.
+atr_window: 21
+atr_period_minutes: 1
+
+volatility_scaling:
+  enabled: true
+  target_move_pct: 0.012
+  price_quantile: 0.6
+  atr_quantile: 0.85
+  mix: 0.6
+  multiplier_bounds:
+    min: 0.01
+    max: 0.12
+
+directional_balance:
+  enabled: true
+  target_ratio: 1.0
+  tolerance: 0.15
+  max_iterations: 10
+  adjust_step: 0.08
+  growth_factor: 0.65
+  min_directional: 25
+  multiplier_bounds:
+    min: 0.01
+    max: 0.13
+
+first_hit_logic:
+  enabled: true
+  stop_at_hit: true
+  min_bars_required: 2
+
+session_constraints:
+  timezone: "America/New_York"
+  session_open: "09:30"
+  session_close: "16:00"
+  min_minutes_after_open: 10   # avoid opening auction noise
+  max_minutes_before_close: 15 # ensure ample time for exits
+
+min_realized_return_pct: 0.015
+
+min_observations_per_horizon: 8
+max_lookback_bars: 180
+require_min_atr: 0.015
+exclude_flat_periods: true
+include_metadata: true
+validate_no_peek: true
+
+risk_reward:
+  enabled: true
+  min_r_multiple: 1.5
+  stop_atr_multiplier_long: 0.85
+  stop_atr_multiplier_short: 0.95
+  target_buffer: 0.0005
+  atr_return_bounds:
+    min: 0.0005
+    max: 0.08

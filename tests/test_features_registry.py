@@ -111,8 +111,7 @@ class TestApplyFeatures:
         """Setup test data."""
         self.df = pd.DataFrame(
             {
-                "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000]
-                * 2,
+                "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000] * 2,
                 "symbol": ["AAPL"] * 3 + ["GOOGL"] * 3,
                 "open": [150.0, 151.0, 152.0, 2800.0, 2810.0, 2820.0],
                 "high": [151.0, 152.0, 153.0, 2810.0, 2820.0, 2830.0],
@@ -328,9 +327,7 @@ class TestFeaturePackValidation:
             "params": {"vwap_window_m": -5},  # Invalid negative window
         }
 
-        with pytest.raises(
-            ValueError, match="vwap_window_m must be a positive integer"
-        ):
+        with pytest.raises(ValueError, match="vwap_window_m must be a positive integer"):
             validate_feature_pack_config(config)
 
     def test_validate_predefined_pack(self):
@@ -344,18 +341,14 @@ class TestFeaturePackValidation:
         """Test validating invalid config type."""
         config = "invalid_config"
 
-        with pytest.raises(
-            ValueError, match="Feature pack config must be a dictionary"
-        ):
+        with pytest.raises(ValueError, match="Feature pack config must be a dictionary"):
             validate_feature_pack_config(config)
 
     def test_validate_missing_type_field(self):
         """Test validating config without type field."""
         config = {"params": {"some": "value"}}
 
-        with pytest.raises(
-            ValueError, match="Feature pack must have 'type' or 'name' field"
-        ):
+        with pytest.raises(ValueError, match="Feature pack must have 'type' or 'name' field"):
             validate_feature_pack_config(config)
 
 
@@ -364,9 +357,7 @@ class TestCreateFeaturePackConfig:
 
     def test_create_core_basics_config(self):
         """Test creating core basics configuration."""
-        config = create_feature_pack_config(
-            "core_basics", vwap_window_m=20, atr_window_m=10
-        )
+        config = create_feature_pack_config("core_basics", vwap_window_m=20, atr_window_m=10)
 
         assert config["type"] == "core_basics"
         assert config["params"]["vwap_window_m"] == 20

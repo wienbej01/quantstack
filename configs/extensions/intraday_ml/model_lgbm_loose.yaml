@@ -18,18 +18,18 @@ lgbm_params:
 # Class weights to handle imbalanced directional classes
 class_weights:
   base:
-    -1: 1.9
-    0: 0.42
-    1: 1.9
+    -1: 2.0
+    0: 1.0
+    1: 2.0
   auto_balance:
     enabled: true
-    mix: 0.6
+    mix: 0.45
     target_ratio: 1.0
     tolerance: 0.2
     ratio_adjust: 0.32
     equalize_directional: true
-    neutral_weight_floor: 0.3
-    neutral_weight_cap: 0.6
+    neutral_weight_floor: 0.85
+    neutral_weight_cap: 1.15
     missing_class_weight: 1.5
     min_weight: 0.08
     max_weight: 5.0
@@ -40,6 +40,16 @@ training:
   eval_metric: "multi_logloss"
   validation_split: 0.2
   shuffle: true
+  abstention_guard:
+    max_trade_density: 0.5
+    min_abstention_rate: 0.5
+    fail_on_worse_than_baseline: true
+  topk_objective:
+    enabled: true
+    bars_per_day: 39
+    trades_per_day:
+      - 3
+      - 5
 
 calibration:
   enabled: true

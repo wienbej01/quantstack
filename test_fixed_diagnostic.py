@@ -39,9 +39,9 @@ def run_diagnostic_check(df, verbose=False):
         return
 
     # Add date and session info for session-based counting
-    ready_bars["dt_et"] = pd.to_datetime(
-        ready_bars["ts"], unit="ns", utc=True
-    ).dt.tz_convert("America/New_York")
+    ready_bars["dt_et"] = pd.to_datetime(ready_bars["ts"], unit="ns", utc=True).dt.tz_convert(
+        "America/New_York"
+    )
     ready_bars["date"] = ready_bars["dt_et"].dt.date
     ready_bars["session"] = ready_bars["dt_et"].apply(
         lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
@@ -87,15 +87,9 @@ def run_diagnostic_check(df, verbose=False):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif (
-            features["var_ratio"] > BULL_VAR_RATIO_MIN
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BULL"
-        elif (
-            features["var_ratio"] < BEAR_VAR_RATIO_MAX
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
@@ -110,9 +104,7 @@ def run_diagnostic_check(df, verbose=False):
         regime_counts[regime].add(session_key)
 
     # Convert sets to counts
-    regime_session_counts = {
-        regime: len(sessions) for regime, sessions in regime_counts.items()
-    }
+    regime_session_counts = {regime: len(sessions) for regime, sessions in regime_counts.items()}
 
     total_sessions = sum(regime_session_counts.values())
     print(f"Trading sessions (twice per day): {total_sessions}")

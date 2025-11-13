@@ -107,6 +107,7 @@ class BayesianLightGBMTuner:
         self.trial_history: list[OptimizationTrial] = []
         self.current_trial = 0
         self.gaussian_process_state = None
+        self._context_data: pd.DataFrame | None = None
 
     def _initialize_parameter_bounds(self) -> list[HyperparameterBounds]:
         """Initialize hyperparameter search bounds."""
@@ -135,6 +136,7 @@ class BayesianLightGBMTuner:
         features: pd.DataFrame,
         labels: pd.Series,
         output_dir: Path | None = None,
+        context_data: pd.DataFrame | None = None,
     ) -> TuningResult:
         """Run Bayesian hyperparameter optimization.
 
@@ -147,6 +149,7 @@ class BayesianLightGBMTuner:
             Complete tuning results
         """
         start_time = time.time()
+        self._context_data = context_data
 
         # Set random seed for reproducibility
         np.random.seed(self.random_seed)
@@ -249,9 +252,7 @@ class BayesianLightGBMTuner:
 
         # Add random perturbation
         for bound in self.param_bounds:
-            if (
-                bound.param_name in params and np.random.random() < 0.3
-            ):  # 30% chance to modify
+            if bound.param_name in params and np.random.random() < 0.3:  # 30% chance to modify
                 if bound.param_type == "continuous":
                     perturbation = np.random.normal(0, (bound.high - bound.low) * 0.1)
                     new_value = params[bound.param_name] + perturbation
@@ -259,9 +260,7 @@ class BayesianLightGBMTuner:
                 elif bound.param_type == "integer":
                     perturbation = np.random.randint(-2, 3)
                     new_value = params[bound.param_name] + perturbation
-                    params[bound.param_name] = int(
-                        np.clip(new_value, bound.low, bound.high)
-                    )
+                    params[bound.param_name] = int(np.clip(new_value, bound.low, bound.high))
 
         return params
 
@@ -278,12 +277,16 @@ class BayesianLightGBMTuner:
         LightGBMTrainer(trial_config)
 
         # Run cross-validation
-        cv_result = run_cross_validation(features, labels, trial_config, self.cv_config)
+        cv_result = run_cross_validation(
+            features,
+            labels,
+            trial_config,
+            self.cv_config,
+            context_data=self._context_data,
+        )
 
         # Calculate composite objective
-        objective_value, component_scores = self._calculate_composite_objective(
-            cv_result
-        )
+        objective_value, component_scores = self._calculate_composite_objective(cv_result)
 
         optimization_time = time.time() - trial_start
 
@@ -340,9 +343,7 @@ class BayesianLightGBMTuner:
 
         return config
 
-    def _calculate_composite_objective(
-        self, cv_result: CVResult
-    ) -> tuple[float, dict[str, float]]:
+    def _calculate_composite_objective(self, cv_result: CVResult) -> tuple[float, dict[str, float]]:
         """Calculate composite objective with trade-rate shaping."""
         agg_metrics = cv_result.aggregated_metrics
 
@@ -361,14 +362,10 @@ class BayesianLightGBMTuner:
         scores["f1_macro"] = -f1_macro * self.objective_weights.get("f1_macro", 0.4)
 
         # Brier score (lower is better)
-        scores["brier_score"] = brier_score * self.objective_weights.get(
-            "brier_score", 0.3
-        )
+        scores["brier_score"] = brier_score * self.objective_weights.get("brier_score", 0.3)
 
         # Expectancy (higher is better)
-        scores["expectancy"] = -expectancy * self.objective_weights.get(
-            "expectancy", 0.2
-        )
+        scores["expectancy"] = -expectancy * self.objective_weights.get("expectancy", 0.2)
 
         # Trade rate penalty (trade-rate shaping)
         trade_rate = (
@@ -476,6 +473,7 @@ def optimize_lightgbm_model(
     cv_config: dict[str, Any],
     objective_config: dict[str, Any],
     output_dir: Path | None = None,
+    context_data: pd.DataFrame | None = None,
 ) -> TuningResult:
     """Convenience function for LightGBM hyperparameter optimization.
 
@@ -491,4 +489,4 @@ def optimize_lightgbm_model(
         Complete tuning results
     """
     tuner = BayesianLightGBMTuner(model_config, cv_config, objective_config)
-    return tuner.optimize(features, labels, output_dir)
+    return tuner.optimize(features, labels, output_dir, context_data=context_data)

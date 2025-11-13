@@ -71,9 +71,7 @@ class IntradayMLUniverseAdapter:
 
         return universe
 
-    def _add_ml_metadata(
-        self, universe: pd.DataFrame, dates: list[str]
-    ) -> pd.DataFrame:
+    def _add_ml_metadata(self, universe: pd.DataFrame, dates: list[str]) -> pd.DataFrame:
         """Add ML-specific metadata to universe DataFrame.
 
         Args:

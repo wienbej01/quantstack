@@ -33,9 +33,7 @@ def extract_aapl_data():
         target_date = "2024-01-09"
         # GOLD data only has regular session (09:30-15:59 ET), so use earliest available
         start_time_et = "09:30:00"
-        end_time_et = (
-            "09:45:00"  # Show first 15 minutes as closest to requested 09:15-09:25
-        )
+        end_time_et = "09:45:00"  # Show first 15 minutes as closest to requested 09:15-09:25
 
         # Create datetime strings in ET and convert to UTC
         start_et_str = f"{target_date} {start_time_et}"
@@ -52,16 +50,10 @@ def extract_aapl_data():
         print("\n🎯 Extracting data for:")
         print(f"   Date: {target_date}")
         print("   Requested: 09:15-09:25 ET")
-        print(
-            f"   Available: {start_time_et} - {end_time_et} (closest possible in GOLD dataset)"
-        )
+        print(f"   Available: {start_time_et} - {end_time_et} (closest possible in GOLD dataset)")
         print(f"   Time Range (UTC): {start_utc} - {end_utc}")
-        print(
-            "\n📝 IMPORTANT: GOLD dataset only contains regular trading hours (09:30-15:59 ET)"
-        )
-        print(
-            "   No pre-market (04:00-09:30 ET) or after-hours (16:00-20:00 ET) data available"
-        )
+        print("\n📝 IMPORTANT: GOLD dataset only contains regular trading hours (09:30-15:59 ET)")
+        print("   No pre-market (04:00-09:30 ET) or after-hours (16:00-20:00 ET) data available")
 
         # Convert df['ts'] to datetime for comparison
         df["ts_datetime"] = pd.to_datetime(df["ts"], unit="ns", utc=True)
@@ -82,9 +74,7 @@ def extract_aapl_data():
         ).dt.tz_convert("US/Eastern")
 
         # Format for display
-        display_df = filtered_data[
-            ["ts_et", "open", "high", "low", "close", "volume"]
-        ].copy()
+        display_df = filtered_data[["ts_et", "open", "high", "low", "close", "volume"]].copy()
         display_df["ts_et"] = display_df["ts_et"].dt.strftime("%Y-%m-%d %H:%M:%S %Z")
         display_df = display_df.rename(
             columns={
@@ -112,14 +102,10 @@ def extract_aapl_data():
 
         # Summary statistics
         print("\n📈 Summary Statistics:")
-        print(
-            f"   Price Range: ${display_df['Low'].min():.2f} - ${display_df['High'].max():.2f}"
-        )
+        print(f"   Price Range: ${display_df['Low'].min():.2f} - ${display_df['High'].max():.2f}")
         print(f"   Open Price: ${display_df.iloc[0]['Open']:.2f}")
         print(f"   Close Price: ${display_df.iloc[-1]['Close']:.2f}")
-        print(
-            f"   Net Change: ${display_df.iloc[-1]['Close'] - display_df.iloc[0]['Open']:.2f}"
-        )
+        print(f"   Net Change: ${display_df.iloc[-1]['Close'] - display_df.iloc[0]['Open']:.2f}")
         print(f"   Total Volume: {display_df['Volume'].sum():,}")
         print(f"   Avg Volume: {display_df['Volume'].mean():,.0f}")
 

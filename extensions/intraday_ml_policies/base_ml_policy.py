@@ -64,15 +64,11 @@ class BaseMLPolicy(Policy, ABC):
     def _validate_model_compatibility(self) -> None:
         """Validate that model is suitable for trading."""
         if self.model_metadata.model_type.value not in ["classification", "regression"]:
-            raise ValueError(
-                f"Unsupported model type: {self.model_metadata.model_type}"
-            )
+            raise ValueError(f"Unsupported model type: {self.model_metadata.model_type}")
 
         # Check if model has reasonable performance
         if self.model_metadata.val_score < 0.5:
-            raise ValueError(
-                f"Model validation score too low: {self.model_metadata.val_score}"
-            )
+            raise ValueError(f"Model validation score too low: {self.model_metadata.val_score}")
 
     def process_bar(self, bar: dict[str, Any]) -> None:
         """Process a single bar and generate trading signals.
@@ -84,10 +80,7 @@ class BaseMLPolicy(Policy, ABC):
         timestamp = bar["ts"]
 
         # Check if we already have a recent prediction for this symbol
-        if (
-            symbol in self.last_prediction_ts
-            and timestamp <= self.last_prediction_ts[symbol]
-        ):
+        if symbol in self.last_prediction_ts and timestamp <= self.last_prediction_ts[symbol]:
             return
 
         # Check if we have required features
@@ -150,9 +143,7 @@ class BaseMLPolicy(Policy, ABC):
         """Extract features from bar for prediction."""
         return {feature: float(bar[feature]) for feature in self.features_required}
 
-    def _predict_single(
-        self, features: dict[str, float], timestamp: int, symbol: str
-    ) -> Any:
+    def _predict_single(self, features: dict[str, float], timestamp: int, symbol: str) -> Any:
         """Make prediction for single observation."""
         return self.predictor.predict_single(
             model_id=self.model_id,

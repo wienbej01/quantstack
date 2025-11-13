@@ -113,9 +113,7 @@ class MLPositionSizer:
             raise ValueError(f"Unknown sizing method: {self.sizing_method}")
 
         # Apply maximum size limit
-        max_allowed_size = min(
-            self.max_position_size, account_size * self.risk_tolerance
-        )
+        max_allowed_size = min(self.max_position_size, account_size * self.risk_tolerance)
         final_size = min(size, max_allowed_size)
 
         return PositionSize(
@@ -139,16 +137,10 @@ class MLPositionSizer:
         volatility = max(volatility, 0.01)  # Minimum volatility
 
         volatility_target = 0.02  # 2% daily volatility target
-        size = (
-            self.max_position_size
-            * (volatility_target / volatility)
-            * abs(signal_strength)
-        )
+        size = self.max_position_size * (volatility_target / volatility) * abs(signal_strength)
         return size
 
-    def _kelly_sizing(
-        self, signal_strength: float, confidence: float, volatility: float
-    ) -> float:
+    def _kelly_sizing(self, signal_strength: float, confidence: float, volatility: float) -> float:
         """Kelly criterion position sizing."""
         # Estimate win rate from confidence
         win_rate = confidence
@@ -205,12 +197,8 @@ class MLPositionSizer:
 
             # Add symbol-specific features if available
             if symbol in additional_features:
-                features[f"{symbol}_momentum"] = additional_features[symbol].get(
-                    "momentum", 0.0
-                )
-                features[f"{symbol}_trend"] = additional_features[symbol].get(
-                    "trend", 0.0
-                )
+                features[f"{symbol}_momentum"] = additional_features[symbol].get("momentum", 0.0)
+                features[f"{symbol}_trend"] = additional_features[symbol].get("trend", 0.0)
 
             # Get ML prediction
             result = self.ml_predictor.predict(features)
@@ -257,9 +245,7 @@ class MLPositionSizer:
 
         return reasons
 
-    def update_sizing_method(
-        self, new_method: SizingMethod, ml_model_id: str | None = None
-    ):
+    def update_sizing_method(self, new_method: SizingMethod, ml_model_id: str | None = None):
         """Update sizing method."""
         self.sizing_method = new_method
 
@@ -288,9 +274,7 @@ class MLPositionSizer:
             errors.append("Position size must be positive")
 
         if position.size > self.max_position_size:
-            errors.append(
-                f"Position size {position.size} exceeds maximum {self.max_position_size}"
-            )
+            errors.append(f"Position size {position.size} exceeds maximum {self.max_position_size}")
 
         if position.confidence < 0 or position.confidence > 1:
             errors.append(f"Invalid confidence: {position.confidence}")

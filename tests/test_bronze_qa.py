@@ -41,9 +41,7 @@ class TestBronzeQAScan:
         """Create sample long-form Parquet file."""
         df = pd.DataFrame(
             {
-                "ts": pd.to_datetime(
-                    ["2022-01-01 00:00:00", "2022-01-01 00:01:00"], utc=True
-                ),
+                "ts": pd.to_datetime(["2022-01-01 00:00:00", "2022-01-01 00:01:00"], utc=True),
                 "symbol": ["AAPL", "AAPL"],
                 "open": [100.0, 101.0],
                 "high": [102.0, 103.0],

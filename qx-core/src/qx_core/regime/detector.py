@@ -61,9 +61,7 @@ class RegimeDetectorConfig:
     avwap_bias_threshold: float = 0.02  # 2% deviation from AVWAP for bias
     value_acceptance_bars_min: int = 3  # Minimum bars in value area for acceptance
     ofi_confirmation_threshold: float = 0.1  # OFI trend threshold for confirmation
-    regime_feature_weight: float = (
-        0.15  # Weight for enhanced features in regime decisions
-    )
+    regime_feature_weight: float = 0.15  # Weight for enhanced features in regime decisions
 
 
 class RegimeDetectorRules:
@@ -110,9 +108,7 @@ class RegimeDetectorRules:
     def _get_trading_day_and_segment(self, ts: int) -> tuple[str, SessionSegment]:
         """Map UTC nanoseconds to ET trading date and session segment."""
 
-        timestamp_et = pd.Timestamp(ts, tz="UTC", unit="ns").tz_convert(
-            "America/New_York"
-        )
+        timestamp_et = pd.Timestamp(ts, tz="UTC", unit="ns").tz_convert("America/New_York")
         trading_date = timestamp_et.date().isoformat()
 
         midday = timestamp_et.replace(hour=12, minute=30, second=0, microsecond=0)
@@ -229,9 +225,7 @@ class RegimeDetectorRules:
 
         return final_regime
 
-    def evaluate_symbol(
-        self, symbol: str, features: dict[str, float], ts: int
-    ) -> RegimeSignal:
+    def evaluate_symbol(self, symbol: str, features: dict[str, float], ts: int) -> RegimeSignal:
         """Evaluate regime for a single symbol.
 
         Args:
@@ -287,9 +281,7 @@ class RegimeDetectorRules:
         )
 
         # Apply persistence guard for symbol
-        final_regime = self._apply_persistence_guard_for_symbol(
-            symbol_key, trend_result, ts
-        )
+        final_regime = self._apply_persistence_guard_for_symbol(symbol_key, trend_result, ts)
         self._last_segment_evaluation[symbol_key] = trading_date
 
         return final_regime
@@ -328,9 +320,7 @@ class RegimeDetectorRules:
         agg = {}
 
         # Original regime features
-        regime_feature_cols = [
-            col for col in df.columns if col.startswith("f__regime__")
-        ]
+        regime_feature_cols = [col for col in df.columns if col.startswith("f__regime__")]
 
         for col in regime_feature_cols:
             if col in df.columns:
@@ -354,9 +344,7 @@ class RegimeDetectorRules:
 
         enhanced_features = []
         for pattern in enhanced_feature_patterns:
-            enhanced_features.extend(
-                [col for col in df.columns if col.startswith(pattern)]
-            )
+            enhanced_features.extend([col for col in df.columns if col.startswith(pattern)])
 
         # Aggregate enhanced features with null safety
         for col in enhanced_features:
@@ -386,9 +374,7 @@ class RegimeDetectorRules:
         # Check volatility stress
         vol_key = "f__regime__mod_vol_30"
         if vol_key in features:
-            vol_stress = max(
-                0.0, (features[vol_key] - self.config.volatility_stress_threshold)
-            )
+            vol_stress = max(0.0, (features[vol_key] - self.config.volatility_stress_threshold))
             stress_score += vol_stress * self.config.volatility_weight
             stress_factors.append(f"volatility_stress={vol_stress:.3f}")
 
@@ -479,9 +465,7 @@ class RegimeDetectorRules:
 
         # Add ADX contribution
         if adx >= self.config.adx_trend_threshold:
-            adx_contribution = (
-                adx - self.config.adx_trend_threshold
-            ) / 50.0  # Normalize to 0-1
+            adx_contribution = (adx - self.config.adx_trend_threshold) / 50.0  # Normalize to 0-1
             trend_score += adx_contribution * self.config.adx_weight
 
         # Check for sideways conditions
@@ -552,9 +536,7 @@ class RegimeDetectorRules:
 
         vol_key = "f__regime__mod_vol_30"
         if vol_key in features:
-            vol_stress = max(
-                0.0, (features[vol_key] - self.config.volatility_stress_threshold)
-            )
+            vol_stress = max(0.0, (features[vol_key] - self.config.volatility_stress_threshold))
             stress_score += vol_stress
 
         stress_key = "f__regime__stress_10_10"
@@ -671,9 +653,7 @@ class RegimeDetectorRules:
 
         # Check if we're in cooldown period
         last_change_time = self._last_regime_change.get(symbol)
-        cooldown_ns = (
-            self.config.cooldown_minutes * 60 * 1_000_000_000
-        )  # Convert to nanoseconds
+        cooldown_ns = self.config.cooldown_minutes * 60 * 1_000_000_000  # Convert to nanoseconds
 
         if (
             last_change_time is not None
@@ -705,10 +685,7 @@ class RegimeDetectorRules:
         # Check if we have sufficient persistence
         persistence_count = self._persistence_counters[symbol][current_regime]
 
-        if (
-            persistence_count < self.config.persistence_bars
-            and last_regime != RegimeType.OFF
-        ):
+        if persistence_count < self.config.persistence_bars and last_regime != RegimeType.OFF:
             # Not enough persistence, keep previous regime
             if symbol_history:
                 last_signal = symbol_history[-1]
@@ -819,9 +796,7 @@ class RegimeDetectorRules:
         distribution: dict[str, int] = {}
         for signal in self._segment_regime_cache.values():
             regime_value = (
-                signal.regime.value
-                if isinstance(signal.regime, RegimeType)
-                else str(signal.regime)
+                signal.regime.value if isinstance(signal.regime, RegimeType) else str(signal.regime)
             )
             distribution[regime_value] = distribution.get(regime_value, 0) + 1
         return distribution
@@ -829,9 +804,7 @@ class RegimeDetectorRules:
     # Factory function for creating detectors from config
 
 
-def create_regime_detector(
-    config_dict: dict[str, Any] | None = None
-) -> RegimeDetectorRules:
+def create_regime_detector(config_dict: dict[str, Any] | None = None) -> RegimeDetectorRules:
     """Create regime detector from configuration dictionary.
 
     Args:

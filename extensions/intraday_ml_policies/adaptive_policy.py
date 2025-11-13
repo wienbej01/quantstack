@@ -40,9 +40,7 @@ class RegimeConfig:
     # Regime stability parameters
     min_regime_duration_bars: int = 20
     regime_confirmation_periods: int = 3
-    regime_detection_method: str = (
-        "combined"  # "trend", "volatility", "volume", "combined"
-    )
+    regime_detection_method: str = "combined"  # "trend", "volatility", "volume", "combined"
 
     # Adaptive parameters
     enable_regime_memory: bool = True
@@ -170,14 +168,10 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         self._update_market_regime(market_data)
 
         # Get base signal from parent class or ML model
-        base_signal = self._generate_base_signal(
-            features, current_position, market_data
-        )
+        base_signal = self._generate_base_signal(features, current_position, market_data)
 
         # Apply regime-specific adjustments
-        adjusted_signal = self._apply_regime_adjustments(
-            base_signal, features, current_position
-        )
+        adjusted_signal = self._apply_regime_adjustments(base_signal, features, current_position)
 
         return adjusted_signal
 
@@ -210,10 +204,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         position_multiplier = regime_params["position_size_multiplier"]
 
         # Additional adjustments based on regime stability
-        if (
-            self.regime_state.duration_bars
-            < self.regime_config.min_regime_duration_bars
-        ):
+        if self.regime_state.duration_bars < self.regime_config.min_regime_duration_bars:
             # Reduce position size during regime transitions
             position_multiplier *= 0.7
 
@@ -261,9 +252,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         """Get parameters for a specific regime."""
         return self.regime_parameters.get(regime, {}).copy()
 
-    def update_regime_parameters(
-        self, regime: MarketRegime, parameters: dict[str, float]
-    ) -> None:
+    def update_regime_parameters(self, regime: MarketRegime, parameters: dict[str, float]) -> None:
         """Update parameters for a specific regime."""
         if regime in self.regime_parameters:
             self.regime_parameters[regime].update(parameters)
@@ -280,8 +269,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
             if (
                 new_regime != self.regime_state.current_regime
                 and confidence >= self.regime_config.min_confidence_for_regime_switch
-                and self.regime_state.duration_bars
-                >= self.regime_config.min_regime_duration_bars
+                and self.regime_state.duration_bars >= self.regime_config.min_regime_duration_bars
             ):
                 # Record regime change
                 self._record_regime_change(new_regime, confidence)
@@ -385,9 +373,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
 
         volumes = market_data["volume"].values
         recent_volume = volumes[-1]
-        avg_volume = (
-            np.mean(volumes[-20:-1]) if len(volumes) >= 21 else np.mean(volumes)
-        )
+        avg_volume = np.mean(volumes[-20:-1]) if len(volumes) >= 21 else np.mean(volumes)
 
         if avg_volume > 0:
             volume_ratio = recent_volume / avg_volume
@@ -446,26 +432,19 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         volatility_signal = self._calculate_volatility_signal(market_data)
 
         if regime in (MarketRegime.TRENDING_UP, MarketRegime.TRENDING_DOWN):
-            confidence = min(
-                1.0, abs(trend_signal) / self.regime_config.trend_threshold
-            )
+            confidence = min(1.0, abs(trend_signal) / self.regime_config.trend_threshold)
         elif regime == MarketRegime.VOLATILE:
             confidence = min(1.0, volatility_signal / 2.0)
         else:
             confidence = 0.5  # Default confidence
 
         # Boost confidence if regime has been stable
-        if (
-            self.regime_state.duration_bars
-            > self.regime_config.min_regime_duration_bars
-        ):
+        if self.regime_state.duration_bars > self.regime_config.min_regime_duration_bars:
             confidence = min(1.0, confidence * 1.2)
 
         return confidence
 
-    def _record_regime_change(
-        self, new_regime: MarketRegime, confidence: float
-    ) -> None:
+    def _record_regime_change(self, new_regime: MarketRegime, confidence: float) -> None:
         """Record a regime change."""
         # Store old regime in history
         self.regime_state.historical_regimes.append(
@@ -485,9 +464,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
 
         self.regime_switch_count += 1
 
-        self.logger.info(
-            f"Regime changed to {new_regime.value} with confidence {confidence:.2f}"
-        )
+        self.logger.info(f"Regime changed to {new_regime.value} with confidence {confidence:.2f}")
 
     def _update_regime_probabilities(self, market_data: pd.DataFrame) -> None:
         """Update regime probability distribution."""
@@ -511,9 +488,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
         # Normalize probabilities
         total_prob = sum(probabilities.values())
         if total_prob > 0:
-            probabilities = {
-                regime: prob / total_prob for regime, prob in probabilities.items()
-            }
+            probabilities = {regime: prob / total_prob for regime, prob in probabilities.items()}
 
         # Apply memory decay
         if self.regime_config.enable_regime_memory:
@@ -521,8 +496,7 @@ class AdaptiveMLPolicy(BaseMLPolicy):
                 old_prob = self.regime_state.regime_probabilities.get(regime, 0.2)
                 probabilities[regime] = (
                     self.regime_config.regime_memory_decay * old_prob
-                    + (1 - self.regime_config.regime_memory_decay)
-                    * probabilities[regime]
+                    + (1 - self.regime_config.regime_memory_decay) * probabilities[regime]
                 )
 
         self.regime_state.regime_probabilities = probabilities

@@ -1,0 +1,15 @@
+max_trials: 20
+n_initial_points: 5
+acquisition_function: "ei"
+random_seed: 42
+
+objective_weights:
+  f1_macro: 0.2
+  brier_score: 0.2
+  expectancy: 0.4
+  trade_rate_penalty: 0.2
+
+trade_rate_shaping:
+  target_trade_rate: 0.015
+  trade_rate_weight: 0.5
+  max_trade_rate: 0.04

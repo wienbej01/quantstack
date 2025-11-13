@@ -38,9 +38,7 @@ class TestS4BasicIntegration:
         sample_data = create_sample_universe_data()
 
         # Configure screener with reasonable defaults
-        config = ScreenerConfig(
-            top_n=5, min_relative_volume=0.5, min_price=10.0, max_price=1000.0
-        )
+        config = ScreenerConfig(top_n=5, min_relative_volume=0.5, min_price=10.0, max_price=1000.0)
 
         # Create screener and run screening
         screener = SipScreener(config)
@@ -151,9 +149,7 @@ class TestS4BasicIntegration:
         # Test with DataFrame that has only one symbol
         single_symbol_data = create_sample_universe_data()
         single_symbol = single_symbol_data["symbol"].iloc[0]
-        single_symbol_df = single_symbol_data[
-            single_symbol_data["symbol"] == single_symbol
-        ].copy()
+        single_symbol_df = single_symbol_data[single_symbol_data["symbol"] == single_symbol].copy()
 
         single_result = screener.screen_universe(single_symbol_df)
         assert len(single_result) <= 1

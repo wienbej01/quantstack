@@ -30,17 +30,12 @@ class MLModelRegistry:
         if self.metadata_file.exists():
             with open(self.metadata_file) as f:
                 data = json.load(f)
-            return {
-                model_id: ModelMetadata(**metadata)
-                for model_id, metadata in data.items()
-            }
+            return {model_id: ModelMetadata(**metadata) for model_id, metadata in data.items()}
         return {}
 
     def _save_registry(self) -> None:
         """Save registry to disk."""
-        data = {
-            model_id: metadata.dict() for model_id, metadata in self._registry.items()
-        }
+        data = {model_id: metadata.dict() for model_id, metadata in self._registry.items()}
         with open(self.metadata_file, "w") as f:
             json.dump(data, f, indent=2, default=str)
 
@@ -55,9 +50,7 @@ class MLModelRegistry:
             overwrite: Whether to overwrite existing model
         """
         if metadata.model_id in self._registry and not overwrite:
-            raise ValueError(
-                f"Model {metadata.model_id} already exists. Use overwrite=True."
-            )
+            raise ValueError(f"Model {metadata.model_id} already exists. Use overwrite=True.")
 
         # Save model
         model_path = self.models_dir / f"{metadata.model_id}.pkl"
@@ -125,9 +118,7 @@ class MLModelRegistry:
 
         return sorted(models, key=lambda x: x.training_date, reverse=True)
 
-    def get_best_model(
-        self, model_type: str, metric: str = "val_score"
-    ) -> ModelMetadata | None:
+    def get_best_model(self, model_type: str, metric: str = "val_score") -> ModelMetadata | None:
         """Get best model by type and metric.
 
         Args:

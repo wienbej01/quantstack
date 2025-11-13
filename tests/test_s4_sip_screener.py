@@ -76,9 +76,7 @@ class TestSipScreener:
 
                 # Create realistic volume with time-of-day pattern
                 tod_factor = (
-                    1.0 + 0.5 * np.sin(2 * np.pi * date.hour / 24)
-                    if hasattr(date, "hour")
-                    else 1.0
+                    1.0 + 0.5 * np.sin(2 * np.pi * date.hour / 24) if hasattr(date, "hour") else 1.0
                 )
                 volume = int(base_volume * tod_factor * (1 + np.random.normal(0, 0.2)))
 
@@ -100,9 +98,7 @@ class TestSipScreener:
                     }
                 )
 
-        self.test_df = (
-            pd.DataFrame(bars).sort_values(["symbol", "ts"]).reset_index(drop=True)
-        )
+        self.test_df = pd.DataFrame(bars).sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     def test_screen_universe_basic(self):
         """Test basic universe screening."""
@@ -186,8 +182,7 @@ class TestSipScreener:
             assert (filtered_data["close"] >= self.screener.config.min_price).all()
             assert (filtered_data["close"] <= self.screener.config.max_price).all()
             assert (
-                filtered_data["relative_volume"]
-                >= self.screener.config.min_relative_volume
+                filtered_data["relative_volume"] >= self.screener.config.min_relative_volume
             ).all()
 
     def test_rank_by_relative_volume(self):
@@ -206,16 +201,11 @@ class TestSipScreener:
 
         # Should be sorted by relative volume descending
         rvol_values = ranked_data["relative_volume"].values
-        assert all(
-            rvol_values[i] >= rvol_values[i + 1] for i in range(len(rvol_values) - 1)
-        )
+        assert all(rvol_values[i] >= rvol_values[i + 1] for i in range(len(rvol_values) - 1))
 
         # Highest relative volume should have rank 1
         max_rvol_symbol = ranked_data.iloc[0]["symbol"]
-        assert (
-            ranked_data[ranked_data["symbol"] == max_rvol_symbol]["rvol_rank"].iloc[0]
-            == 1
-        )
+        assert ranked_data[ranked_data["symbol"] == max_rvol_symbol]["rvol_rank"].iloc[0] == 1
 
     def test_custom_config_screener(self):
         """Test screener with custom configuration."""
@@ -322,9 +312,7 @@ class TestIntegration:
         sample_data = create_sample_universe_data()
 
         # Configure screener
-        config = ScreenerConfig(
-            top_n=5, min_relative_volume=0.8, min_price=50.0, max_price=1000.0
-        )
+        config = ScreenerConfig(top_n=5, min_relative_volume=0.8, min_price=50.0, max_price=1000.0)
 
         # Screen universe
         screener = SipScreener(config)

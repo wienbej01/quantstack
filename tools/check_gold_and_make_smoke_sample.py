@@ -14,9 +14,7 @@ OPTIONAL = ["trades", "vwap", "session", "date_et"]
 def read_parquets(paths, n_files=3, symbol=None):
     picked = sorted(paths)[:n_files]
     if not picked:
-        raise FileNotFoundError(
-            "No parquet files found for the requested month/symbol."
-        )
+        raise FileNotFoundError("No parquet files found for the requested month/symbol.")
     dfs = []
     for p in picked:
         try:
@@ -62,9 +60,7 @@ def normalize_in_memory(df: pd.DataFrame) -> pd.DataFrame:
         if col in out.columns:
             out[col] = pd.to_numeric(out[col], errors="coerce")
     if "volume" in out.columns:
-        out["volume"] = (
-            pd.to_numeric(out["volume"], errors="coerce").fillna(0).astype("int64")
-        )
+        out["volume"] = pd.to_numeric(out["volume"], errors="coerce").fillna(0).astype("int64")
 
     # Basic sanity
     missing = list(set(REQUIRED) - set(out.columns))
@@ -83,12 +79,8 @@ def summarize(df: pd.DataFrame):
         "dtypes": {c: str(df[c].dtype) for c in df.columns},
         "n_rows": int(len(df)),
         "n_symbols": int(df["symbol"].nunique()) if "symbol" in df.columns else None,
-        "ts_min_utc": (
-            df["ts"].min().isoformat() if "ts" in df.columns and len(df) > 0 else None
-        ),
-        "ts_max_utc": (
-            df["ts"].max().isoformat() if "ts" in df.columns and len(df) > 0 else None
-        ),
+        "ts_min_utc": (df["ts"].min().isoformat() if "ts" in df.columns and len(df) > 0 else None),
+        "ts_max_utc": (df["ts"].max().isoformat() if "ts" in df.columns and len(df) > 0 else None),
         "has_optional": {c: (c in df.columns) for c in OPTIONAL},
     }
     return info
@@ -98,16 +90,12 @@ def main():
     ap = argparse.ArgumentParser(
         description="Inspect Gold and build tiny normalized sample for smoke tests."
     )
-    ap.add_argument(
-        "--gold-root", default="/home/jacobw/gcs-mount/gold", help="Path to gold root"
-    )
+    ap.add_argument("--gold-root", default="/home/jacobw/gcs-mount/gold", help="Path to gold root")
     ap.add_argument("--family", default="bars_1m", help="bars_1m or similar family dir")
     ap.add_argument("--symbol", default="AAPL", help="Symbol to inspect")
     ap.add_argument("--year", default="2024", help="Year, e.g. 2024")
     ap.add_argument("--month", default="01", help="Month, zero-padded, e.g. 01")
-    ap.add_argument(
-        "--n-files", type=int, default=3, help="Number of parquet files to sample"
-    )
+    ap.add_argument("--n-files", type=int, default=3, help="Number of parquet files to sample")
     ap.add_argument(
         "--write-sample",
         action="store_true",
@@ -156,9 +144,7 @@ def main():
         print(df_norm.head(5).to_string(index=False))
 
     if args.write_sample:
-        out_dir = os.path.join(
-            args.out_dir, args.family, f"symbol={args.symbol}", "date=SMOKE"
-        )
+        out_dir = os.path.join(args.out_dir, args.family, f"symbol={args.symbol}", "date=SMOKE")
         os.makedirs(out_dir, exist_ok=True)
         out_path = os.path.join(out_dir, "part-000.parquet")
         # Keep it tiny

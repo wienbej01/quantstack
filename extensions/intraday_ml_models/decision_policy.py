@@ -19,9 +19,7 @@ class DecisionPolicy:
         """
         self.config = decision_config
         self.probability_threshold = decision_config.get("probability_threshold", 0.65)
-        self.expected_move_multiplier = decision_config.get(
-            "expected_move_multiplier", 0.8
-        )
+        self.expected_move_multiplier = decision_config.get("expected_move_multiplier", 0.8)
         self.cooldown_config = decision_config.get("cooldown", {})
         self.time_filter_config = decision_config.get("time_filter", {})
 
@@ -98,9 +96,7 @@ class DecisionPolicy:
 
         self.cooldown_tracker[symbol][action] = timestamp
 
-    def _calculate_expected_move(
-        self, probabilities: dict[int, float], atr: float
-    ) -> float:
+    def _calculate_expected_move(self, probabilities: dict[int, float], atr: float) -> float:
         """Calculate expected absolute move based on probabilities and ATR."""
         # Expected move = |P(+1) - P(-1)| * atr_multiplier * atr
         pos_prob = probabilities.get(1, 0.0)
@@ -149,10 +145,7 @@ class DecisionPolicy:
         current_time_only = current_time.time()
 
         # Check if it's in the first minutes after open
-        if (
-            current_time_only.hour == market_open.hour
-            and current_time_only.minute < first_minutes
-        ):
+        if current_time_only.hour == market_open.hour and current_time_only.minute < first_minutes:
             return True
 
         # Check EOD restriction
@@ -161,9 +154,7 @@ class DecisionPolicy:
 
         return current_time_only >= force_flat_time
 
-    def get_cooldown_status(
-        self, symbol: str, current_time: datetime
-    ) -> dict[str, Any]:
+    def get_cooldown_status(self, symbol: str, current_time: datetime) -> dict[str, Any]:
         """Get current cooldown status for a symbol.
 
         Args:

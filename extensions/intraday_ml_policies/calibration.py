@@ -9,6 +9,8 @@ from typing import Any, Iterable
 import numpy as np
 import pandas as pd
 
+from extensions.intraday_ml.risk_levels import compute_risk_levels
+
 
 def _percentile_key(percentile: float) -> str:
     """Convert percentile value (0-1) to dict key."""
@@ -68,15 +70,14 @@ def compute_policy_calibration_stats(
     calibration_config: dict[str, Any] | None = None,
     *,
     symbol_column: str = "symbol",
+    risk_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compute per-symbol probability / conviction summaries for policy calibration."""
     if data.empty:
         raise ValueError("Cannot compute calibration statistics on empty dataset.")
 
     calibration_config = calibration_config or {}
-    quantiles = [
-        float(q) for q in calibration_config.get("quantiles", [0.5, 0.75, 0.9])
-    ]
+    quantiles = [float(q) for q in calibration_config.get("quantiles", [0.5, 0.75, 0.9])]
     extra_percentiles = [
         calibration_config.get("prob_long_percentile"),
         calibration_config.get("prob_short_percentile"),
@@ -84,18 +85,13 @@ def compute_policy_calibration_stats(
         calibration_config.get("conviction_percentile"),
     ]
     quantiles = sorted(
-        {
-            round(float(q), 4)
-            for q in quantiles + [p for p in extra_percentiles if p is not None]
-        }
+        {round(float(q), 4) for q in quantiles + [p for p in extra_percentiles if p is not None]}
     )
     max_samples_per_symbol = calibration_config.get("max_samples_per_symbol")
 
     sample_df = data
     if max_samples_per_symbol:
-        sample_df = data.groupby(symbol_column, group_keys=False).head(
-            max_samples_per_symbol
-        )
+        sample_df = data.groupby(symbol_column, group_keys=False).head(max_samples_per_symbol)
 
     symbols = sample_df[symbol_column].astype(str).str.upper().reset_index(drop=True)
     feature_matrix = sample_df[feature_columns].fillna(0.0)
@@ -113,21 +109,40 @@ def compute_policy_calibration_stats(
             f"Model classes must include -1, 0, 1 for triclass outputs (found {classes})."
         ) from exc
 
+    expected_r_values: list[float | None] = [None] * len(sample_df)
+    helper_cfg = dict(risk_config or {})
+    if helper_cfg:
+        helper_cfg.setdefault("price_column", "close")
+        helper_cfg.setdefault("atr_feature", helper_cfg.get("atr_feature", "f__vol__atr_6"))
+        helper_cfg.setdefault("support_feature_long", helper_cfg.get("support_feature_long", "low"))
+        helper_cfg.setdefault(
+            "resistance_feature_short", helper_cfg.get("resistance_feature_short", "high")
+        )
+        sample_reset = sample_df.reset_index(drop=True)
+        for idx, row in sample_reset.iterrows():
+            side = "long" if prob_long[idx] >= prob_short[idx] else "short"
+            levels = compute_risk_levels(row=row, side=side, config=helper_cfg)
+            expected_r_values[idx] = levels.expected_r if levels else None
+
+    long_margin = prob_long - np.maximum(prob_short, prob_neutral)
+    short_margin = prob_short - np.maximum(prob_long, prob_neutral)
+    score_margin = np.maximum(long_margin, short_margin)
+
     stats_frame = pd.DataFrame(
         {
             "symbol": symbols,
             "prob_short": prob_short,
             "prob_neutral": prob_neutral,
             "prob_long": prob_long,
+            "score_margin": score_margin,
         }
     )
-    stats_frame["directional_gap"] = (
-        stats_frame["prob_long"] - stats_frame["prob_short"]
-    ).abs()
+    stats_frame["directional_gap"] = (stats_frame["prob_long"] - stats_frame["prob_short"]).abs()
     stats_frame["conviction"] = stats_frame["directional_gap"] * stats_frame[
         ["prob_long", "prob_short"]
     ].max(axis=1)
     stats_frame["prob_max"] = np.max(probabilities, axis=1)
+    stats_frame["expected_r"] = expected_r_values
 
     symbols_stats: dict[str, Any] = {}
     for symbol, group in stats_frame.groupby("symbol"):
@@ -138,6 +153,8 @@ def compute_policy_calibration_stats(
             "directional_gap": _metric_summary(group["directional_gap"], quantiles),
             "conviction": _metric_summary(group["conviction"], quantiles),
             "prob_max": _metric_summary(group["prob_max"], quantiles),
+            "expected_r": _metric_summary(group["expected_r"], quantiles),
+            "score_margin": _metric_summary(group["score_margin"], quantiles),
         }
         summary["directional_bias"] = _directional_bias(summary)
         symbols_stats[symbol] = summary
@@ -149,6 +166,8 @@ def compute_policy_calibration_stats(
         "directional_gap": _metric_summary(stats_frame["directional_gap"], quantiles),
         "conviction": _metric_summary(stats_frame["conviction"], quantiles),
         "prob_max": _metric_summary(stats_frame["prob_max"], quantiles),
+        "expected_r": _metric_summary(stats_frame["expected_r"], quantiles),
+        "score_margin": _metric_summary(stats_frame["score_margin"], quantiles),
     }
     global_summary["directional_bias"] = _directional_bias(global_summary)
 
@@ -180,6 +199,8 @@ class SymbolThresholdCalibrator:
         self.prob_short_percentile = self.config.get("prob_short_percentile", 0.75)
         self.gap_percentile = self.config.get("gap_percentile", 0.75)
         self.conviction_percentile = self.config.get("conviction_percentile", 0.75)
+        self.expected_r_percentile = self.config.get("expected_r_percentile", 0.5)
+        self.score_margin_percentile = self.config.get("score_margin_percentile", 0.75)
         self.prob_exit_offset = self.config.get("prob_exit_offset", 0.05)
         self.bias_config = self.config.get("bias_correction", {})
         self.bias_enabled = bool(self.bias_config.get("enabled", False))
@@ -194,6 +215,8 @@ class SymbolThresholdCalibrator:
             "exit_threshold_short": self._maybe_float(floors_cfg.get("exit_threshold_short")),
             "min_directional_gap": self._maybe_float(floors_cfg.get("min_directional_gap")),
             "min_conviction_score": self._maybe_float(floors_cfg.get("min_conviction_score")),
+            "min_expected_r": self._maybe_float(floors_cfg.get("min_expected_r")),
+            "score_margin": self._maybe_float(floors_cfg.get("score_margin")),
         }
         self.ceilings = {
             "prob_threshold_long": self._maybe_float(
@@ -202,18 +225,16 @@ class SymbolThresholdCalibrator:
             "prob_threshold_short": self._maybe_float(
                 ceilings_cfg.get("prob_threshold_short"), default=0.999
             ),
-            "exit_threshold_long": self._maybe_float(
-                ceilings_cfg.get("exit_threshold_long")
-            ),
-            "exit_threshold_short": self._maybe_float(
-                ceilings_cfg.get("exit_threshold_short")
-            ),
+            "exit_threshold_long": self._maybe_float(ceilings_cfg.get("exit_threshold_long")),
+            "exit_threshold_short": self._maybe_float(ceilings_cfg.get("exit_threshold_short")),
             "min_directional_gap": self._maybe_float(
                 ceilings_cfg.get("min_directional_gap"), default=1.0
             ),
             "min_conviction_score": self._maybe_float(
                 ceilings_cfg.get("min_conviction_score"), default=1.0
             ),
+            "min_expected_r": self._maybe_float(ceilings_cfg.get("min_expected_r"), default=5.0),
+            "score_margin": self._maybe_float(ceilings_cfg.get("score_margin"), default=1.0),
         }
 
         stats_path = self.config.get("stats_path")
@@ -224,9 +245,7 @@ class SymbolThresholdCalibrator:
 
         stats_data = json.loads(Path(stats_path).read_text())
         symbols_section = stats_data.get("symbols", {})
-        self.symbol_stats = {
-            symbol.upper(): data for symbol, data in symbols_section.items()
-        }
+        self.symbol_stats = {symbol.upper(): data for symbol, data in symbols_section.items()}
         self.global_stats = stats_data.get("global", {})
         self.enabled = bool(self.symbol_stats or self.global_stats)
 
@@ -251,6 +270,8 @@ class SymbolThresholdCalibrator:
         prob_short = self._select(stats, "prob_short", self.prob_short_percentile)
         gap_value = self._select(stats, "directional_gap", self.gap_percentile)
         conviction_value = self._select(stats, "conviction", self.conviction_percentile)
+        expected_r_value = self._select(stats, "expected_r", self.expected_r_percentile)
+        score_margin_value = self._select(stats, "score_margin", self.score_margin_percentile)
 
         if prob_long is not None:
             thresholds["prob_threshold_long"] = self._bounded_threshold(
@@ -270,9 +291,7 @@ class SymbolThresholdCalibrator:
                 default_ceiling=0.999,
             )
         else:
-            thresholds["prob_threshold_short"] = float(
-                thresholds["prob_threshold_short"]
-            )
+            thresholds["prob_threshold_short"] = float(thresholds["prob_threshold_short"])
 
         thresholds = self._apply_bias_correction(thresholds, stats)
 
@@ -309,9 +328,30 @@ class SymbolThresholdCalibrator:
                 default_ceiling=1.0,
             )
         else:
-            thresholds["min_conviction_score"] = float(
-                thresholds["min_conviction_score"]
+            thresholds["min_conviction_score"] = float(thresholds["min_conviction_score"])
+
+        base_expected_r = thresholds.get(
+            "min_expected_r", self.base_thresholds.get("min_expected_r", 1.5)
+        )
+        if expected_r_value is not None:
+            thresholds["min_expected_r"] = self._bounded_threshold(
+                "min_expected_r",
+                expected_r_value,
+                base_expected_r,
+                default_ceiling=5.0,
             )
+        else:
+            thresholds["min_expected_r"] = float(base_expected_r)
+
+        if score_margin_value is not None:
+            thresholds["score_margin"] = self._bounded_threshold(
+                "score_margin",
+                score_margin_value,
+                thresholds["score_margin"],
+                default_ceiling=1.0,
+            )
+        else:
+            thresholds["score_margin"] = float(thresholds["score_margin"])
 
         if symbol_key not in self._reported_symbols:
             print(
@@ -323,9 +363,7 @@ class SymbolThresholdCalibrator:
 
         return thresholds
 
-    def _select(
-        self, stats: dict[str, Any], metric: str, percentile: float
-    ) -> float | None:
+    def _select(self, stats: dict[str, Any], metric: str, percentile: float) -> float | None:
         metric_stats = stats.get(metric)
         if not metric_stats:
             return None
@@ -364,9 +402,7 @@ class SymbolThresholdCalibrator:
         if abs(bias_delta) < 1e-6:
             return thresholds
 
-        adjustment = float(
-            np.clip(-bias_delta * scale, -max_adjustment, max_adjustment)
-        )
+        adjustment = float(np.clip(-bias_delta * scale, -max_adjustment, max_adjustment))
 
         base_long = float(self.base_thresholds.get("prob_threshold_long", 0.0))
         base_short = float(self.base_thresholds.get("prob_threshold_short", 0.0))
@@ -408,9 +444,7 @@ class SymbolThresholdCalibrator:
 
         return thresholds
 
-    def _metric_value(
-        self, stats: dict[str, Any], field: str, metric_key: str
-    ) -> float | None:
+    def _metric_value(self, stats: dict[str, Any], field: str, metric_key: str) -> float | None:
         """Fetch a metric/quantile value from calibration stats."""
         metric_stats = stats.get(field)
         if not metric_stats:

@@ -53,9 +53,7 @@ class ABTestResult:
     # Individual test results
     entry_results: dict[str, BacktestResult] = field(default_factory=dict)
     exit_results: dict[str, BacktestResult] = field(default_factory=dict)
-    combination_results: dict[tuple[str, str], BacktestResult] = field(
-        default_factory=dict
-    )
+    combination_results: dict[tuple[str, str], BacktestResult] = field(default_factory=dict)
 
     # Statistical analysis
     entry_comparison: dict[str, Any] = field(default_factory=dict)
@@ -119,9 +117,7 @@ class EntryExitABTest:
         if self.config.entry_variants and self.config.exit_variants:
             combination_results = self._test_combinations(test_data)
             result.combination_results = combination_results
-            result.combination_comparison = self._compare_combination_results(
-                combination_results
-            )
+            result.combination_comparison = self._compare_combination_results(combination_results)
             result.best_combination = self._find_best_combination(combination_results)
 
         # Calculate total tests run
@@ -219,9 +215,7 @@ class EntryExitABTest:
 
         return results
 
-    def _test_combinations(
-        self, data: pd.DataFrame
-    ) -> dict[tuple[str, str], BacktestResult]:
+    def _test_combinations(self, data: pd.DataFrame) -> dict[tuple[str, str], BacktestResult]:
         """Test entry/exit combinations."""
         results = {}
 
@@ -293,9 +287,7 @@ class EntryExitABTest:
                     if best_value != worst_value:
                         # This is simplified - proper AB testing would need more sophisticated stats
                         improvement = (
-                            (best_value - worst_value) / abs(worst_value)
-                            if worst_value != 0
-                            else 0
+                            (best_value - worst_value) / abs(worst_value) if worst_value != 0 else 0
                         )
                         significance_tests[metric] = {
                             "improvement_pct": improvement * 100,
@@ -347,9 +339,7 @@ class EntryExitABTest:
 
         return comparison
 
-    def _rank_variants(
-        self, results: dict[str, BacktestResult]
-    ) -> list[dict[str, Any]]:
+    def _rank_variants(self, results: dict[str, BacktestResult]) -> list[dict[str, Any]]:
         """Rank variants by composite score."""
         rankings = []
 
@@ -372,8 +362,7 @@ class EntryExitABTest:
                     "name": name,
                     "score": score,
                     "metrics": {
-                        metric: getattr(result, metric, 0.0)
-                        for metric in self.config.metrics
+                        metric: getattr(result, metric, 0.0) for metric in self.config.metrics
                     },
                 }
             )
@@ -389,9 +378,7 @@ class EntryExitABTest:
             return None
 
         # Use total return as primary criterion (can be customized)
-        best_name = max(
-            results.keys(), key=lambda k: getattr(results[k], "total_return", 0.0)
-        )
+        best_name = max(results.keys(), key=lambda k: getattr(results[k], "total_return", 0.0))
         return best_name
 
     def _find_best_combination(
@@ -402,9 +389,7 @@ class EntryExitABTest:
             return None
 
         # Use total return as primary criterion (can be customized)
-        best_combo = max(
-            results.keys(), key=lambda k: getattr(results[k], "total_return", 0.0)
-        )
+        best_combo = max(results.keys(), key=lambda k: getattr(results[k], "total_return", 0.0))
         return best_combo
 
     def generate_report(self, result: ABTestResult) -> str:
@@ -453,12 +438,8 @@ class EntryExitABTest:
 
             if "best_by_metric" in result.combination_comparison:
                 report.append("### Best by Metric")
-                for metric, best in result.combination_comparison[
-                    "best_by_metric"
-                ].items():
-                    report.append(
-                        f"{metric}: {best['combination']} ({best['value']:.3f})"
-                    )
+                for metric, best in result.combination_comparison["best_by_metric"].items():
+                    report.append(f"{metric}: {best['combination']} ({best['value']:.3f})")
                 report.append("")
 
         return "\n".join(report)

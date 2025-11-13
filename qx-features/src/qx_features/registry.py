@@ -216,9 +216,7 @@ def apply(
             all_feature_windows.update(
                 {
                     "vwap": params.get("vwap_window_m", params.get("vwap_window", 30)),
-                    "rel_volume": params.get(
-                        "rel_vol_window_m", params.get("rel_vol_window", 30)
-                    ),
+                    "rel_volume": params.get("rel_vol_window_m", params.get("rel_vol_window", 30)),
                     "atr": params.get("atr_window", params.get("atr_window", 14)),
                 }
             )
@@ -229,12 +227,8 @@ def apply(
             else:
                 pack_config = FeatureRegistry.get_predefined_pack(pack_type)
                 for feature, feature_params in pack_config.items():
-                    window = feature_params.get(
-                        "lookback_m", feature_params.get("window_m", 30)
-                    )
-                    all_feature_windows[feature] = max(
-                        all_feature_windows.get(feature, 0), window
-                    )
+                    window = feature_params.get("lookback_m", feature_params.get("window_m", 30))
+                    all_feature_windows[feature] = max(all_feature_windows.get(feature, 0), window)
 
     # Compute final warmup mask if not already present
     if "f__warmup_ok" not in result.columns and all_feature_windows:
@@ -243,9 +237,7 @@ def apply(
     return result
 
 
-def _apply_core_basics_optimized(
-    df: pd.DataFrame, params: dict[str, Any]
-) -> pd.DataFrame:
+def _apply_core_basics_optimized(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     """Apply core basics features using optimized function."""
     vwap_window = params.get("vwap_window_m", params.get("vwap_window", 30))
     rvol_window = params.get("rel_vol_window_m", params.get("rel_vol_window", 30))
@@ -259,9 +251,7 @@ def _apply_vpa_patterns(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFram
     return compute_vpa_features(df, **params)
 
 
-def _apply_regime_enhanced_features(
-    df: pd.DataFrame, params: dict[str, Any]
-) -> pd.DataFrame:
+def _apply_regime_enhanced_features(df: pd.DataFrame, params: dict[str, Any]) -> pd.DataFrame:
     """Apply regime enhanced features using optimized pipeline."""
     return compute_all_regime_enhanced_features(df, config=params)
 
@@ -308,9 +298,7 @@ def _apply_regime_features_optimized(
         )
 
 
-def _apply_feature_pack(
-    df: pd.DataFrame, config: dict[str, dict[str, Any]]
-) -> pd.DataFrame:
+def _apply_feature_pack(df: pd.DataFrame, config: dict[str, dict[str, Any]]) -> pd.DataFrame:
     """Apply a feature pack configuration."""
     result = df.copy()
 
@@ -414,18 +402,12 @@ def validate_feature_pack_config(config: dict[str, Any]) -> None:
                 raise ValueError(f"Unknown feature: {feature_name}")
 
             if not isinstance(feature_params, dict):
-                raise ValueError(
-                    f"Feature parameters must be a dictionary: {feature_name}"
-                )
+                raise ValueError(f"Feature parameters must be a dictionary: {feature_name}")
 
             # Validate lookback_m parameter
-            lookback = feature_params.get(
-                "lookback_m", feature_params.get("window_m", 30)
-            )
+            lookback = feature_params.get("lookback_m", feature_params.get("window_m", 30))
             if not isinstance(lookback, int) or lookback <= 0:
-                raise ValueError(
-                    f"lookback_m must be a positive integer for {feature_name}"
-                )
+                raise ValueError(f"lookback_m must be a positive integer for {feature_name}")
 
 
 def create_feature_pack_config(pack_type: str, **params) -> dict[str, Any]:

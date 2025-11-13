@@ -128,9 +128,7 @@ class TestBarsValidation:
             }
         )
 
-        with pytest.raises(
-            ValidationError, match="High values cannot be lower than low values"
-        ):
+        with pytest.raises(ValidationError, match="High values cannot be lower than low values"):
             validate_bars_dataframe(df)
 
     def test_duplicate_symbol_ts_pairs(self):
@@ -196,9 +194,7 @@ class TestSignalsValidation:
             }
         )
 
-        with pytest.raises(
-            ValidationError, match="Signal strength must be between -1 and 1"
-        ):
+        with pytest.raises(ValidationError, match="Signal strength must be between -1 and 1"):
             validate_signals_dataframe(df)
 
 
@@ -292,9 +288,7 @@ class TestTradesValidation:
             }
         )
 
-        with pytest.raises(
-            ValidationError, match="Exit timestamps must be after entry timestamps"
-        ):
+        with pytest.raises(ValidationError, match="Exit timestamps must be after entry timestamps"):
             validate_trades_dataframe(df)
 
 

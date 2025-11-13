@@ -1,0 +1,106 @@
+{
+  "AAPL": {
+    "long_labels": 1,
+    "short_labels": 2,
+    "total_directional": 3,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "AMZN": {
+    "long_labels": 4,
+    "short_labels": 3,
+    "total_directional": 7,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "GOOGL": {
+    "long_labels": 1,
+    "short_labels": 1,
+    "total_directional": 2,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "JNJ": {
+    "long_labels": 0,
+    "short_labels": 1,
+    "total_directional": 1,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "JPM": {
+    "long_labels": 0,
+    "short_labels": 2,
+    "total_directional": 2,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "META": {
+    "long_labels": 9,
+    "short_labels": 12,
+    "total_directional": 21,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "MSFT": {
+    "long_labels": 0,
+    "short_labels": 1,
+    "total_directional": 1,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "NVDA": {
+    "long_labels": 40,
+    "short_labels": 67,
+    "total_directional": 107,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_total"
+    ]
+  },
+  "TSLA": {
+    "long_labels": 66,
+    "short_labels": 72,
+    "total_directional": 138,
+    "status": "kept",
+    "reasons": null
+  },
+  "V": {
+    "long_labels": 0,
+    "short_labels": 0,
+    "total_directional": 0,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  }
+}

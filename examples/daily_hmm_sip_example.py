@@ -89,9 +89,7 @@ def create_comparison_configs() -> tuple[dict[str, Any], dict[str, Any]]:
                 "config": {"mode": "daily", "score_floor": 0.01, "top_k": 4},
             },
         },
-        "variants": [
-            {"name": "daily_conservative", "policy_params": {"entry_threshold": 0.025}}
-        ],
+        "variants": [{"name": "daily_conservative", "policy_params": {"entry_threshold": 0.025}}],
     }
 
     # Legacy HMM_SIP config (create fresh copy before daily config is modified)

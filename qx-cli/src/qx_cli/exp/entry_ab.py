@@ -42,9 +42,7 @@ def entry_ab(
         help="Variant overlay files pattern, e.g., test_config/variant_*.json",
     ),
     name: str = typer.Option(..., "--name", help="Experiment ID"),
-    force: bool = typer.Option(
-        False, "--force", help="Force run even if checksums differ"
-    ),
+    force: bool = typer.Option(False, "--force", help="Force run even if checksums differ"),
 ) -> None:
     """Run entry A/B test with multiple policy variants."""
     console.print(f"Running entry-ab experiment: {name}")
@@ -137,9 +135,7 @@ def entry_ab(
                 universe_map = screen(df_with_features, rvol_col, top_n, whitelist)
 
                 if universe_map:
-                    sorted_universe = {
-                        int(k): sorted(v) for k, v in universe_map.items()
-                    }
+                    sorted_universe = {int(k): sorted(v) for k, v in universe_map.items()}
                     sip_hash = hash_dataframe(
                         pd.DataFrame(
                             [
@@ -183,9 +179,7 @@ def entry_ab(
         )
 
         # Prepare bars for engine
-        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(
-            drop=True
-        )
+        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
 
         backtest_params = config["backtest"]
         filler = DefaultFiller(
@@ -224,19 +218,13 @@ def entry_ab(
                 policy_params["risk_params"] = config["risk_params"]
 
         if policy_type in {"vwap_momentum", "momentum"}:
-            if (
-                "timeout_bars" in policy_params
-                and "max_position_bars" not in policy_params
-            ):
+            if "timeout_bars" in policy_params and "max_position_bars" not in policy_params:
                 policy_params["max_position_bars"] = policy_params.pop("timeout_bars")
             ensure_risk_params()
             policy = VwapMomentumPolicy(**policy_params)
             generate_signals_fn = generate_vwap_momentum_signals
         else:
-            if (
-                "timeout_bars" in policy_params
-                and "max_position_bars" not in policy_params
-            ):
+            if "timeout_bars" in policy_params and "max_position_bars" not in policy_params:
                 policy_params["max_position_bars"] = policy_params.pop("timeout_bars")
             ensure_risk_params()
             policy = VwapRevertPolicy(**policy_params)
@@ -447,9 +435,7 @@ def print_run_summary(compare_result: dict, run_ids: list) -> None:
         run_dir = pathlib.Path("runs") / run_id
         trades_df = pd.read_parquet(run_dir / "trades.parquet")
         mean_pnl = (
-            trades_df["pnl"].mean()
-            if not trades_df.empty and "pnl" in trades_df.columns
-            else 0.0
+            trades_df["pnl"].mean() if not trades_df.empty and "pnl" in trades_df.columns else 0.0
         )
         median_r = (
             trades_df["r_multiple"].median()
@@ -484,9 +470,7 @@ def print_run_summary(compare_result: dict, run_ids: list) -> None:
             for j, df in enumerate(signals_dfs[1:], 1):
                 rowj = df.iloc[i]
                 if not row0.equals(rowj):
-                    console.print(
-                        f"First signal difference at row {i}: variant 0 vs {j}"
-                    )
+                    console.print(f"First signal difference at row {i}: variant 0 vs {j}")
                     break
             else:
                 continue

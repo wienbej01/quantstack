@@ -1,6 +1,6 @@
 {
   "status": "success",
-  "timestamp": "2025-11-04T00:07:12.847013+00:00",
+  "timestamp": "2025-11-10T07:02:30.337940+00:00",
   "artifacts_dir": "artefacts/extensions/intraday_ml/phaseA_multi",
   "policy": {
     "order_qty": 100,
@@ -12,45 +12,46 @@
     "max_hold_minutes": 90
   },
   "orders": {
-    "total": 46,
+    "total": 44,
     "entry_side_counts": {
       "long": 16,
-      "short": 7
+      "short": 6
     },
     "reason_counts": {
-      "trade": 23,
-      "conviction_decay": 21,
+      "trade": 22,
+      "conviction_decay": 20,
       "flatten_long": 1,
       "flatten_short": 1
     }
   },
   "rejections": {
-    "total": 2645,
+    "total": 2647,
     "top_reasons": {
-      "gap_insufficient": 2127,
-      "below_threshold": 285,
+      "gap_insufficient": 2128,
+      "below_threshold": 288,
       "conviction_low": 112,
       "time_filter": 69,
-      "cooldown": 44,
-      "holding_long": 8
+      "cooldown": 42,
+      "holding_long": 6,
+      "risk_unavailable": 2
     }
   },
   "performance": {
-    "total_return": -0.005027075823576199,
-    "annualized_return": -0.00141484879999898,
-    "volatility": 0.00027958027928487526,
-    "sharpe_ratio": -76.59642108797865,
-    "max_drawdown": -0.005027075823576199,
+    "total_return": -0.005009765181286152,
+    "annualized_return": -0.001409967984348448,
+    "volatility": 0.000276030437723429,
+    "sharpe_ratio": -77.56379390957002,
+    "max_drawdown": -0.005009765181286152,
     "max_drawdown_duration": 829,
-    "total_commissions": 1487.4999999999266,
+    "total_commissions": 1430.7999999999413,
     "total_slippage": 0.0,
-    "fill_rate": 0.4819277108433735,
-    "total_trades": 21,
-    "trades": 21,
-    "win_rate": 0.5238095238095238,
-    "avg_R": -0.77165145340672,
-    "total_pnl": -16.20468052154112,
-    "fees_total": 15.049999999999999
+    "fill_rate": 0.49382716049382713,
+    "total_trades": 20,
+    "trades": 20,
+    "win_rate": 0.45,
+    "avg_R": -0.7832336302770755,
+    "total_pnl": -15.66467260554151,
+    "fees_total": 14.35
   },
   "feature_coverage": "artefacts/extensions/intraday_ml/phaseA_multi/feature_coverage.csv"
 }

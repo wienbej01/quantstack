@@ -85,9 +85,7 @@ def run_backtest(start_date: str, end_date: str):
         logger.warning("No feature data generated for the specified period. Exiting.")
         return
 
-    logger.info(
-        f"Generated {len(oos_features.columns)} features for {len(oos_features)} OOS bars"
-    )
+    logger.info(f"Generated {len(oos_features.columns)} features for {len(oos_features)} OOS bars")
 
     # --- 4. Generate Predictions with Probabilities ---
     logger.info("Generating trading signals and probabilities from model...")
@@ -125,12 +123,9 @@ def run_backtest(start_date: str, end_date: str):
         return
 
     # --- 6. Define the Trading Strategy and Run Backtest ---
-    logger.info(
-        "Configuring and running the qx-backtest engine with Decision Policy..."
-    )
+    logger.info("Configuring and running the qx-backtest engine with Decision Policy...")
     signal_map = {
-        (row.ts, row.symbol): (row.signal, row.probability)
-        for row in trade_signals.itertuples()
+        (row.ts, row.symbol): (row.signal, row.probability) for row in trade_signals.itertuples()
     }
 
     def strategy_func(engine, bar_event):
@@ -189,16 +184,12 @@ def run_backtest(start_date: str, end_date: str):
     if display_performance_summary:
         display_performance_summary(result)
     else:
-        logger.warning(
-            "Could not import display_performance_summary. Printing raw results."
-        )
+        logger.warning("Could not import display_performance_summary. Printing raw results.")
         print(result.to_dict())
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run OOS backtest for the Phase A model."
-    )
+    parser = argparse.ArgumentParser(description="Run OOS backtest for the Phase A model.")
     parser.add_argument(
         "--start-date",
         type=str,

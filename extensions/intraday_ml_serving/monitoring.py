@@ -138,9 +138,7 @@ class MetricsCollector:
         if self._collection_thread is not None:
             return
 
-        self._collection_thread = threading.Thread(
-            target=self._collection_loop, daemon=True
-        )
+        self._collection_thread = threading.Thread(target=self._collection_loop, daemon=True)
         self._collection_thread.start()
         self.logger.info("Metrics collection started")
 
@@ -187,17 +185,15 @@ class MetricsCollector:
             disk_io = psutil.disk_io_counters()
             disk_io_mb_per_sec = 0.0
             if disk_io:
-                disk_io_mb_per_sec = (disk_io.read_bytes + disk_io.write_bytes) / (
-                    1024 * 1024
-                )
+                disk_io_mb_per_sec = (disk_io.read_bytes + disk_io.write_bytes) / (1024 * 1024)
 
             # Network I/O metrics
             network_io = psutil.net_io_counters()
             network_io_mb_per_sec = 0.0
             if network_io:
-                network_io_mb_per_sec = (
-                    network_io.bytes_sent + network_io.bytes_recv
-                ) / (1024 * 1024)
+                network_io_mb_per_sec = (network_io.bytes_sent + network_io.bytes_recv) / (
+                    1024 * 1024
+                )
 
             return {
                 "cpu_usage_percent": cpu_percent,
@@ -250,9 +246,7 @@ class MetricsCollector:
         with self._metrics_lock:
             for metric_name, history in self.metrics_history.items():
                 if history:
-                    latest_metrics[metric_name] = history[-1][
-                        1
-                    ]  # Get value from latest tuple
+                    latest_metrics[metric_name] = history[-1][1]  # Get value from latest tuple
         return latest_metrics
 
 
@@ -282,9 +276,7 @@ class AlertManager:
                 continue
 
             # Check if threshold is breached
-            breached = self._check_threshold(
-                current_value, config.threshold, config.operator
-            )
+            breached = self._check_threshold(current_value, config.threshold, config.operator)
 
             if metric_name not in self._alert_states:
                 self._alert_states[metric_name] = {
@@ -311,9 +303,7 @@ class AlertManager:
                 and state["first_breached"]
                 and (timestamp - state["first_breached"])
                 >= timedelta(minutes=config.duration_minutes)
-            ) and state[
-                "notifications_sent"
-            ] == 0:  # Only send once per breach
+            ) and state["notifications_sent"] == 0:  # Only send once per breach
                 self._send_alert(metric_name, current_value, config, timestamp)
                 state["notifications_sent"] = 1
 
@@ -328,9 +318,7 @@ class AlertManager:
         else:
             return False
 
-    def _send_alert(
-        self, metric_name: str, value: float, config: AlertConfig, timestamp: datetime
-    ):
+    def _send_alert(self, metric_name: str, value: float, config: AlertConfig, timestamp: datetime):
         """Send alert notification."""
         alert_data = {
             "metric_name": metric_name,
@@ -403,19 +391,14 @@ class PerformanceMonitor:
         # Update metrics
         self._update_performance_metrics(model_id, deployment_id)
 
-    def record_actual(
-        self, model_id: str, actual: float, timestamp: datetime | None = None
-    ):
+    def record_actual(self, model_id: str, actual: float, timestamp: datetime | None = None):
         """Record actual value for a previous prediction."""
         if timestamp is None:
             timestamp = datetime.now()
 
         # Find matching prediction and update it
         for prediction_data in reversed(self.predictions_buffer[model_id]):
-            if (
-                prediction_data["actual"] is None
-                and prediction_data["timestamp"] <= timestamp
-            ):
+            if prediction_data["actual"] is None and prediction_data["timestamp"] <= timestamp:
                 prediction_data["actual"] = actual
                 break
 
@@ -445,9 +428,7 @@ class PerformanceMonitor:
 
         # Calculate requests per second
         if len(predictions) >= 2:
-            time_span = (
-                predictions[-1]["timestamp"] - predictions[0]["timestamp"]
-            ).total_seconds()
+            time_span = (predictions[-1]["timestamp"] - predictions[0]["timestamp"]).total_seconds()
             requests_per_second = total_requests / time_span if time_span > 0 else 0.0
         else:
             requests_per_second = 0.0
@@ -476,9 +457,7 @@ class PerformanceMonitor:
                 self.logger.error(f"Performance calculation failed: {e}")
 
         # Confidence distribution
-        confidences = [
-            p["confidence"] for p in predictions if p["confidence"] is not None
-        ]
+        confidences = [p["confidence"] for p in predictions if p["confidence"] is not None]
         confidence_distribution = {}
         if confidences:
             confidence_distribution = {
@@ -666,9 +645,7 @@ class ProductionMonitor:
 
         # Start monitoring thread
         self._monitoring_active = True
-        self._monitoring_thread = threading.Thread(
-            target=self._monitoring_loop, daemon=True
-        )
+        self._monitoring_thread = threading.Thread(target=self._monitoring_loop, daemon=True)
         self._monitoring_thread.start()
 
         self.logger.info("Production monitoring started")
@@ -767,9 +744,7 @@ class ProductionMonitor:
         # Update Prometheus metrics
         if self.enable_prometheus:
             self.prom_requests_total.labels(model_id=model_id, status="success").inc()
-            self.prom_latency_seconds.labels(model_id=model_id).observe(
-                latency_ms / 1000.0
-            )
+            self.prom_latency_seconds.labels(model_id=model_id).observe(latency_ms / 1000.0)
 
     def get_monitoring_dashboard_data(self) -> dict[str, Any]:
         """Get data for monitoring dashboard."""

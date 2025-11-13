@@ -111,9 +111,7 @@ def run_pilot():
         validate=False,
         sort=True,
     )
-    print(
-        f"✓ Loaded {len(full_bars_df):,} bars for {len(test_symbols):,} symbols across all dates"
-    )
+    print(f"✓ Loaded {len(full_bars_df):,} bars for {len(test_symbols):,} symbols across all dates")
 
     # Fix column mapping and data structure
     print("Standardizing data structure...")
@@ -228,9 +226,7 @@ def run_pilot():
                     # Show sample timestamps
                     sample_timestamps = list(universe_map.keys())[:3]
                     for ts in sample_timestamps:
-                        dt = pd.to_datetime(ts, unit="ns", utc=True).tz_convert(
-                            "America/New_York"
-                        )
+                        dt = pd.to_datetime(ts, unit="ns", utc=True).tz_convert("America/New_York")
                         symbols = universe_map[ts]
                         print(f"    {dt}: {sorted(symbols)}")
                 else:
@@ -269,9 +265,7 @@ def run_pilot():
                     overlap = set(symbol_sets[i]).intersection(symbol_sets[j])
                     if overlap:
                         overlap_pct = (
-                            len(overlap)
-                            / min(len(symbol_sets[i]), len(symbol_sets[j]))
-                            * 100
+                            len(overlap) / min(len(symbol_sets[i]), len(symbol_sets[j])) * 100
                         )
                     else:
                         overlap_pct = 0.0
@@ -294,9 +288,7 @@ def run_pilot():
         if symbols
     }
     if selected_dates:
-        filtered_bars_df = full_bars_df[
-            full_bars_df["date_et"].isin(selected_dates)
-        ].copy()
+        filtered_bars_df = full_bars_df[full_bars_df["date_et"].isin(selected_dates)].copy()
     else:
         filtered_bars_df = full_bars_df.copy()
 
@@ -320,18 +312,14 @@ def run_pilot():
 
         # Validate required columns
         required_cols = ["ts", "symbol", "open", "high", "low", "close", "volume"]
-        missing_cols = [
-            col for col in required_cols if col not in filtered_bars_df.columns
-        ]
+        missing_cols = [col for col in required_cols if col not in filtered_bars_df.columns]
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
         print("  ✓ All required columns present")
 
         # Setup backtest engine
         print("\nSetting up backtest engine...")
-        backtest_config = BacktestConfig(
-            initial_cash=config["backtest"]["initial_cash"]
-        )
+        backtest_config = BacktestConfig(initial_cash=config["backtest"]["initial_cash"])
         if sip_enabled:
             sip_config = {"sip_method": "hmm", "sip_config": config["sip"]["config"]}
         else:
@@ -401,9 +389,7 @@ def run_pilot():
             print("\n✅ TRADE GENERATION VALIDATION:")
             print(f"  ✓ System generated {result.total_trades} trades")
             print(f"  ✓ Trades across {len(daily_universes)} trading days")
-            print(
-                f"  ✓ Average {result.total_trades / len(daily_universes):.1f} trades per day"
-            )
+            print(f"  ✓ Average {result.total_trades / len(daily_universes):.1f} trades per day")
 
             if win_rate > 0:
                 print(f"  ✓ Win rate: {win_rate:.1%}")

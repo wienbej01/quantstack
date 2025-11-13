@@ -28,8 +28,7 @@ class TestVWAPFeature:
         """Test basic VWAP computation."""
         df = pd.DataFrame(
             {
-                "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000]
-                * 2,
+                "ts": [1640995200000000000, 1640995260000000000, 1640995320000000000] * 2,
                 "symbol": ["AAPL"] * 3 + ["GOOGL"] * 3,
                 "close": [150.0, 151.0, 152.0, 2800.0, 2810.0, 2820.0],
                 "volume": [1000, 800, 1200, 500, 600, 400],
@@ -217,9 +216,7 @@ class TestFeatureUtilities:
 
     def test_compute_warmup_masks(self):
         """Test warmup mask computation."""
-        df = pd.DataFrame(
-            {"symbol": ["AAPL"] * 5 + ["GOOGL"] * 3, "some_data": range(8)}
-        )
+        df = pd.DataFrame({"symbol": ["AAPL"] * 5 + ["GOOGL"] * 3, "some_data": range(8)})
 
         feature_windows = {"vwap": 3, "atr": 5}
         result = compute_warmup_masks(df, feature_windows)
@@ -244,9 +241,7 @@ class TestFeatureUtilities:
 
     def test_validate_feature_inputs_valid(self):
         """Test validation with valid inputs."""
-        df = pd.DataFrame(
-            {"ts": [1640995200000000000], "symbol": ["AAPL"], "close": [150.0]}
-        )
+        df = pd.DataFrame({"ts": [1640995200000000000], "symbol": ["AAPL"], "close": [150.0]})
 
         # Should not raise exception
         validate_feature_inputs(df, ["ts", "symbol", "close"])
@@ -268,10 +263,7 @@ class TestFeatureUtilities:
         # Test different feature types
         assert get_feature_name("vwap", {"lookback_m": 10}) == "f__ta__vwap_10"
         assert get_feature_name("vwap", {"window_m": 30}) == "f__ta__vwap_30"
-        assert (
-            get_feature_name("rel_volume", {"lookback_m": 15})
-            == "f__vol__rel_volume_15"
-        )
+        assert get_feature_name("rel_volume", {"lookback_m": 15}) == "f__vol__rel_volume_15"
         assert get_feature_name("atr", {"lookback_m": 14}) == "f__vol__atr_14"
 
         # Test defaults
@@ -323,9 +315,7 @@ class TestComputeAllCoreFeatures:
         assert len(result) == 3
 
         # Check warmup mask (max window is 30, we have only 3 bars)
-        assert not result[
-            "f__warmup_ok"
-        ].any()  # All should be False (insufficient data)
+        assert not result["f__warmup_ok"].any()  # All should be False (insufficient data)
 
         # Check feature columns exist
         assert "f__ta__vwap_30" in result.columns
@@ -346,9 +336,7 @@ class TestComputeAllCoreFeatures:
             }
         )
 
-        result = compute_all_core_features(
-            df, vwap_window=10, rvol_window=5, atr_window=7
-        )
+        result = compute_all_core_features(df, vwap_window=10, rvol_window=5, atr_window=7)
 
         # Should have features with custom names
         assert "f__ta__vwap_10" in result.columns
@@ -384,10 +372,7 @@ class TestFeatureNaming:
         # Note: vwap_m sets its own name, but should match the expected format
 
         # Test RVOL naming
-        assert (
-            get_feature_name("rel_volume", {"lookback_m": 15})
-            == "f__vol__rel_volume_15"
-        )
+        assert get_feature_name("rel_volume", {"lookback_m": 15}) == "f__vol__rel_volume_15"
 
         # Test ATR naming
         assert get_feature_name("atr", {"lookback_m": 21}) == "f__vol__atr_21"

@@ -90,9 +90,7 @@ class TestModelServer:
 
     @patch("extensions.intraday_ml_serving.model_server.MLPredictor")
     @patch("extensions.intraday_ml_serving.model_server.MLModelRegistry")
-    def test_model_loading(
-        self, mock_registry_class, mock_predictor_class, sample_model_metadata
-    ):
+    def test_model_loading(self, mock_registry_class, mock_predictor_class, sample_model_metadata):
         """Test model loading from registry."""
         # Setup mocks
         mock_registry = Mock()
@@ -130,9 +128,7 @@ class TestModelServer:
         """Test prediction endpoint via FastAPI."""
         # Setup mocks
         mock_registry = Mock()
-        mock_registry.get_metadata.return_value = Mock(
-            features=list(sample_features.keys())
-        )
+        mock_registry.get_metadata.return_value = Mock(features=list(sample_features.keys()))
         mock_registry_class.return_value = mock_registry
 
         mock_result = Mock()
@@ -275,10 +271,7 @@ class TestInferenceEngine:
     def test_concurrent_prediction_limiting(self):
         """Test concurrent prediction limiting."""
         # Test semaphore is created
-        assert (
-            self.engine.prediction_semaphore._value
-            == self.engine.max_concurrent_predictions
-        )
+        assert self.engine.prediction_semaphore._value == self.engine.max_concurrent_predictions
 
 
 class TestDeploymentManager:
@@ -475,9 +468,7 @@ class TestProductionIntegration:
         )
 
         # Check that monitoring captured the data
-        performance_metrics = self.monitor.performance_monitor.get_performance_metrics(
-            "test_model"
-        )
+        performance_metrics = self.monitor.performance_monitor.get_performance_metrics("test_model")
         assert performance_metrics is not None
         assert performance_metrics.total_requests == 1
 

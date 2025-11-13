@@ -28,9 +28,7 @@ class HMMSIPConfig(BaseModel):
     score_floor: float = 0.0
     universe_file: str | None = None
     external_premarket_root: str = Field(
-        default=str(
-            Path.home() / "hybrid-local" / "signals" / "sip" / "universe" / "pre"
-        ),
+        default=str(Path.home() / "hybrid-local" / "signals" / "sip" / "universe" / "pre"),
         description="Directory for external premarket HMM files",
     )
     enable_gold_fallback: bool = True
@@ -68,9 +66,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
         else:
             self._daily_selector = None
 
-    def select(
-        self, bars_utc: pd.DataFrame, ref: dict, **params
-    ) -> dict[int, set[str]]:
+    def select(self, bars_utc: pd.DataFrame, ref: dict, **params) -> dict[int, set[str]]:
         if self.cfg.mode == "daily":
             return self._select_daily_mode(bars_utc, ref, **params)
         else:
@@ -133,9 +129,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
             # Trigger Gold fallback if external file doesn't exist or is empty/filtered out
             if self.cfg.enable_gold_fallback:
                 print(f"  [HMM SIP] Using Gold fallback for {target_et_date}")
-                shortlist = self._compute_gold_premarket_shortlist(
-                    bars_utc, target_et_date
-                )
+                shortlist = self._compute_gold_premarket_shortlist(bars_utc, target_et_date)
 
         if not shortlist:
             print(f"  [HMM SIP] No shortlist available for {target_et_date}")
@@ -195,9 +189,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if cache_key not in self._cache:
                 # Clean up old entries if cache is full
                 if len(self._cache) >= self._max_cache_size:
-                    oldest_key = min(
-                        self._cache.keys(), key=lambda k: self._cache[k][1]
-                    )
+                    oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][1])
                     del self._cache[oldest_key]
 
                 df = pd.read_parquet(parquet_path)
@@ -238,9 +230,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
         if self._gold_symbols_cache is not None:
             cached_symbols, cache_time = self._gold_symbols_cache
             if current_time - cache_time < self._gold_symbols_cache_ttl_seconds:
-                print(
-                    f"  [CACHE HIT] Using cached Gold symbols: {len(cached_symbols)} symbols"
-                )
+                print(f"  [CACHE HIT] Using cached Gold symbols: {len(cached_symbols)} symbols")
                 return cached_symbols
 
         # Cache miss - discover symbols
@@ -275,9 +265,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
         # Load comprehensive universe from Gold data for proper HMM_SIP filtering (cached)
         gold_symbols = self._get_gold_symbols()
         available_symbols.update(gold_symbols)
-        print(
-            f"  [HMM SIP] Using comprehensive universe: {len(available_symbols)} total symbols"
-        )
+        print(f"  [HMM SIP] Using comprehensive universe: {len(available_symbols)} total symbols")
 
         # Use the input data as-is for premarket analysis
         full_bars_df = bars_utc
@@ -285,9 +273,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
 
         # Convert UTC timestamps to ET for slicing
         bars_et = full_bars_df.copy()
-        bars_et["ts_et"] = pd.to_datetime(
-            bars_et["ts"], unit="ns", utc=True
-        ).dt.tz_convert(ET_TZ)
+        bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(ET_TZ)
 
         # Filter to target ET date
         target_date_parsed = pd.to_datetime(target_et_date).date()
@@ -313,9 +299,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
         # Vectorized calculations for better performance with 1000+ symbols
         # Group by symbol and aggregate premarket data
         premarket_agg = (
-            premarket_bars.groupby("symbol")
-            .agg({"close": "last", "volume": "sum"})
-            .reset_index()
+            premarket_bars.groupby("symbol").agg({"close": "last", "volume": "sum"}).reset_index()
         )
 
         # Calculate premarket dollar volume (close * volume)
@@ -330,16 +314,11 @@ class HMMSIPUniverseSelector(UniverseSelector):
         )
 
         # Merge premarket data with RTH opens
-        merged = premarket_agg.merge(
-            rth_open_bars[["symbol", "open"]], on="symbol", how="inner"
-        )
+        merged = premarket_agg.merge(rth_open_bars[["symbol", "open"]], on="symbol", how="inner")
 
         # Merge with previous close data
         prev_close_df = pd.DataFrame(
-            [
-                {"symbol": symbol, "prev_close": close}
-                for symbol, close in prev_close_map.items()
-            ]
+            [{"symbol": symbol, "prev_close": close} for symbol, close in prev_close_map.items()]
         )
 
         merged = merged.merge(prev_close_df, on="symbol", how="inner")
@@ -351,15 +330,11 @@ class HMMSIPUniverseSelector(UniverseSelector):
             return []
 
         # Calculate gap metrics vectorized
-        merged["gap_pct"] = (merged["open"] - merged["prev_close"]) / merged[
-            "prev_close"
-        ]
+        merged["gap_pct"] = (merged["open"] - merged["prev_close"]) / merged["prev_close"]
         merged["gap_abs"] = merged["gap_pct"].abs()
 
         # Prepare final metrics
-        symbol_metrics = merged[
-            ["symbol", "gap_pct", "premarket_dv", "gap_abs"]
-        ].to_dict("records")
+        symbol_metrics = merged[["symbol", "gap_pct", "premarket_dv", "gap_abs"]].to_dict("records")
 
         if not symbol_metrics:
             return []
@@ -369,23 +344,17 @@ class HMMSIPUniverseSelector(UniverseSelector):
 
         # Cross-sectional z-scoring
         metrics_df["gap_abs_z"] = self._cross_sectional_z(metrics_df["gap_abs"])
-        metrics_df["premarket_dv_z"] = self._cross_sectional_z(
-            metrics_df["premarket_dv"]
-        )
+        metrics_df["premarket_dv_z"] = self._cross_sectional_z(metrics_df["premarket_dv"])
 
         # Calculate composite score
-        metrics_df["score"] = (
-            0.6 * metrics_df["premarket_dv_z"] + 0.4 * metrics_df["gap_abs_z"]
-        )
+        metrics_df["score"] = 0.6 * metrics_df["premarket_dv_z"] + 0.4 * metrics_df["gap_abs_z"]
 
         # Filter by score floor
         if self.cfg.score_floor > 0:
             metrics_df = metrics_df[metrics_df["score"] >= self.cfg.score_floor]
 
         # Sort and select top K
-        metrics_df = metrics_df.sort_values(
-            ["score", "symbol"], ascending=[False, True]
-        )
+        metrics_df = metrics_df.sort_values(["score", "symbol"], ascending=[False, True])
         shortlist = metrics_df["symbol"].head(self.cfg.top_k).tolist()
 
         return [str(symbol).upper() for symbol in shortlist]
@@ -396,9 +365,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
         """Get previous trading day close for each symbol."""
         # Convert to ET for date logic
         bars_et = bars_utc.copy()
-        bars_et["ts_et"] = pd.to_datetime(
-            bars_et["ts"], unit="ns", utc=True
-        ).dt.tz_convert(ET_TZ)
+        bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(ET_TZ)
         bars_et["date"] = bars_et["ts_et"].dt.date
 
         # Look back up to 5 days for previous close
@@ -527,9 +494,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
                     all_p_hat_data.append(df)
 
             except Exception as e:
-                print(
-                    f"  [P_HAT CACHE ERROR] Failed to load p_hat data for {symbol}: {e}"
-                )
+                print(f"  [P_HAT CACHE ERROR] Failed to load p_hat data for {symbol}: {e}")
                 continue
 
         if not all_p_hat_data:
@@ -543,9 +508,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
             return None
 
         # Filter to target date and ensure UTC timestamps
-        combined_p_hat["ts_utc"] = pd.to_datetime(
-            combined_p_hat["ts"], unit="ns", utc=True
-        )
+        combined_p_hat["ts_utc"] = pd.to_datetime(combined_p_hat["ts"], unit="ns", utc=True)
         combined_p_hat["date_utc"] = combined_p_hat["ts_utc"].dt.date
 
         target_date_utc = target_date.tz_localize(None).date()
@@ -611,9 +574,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if "p_hat" in group.columns:
                 # Filter out rows with NaN p_hat values, then apply threshold
                 valid_p_hat = group.dropna(subset=["p_hat"])
-                passing_symbols = valid_p_hat[
-                    valid_p_hat["p_hat"] >= self.cfg.p_hat_threshold
-                ]["symbol"].unique()
+                passing_symbols = valid_p_hat[valid_p_hat["p_hat"] >= self.cfg.p_hat_threshold][
+                    "symbol"
+                ].unique()
             else:
                 passing_symbols = set()
 
@@ -621,9 +584,7 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if self.cfg.min_minutes_in_state > 0 and len(passing_symbols) > 0:
                 # Look back to ensure symbol has been passing threshold for minimum minutes
                 current_time = pd.to_datetime(ts, unit="ns", utc=True)
-                window_start = current_time - pd.Timedelta(
-                    minutes=self.cfg.min_minutes_in_state
-                )
+                window_start = current_time - pd.Timedelta(minutes=self.cfg.min_minutes_in_state)
 
                 # Get p_hat data for the time window
                 window_data = minute_p_hat[

@@ -20,9 +20,7 @@ class RetrainingResult:
 class AutoRetrainer:
     """Simple retraining orchestrator used in tests."""
 
-    def __init__(
-        self, trainer: Callable[[dict[str, Any]], dict[str, Any]] | None = None
-    ):
+    def __init__(self, trainer: Callable[[dict[str, Any]], dict[str, Any]] | None = None):
         self._trainer = trainer
 
     def run(self, config: dict[str, Any]) -> RetrainingResult:

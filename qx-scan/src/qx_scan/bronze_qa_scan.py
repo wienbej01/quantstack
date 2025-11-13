@@ -176,9 +176,7 @@ def main():
         issues_md += f"## {family}\n"
         for file_info in data["files"]:
             if file_info["issues"]:
-                issues_md += (
-                    f"- {file_info['path']}: {', '.join(file_info['issues'])}\n"
-                )
+                issues_md += f"- {file_info['path']}: {', '.join(file_info['issues'])}\n"
                 for issue in file_info["issues"]:
                     issue_counts[issue] += 1
 

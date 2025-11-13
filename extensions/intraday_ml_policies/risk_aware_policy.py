@@ -162,9 +162,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         """
         try:
             # Get base signal from ML model
-            base_signal = self._generate_base_signal(
-                features, current_position, market_data
-            )
+            base_signal = self._generate_base_signal(features, current_position, market_data)
 
             # Assess current risk environment
             risk_assessment = self._assess_market_risk(features, market_data)
@@ -452,9 +450,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
 
         return risk_score
 
-    def _assess_portfolio_risk(
-        self, decision: PolicyDecision, portfolio: dict[str, Any]
-    ) -> float:
+    def _assess_portfolio_risk(self, decision: PolicyDecision, portfolio: dict[str, Any]) -> float:
         """Assess portfolio-level risk."""
         risk_score = 0.5
 
@@ -472,9 +468,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
 
         return min(1.0, risk_score)
 
-    def _assess_liquidity_risk(
-        self, decision: PolicyDecision, features: dict[str, float]
-    ) -> float:
+    def _assess_liquidity_risk(self, decision: PolicyDecision, features: dict[str, float]) -> float:
         """Assess liquidity risk."""
         # Simplified liquidity assessment
         if "volume" in features and "avg_volume" in features:
@@ -533,9 +527,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
         max_size = self.risk_config.max_position_size * account_value
         return max(-max_size, min(max_size, size))
 
-    def _generate_risk_recommendations(
-        self, risk_assessment: dict[str, Any]
-    ) -> list[str]:
+    def _generate_risk_recommendations(self, risk_assessment: dict[str, Any]) -> list[str]:
         """Generate risk management recommendations."""
         recommendations = []
 
@@ -543,17 +535,13 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             recommendations.append("Consider reducing position size")
 
         if risk_assessment["market_risk"] > 0.7:
-            recommendations.append(
-                "Market conditions are risky, consider reducing exposure"
-            )
+            recommendations.append("Market conditions are risky, consider reducing exposure")
 
         if risk_assessment["portfolio_risk"] > 0.7:
             recommendations.append("Portfolio risk is high, consider risk reduction")
 
         if risk_assessment["liquidity_risk"] > 0.7:
-            recommendations.append(
-                "Liquidity risk is high, use caution with position size"
-            )
+            recommendations.append("Liquidity risk is high, use caution with position size")
 
         if risk_assessment["correlation_risk"] > 0.7:
             recommendations.append("High correlation risk, consider diversification")
@@ -579,9 +567,7 @@ class RiskAwareMLPolicy(BaseMLPolicy):
             self.risk_metrics.last_updated = datetime.now()
 
             # Calculate current exposure
-            total_exposure = sum(
-                abs(pos.get("size", 0)) for pos in self.positions.values()
-            )
+            total_exposure = sum(abs(pos.get("size", 0)) for pos in self.positions.values())
             self.risk_metrics.current_exposure = total_exposure
 
             # Update other metrics would go here

@@ -157,9 +157,7 @@ def parse_for_features(file_path: Path) -> list[dict[str, Any]]:
                                     target.value, ast.Name
                                 ):
                                     if target.value.id in inputs:
-                                        outputs.append(
-                                            ast.unparse(target).split(".")[-1]
-                                        )
+                                        outputs.append(ast.unparse(target).split(".")[-1])
 
                 # Standardize feature names
                 pack = file_path.parent.name
@@ -169,24 +167,19 @@ def parse_for_features(file_path: Path) -> list[dict[str, Any]]:
                 # Purity/idempotence (heuristic)
                 purity_flags = {
                     "idempotent": "apply" not in content,  # Assume apply might modify
-                    "pure": "random" not in content.lower()
-                    and "time" not in content.lower(),
+                    "pure": "random" not in content.lower() and "time" not in content.lower(),
                 }
 
                 features.append(
                     {
                         "name": name,
                         "standardized_name": standardized_name,
-                        "type": (
-                            "class" if isinstance(node, ast.ClassDef) else "function"
-                        ),
+                        "type": ("class" if isinstance(node, ast.ClassDef) else "function"),
                         "file": str(file_path),
                         "callable": f"{file_path.stem}.{name}",
                         "inputs": inputs,
                         "outputs": list(set(outputs)),  # Dedupe
-                        "feature_names": (
-                            [standardized_name] if needs_adapter else [name]
-                        ),
+                        "feature_names": ([standardized_name] if needs_adapter else [name]),
                         "purity_flags": purity_flags,
                         "reuse_count": 1,  # Will be updated when clustering
                         "content_hash": content_hash,

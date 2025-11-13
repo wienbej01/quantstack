@@ -48,9 +48,7 @@ class SelectionCriteria:
 
     def __post_init__(self):
         """Validate criteria after initialization."""
-        total_weight = (
-            self.weight_success_rate + self.weight_sharpe_ratio + self.weight_return
-        )
+        total_weight = self.weight_success_rate + self.weight_sharpe_ratio + self.weight_return
         if abs(total_weight - 1.0) > 1e-6:
             raise ValueError(f"Weights must sum to 1.0, got {total_weight}")
 
@@ -335,9 +333,7 @@ class PolicySelector:
         # Apply performance decay if specified
         if criteria.performance_decay_half_life_days > 0 and metrics.last_updated:
             days_since_update = (datetime.now() - metrics.last_updated).days
-            decay_factor = 0.5 ** (
-                days_since_update / criteria.performance_decay_half_life_days
-            )
+            decay_factor = 0.5 ** (days_since_update / criteria.performance_decay_half_life_days)
 
             # Apply decay to all scores
             success_rate_score *= decay_factor

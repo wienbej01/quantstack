@@ -155,18 +155,14 @@ class IntradayMLFeaturePack:
                 # Simple returns
                 simple_ret = group["close"].pct_change(window)
                 features.append(
-                    pd.Series(
-                        simple_ret, index=group.index, name=f"f__ret__simple_{window}"
-                    )
+                    pd.Series(simple_ret, index=group.index, name=f"f__ret__simple_{window}")
                 )
 
                 # Log returns (if enabled)
                 if include_log:
                     log_ret = np.log(group["close"] / group["close"].shift(window))
                     features.append(
-                        pd.Series(
-                            log_ret, index=group.index, name=f"f__ret__log_{window}"
-                        )
+                        pd.Series(log_ret, index=group.index, name=f"f__ret__log_{window}")
                     )
 
         return pd.concat(features, axis=1)
@@ -206,9 +202,7 @@ class IntradayMLFeaturePack:
                 avg_range = high_low_range.rolling(20).mean()
                 range_ratio = high_low_range / (avg_range * ratio + 1e-8)
                 features.append(
-                    pd.Series(
-                        range_ratio, index=group.index, name=f"f__range__ratio_{ratio}"
-                    )
+                    pd.Series(range_ratio, index=group.index, name=f"f__range__ratio_{ratio}")
                 )
 
         return pd.concat(features, axis=1)
@@ -228,9 +222,7 @@ class IntradayMLFeaturePack:
             # Volume aggregations
             for window in vol_windows:
                 vol_sum = group["volume"].rolling(window).sum()
-                features.append(
-                    pd.Series(vol_sum, index=group.index, name=f"f__vol__sum_{window}")
-                )
+                features.append(pd.Series(vol_sum, index=group.index, name=f"f__vol__sum_{window}"))
 
             # VWAP features (reuse qx_features primitive)
             for window in vwap_windows:
@@ -242,17 +234,14 @@ class IntradayMLFeaturePack:
                 # Compute relative volume using time-of-day averaging
                 group_copy = group.copy()
                 group_copy["tod_minutes"] = [
-                    d.hour * 60 + d.minute
-                    for d in utc_ns_to_datetime(group_copy["ts"].values)
+                    d.hour * 60 + d.minute for d in utc_ns_to_datetime(group_copy["ts"].values)
                 ]
                 tod_avg_map = group_copy.groupby("tod_minutes")["volume"].mean()
                 tod_avg_vol = group_copy["tod_minutes"].map(tod_avg_map)
                 tod_avg_vol = tod_avg_vol.replace(0, 1)
                 rvol = group_copy["volume"] / tod_avg_vol
                 rvol = np.where(np.isnan(rvol), 1.0, rvol)
-                rvol_series = pd.Series(
-                    rvol, index=group.index, name=f"f__vol__rel_{window}"
-                )
+                rvol_series = pd.Series(rvol, index=group.index, name=f"f__vol__rel_{window}")
                 features.append(rvol_series)
 
         return pd.concat(features, axis=1)
@@ -315,12 +304,8 @@ class IntradayMLFeaturePack:
             hour_features = []
             if cyclical_encoding:
                 # Cyclical encoding for hour
-                hour_sin = np.sin(
-                    2 * np.pi * np.array([d.hour for d in datetimes]) / 24
-                )
-                hour_cos = np.cos(
-                    2 * np.pi * np.array([d.hour for d in datetimes]) / 24
-                )
+                hour_sin = np.sin(2 * np.pi * np.array([d.hour for d in datetimes]) / 24)
+                hour_cos = np.cos(2 * np.pi * np.array([d.hour for d in datetimes]) / 24)
                 hour_features.extend(
                     [
                         pd.Series(hour_sin, index=df.index, name="f__time__hour_sin"),
@@ -332,9 +317,7 @@ class IntradayMLFeaturePack:
                 for hour in range(24):
                     hour_binary = [1 if d.hour == hour else 0 for d in datetimes]
                     hour_features.append(
-                        pd.Series(
-                            hour_binary, index=df.index, name=f"f__time__hour_{hour}"
-                        )
+                        pd.Series(hour_binary, index=df.index, name=f"f__time__hour_{hour}")
                     )
             features.extend(hour_features)
 
@@ -342,28 +325,19 @@ class IntradayMLFeaturePack:
             minute_features = []
             if cyclical_encoding:
                 # Cyclical encoding for minute
-                minute_sin = np.sin(
-                    2 * np.pi * np.array([d.minute for d in datetimes]) / 60
-                )
-                minute_cos = np.cos(
-                    2 * np.pi * np.array([d.minute for d in datetimes]) / 60
-                )
+                minute_sin = np.sin(2 * np.pi * np.array([d.minute for d in datetimes]) / 60)
+                minute_cos = np.cos(2 * np.pi * np.array([d.minute for d in datetimes]) / 60)
                 minute_features.extend(
                     [
-                        pd.Series(
-                            minute_sin, index=df.index, name="f__time__minute_sin"
-                        ),
-                        pd.Series(
-                            minute_cos, index=df.index, name="f__time__minute_cos"
-                        ),
+                        pd.Series(minute_sin, index=df.index, name="f__time__minute_sin"),
+                        pd.Series(minute_cos, index=df.index, name="f__time__minute_cos"),
                     ]
                 )
             else:
                 # One-hot encoding for minute (every 5 minutes)
                 for minute in range(0, 60, 5):
                     minute_binary = [
-                        1 if d.minute >= minute and d.minute < minute + 5 else 0
-                        for d in datetimes
+                        1 if d.minute >= minute and d.minute < minute + 5 else 0 for d in datetimes
                     ]
                     minute_features.append(
                         pd.Series(
@@ -378,12 +352,8 @@ class IntradayMLFeaturePack:
             day_features = []
             if cyclical_encoding:
                 # Cyclical encoding for day of week
-                day_sin = np.sin(
-                    2 * np.pi * np.array([d.weekday() for d in datetimes]) / 7
-                )
-                day_cos = np.cos(
-                    2 * np.pi * np.array([d.weekday() for d in datetimes]) / 7
-                )
+                day_sin = np.sin(2 * np.pi * np.array([d.weekday() for d in datetimes]) / 7)
+                day_cos = np.cos(2 * np.pi * np.array([d.weekday() for d in datetimes]) / 7)
                 day_features.extend(
                     [
                         pd.Series(day_sin, index=df.index, name="f__time__dow_sin"),
@@ -395,9 +365,7 @@ class IntradayMLFeaturePack:
                 for day in range(7):
                     day_binary = [1 if d.weekday() == day else 0 for d in datetimes]
                     day_features.append(
-                        pd.Series(
-                            day_binary, index=df.index, name=f"f__time__dow_{day}"
-                        )
+                        pd.Series(day_binary, index=df.index, name=f"f__time__dow_{day}")
                     )
             features.extend(day_features)
 
@@ -419,11 +387,7 @@ class IntradayMLFeaturePack:
             for window in percentile_windows:
                 # Cross-sectional percentile rank of returns
                 if "close" in group.columns:
-                    returns = (
-                        group["close"].pct_change(window)
-                        if window > 0
-                        else group["close"]
-                    )
+                    returns = group["close"].pct_change(window) if window > 0 else group["close"]
                     percentiles = returns.rank(pct=True)
 
                     for idx, (orig_idx, percentile) in enumerate(
@@ -441,9 +405,7 @@ class IntradayMLFeaturePack:
                                 )
                             else:
                                 # Append to existing series or create new
-                                existing = [
-                                    f for f in features if f.name == feature_name
-                                ]
+                                existing = [f for f in features if f.name == feature_name]
                                 if existing:
                                     existing[0][orig_idx] = percentile
                                 else:
@@ -472,9 +434,7 @@ class IntradayMLFeaturePack:
             # Rate of change
             for window in roc_windows:
                 roc = group["close"].pct_change(window) * 100
-                features.append(
-                    pd.Series(roc, index=group.index, name=f"f__mom__roc_{window}")
-                )
+                features.append(pd.Series(roc, index=group.index, name=f"f__mom__roc_{window}"))
 
             # RSI
             for window in rsi_windows:
@@ -483,18 +443,14 @@ class IntradayMLFeaturePack:
                 loss = (-delta.where(delta < 0, 0)).rolling(window).mean()
                 rs = gain / (loss + 1e-8)
                 rsi = 100 - (100 / (1 + rs))
-                features.append(
-                    pd.Series(rsi, index=group.index, name=f"f__mom__rsi_{window}")
-                )
+                features.append(pd.Series(rsi, index=group.index, name=f"f__mom__rsi_{window}"))
 
             # Moving averages and crossovers
             for window in ma_windows:
                 ma = group["close"].rolling(window).mean()
                 ma_ratio = group["close"] / ma
                 features.append(
-                    pd.Series(
-                        ma_ratio, index=group.index, name=f"f__ma__ratio_{window}"
-                    )
+                    pd.Series(ma_ratio, index=group.index, name=f"f__ma__ratio_{window}")
                 )
 
         return pd.concat(features, axis=1)
@@ -517,9 +473,7 @@ class IntradayMLFeaturePack:
                 spread = (group["high"] - group["low"]) / group["close"]
                 avg_spread = spread.rolling(window).mean()
                 features.append(
-                    pd.Series(
-                        avg_spread, index=group.index, name=f"f__micro__spread_{window}"
-                    )
+                    pd.Series(avg_spread, index=group.index, name=f"f__micro__spread_{window}")
                 )
 
             # Volume imbalance (buy vs sell pressure proxy)
@@ -570,9 +524,7 @@ class IntradayMLFeaturePack:
             body_strength = body / (safe_range + 1e-8)
 
             # Volume adjusted directional flow (Accumulation/Distribution)
-            adl_component = (
-                ((close - low) - (high - close)) / (safe_range + 1e-8) * volume
-            )
+            adl_component = ((close - low) - (high - close)) / (safe_range + 1e-8) * volume
 
             # On-balance volume style accumulator for conviction
             price_direction = np.sign(close.diff().fillna(0.0))
@@ -583,9 +535,7 @@ class IntradayMLFeaturePack:
                 rolling_std = close.rolling(window).std(ddof=0).replace(0, np.nan)
                 zscore = (close - rolling_mean) / (rolling_std + 1e-8)
                 feature_frames.append(
-                    pd.Series(
-                        zscore, index=group.index, name=f"f__conv__zscore_{window}"
-                    )
+                    pd.Series(zscore, index=group.index, name=f"f__conv__zscore_{window}")
                 )
 
                 momentum = close.pct_change(window)
@@ -600,9 +550,7 @@ class IntradayMLFeaturePack:
                 )
 
                 rolling_range = (high - low).rolling(window).sum()
-                close_position = (close - low.rolling(window).min()) / (
-                    rolling_range + 1e-8
-                )
+                close_position = (close - low.rolling(window).min()) / (rolling_range + 1e-8)
                 feature_frames.append(
                     pd.Series(
                         close_position,
@@ -653,8 +601,4 @@ class IntradayMLFeaturePack:
                     )
                 )
 
-        return (
-            pd.concat(feature_frames, axis=1)
-            if feature_frames
-            else pd.DataFrame(index=df.index)
-        )
+        return pd.concat(feature_frames, axis=1) if feature_frames else pd.DataFrame(index=df.index)

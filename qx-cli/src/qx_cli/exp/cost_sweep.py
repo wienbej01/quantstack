@@ -60,9 +60,7 @@ def cost_sweep(
         base_config = yaml.safe_load(f)
 
     # Create CostSweepConfig
-    cost_sweep_config = _create_cost_sweep_config(
-        base_config, grid_params, name, exp_dir
-    )
+    cost_sweep_config = _create_cost_sweep_config(base_config, grid_params, name, exp_dir)
 
     # Create and run experiment
     experiment = CostSweepExperiment(cost_sweep_config)
@@ -108,12 +106,8 @@ def cost_sweep(
                 console.print(
                     f"  Commission per share: ${best_config.get('commission_per_share', 'N/A')}"
                 )
-                console.print(
-                    f"  Commission min: ${best_config.get('commission_min', 'N/A')}"
-                )
-                console.print(
-                    f"  Slippage bps: {best_config.get('slippage_bps', 'N/A')}"
-                )
+                console.print(f"  Commission min: ${best_config.get('commission_min', 'N/A')}")
+                console.print(f"  Slippage bps: {best_config.get('slippage_bps', 'N/A')}")
 
                 if "best_metrics" in analysis:
                     best_metrics = analysis["best_metrics"]
@@ -153,9 +147,7 @@ def _create_cost_sweep_config(
     """Create CostSweepConfig from base config and grid parameters."""
 
     # Extract cost parameters from grid or use defaults
-    commission_per_share = grid_params.get(
-        "commission_per_share", [0.001, 0.0035, 0.005, 0.01]
-    )
+    commission_per_share = grid_params.get("commission_per_share", [0.001, 0.0035, 0.005, 0.01])
     commission_min = grid_params.get("commission_min", [0.0, 0.35, 1.0])
     slippage_bps = grid_params.get("slippage_bps", [0, 2, 5, 10])
     tick_size = grid_params.get("tick_size", [0.01, 0.001])
@@ -203,9 +195,7 @@ def _parse_multi_grid(grid_str: str) -> dict[str, list[float]]:
     return params
 
 
-def _generate_multi_grid_points(
-    grid_params: dict[str, list[float]]
-) -> list[dict[str, float]]:
+def _generate_multi_grid_points(grid_params: dict[str, list[float]]) -> list[dict[str, float]]:
     """Generate all combinations (simple cartesian for now)."""
     # Stub: just one point per param set
     points = [{}]

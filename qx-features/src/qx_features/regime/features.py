@@ -27,9 +27,7 @@ def mod_normalized_volatility(
         Series of MoD-normalized volatility values
     """
     if not all(col in df.columns for col in ["ts", "symbol", "high", "low", "close"]):
-        raise ValueError(
-            "DataFrame must contain 'ts', 'symbol', 'high', 'low', 'close' columns"
-        )
+        raise ValueError("DataFrame must contain 'ts', 'symbol', 'high', 'low', 'close' columns")
 
     results = []
 
@@ -131,9 +129,7 @@ def variance_ratio(
     return pd.concat(results).sort_index()
 
 
-def adx_proxy(
-    df: pd.DataFrame, lookback_m: int = 14, min_periods: int = 3
-) -> pd.Series:
+def adx_proxy(df: pd.DataFrame, lookback_m: int = 14, min_periods: int = 3) -> pd.Series:
     """Compute ADX proxy using price ranges for trend strength.
 
     ADX (Average Directional Index) measures trend strength without
@@ -148,9 +144,7 @@ def adx_proxy(
         Series of ADX proxy values (0-100, higher = stronger trend)
     """
     if not all(col in df.columns for col in ["ts", "symbol", "high", "low", "close"]):
-        raise ValueError(
-            "DataFrame must contain 'ts', 'symbol', 'high', 'low', 'close' columns"
-        )
+        raise ValueError("DataFrame must contain 'ts', 'symbol', 'high', 'low', 'close' columns")
 
     results = []
 
@@ -189,9 +183,7 @@ def adx_proxy(
         dx = 100 * np.abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, 1)
         adx = dx.rolling(lookback_m, min_periods=min_periods).mean()
 
-        result = pd.Series(
-            adx.values, index=group.index, name=f"f__regime__adx_proxy_{lookback_m}"
-        )
+        result = pd.Series(adx.values, index=group.index, name=f"f__regime__adx_proxy_{lookback_m}")
         results.append(result)
 
     return pd.concat(results).sort_index()
@@ -269,9 +261,7 @@ def stress_metrics(
     Returns:
         Series of stress metric values (higher = more stress)
     """
-    if not all(
-        col in df.columns for col in ["ts", "symbol", "high", "low", "close", "volume"]
-    ):
+    if not all(col in df.columns for col in ["ts", "symbol", "high", "low", "close", "volume"]):
         raise ValueError(
             "DataFrame must contain 'ts', 'symbol', 'high', 'low', 'close', 'volume' columns"
         )
@@ -289,21 +279,15 @@ def stress_metrics(
         volatility = true_range / group["close"]
 
         # Rolling statistics
-        recent_vol = volatility.rolling(
-            volatility_window, min_periods=min_periods
-        ).mean()
-        avg_volume = (
-            group["volume"].rolling(volume_window, min_periods=min_periods).mean()
-        )
+        recent_vol = volatility.rolling(volatility_window, min_periods=min_periods).mean()
+        avg_volume = group["volume"].rolling(volume_window, min_periods=min_periods).mean()
 
         # Long-term averages for normalization
         long_vol = volatility.rolling(
             max(volatility_window * 6, 30), min_periods=min_periods
         ).mean()
         long_avg_volume = (
-            group["volume"]
-            .rolling(max(volume_window * 6, 30), min_periods=min_periods)
-            .mean()
+            group["volume"].rolling(max(volume_window * 6, 30), min_periods=min_periods).mean()
         )
 
         # Normalized stress indicators
@@ -381,15 +365,13 @@ def compute_all_regime_features(
     total_symbols = df["symbol"].nunique()
     total_bars = len(df)
 
-    print(
-        f"Computing regime features for {total_symbols:,} symbols ({total_bars:,} bars)..."
-    )
+    print(f"Computing regime features for {total_symbols:,} symbols ({total_bars:,} bars)...")
     start_time = time.time()
 
     # Compute features
     print("  Computing MoD-normalized volatility...")
-    result[mod_normalized_volatility(df, volatility_window).name] = (
-        mod_normalized_volatility(df, volatility_window)
+    result[mod_normalized_volatility(df, volatility_window).name] = mod_normalized_volatility(
+        df, volatility_window
     )
 
     print("  Computing variance ratio...")
@@ -401,9 +383,7 @@ def compute_all_regime_features(
     result[adx_proxy(df, adx_window).name] = adx_proxy(df, adx_window)
 
     print("  Computing band position...")
-    result[band_position(df, band_window, band_std).name] = band_position(
-        df, band_window, band_std
-    )
+    result[band_position(df, band_window, band_std).name] = band_position(df, band_window, band_std)
 
     print("  Computing stress metrics...")
     result[
@@ -431,9 +411,7 @@ def compute_all_regime_features(
     total_time = time.time() - start_time
     bars_per_second = total_bars / total_time if total_time > 0 else 0
 
-    print(
-        f"  ✓ Regime features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)"
-    )
+    print(f"  ✓ Regime features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)")
     print(f"  ✓ Processed {total_symbols:,} symbols and {total_bars:,} bars")
 
     return result

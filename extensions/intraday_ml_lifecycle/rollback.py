@@ -18,12 +18,8 @@ class RollbackPlan:
 class RollbackManager:
     """Provide a minimal rollback implementation."""
 
-    def build_plan(
-        self, model_id: str, target_version: str, reason: str
-    ) -> RollbackPlan:
-        return RollbackPlan(
-            model_id=model_id, target_version=target_version, reason=reason
-        )
+    def build_plan(self, model_id: str, target_version: str, reason: str) -> RollbackPlan:
+        return RollbackPlan(model_id=model_id, target_version=target_version, reason=reason)
 
     def execute(self, plan: RollbackPlan) -> dict[str, Any]:
         return {

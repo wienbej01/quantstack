@@ -158,9 +158,7 @@ class DifferenceTransformer(BaseEstimator, TransformerMixin):
         self.periods = periods
         self.feature_names = None
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> "DifferenceTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "DifferenceTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
         return self
@@ -213,9 +211,7 @@ class InteractionTransformer(BaseEstimator, TransformerMixin):
         self.max_features = max_features
         self.selected_interactions = None
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> "InteractionTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "InteractionTransformer":
         """
         Fit interaction transformer.
 
@@ -275,9 +271,7 @@ class InteractionTransformer(BaseEstimator, TransformerMixin):
                 new_feature_names.append(f"{feat1}_x_{feat2}")
 
                 # Ratio interaction (if second feature is not zero)
-                ratio = X[feat1] / (
-                    X[feat2] + 1e-8
-                )  # Add small epsilon to avoid division by zero
+                ratio = X[feat1] / (X[feat2] + 1e-8)  # Add small epsilon to avoid division by zero
                 interaction_features.append(ratio)
                 new_feature_names.append(f"{feat1}_div_{feat2}")
 
@@ -307,13 +301,9 @@ class BinningTransformer(BaseEstimator, TransformerMixin):
         """Fit binning transformer."""
         for col in X.columns:
             if self.strategy == "uniform":
-                _, bins = pd.cut(
-                    X[col], bins=self.n_bins, retbins=True, duplicates="drop"
-                )
+                _, bins = pd.cut(X[col], bins=self.n_bins, retbins=True, duplicates="drop")
             elif self.strategy == "quantile":
-                _, bins = pd.qcut(
-                    X[col], q=self.n_bins, retbins=True, duplicates="drop"
-                )
+                _, bins = pd.qcut(X[col], q=self.n_bins, retbins=True, duplicates="drop")
             else:
                 raise ValueError(f"Unknown binning strategy: {self.strategy}")
 
@@ -363,9 +353,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
         self.indicators = indicators
         self.feature_names = None
 
-    def fit(
-        self, X: pd.DataFrame, y: pd.Series | None = None
-    ) -> "TechnicalIndicatorTransformer":
+    def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> "TechnicalIndicatorTransformer":
         """Fit transformer (just stores feature names)."""
         self.feature_names = X.columns.tolist()
         return self
@@ -402,9 +390,7 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
             elif indicator == "macd" and close_col:
                 macd_line, signal_line = self._calculate_macd(X[close_col])
                 indicator_features.extend([macd_line, signal_line])
-                new_feature_names.extend(
-                    [f"{close_col}_macd", f"{close_col}_macd_signal"]
-                )
+                new_feature_names.extend([f"{close_col}_macd", f"{close_col}_macd_signal"])
 
             elif indicator == "bb" and close_col:
                 bb_upper, bb_lower = self._calculate_bollinger_bands(X[close_col])
@@ -420,18 +406,12 @@ class TechnicalIndicatorTransformer(BaseEstimator, TransformerMixin):
                 )
 
             elif indicator == "stoch" and all([high_col, low_col, close_col]):
-                stoch_k, stoch_d = self._calculate_stochastic(
-                    X[high_col], X[low_col], X[close_col]
-                )
+                stoch_k, stoch_d = self._calculate_stochastic(X[high_col], X[low_col], X[close_col])
                 indicator_features.extend([stoch_k, stoch_d])
-                new_feature_names.extend(
-                    [f"{close_col}_stoch_k", f"{close_col}_stoch_d"]
-                )
+                new_feature_names.extend([f"{close_col}_stoch_k", f"{close_col}_stoch_d"])
 
             elif indicator == "williams" and all([high_col, low_col, close_col]):
-                williams_r = self._calculate_williams_r(
-                    X[high_col], X[low_col], X[close_col]
-                )
+                williams_r = self._calculate_williams_r(X[high_col], X[low_col], X[close_col])
                 indicator_features.append(williams_r)
                 new_feature_names.append(f"{close_col}_williams_r")
 

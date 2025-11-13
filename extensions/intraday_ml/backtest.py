@@ -50,9 +50,7 @@ def intraday_ml_run_backtest(
 
     # Apply intraday preprocessing if required
     if enforce_intraday_compliance:
-        processed_bars, processed_orders = _apply_intraday_constraints(
-            bars, orders, config
-        )
+        processed_bars, processed_orders = _apply_intraday_constraints(bars, orders, config)
     else:
         processed_bars, processed_orders = bars.copy(), orders.copy()
 
@@ -84,15 +82,47 @@ def intraday_ml_run_backtest(
     engine.filler = filler
 
     # Create strategy wrapper for our orders
-    strategy = _create_strategy_wrapper(
-        processed_orders, config.get("intraday_constraints", {})
-    )
+    strategy = _create_strategy_wrapper(processed_orders, config.get("intraday_constraints", {}))
 
     # Run backtest using existing engine
     result = engine.run(processed_bars, strategy)
 
     # Convert result to Sprint 6 artifacts format
     artifacts = _convert_result_to_artifacts(result, config)
+
+    policy_orders = processed_orders.copy()
+    if not policy_orders.empty:
+        if "order_id" not in policy_orders.columns:
+            policy_orders["order_id"] = [
+                f"ml_order_{int(ts)}_{idx}" for idx, ts in enumerate(policy_orders["ts"])
+            ]
+        policy_orders["execution_ts"] = policy_orders["ts"].astype("int64", copy=False)
+        policy_orders["execution_timestamp"] = pd.to_datetime(
+            policy_orders["execution_ts"], unit="ns", utc=True
+        )
+        if "signal_ts" not in policy_orders.columns:
+            policy_orders["signal_ts"] = policy_orders["execution_ts"]
+            policy_orders["signal_timestamp"] = policy_orders["execution_timestamp"]
+        else:
+            policy_orders["signal_ts"] = policy_orders["signal_ts"].astype("int64", copy=False)
+            policy_orders["signal_timestamp"] = pd.to_datetime(
+                policy_orders["signal_ts"], unit="ns", utc=True
+            )
+
+        engine_orders = artifacts.get("orders")
+        if isinstance(engine_orders, pd.DataFrame) and not engine_orders.empty:
+            engine_orders_prefixed = engine_orders.rename(
+                columns={
+                    col: col if col == "order_id" else f"engine_{col}"
+                    for col in engine_orders.columns
+                }
+            )
+            merged_orders = policy_orders.merge(engine_orders_prefixed, on="order_id", how="left")
+        else:
+            merged_orders = policy_orders
+
+        artifacts["orders"] = merged_orders
+        artifacts["policy_orders"] = policy_orders
 
     # Write artifacts if configured
     if config.get("write_artifacts", True):
@@ -120,9 +150,7 @@ def intraday_ml_get_backtest_hash(
     return hash_dict(input_data)
 
 
-def _load_and_merge_config(
-    cfg: dict[str, Any], config_path: str | None
-) -> dict[str, Any]:
+def _load_and_merge_config(cfg: dict[str, Any], config_path: str | None) -> dict[str, Any]:
     """Load configuration from file and merge with input."""
     # Default configuration
     default_config = {
@@ -177,9 +205,7 @@ def _validate_inputs(bars: pd.DataFrame, orders: pd.DataFrame) -> None:
 
     if not orders.empty:
         required_order_cols = ["ts", "symbol", "side", "qty"]
-        missing_orders = [
-            col for col in required_order_cols if col not in orders.columns
-        ]
+        missing_orders = [col for col in required_order_cols if col not in orders.columns]
         if missing_orders:
             raise ValueError(f"Missing required order columns: {missing_orders}")
 
@@ -240,10 +266,14 @@ def _shift_to_next_bar(orders: pd.DataFrame, bars: pd.DataFrame) -> pd.DataFrame
         if key in next_bar:
             shifted_order = order.copy()
             next_ts = next_bar[key]
+            signal_ts = order.get("signal_ts", original_ts_ns)
+            shifted_order["signal_ts"] = signal_ts
+            shifted_order["signal_timestamp"] = pd.to_datetime(signal_ts, unit="ns", utc=True)
             shifted_order["original_signal_ts"] = original_ts_ns
+            shifted_order["execution_ts"] = next_ts
+            shifted_order["execution_timestamp"] = pd.to_datetime(next_ts, unit="ns", utc=True)
             shifted_order["ts"] = next_ts
-            if "timestamp" in shifted_order:
-                shifted_order["timestamp"] = pd.to_datetime(next_ts, unit="ns", utc=True)
+            shifted_order["timestamp"] = shifted_order["execution_timestamp"]
             shifted_orders.append(shifted_order)
 
     return pd.DataFrame(shifted_orders) if shifted_orders else pd.DataFrame()
@@ -275,9 +305,7 @@ def _filter_eod_violations(
             eod_datetime = datetime.combine(last_bar["date"], eod_time)
             eod_datetime = eod_datetime.replace(tzinfo=last_bar["datetime_et"].tzinfo)
             cutoff = eod_datetime - eod_cutoff
-            cutoff_times.add(
-                (last_bar["symbol"], cutoff.timestamp() * 1_000_000)
-            )  # Convert to ns
+            cutoff_times.add((last_bar["symbol"], cutoff.timestamp() * 1_000_000))  # Convert to ns
 
     # Filter orders
     valid_orders = []
@@ -288,9 +316,7 @@ def _filter_eod_violations(
     return pd.DataFrame(valid_orders) if valid_orders else pd.DataFrame()
 
 
-def _create_strategy_wrapper(
-    orders: pd.DataFrame, intraday_constraints: dict[str, Any]
-):
+def _create_strategy_wrapper(orders: pd.DataFrame, intraday_constraints: dict[str, Any]):
     """Create strategy function wrapper for pre-sized orders with position management."""
 
     def _coerce_to_utc_timestamp(value: Any) -> tuple[int, pd.Timestamp]:
@@ -323,9 +349,7 @@ def _create_strategy_wrapper(
 
     if not orders.empty:
         orders = orders.copy()
-        orders["ts"] = orders["ts"].apply(
-            lambda value: _coerce_to_utc_timestamp(value)[0]
-        )
+        orders["ts"] = orders["ts"].apply(lambda value: _coerce_to_utc_timestamp(value)[0])
 
     session_timezone = intraday_constraints.get("session_timezone", "America/New_York")
     flat_time_str = intraday_constraints.get("flat_eod_time", "15:59:59")
@@ -356,11 +380,7 @@ def _create_strategy_wrapper(
                 current_qty = 0
 
         # Force flat at configured cutoff time
-        if (
-            position
-            and ts_et.time() >= flat_time
-            and date_key not in forced_flat_tracker[symbol]
-        ):
+        if position and ts_et.time() >= flat_time and date_key not in forced_flat_tracker[symbol]:
             forced_flat_tracker[symbol].add(date_key)
             exit_side = OrderSide.SELL if position.is_long else OrderSide.BUY
             order_id = f"ml_force_flat_{ts_value}"
@@ -381,13 +401,13 @@ def _create_strategy_wrapper(
             return
 
         # Find orders matching current timestamp and symbol
-        matching_orders = orders[
-            (orders["ts"] == ts_value) & (orders["symbol"] == symbol)
-        ]
+        matching_orders = orders[(orders["ts"] == ts_value) & (orders["symbol"] == symbol)]
 
         for idx, (_, order) in enumerate(matching_orders.iterrows()):
             # Convert order to engine format and submit
-            order_id = f"ml_order_{ts_value}_{idx}"
+            order_id = order.get("order_id")
+            if not order_id:
+                order_id = f"ml_order_{ts_value}_{idx}"
 
             # Determine order side - handle both LONG and SHORT
             side = OrderSide.BUY if order["side"].lower() == "long" else OrderSide.SELL
@@ -407,6 +427,22 @@ def _create_strategy_wrapper(
                 order_type=OrderType.MARKET,
                 timestamp=current_ts,
             )
+
+            tags = {
+                "reason": order.get("reason"),
+                "strategy": order.get("strategy"),
+                "strategy_detail": order.get("strategy_detail"),
+            }
+            signal_ts = order.get("signal_ts")
+            if signal_ts is not None:
+                tags["signal_ts"] = int(signal_ts)
+                tags["signal_timestamp"] = str(
+                    order.get(
+                        "signal_timestamp",
+                        pd.to_datetime(int(signal_ts), unit="ns", utc=True),
+                    )
+                )
+            order_obj.tags = tags
 
             # Get current close price from bar_dict
             current_close = bar_dict.get("close")
@@ -455,27 +491,19 @@ def _convert_result_to_artifacts(result: Any, config: dict[str, Any]) -> dict[st
         positions_history = getattr(result, "positions_history", [])
 
         # Create proper trades DataFrame from unique trades only
-        unique_trades = (
-            _deduplicate_trades(trades_history) if trades_history else pd.DataFrame()
-        )
+        unique_trades = _deduplicate_trades(trades_history) if trades_history else pd.DataFrame()
 
         # Create fills DataFrame from unique fills (subset of trades)
         unique_fills = (
-            _create_fills_from_trades(unique_trades)
-            if not unique_trades.empty
-            else pd.DataFrame()
+            _create_fills_from_trades(unique_trades) if not unique_trades.empty else pd.DataFrame()
         )
 
         # First create artifacts without metrics
         temp_artifacts = {
             "equity": getattr(result, "equity_curve", pd.DataFrame()),
-            "positions": (
-                pd.DataFrame(positions_history) if positions_history else pd.DataFrame()
-            ),
+            "positions": (pd.DataFrame(positions_history) if positions_history else pd.DataFrame()),
             "trades": unique_trades,
-            "orders": (
-                pd.DataFrame(orders_history) if orders_history else pd.DataFrame()
-            ),
+            "orders": (pd.DataFrame(orders_history) if orders_history else pd.DataFrame()),
             "fills": unique_fills,
         }
 
@@ -535,9 +563,7 @@ def _deduplicate_trades(trades_history: list[dict[str, Any]]) -> pd.DataFrame:
         # Sort by timestamp to ensure first occurrence is the actual trade
         trades_df = trades_df.sort_values(["order_id", "timestamp", "symbol"])
         # Drop duplicates keeping the first (actual) trade
-        unique_trades = trades_df.drop_duplicates(
-            subset=["order_id", "symbol"], keep="first"
-        )
+        unique_trades = trades_df.drop_duplicates(subset=["order_id", "symbol"], keep="first")
     else:
         # Fallback: drop exact duplicates
         unique_trades = trades_df.drop_duplicates()
@@ -566,9 +592,7 @@ def _create_fills_from_trades(trades_df: pd.DataFrame) -> pd.DataFrame:
     return trades_df[available_columns].copy()
 
 
-def _extract_metrics_from_result(
-    result: Any, artifacts: dict[str, Any] = None
-) -> dict[str, Any]:
+def _extract_metrics_from_result(result: Any, artifacts: dict[str, Any] = None) -> dict[str, Any]:
     """Extract metrics from BacktestResult object, but prioritize calculated metrics."""
     metrics = {}
 
@@ -643,13 +667,10 @@ def _calculate_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
     fills_df = artifacts.get("fills")
     if fills_df is not None and not fills_df.empty:
         fills_df = fills_df.copy()
-        if (
-            "timestamp" in fills_df.columns
-            and not pd.api.types.is_datetime64_any_dtype(fills_df["timestamp"])
+        if "timestamp" in fills_df.columns and not pd.api.types.is_datetime64_any_dtype(
+            fills_df["timestamp"]
         ):
-            fills_df["timestamp"] = pd.to_datetime(
-                fills_df["timestamp"], utc=True, errors="coerce"
-            )
+            fills_df["timestamp"] = pd.to_datetime(fills_df["timestamp"], utc=True, errors="coerce")
 
         fills_df = fills_df.sort_values("timestamp").reset_index(drop=True)
         gross_pnl = 0.0

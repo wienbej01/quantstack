@@ -433,9 +433,7 @@ class TestComputeAllRegimeFeatures:
         )
 
         # Should still have all features
-        assert (
-            len(result.columns) > len(sample_data.columns) + 6
-        )  # Original + 6 features
+        assert len(result.columns) > len(sample_data.columns) + 6  # Original + 6 features
 
         # Feature names should reflect custom parameters
         assert "f__regime__mod_vol_20" in result.columns
@@ -461,9 +459,7 @@ class TestFeatureConfig:
 
         for feature in expected_features:
             assert feature in config, f"Missing feature config: {feature}"
-            assert isinstance(
-                config[feature], dict
-            ), f"Feature config should be dict: {feature}"
+            assert isinstance(config[feature], dict), f"Feature config should be dict: {feature}"
 
         # Check specific parameter values
         assert config["mod_normalized_volatility"]["lookback_m"] == 30

@@ -86,9 +86,7 @@ class TestS3BasicIntegration:
         # Create test data
         df = pd.DataFrame(
             {
-                "ts": [
-                    1640995200000000000 + i * 60000000000 for i in range(10)
-                ],  # 10 bars
+                "ts": [1640995200000000000 + i * 60000000000 for i in range(10)],  # 10 bars
                 "symbol": ["AAPL"] * 10,
                 "open": [150.0 + i * 0.1 for i in range(10)],
                 "high": [151.0 + i * 0.1 for i in range(10)],
@@ -129,9 +127,7 @@ class TestS3BasicIntegration:
         """Test that features follow naming convention."""
         # Test VWAP naming
         vwap_result = vwap_m(
-            pd.DataFrame(
-                {"ts": [1], "symbol": ["AAPL"], "close": [150.0], "volume": [1000]}
-            ),
+            pd.DataFrame({"ts": [1], "symbol": ["AAPL"], "close": [150.0], "volume": [1000]}),
             10,
         )
         assert "f__ta__vwap_10" in vwap_result.name

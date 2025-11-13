@@ -230,9 +230,7 @@ class MLModelTrainer:
         target: pd.Series,
         test_split: float,
         val_split: float,
-    ) -> tuple[
-        pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series
-    ]:
+    ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.Series, pd.Series, pd.Series]:
         """Split data into train/val/test with time series awareness."""
         n_samples = len(features)
 
@@ -313,22 +311,16 @@ class MLModelTrainer:
             # Linear models
             importance_scores = np.abs(model.coef_)
             if len(importance_scores.shape) > 1:
-                importance_scores = importance_scores[
-                    0
-                ]  # Take first class for multi-class
+                importance_scores = importance_scores[0]  # Take first class for multi-class
         else:
             # Default: equal importance
             importance_scores = np.ones(len(feature_names)) / len(feature_names)
 
         # Create feature importance objects
         feature_importance = []
-        for i, (feature, score) in enumerate(
-            zip(feature_names, importance_scores, strict=False)
-        ):
+        for i, (feature, score) in enumerate(zip(feature_names, importance_scores, strict=False)):
             feature_importance.append(
-                FeatureImportance(
-                    feature_name=feature, importance=float(score), rank=i + 1
-                )
+                FeatureImportance(feature_name=feature, importance=float(score), rank=i + 1)
             )
 
         # Sort by importance

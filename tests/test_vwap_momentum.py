@@ -481,22 +481,16 @@ def test_calculate_position_size():
 
     # Test with higher price
     position_size_500 = policy._calculate_position_size(500.0, bar)
-    assert (
-        position_size_500 == EXPECTED_SHARES_500_PRICE
-    )  # $100,000 / $500 = 200 shares
+    assert position_size_500 == EXPECTED_SHARES_500_PRICE  # $100,000 / $500 = 200 shares
 
     # Test minimum size constraint (should return 0 if can't afford 1 share)
-    position_size_expensive = policy._calculate_position_size(
-        2000000.0, bar
-    )  # $2M per share
+    position_size_expensive = policy._calculate_position_size(2000000.0, bar)  # $2M per share
     assert position_size_expensive == 0  # Should be 0 if can't afford at least 1 share
 
     # Test different equity amount
     policy.engine.portfolio.total_equity = 500000.0  # $500K equity
     position_size_half = policy._calculate_position_size(100.0, bar)
-    assert (
-        position_size_half == EXPECTED_SHARES_HALF_EQUITY
-    )  # $50,000 / $100 = 500 shares
+    assert position_size_half == EXPECTED_SHARES_HALF_EQUITY  # $50,000 / $100 = 500 shares
 
 
 def test_lifecycle_methods():
@@ -548,9 +542,7 @@ def test_position_sizing_edge_cases():
 
     # Test with negative price (should not crash)
     try:
-        size_negative_price = policy._calculate_position_size(
-            -100.0, {"f__vol__atr_14": 0.0}
-        )
+        size_negative_price = policy._calculate_position_size(-100.0, {"f__vol__atr_14": 0.0})
         # If it doesn't crash, the size should be 0 or handled gracefully
         assert size_negative_price >= 0
     except (ValueError, ZeroDivisionError):

@@ -15,9 +15,7 @@ console = Console()
 @app.command("compare")
 def compare(
     exp: pathlib.Path = typer.Option(..., "--exp", help="Experiment directory"),
-    force: bool = typer.Option(
-        False, "--force", help="Force comparison even if checksums differ"
-    ),
+    force: bool = typer.Option(False, "--force", help="Force comparison even if checksums differ"),
 ) -> None:
     """Compare variants in an experiment."""
     console.print(f"Comparing experiment: {exp}")
@@ -47,9 +45,7 @@ def compare(
 
         # Check if all checksums match (stub: always pass for now)
         if not _checksums_match(checksums):
-            console.print(
-                "Input checksums differ. Use --force to compare anyway.", style="red"
-            )
+            console.print("Input checksums differ. Use --force to compare anyway.", style="red")
             raise typer.Exit(1)
 
     # Collect metrics from runs

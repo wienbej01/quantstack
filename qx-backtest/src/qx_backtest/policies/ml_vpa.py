@@ -126,18 +126,14 @@ class MLVpaPolicy(Policy):
         vpa_score = self._calculate_vpa_score(bar)
 
         # Combine model and VPA scores
-        combined_score = (
-            1 - self.vpa_weight
-        ) * model_score + self.vpa_weight * vpa_score
+        combined_score = (1 - self.vpa_weight) * model_score + self.vpa_weight * vpa_score
 
         # Get current position
         position = self.get_position(symbol)
 
         if position is None or position.is_flat:
             # Check for entry signal
-            self._check_entry_signal(
-                symbol, bar, model_score, vpa_score, combined_score, timestamp
-            )
+            self._check_entry_signal(symbol, bar, model_score, vpa_score, combined_score, timestamp)
         else:
             # Check for exit signal
             self._check_exit_signal(
@@ -396,9 +392,7 @@ def generate_ml_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
     min_confidence = params.get("min_confidence", 0.5)
 
     signals = []
-    position_tracker = (
-        {}
-    )  # symbol -> {'entry_ts': ts, 'bars_held': int, 'entry_score': float}
+    position_tracker = {}  # symbol -> {'entry_ts': ts, 'bars_held': int, 'entry_score': float}
 
     for _idx, row in df.iterrows():
         ts = row["ts"]

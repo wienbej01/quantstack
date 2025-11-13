@@ -203,9 +203,7 @@ class TestRiskModelManager:
 
     @patch("extensions.intraday_ml_risk.ml_risk_manager.MLPredictor")
     @patch("extensions.intraday_ml_risk.ml_risk_manager.MLModelRegistry")
-    def test_predict_risk_metrics(
-        self, mock_registry_class, mock_predictor_class, sample_features
-    ):
+    def test_predict_risk_metrics(self, mock_registry_class, mock_predictor_class, sample_features):
         """Test risk metrics prediction."""
         # Setup mocks
         mock_registry = Mock()
@@ -223,9 +221,7 @@ class TestRiskModelManager:
         self.risk_model_manager.load_risk_model("risk_model_1")
 
         # Predict risk metrics
-        result = self.risk_model_manager.predict_risk_metrics(
-            "risk_model_1", sample_features
-        )
+        result = self.risk_model_manager.predict_risk_metrics("risk_model_1", sample_features)
 
         assert result is not None
         assert result["risk_score"] == 0.6
@@ -235,9 +231,7 @@ class TestRiskModelManager:
 
     def test_predict_risk_metrics_model_not_loaded(self, sample_features):
         """Test risk prediction when model is not loaded."""
-        result = self.risk_model_manager.predict_risk_metrics(
-            "nonexistent_model", sample_features
-        )
+        result = self.risk_model_manager.predict_risk_metrics("nonexistent_model", sample_features)
         assert result is None
 
     def test_model_cache_timeout(self):
@@ -704,9 +698,7 @@ class TestMLRiskManager:
         self.risk_manager.portfolio_monitor.calculate_portfolio_risk.return_value = (
             mock_portfolio_risk
         )
-        self.risk_manager.position_monitor.get_position_risk.return_value = (
-            mock_position_risk
-        )
+        self.risk_manager.position_monitor.get_position_risk.return_value = mock_position_risk
         self.risk_manager.position_monitor.position_data = {"pos1": {}, "pos2": {}}
 
         summary = self.risk_manager.get_risk_summary()
@@ -722,9 +714,7 @@ class TestMLRiskManager:
 
     def test_load_risk_model(self):
         """Test loading a risk model."""
-        with patch.object(
-            self.risk_manager.risk_model_manager, "load_risk_model"
-        ) as mock_load:
+        with patch.object(self.risk_manager.risk_model_manager, "load_risk_model") as mock_load:
             mock_load.return_value = True
 
             result = self.risk_manager.load_risk_model("risk_model_1")
@@ -758,9 +748,7 @@ class TestMLRiskManager:
         assert "min_sharpe_ratio" in limit_names
 
         # Check limit properties
-        max_risk_limit = next(
-            limit for limit in limits if limit.name == "max_position_risk"
-        )
+        max_risk_limit = next(limit for limit in limits if limit.name == "max_position_risk")
         assert max_risk_limit.metric_name == "total_risk_score"
         assert max_risk_limit.threshold == 0.8
         assert max_risk_limit.operator == "lt"

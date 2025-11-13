@@ -75,18 +75,14 @@ def load_strategy_bars(root: str, symbols: list[str], dates: list[str]) -> pd.Da
                         "close",
                         "volume",
                     ]
-                    missing_cols = [
-                        col for col in required_cols if col not in df.columns
-                    ]
+                    missing_cols = [col for col in required_cols if col not in df.columns]
                     if missing_cols:
                         print(f"⚠️  Missing columns {missing_cols} in {parquet_path}")
                         continue
 
                     # Select only required columns plus a few key optional ones
                     optional_cols = ["vwap_session", "session_id", "bar_index"]
-                    available_optional = [
-                        col for col in optional_cols if col in df.columns
-                    ]
+                    available_optional = [col for col in optional_cols if col in df.columns]
                     columns_to_keep = required_cols + available_optional
                     df = df[columns_to_keep].copy()
 
@@ -126,9 +122,7 @@ def load_strategy_bars(root: str, symbols: list[str], dates: list[str]) -> pd.Da
                 print(f"⚠️  File not found: {parquet_path}")
 
     if not dfs:
-        raise RuntimeError(
-            f"No parquet files could be read from {files_attempted} attempted files"
-        )
+        raise RuntimeError(f"No parquet files could be read from {files_attempted} attempted files")
 
     # Combine all dataframes
     result = pd.concat(dfs, ignore_index=True)
@@ -197,9 +191,7 @@ def run_simple_pilot_test():
             if "vwap" in features.columns:
                 vwap_values = features["vwap"].dropna()
                 if not vwap_values.empty:
-                    print(
-                        f"   VWAP range: ${vwap_values.min():.2f} - ${vwap_values.max():.2f}"
-                    )
+                    print(f"   VWAP range: ${vwap_values.min():.2f} - ${vwap_values.max():.2f}")
 
             if "rvol_20d" in features.columns:
                 rvol_values = features["rvol_20d"].dropna()
@@ -238,9 +230,7 @@ def run_simple_pilot_test():
             )
             BacktestEngine(config)
             print("✅ Backtest engine initialized")
-            print(
-                "Debug: Completed engine initialization, about to start signal generation"
-            )
+            print("Debug: Completed engine initialization, about to start signal generation")
         except Exception as e:
             print(f"❌ Failed to initialize engine: {e}")
             return False
@@ -292,9 +282,7 @@ def run_simple_pilot_test():
         try:
             print("   Data integrity: ✅")
             print(f"   Timestamp range: {bars['ts'].min()} to {bars['ts'].max()}")
-            print(
-                f"   Price range: ${bars['close'].min():.2f} - ${bars['close'].max():.2f}"
-            )
+            print(f"   Price range: ${bars['close'].min():.2f} - ${bars['close'].max():.2f}")
             print(f"   Volume total: {bars['volume'].sum():,}")
         except Exception as e:
             print(f"❌ Data validation failed: {e}")

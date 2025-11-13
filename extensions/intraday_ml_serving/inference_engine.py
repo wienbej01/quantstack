@@ -193,9 +193,7 @@ class ModelPredictorCache:
         if not self._access_times:
             return
 
-        lru_model_id = min(
-            self._access_times.keys(), key=lambda k: self._access_times[k]
-        )
+        lru_model_id = min(self._access_times.keys(), key=lambda k: self._access_times[k])
         del self._cache[lru_model_id]
         del self._access_times[lru_model_id]
 
@@ -215,9 +213,7 @@ class BatchProcessor:
         futures = []
 
         for request in requests:
-            future = self.executor.submit(
-                self._process_single_request, request, predictors
-            )
+            future = self.executor.submit(self._process_single_request, request, predictors)
             futures.append(future)
 
         responses = []
@@ -265,18 +261,14 @@ class BatchProcessor:
                 if len(result.prediction) > 0:
                     predictions.append(result.prediction[0])
                     confidences.append(
-                        result.prediction_probability[0]
-                        if result.prediction_probability
-                        else None
+                        result.prediction_probability[0] if result.prediction_probability else None
                     )
                 else:
                     predictions.append(0.0)
                     confidences.append(None)
 
             processing_time_ms = (time.time() - start_time) * 1000
-            throughput_per_second = len(request.model_ids) / (
-                processing_time_ms / 1000.0
-            )
+            throughput_per_second = len(request.model_ids) / (processing_time_ms / 1000.0)
 
             return InferenceResponse(
                 predictions=predictions,
@@ -371,9 +363,7 @@ class InferenceEngine:
                 requests = []
                 try:
                     # Get first request
-                    request = await asyncio.wait_for(
-                        self.request_queue.get(), timeout=0.1
-                    )
+                    request = await asyncio.wait_for(self.request_queue.get(), timeout=0.1)
                     requests.append(request)
 
                     # Get additional requests for batching
@@ -464,9 +454,7 @@ class InferenceEngine:
                     request_id=f"{request.request_id}_batch_{i // batch_size}",
                 )
 
-                batch_response = self.batch_processor.process_batch(
-                    [batch_request], predictors
-                )
+                batch_response = self.batch_processor.process_batch([batch_request], predictors)
                 if batch_response:
                     batch_result = batch_response[0]
                     all_predictions.extend(batch_result.predictions)
@@ -504,9 +492,7 @@ class InferenceEngine:
 
         # Update metrics
         cache_hit = cache_hits == len(model_ids)
-        self.metrics.update(
-            response.processing_time_ms, len(response.predictions), cache_hit
-        )
+        self.metrics.update(response.processing_time_ms, len(response.predictions), cache_hit)
 
         return response
 

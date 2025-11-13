@@ -114,9 +114,7 @@ class MetricsCalculator:
         result.reset_index(drop=True, inplace=True)
         return result
 
-    def calculate_feature_coverage(
-        self, predictions_df: pd.DataFrame
-    ) -> dict[str, float]:
+    def calculate_feature_coverage(self, predictions_df: pd.DataFrame) -> dict[str, float]:
         """Measure how frequently each feature participates in the run."""
         if predictions_df.empty or "features_used" not in predictions_df.columns:
             return {}
@@ -216,9 +214,7 @@ class MetricsCalculator:
             else 0.0
         )
         max_position = (
-            float(trades["qty"].max())
-            if not trades.empty and "qty" in trades.columns
-            else 0.0
+            float(trades["qty"].max()) if not trades.empty and "qty" in trades.columns else 0.0
         )
 
         return {
@@ -243,9 +239,7 @@ class MetricsCalculator:
             else 0.0
         )
         total_fees = (
-            float(fills["fees"].sum())
-            if not fills.empty and "fees" in fills.columns
-            else 0.0
+            float(fills["fees"].sum()) if not fills.empty and "fees" in fills.columns else 0.0
         )
 
         return {

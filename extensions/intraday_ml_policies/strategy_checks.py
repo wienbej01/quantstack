@@ -201,9 +201,7 @@ class StrategyCheckRegistry:
         if unknown:
             raise ValueError(f"Unknown strategy checks requested: {', '.join(unknown)}")
 
-        self._checks: list[StrategyCheck] = [
-            DEFAULT_STRATEGIES[name] for name in enabled
-        ]
+        self._checks: list[StrategyCheck] = [DEFAULT_STRATEGIES[name] for name in enabled]
 
     @property
     def required_columns(self) -> set[str]:

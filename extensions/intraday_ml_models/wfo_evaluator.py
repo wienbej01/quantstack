@@ -89,9 +89,7 @@ class WalkForwardEvaluator:
         self.start_date = pd.to_datetime(wfo_config.get("start_date", "2024-01-01"))
 
         # Data quality controls
-        self.min_observations_per_period = wfo_config.get(
-            "min_observations_per_period", 5000
-        )
+        self.min_observations_per_period = wfo_config.get("min_observations_per_period", 5000)
         self.min_symbols_per_period = wfo_config.get("min_symbols_per_period", 5)
 
         # Model persistence
@@ -137,9 +135,7 @@ class WalkForwardEvaluator:
 
             # Find train end date
             train_target_date = train_start_date + train_length
-            train_end_idx = self._find_date_index(
-                dates, train_target_date, current_start_idx
-            )
+            train_end_idx = self._find_date_index(dates, train_target_date, current_start_idx)
             if train_end_idx is None:
                 break
             train_end_date = dates[train_end_idx]
@@ -147,9 +143,7 @@ class WalkForwardEvaluator:
             # Validation period
             val_start_date = train_end_date + timedelta(days=1)
             val_target_date = val_start_date + validation_length
-            val_end_idx = self._find_date_index(
-                dates, val_target_date, train_end_idx + 1
-            )
+            val_end_idx = self._find_date_index(dates, val_target_date, train_end_idx + 1)
             if val_end_idx is None:
                 break
             val_end_date = dates[val_end_idx]
@@ -173,12 +167,8 @@ class WalkForwardEvaluator:
             ]
 
             # Get symbols
-            train_symbols = sorted(
-                train_data.index.get_level_values("symbol").unique().tolist()
-            )
-            oos_symbols = sorted(
-                oos_data.index.get_level_values("symbol").unique().tolist()
-            )
+            train_symbols = sorted(train_data.index.get_level_values("symbol").unique().tolist())
+            oos_symbols = sorted(oos_data.index.get_level_values("symbol").unique().tolist())
 
             # Filter to common symbols
             common_symbols = list(set(train_symbols) & set(oos_symbols))
@@ -186,9 +176,7 @@ class WalkForwardEvaluator:
                 train_data = train_data[
                     train_data.index.get_level_values("symbol").isin(common_symbols)
                 ]
-                oos_data = oos_data[
-                    oos_data.index.get_level_values("symbol").isin(common_symbols)
-                ]
+                oos_data = oos_data[oos_data.index.get_level_values("symbol").isin(common_symbols)]
 
                 # Check minimum observation requirements
                 if (
@@ -216,15 +204,11 @@ class WalkForwardEvaluator:
             if self.window_type == "rolling":
                 # Rolling window: shift start date
                 step_target_date = train_start_date + step_length
-                next_start_idx = self._find_date_index(
-                    dates, step_target_date, current_start_idx
-                )
+                next_start_idx = self._find_date_index(dates, step_target_date, current_start_idx)
             else:
                 # Expanding window: move OOS start
                 step_target_date = oos_start_date + step_length
-                next_start_idx = self._find_date_index(
-                    dates, step_target_date, current_start_idx
-                )
+                next_start_idx = self._find_date_index(dates, step_target_date, current_start_idx)
 
             if next_start_idx is None:
                 break
@@ -281,9 +265,7 @@ class WalkForwardEvaluator:
             print(f"Training: {period.train_start.date()} to {period.train_end.date()}")
             print(f"OOS: {period.oos_start.date()} to {period.oos_end.date()}")
 
-            period_result = self._run_wfo_period(
-                period, combined_data, model_config, cv_config
-            )
+            period_result = self._run_wfo_period(period, combined_data, model_config, cv_config)
             period_results.append(period_result)
 
             print(f"Period {period.period_id} completed")
@@ -343,19 +325,9 @@ class WalkForwardEvaluator:
 
         # Extract training data
         train_mask = (
-            (
-                combined_data.index.get_level_values("ts").normalize()
-                >= period.train_start
-            )
-            & (
-                combined_data.index.get_level_values("ts").normalize()
-                <= period.train_end
-            )
-            & (
-                combined_data.index.get_level_values("symbol").isin(
-                    period.train_symbols
-                )
-            )
+            (combined_data.index.get_level_values("ts").normalize() >= period.train_start)
+            & (combined_data.index.get_level_values("ts").normalize() <= period.train_end)
+            & (combined_data.index.get_level_values("symbol").isin(period.train_symbols))
         )
         train_data = combined_data[train_mask]
 
@@ -374,9 +346,7 @@ class WalkForwardEvaluator:
         oos_labels = oos_data["target"]
 
         # Cross-validation on training data
-        cv_results = run_cross_validation(
-            train_features, train_labels, model_config, cv_config
-        )
+        cv_results = run_cross_validation(train_features, train_labels, model_config, cv_config)
 
         # Train final model on full training data
         trainer = LightGBMTrainer(model_config)
@@ -389,15 +359,11 @@ class WalkForwardEvaluator:
 
         # Save model
         model_name = f"wfo_period_{period.period_id}"
-        model_save_info = self.model_io.save_model(
-            training_result, model_name, config=model_config
-        )
+        model_save_info = self.model_io.save_model(training_result, model_name, config=model_config)
 
         # Generate OOS predictions
         inference_start = datetime.now()
-        oos_predictions = self._generate_predictions(
-            training_result.calibrated_model, oos_features
-        )
+        oos_predictions = self._generate_predictions(training_result.calibrated_model, oos_features)
         inference_time = (datetime.now() - inference_start).total_seconds()
 
         # Calculate OOS metrics
@@ -454,9 +420,7 @@ class WalkForwardEvaluator:
         )
 
         # Probability metrics
-        brier_score = brier_score_loss(
-            true_labels, probas, labels=np.unique(true_labels)
-        )
+        brier_score = brier_score_loss(true_labels, probas, labels=np.unique(true_labels))
         logloss = log_loss(true_labels, probas)
 
         # Economic metrics (simplified)
@@ -474,9 +438,7 @@ class WalkForwardEvaluator:
             "prediction_distribution": pred_classes.value_counts().to_dict(),
         }
 
-    def _calculate_overall_metrics(
-        self, period_results: list[WFOPeriodResults]
-    ) -> dict[str, Any]:
+    def _calculate_overall_metrics(self, period_results: list[WFOPeriodResults]) -> dict[str, Any]:
         """Calculate overall metrics across all periods."""
         metric_names = [
             "accuracy",
@@ -506,9 +468,7 @@ class WalkForwardEvaluator:
 
         return overall
 
-    def _analyze_temporal_stability(
-        self, period_results: list[WFOPeriodResults]
-    ) -> dict[str, Any]:
+    def _analyze_temporal_stability(self, period_results: list[WFOPeriodResults]) -> dict[str, Any]:
         """Analyze temporal stability of performance."""
         # Extract metrics over time
         periods = [r.period.period_id for r in period_results]
@@ -536,17 +496,13 @@ class WalkForwardEvaluator:
             "performance_drift": f1_trend,
         }
 
-    def _analyze_regime_performance(
-        self, period_results: list[WFOPeriodResults]
-    ) -> dict[str, Any]:
+    def _analyze_regime_performance(self, period_results: list[WFOPeriodResults]) -> dict[str, Any]:
         """Analyze performance across different market regimes."""
         # Simplified regime analysis - in practice would use market regime indicators
         performance_by_quarter = {}
         for result in period_results:
             period = result.period
-            quarter = (
-                f"{period.oos_start.year}-Q{(period.oos_start.month - 1) // 3 + 1}"
-            )
+            quarter = f"{period.oos_start.year}-Q{(period.oos_start.month - 1) // 3 + 1}"
 
             if quarter not in performance_by_quarter:
                 performance_by_quarter[quarter] = []
@@ -574,30 +530,24 @@ class WalkForwardEvaluator:
             "regime_consistency": 1.0,  # Placeholder - would calculate actual regime consistency
         }
 
-    def _analyze_model_evolution(
-        self, period_results: list[WFOPeriodResults]
-    ) -> dict[str, Any]:
+    def _analyze_model_evolution(self, period_results: list[WFOPeriodResults]) -> dict[str, Any]:
         """Analyze evolution of model parameters over time."""
         # Extract feature importance trends
         all_features = set()
         for result in period_results:
-            all_features.update(
-                result.training_result.metrics.get("feature_importance", {}).keys()
-            )
+            all_features.update(result.training_result.metrics.get("feature_importance", {}).keys())
 
         feature_trends = {}
         for feature in list(all_features)[:10]:  # Top 10 features
             importance_values = []
             for result in period_results:
-                importance = result.training_result.metrics.get(
-                    "feature_importance", {}
-                ).get(feature, 0)
+                importance = result.training_result.metrics.get("feature_importance", {}).get(
+                    feature, 0
+                )
                 importance_values.append(importance)
 
             if len(importance_values) > 1:
-                trend = np.polyfit(range(len(importance_values)), importance_values, 1)[
-                    0
-                ]
+                trend = np.polyfit(range(len(importance_values)), importance_values, 1)[0]
                 feature_trends[feature] = trend
 
         return {
@@ -606,9 +556,7 @@ class WalkForwardEvaluator:
             "hyperparameter_stability": {},  # Placeholder
         }
 
-    def _calculate_kpi_summary(
-        self, period_results: list[WFOPeriodResults]
-    ) -> dict[str, Any]:
+    def _calculate_kpi_summary(self, period_results: list[WFOPeriodResults]) -> dict[str, Any]:
         """Calculate comprehensive KPI summary."""
         # Performance KPIs
         avg_f1 = np.mean([r.oos_metrics.get("f1_macro", 0) for r in period_results])
@@ -654,9 +602,7 @@ class WalkForwardEvaluator:
                     "inference_latency",
                 ],
                 "risk_level": (
-                    "low"
-                    if success_rate > 0.8
-                    else "medium" if success_rate > 0.6 else "high"
+                    "low" if success_rate > 0.8 else "medium" if success_rate > 0.6 else "high"
                 ),
             },
         }

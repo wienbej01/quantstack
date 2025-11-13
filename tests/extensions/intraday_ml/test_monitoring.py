@@ -173,9 +173,7 @@ class TestModelValidator:
             "hyperparameters": {"n_estimators": 100, "max_depth": 10},
         }
 
-        result = self.validator.validate_model_consistency(
-            mock_metadata, current_config
-        )
+        result = self.validator.validate_model_consistency(mock_metadata, current_config)
 
         assert isinstance(result, dict)
         assert "is_valid" in result
@@ -199,9 +197,7 @@ class TestModelValidator:
             },  # Different hyperparameter
         }
 
-        result = self.validator.validate_model_consistency(
-            mock_metadata, current_config
-        )
+        result = self.validator.validate_model_consistency(mock_metadata, current_config)
 
         assert result["is_valid"] is False
         assert len(result["issues"]) > 0
@@ -285,9 +281,7 @@ class TestDriftDetector:
 
         assert isinstance(result, dict)
         # Should detect drift in at least some features
-        assert any(
-            result["feature_drift"][feature]["drift_detected"] for feature in features
-        )
+        assert any(result["feature_drift"][feature]["drift_detected"] for feature in features)
 
     def test_detect_target_drift(self):
         """Test target drift detection."""

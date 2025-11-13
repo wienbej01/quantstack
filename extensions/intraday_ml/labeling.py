@@ -12,8 +12,9 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_features.core_basics import atr_m
+
+from .utils.time_utils import DEFAULT_MARKET_TZ
 
 
 @dataclass
@@ -44,17 +45,34 @@ class IntradayMLLabeler:
         self.base_short_multiplier = float(
             targets_config.get("atr_multiplier_short", self.atr_multiplier)
         )
-        self.volatility_scaling_config = targets_config.get(
-            "volatility_scaling", {}
-        )
-        self.directional_balance_config = targets_config.get(
-            "directional_balance", {}
-        )
-        self.volatility_scaling_enabled = bool(
-            self.volatility_scaling_config.get("enabled", False)
-        )
+        self.volatility_scaling_config = targets_config.get("volatility_scaling", {})
+        self.directional_balance_config = targets_config.get("directional_balance", {})
+        self.volatility_scaling_enabled = bool(self.volatility_scaling_config.get("enabled", False))
         self.directional_balance_enabled = bool(
             self.directional_balance_config.get("enabled", False)
+        )
+        self.risk_reward_config = targets_config.get("risk_reward", {}) or {}
+        self.risk_reward_enabled = bool(self.risk_reward_config.get("enabled", False))
+        self.min_r_multiple = float(max(self.risk_reward_config.get("min_r_multiple", 1.0), 1.0))
+        rr_bounds = self.risk_reward_config.get("atr_return_bounds", {}) or {}
+        self.atr_return_min = float(max(rr_bounds.get("min", 0.0) or 0.0, 0.0))
+        self.atr_return_max = float(
+            max(rr_bounds.get("max", 0.3) or 0.3, self.atr_return_min + 1e-6)
+        )
+        self.target_buffer = float(self.risk_reward_config.get("target_buffer", 0.0))
+        self.session_constraints = targets_config.get("session_constraints", {}) or {}
+        self.session_filter_enabled = bool(self.session_constraints.get("enabled", True))
+        self.session_timezone = self.session_constraints.get("timezone", DEFAULT_MARKET_TZ)
+        self.session_open = self.session_constraints.get("session_open", "09:30")
+        self.session_close = self.session_constraints.get("session_close", "16:00")
+        self.min_minutes_after_open = float(
+            self.session_constraints.get("min_minutes_after_open", 0.0)
+        )
+        self.max_minutes_before_close = float(
+            self.session_constraints.get("max_minutes_before_close", 0.0)
+        )
+        self.min_realized_return_pct = float(
+            targets_config.get("min_realized_return_pct", 0.0)
         )
         self._last_directional_stats: dict[str, Any] | None = None
 
@@ -108,9 +126,7 @@ class IntradayMLLabeler:
         combined_labels = self._combine_horizon_labels(all_labels)
 
         # Create targets hash
-        targets_hash = self._compute_targets_hash(
-            bars, ts_cut, self.config, combined_labels
-        )
+        targets_hash = self._compute_targets_hash(bars, ts_cut, self.config, combined_labels)
 
         metadata = {
             "horizons": self.horizons,
@@ -123,10 +139,14 @@ class IntradayMLLabeler:
 
         if self._last_directional_stats is not None:
             metadata["directional_balancing"] = self._last_directional_stats
+        if self.risk_reward_enabled:
+            metadata["risk_reward"] = {
+                "min_r_multiple": self.min_r_multiple,
+                "stop_atr_multiplier_long": self._stop_multiplier("long"),
+                "stop_atr_multiplier_short": self._stop_multiplier("short"),
+            }
 
-        return LabelResult(
-            labels=combined_labels, metadata=metadata, targets_hash=targets_hash
-        )
+        return LabelResult(labels=combined_labels, metadata=metadata, targets_hash=targets_hash)
 
     def compute_label_for_timestamp(
         self, data_window: pd.DataFrame, current_timestamp: pd.Timestamp
@@ -162,9 +182,7 @@ class IntradayMLLabeler:
                 continue
 
             label_series = self.compute_label_series(symbol_sorted)
-            normalized_ts = pd.to_datetime(symbol_sorted["ts"], utc=True).dt.tz_convert(
-                None
-            )
+            normalized_ts = pd.to_datetime(symbol_sorted["ts"], utc=True).dt.tz_convert(None)
             target_ts = pd.to_datetime(current_timestamp, utc=True).tz_convert(None)
 
             match_mask = normalized_ts == target_ts
@@ -204,9 +222,7 @@ class IntradayMLLabeler:
         required_columns = {"ts", "open", "high", "low", "close", "volume", "symbol"}
         missing_columns = required_columns - set(bars.columns)
         if missing_columns:
-            raise ValueError(
-                f"Missing required columns for labeling: {sorted(missing_columns)}"
-            )
+            raise ValueError(f"Missing required columns for labeling: {sorted(missing_columns)}")
 
         if bars["symbol"].nunique() != 1:
             raise ValueError(
@@ -236,9 +252,7 @@ class IntradayMLLabeler:
         volatility_multiplier = None
 
         if self.volatility_scaling_enabled:
-            volatility_multiplier = self._compute_volatility_scaled_multiplier(
-                working, atr_values
-            )
+            volatility_multiplier = self._compute_volatility_scaled_multiplier(working, atr_values)
             if volatility_multiplier is not None and np.isfinite(volatility_multiplier):
                 base_long = float(volatility_multiplier)
                 base_short = float(volatility_multiplier)
@@ -268,6 +282,8 @@ class IntradayMLLabeler:
             "long_count": int((labels_array == 1).sum()),
             "short_count": int((labels_array == -1).sum()),
             "neutral_count": int((labels_array == 0).sum()),
+            "risk_reward_enabled": self.risk_reward_enabled,
+            "min_r_multiple": (self.min_r_multiple if self.risk_reward_enabled else None),
         }
 
         return labels_series.astype(np.int8, copy=False)
@@ -290,12 +306,7 @@ class IntradayMLLabeler:
 
         closes = pd.to_numeric(bars["close"], errors="coerce")
         atr_series = pd.to_numeric(atr_values, errors="coerce")
-        valid_mask = (
-            closes.notna()
-            & closes.gt(0.0)
-            & atr_series.notna()
-            & atr_series.gt(0.0)
-        )
+        valid_mask = closes.notna() & closes.gt(0.0) & atr_series.notna() & atr_series.gt(0.0)
         if not valid_mask.any():
             return None
 
@@ -316,12 +327,10 @@ class IntradayMLLabeler:
 
         mix = min(max(mix, 0.0), 1.0)
         base_multiplier = float(self.atr_multiplier)
-        scaled_multiplier = (base_multiplier ** (1.0 - mix)) * (
-            raw_multiplier ** mix
-        )
+        scaled_multiplier = (base_multiplier ** (1.0 - mix)) * (raw_multiplier**mix)
         return float(np.clip(scaled_multiplier, min_multiplier, max_multiplier))
 
-    def _calibrate_directional_multipliers(
+    def _calibrate_directional_multipliers(  # noqa: PLR0913
         self,
         *,
         closes: np.ndarray,
@@ -382,25 +391,18 @@ class IntradayMLLabeler:
                     break
 
                 if short_count == 0:
-                    short_multiplier = max(
-                        short_multiplier * (1.0 - adjust_step), min_multiplier
-                    )
+                    short_multiplier = max(short_multiplier * (1.0 - adjust_step), min_multiplier)
                 elif long_count == 0:
-                    long_multiplier = max(
-                        long_multiplier * (1.0 - adjust_step), min_multiplier
-                    )
+                    long_multiplier = max(long_multiplier * (1.0 - adjust_step), min_multiplier)
                 else:
                     ratio = long_count / short_count
                     if abs(ratio - target_ratio) <= tolerance:
                         break
 
                     if ratio < target_ratio:
-                        long_multiplier = max(
-                            long_multiplier * (1.0 - adjust_step), min_multiplier
-                        )
+                        long_multiplier = max(long_multiplier * (1.0 - adjust_step), min_multiplier)
                         short_multiplier = min(
-                            short_multiplier
-                            * (1.0 + adjust_step * max(growth_factor, 0.1)),
+                            short_multiplier * (1.0 + adjust_step * max(growth_factor, 0.1)),
                             max_multiplier,
                         )
                     else:
@@ -408,8 +410,7 @@ class IntradayMLLabeler:
                             short_multiplier * (1.0 - adjust_step), min_multiplier
                         )
                         long_multiplier = min(
-                            long_multiplier
-                            * (1.0 + adjust_step * max(growth_factor, 0.1)),
+                            long_multiplier * (1.0 + adjust_step * max(growth_factor, 0.1)),
                             max_multiplier,
                         )
 
@@ -430,7 +431,7 @@ class IntradayMLLabeler:
             best_labels,
         )
 
-    def _label_with_multipliers(
+    def _label_with_multipliers(  # noqa: PLR0913
         self,
         *,
         closes: np.ndarray,
@@ -449,27 +450,36 @@ class IntradayMLLabeler:
 
         long_multiplier = max(float(long_multiplier), 1e-6)
         short_multiplier = max(float(short_multiplier), 1e-6)
-        floor_long = fallback_atr * long_multiplier
-        floor_short = fallback_atr * short_multiplier
+        fallback_atr = max(float(fallback_atr), 1e-8)
 
         for idx in range(count):
             start_price = closes[idx]
             if not np.isfinite(start_price) or start_price <= 0.0:
                 continue
 
-            atr_value = (
-                atr_array[idx] if np.isfinite(atr_array[idx]) else fallback_atr
-            )
+            if not self._is_session_allowed(pd.Timestamp(timestamps[idx])):
+                continue
+
+            atr_value = atr_array[idx] if np.isfinite(atr_array[idx]) else fallback_atr
             if atr_value <= 0.0:
                 atr_value = fallback_atr
 
-            threshold_long = atr_value * long_multiplier
-            threshold_short = atr_value * short_multiplier
+            fallback_return = max(fallback_atr / max(start_price, 1e-6), 1e-6)
+            atr_return = atr_value / max(start_price, 1e-6)
+            atr_return = self._normalize_atr_return(atr_return, fallback_return)
 
-            if not np.isfinite(threshold_long) or threshold_long <= 0.0:
-                threshold_long = floor_long
-            if not np.isfinite(threshold_short) or threshold_short <= 0.0:
-                threshold_short = floor_short
+            threshold_long = self._resolve_return_threshold(
+                atr_return=atr_return,
+                fallback_return=fallback_return,
+                base_multiplier=long_multiplier,
+                direction="long",
+            )
+            threshold_short = self._resolve_return_threshold(
+                atr_return=atr_return,
+                fallback_return=fallback_return,
+                base_multiplier=short_multiplier,
+                direction="short",
+            )
 
             horizon_end = timestamps[idx] + horizon_delta
             next_idx = idx + 1
@@ -477,15 +487,66 @@ class IntradayMLLabeler:
             while next_idx < count and timestamps[next_idx] <= horizon_end:
                 fwd_return = (closes[next_idx] - start_price) / start_price
                 if np.isfinite(fwd_return):
-                    if fwd_return >= threshold_long:
+                    if fwd_return >= threshold_long and self._meets_realized_return(fwd_return):
                         labels[idx] = 1
                         break
-                    if fwd_return <= -threshold_short:
+                    if fwd_return <= -threshold_short and self._meets_realized_return(fwd_return):
                         labels[idx] = -1
                         break
                 next_idx += 1
 
         return labels
+
+    def _normalize_atr_return(self, atr_return: float, fallback_return: float) -> float:
+        """Clamp ATR-derived returns to the configured bounds."""
+        if not np.isfinite(atr_return) or atr_return <= 0.0:
+            atr_return = fallback_return
+        atr_return = max(atr_return, fallback_return)
+        lower = max(self.atr_return_min, 1e-6)
+        upper = max(self.atr_return_max, lower + 1e-6)
+        return float(np.clip(atr_return, lower, upper))
+
+    def _resolve_return_threshold(
+        self,
+        *,
+        atr_return: float,
+        fallback_return: float,
+        base_multiplier: float,
+        direction: str,
+    ) -> float:
+        """Translate ATR volatility into a minimum move threshold."""
+        ratio = atr_return if np.isfinite(atr_return) and atr_return > 0 else fallback_return
+        ratio = max(ratio, fallback_return)
+        base_multiplier = max(base_multiplier, 1e-6)
+        threshold = ratio * base_multiplier
+        if not self.risk_reward_enabled:
+            return threshold
+
+        stop_multiplier = self._stop_multiplier(direction)
+        stop_distance = ratio * stop_multiplier
+        min_r = max(self.min_r_multiple, 1.0)
+        target_buffer = max(self.target_buffer, 0.0)
+        threshold = max(threshold, stop_distance * min_r + target_buffer)
+
+        max_threshold = self.risk_reward_config.get("max_return_threshold")
+        if max_threshold is not None:
+            threshold = min(threshold, float(max_threshold))
+
+        return threshold
+
+    def _stop_multiplier(self, direction: str) -> float:
+        """Return stop ATR multiplier for the requested direction."""
+        if direction not in {"long", "short"}:
+            raise ValueError(f"Unsupported direction '{direction}' for risk thresholds.")
+        key = "stop_atr_multiplier_long" if direction == "long" else "stop_atr_multiplier_short"
+        value = self.risk_reward_config.get(key)
+        if value is None:
+            value = self.risk_reward_config.get("stop_atr_multiplier")
+        if value is None:
+            base = self.base_long_multiplier if direction == "long" else self.base_short_multiplier
+            value = base / max(self.min_r_multiple, 1.0)
+        value = float(value)
+        return float(max(value, 1e-6))
 
     def _compute_atr_for_timestamp(
         self, historical_data: pd.DataFrame, current_timestamp: pd.Timestamp
@@ -542,9 +603,9 @@ class IntradayMLLabeler:
 
         for symbol, symbol_frame in historical_data.groupby("symbol"):
             # Get data up to current_timestamp
-            filtered_symbol = symbol_frame[
-                symbol_frame["ts"] <= current_timestamp
-            ].sort_values("ts")
+            filtered_symbol = symbol_frame[symbol_frame["ts"] <= current_timestamp].sort_values(
+                "ts"
+            )
 
             if not filtered_symbol.empty:
                 # Use the most recent close price
@@ -661,9 +722,7 @@ class IntradayMLLabeler:
             # Get the latest ATR value for this symbol (computed from historical data)
             symbol_atr = self._get_latest_atr(atr_values, symbol)
 
-            if symbol_atr is None or symbol_atr < self.config.get(
-                "require_min_atr", 0.01
-            ):
+            if symbol_atr is None or symbol_atr < self.config.get("require_min_atr", 0.01):
                 # Use default ATR if none available or too small
                 symbol_atr = 0.1  # Default fallback
 
@@ -686,9 +745,7 @@ class IntradayMLLabeler:
                     threshold_hits["neutral"] += 1
 
         if labels:
-            label_series = pd.Series(
-                labels, index=future_bars.index, name=f"label_{horizon}m"
-            )
+            label_series = pd.Series(labels, index=future_bars.index, name=f"label_{horizon}m")
             return label_series, metadata
         else:
             return pd.Series(dtype=int), metadata
@@ -731,6 +788,10 @@ class IntradayMLLabeler:
         Returns:
             Label: +1, -1, or 0
         """
+        # Session/time filters
+        if not self._is_session_allowed(current_row["ts"]):
+            return 0
+
         # Get the index of current row
         current_idx = current_row.name
         group.index.get_loc(current_idx)
@@ -739,9 +800,7 @@ class IntradayMLLabeler:
         horizon_end_ts = current_row["ts"] + pd.Timedelta(minutes=horizon)
 
         # Get future bars within horizon
-        future_mask = (group["ts"] > current_row["ts"]) & (
-            group["ts"] <= horizon_end_ts
-        )
+        future_mask = (group["ts"] > current_row["ts"]) & (group["ts"] <= horizon_end_ts)
         future_bars = group[future_mask]
 
         if len(future_bars) == 0:
@@ -758,20 +817,59 @@ class IntradayMLLabeler:
             fwd_return = (future_row["close"] - start_price) / start_price
 
             # Check if threshold is hit
-            if fwd_return >= threshold:
+            if fwd_return >= threshold and self._meets_realized_return(fwd_return):
                 first_hit = 1
-                future_row["ts"]
                 break
-            elif fwd_return <= -threshold:
+            if fwd_return <= -threshold and self._meets_realized_return(fwd_return):
                 first_hit = -1
-                future_row["ts"]
                 break
 
         return first_hit if first_hit is not None else 0
 
-    def _combine_horizon_labels(
-        self, horizon_labels: dict[int, pd.Series]
-    ) -> pd.Series:
+    def _is_session_allowed(self, timestamp: pd.Timestamp) -> bool:
+        """Return True when timestamp is within configured session filters."""
+
+        if not self.session_filter_enabled or pd.isna(timestamp):
+            return True
+
+        ts = pd.Timestamp(timestamp)
+        if ts.tzinfo is None:
+            ts = ts.tz_localize(self.session_timezone)
+        else:
+            ts = ts.tz_convert(self.session_timezone)
+
+        open_parts = self.session_open.split(":")
+        close_parts = self.session_close.split(":")
+        open_hour = int(open_parts[0])
+        open_minute = int(open_parts[1]) if len(open_parts) > 1 else 0
+        close_hour = int(close_parts[0])
+        close_minute = int(close_parts[1]) if len(close_parts) > 1 else 0
+
+        session_start = ts.replace(hour=open_hour, minute=open_minute, second=0, microsecond=0)
+        session_end = ts.replace(hour=close_hour, minute=close_minute, second=0, microsecond=0)
+
+        if ts < session_start or ts > session_end:
+            return False
+
+        minutes_since_open = (ts - session_start).total_seconds() / 60.0
+        minutes_before_close = (session_end - ts).total_seconds() / 60.0
+
+        if minutes_since_open < self.min_minutes_after_open:
+            return False
+        if minutes_before_close < self.max_minutes_before_close:
+            return False
+
+        return True
+
+    def _meets_realized_return(self, fwd_return: float) -> bool:
+        """Ensure realized forward move satisfies configured minimum."""
+
+        if self.min_realized_return_pct <= 0:
+            return True
+
+        return abs(float(fwd_return)) >= self.min_realized_return_pct
+
+    def _combine_horizon_labels(self, horizon_labels: dict[int, pd.Series]) -> pd.Series:
         """Combine labels across multiple horizons."""
         if not horizon_labels:
             return pd.Series(dtype=int)
@@ -804,9 +902,7 @@ class IntradayMLLabeler:
             "total_labels": len(labels),
         }
 
-        targets_str = hashlib.blake2b(
-            str(targets_info).encode(), digest_size=32
-        ).hexdigest()
+        targets_str = hashlib.blake2b(str(targets_info).encode(), digest_size=32).hexdigest()
 
         return targets_str
 

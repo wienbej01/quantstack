@@ -115,9 +115,7 @@ class VersionDatabase:
             )
 
             # Create indexes
-            cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_model_status ON model_versions (status)"
-            )
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_model_status ON model_versions (status)")
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_model_created_at ON model_versions (created_at)"
             )
@@ -411,24 +409,18 @@ class VersionManager:
 
             self.db.save_version(version_obj)
 
-    def promote_to_production(
-        self, model_id: str, version: str, metrics: dict[str, float]
-    ):
+    def promote_to_production(self, model_id: str, version: str, metrics: dict[str, float]):
         """Promote model version to production."""
         # Check if model is in staging
         current_version = self.db.get_version(model_id, version)
         if not current_version or current_version.status != ModelStatus.STAGING:
-            raise ValueError(
-                f"Model {model_id}:{version} must be in staging before production"
-            )
+            raise ValueError(f"Model {model_id}:{version} must be in staging before production")
 
         # Demote current production version if exists
         current_production = self.db.get_production_versions()
         for prod_version in current_production:
             if prod_version.model_id == model_id:
-                self.update_version_status(
-                    model_id, prod_version.version, ModelStatus.DEPRECATED
-                )
+                self.update_version_status(model_id, prod_version.version, ModelStatus.DEPRECATED)
                 break
 
         # Promote new version
@@ -449,9 +441,7 @@ class VersionManager:
 
         if current_production:
             # Demote current production
-            self.update_version_status(
-                model_id, current_production.version, ModelStatus.DEPRECATED
-            )
+            self.update_version_status(model_id, current_production.version, ModelStatus.DEPRECATED)
 
         # Promote target version
         self.update_version_status(model_id, target_version, ModelStatus.PRODUCTION)
@@ -483,9 +473,7 @@ class VersionManager:
         """Get all models currently in production."""
         return self.db.get_production_versions()
 
-    def compare_versions(
-        self, model_id: str, version1: str, version2: str
-    ) -> dict[str, Any]:
+    def compare_versions(self, model_id: str, version1: str, version2: str) -> dict[str, Any]:
         """Compare two model versions."""
         v1 = self.db.get_version(model_id, version1)
         v2 = self.db.get_version(model_id, version2)
@@ -513,9 +501,7 @@ class VersionManager:
         # Calculate metric differences
         for metric_name in v1.training_metrics:
             if metric_name in v2.training_metrics:
-                diff = (
-                    v2.training_metrics[metric_name] - v1.training_metrics[metric_name]
-                )
+                diff = v2.training_metrics[metric_name] - v1.training_metrics[metric_name]
                 comparison[f"{metric_name}_difference"] = diff
 
         return comparison
@@ -540,9 +526,7 @@ class VersionManager:
         # Delete old versions
         for version in versions_to_delete:
             self.db.delete_version(version.model_id, version.version)
-            self.logger.info(
-                f"Deleted old version {version.model_id}:{version.version}"
-            )
+            self.logger.info(f"Deleted old version {version.model_id}:{version.version}")
 
         return len(versions_to_delete)
 

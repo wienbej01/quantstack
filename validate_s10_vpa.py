@@ -122,19 +122,13 @@ def test_dataset_builder(df_with_features: pd.DataFrame):
     print("\n🔍 Testing Dataset Builder...")
 
     # Create simple target (next period return)
-    df_with_features = df_with_features.sort_values(["symbol", "ts"]).reset_index(
-        drop=True
-    )
-    df_with_features["target"] = (
-        df_with_features.groupby("symbol")["close"].pct_change().shift(-1)
-    )
+    df_with_features = df_with_features.sort_values(["symbol", "ts"]).reset_index(drop=True)
+    df_with_features["target"] = df_with_features.groupby("symbol")["close"].pct_change().shift(-1)
     df_with_features = df_with_features.dropna(subset=["target"])
 
     # Extract feature columns
     feature_cols = [
-        col
-        for col in df_with_features.columns
-        if col.startswith(("f__", "p__", "conf__"))
+        col for col in df_with_features.columns if col.startswith(("f__", "p__", "conf__"))
     ]
     target_col = "target"
 
@@ -252,9 +246,7 @@ def test_registry_integration():
     # Check that both core and VPA features are present
     core_features = [col for col in df_features.columns if col.startswith("f__")]
     vpa_features = [
-        col
-        for col in df_features.columns
-        if col.startswith(("p__vpa__", "conf__vpa__"))
+        col for col in df_features.columns if col.startswith(("p__vpa__", "conf__vpa__"))
     ]
 
     if not core_features:
@@ -290,9 +282,7 @@ def test_optional_configuration():
     configs_with_vpa = [{"type": "core_basics"}, {"type": "vpa_patterns"}]
     df_with_vpa = apply(df, configs_with_vpa)
     vpa_cols_with_vpa = [
-        col
-        for col in df_with_vpa.columns
-        if col.startswith(("p__vpa__", "conf__vpa__"))
+        col for col in df_with_vpa.columns if col.startswith(("p__vpa__", "conf__vpa__"))
     ]
 
     # Verify optional behavior

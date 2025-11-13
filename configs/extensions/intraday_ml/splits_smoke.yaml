@@ -1,10 +1,10 @@
-# Smoke test splits (3 months train, 1 month val, 1 month oos)
+# Extended Phase A splits (≈6.5 months train, half-month val, 1 month oos)
 train:
-  start: "2024-01-02"
-  end:   "2024-03-31"
+  start: "2023-10-02"
+  end:   "2024-04-15"
 
 val:
-  start: "2024-04-01"
+  start: "2024-04-16"
   end:   "2024-04-30"
 
 oos:

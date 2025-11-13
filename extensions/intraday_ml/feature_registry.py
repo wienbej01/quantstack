@@ -445,11 +445,7 @@ class IntradayMLFeatureRegistry:
 
     def get_features_by_family(self, family: str) -> list[str]:
         """Get feature names belonging to a specific family."""
-        return [
-            name
-            for name, meta in self._feature_metadata.items()
-            if meta.family == family
-        ]
+        return [name for name, meta in self._feature_metadata.items() if meta.family == family]
 
     def get_feature_metadata(self, feature_name: str) -> FeatureMetadata | None:
         """Get metadata for a specific feature."""
@@ -482,12 +478,8 @@ class IntradayMLFeatureRegistry:
         # Check for missing features
         expected_features = set(self.get_feature_names())
         actual_features = set(df.columns)
-        validation_results["missing_features"] = list(
-            expected_features - actual_features
-        )
-        validation_results["unexpected_features"] = list(
-            actual_features - expected_features
-        )
+        validation_results["missing_features"] = list(expected_features - actual_features)
+        validation_results["unexpected_features"] = list(actual_features - expected_features)
 
         if validation_results["missing_features"]:
             validation_results["valid"] = False
@@ -507,18 +499,14 @@ class IntradayMLFeatureRegistry:
                     first_col = feature_data.iloc[:, 0]
                     non_null_count = first_col.notna().sum()
                     total_count = len(first_col)
-                    non_null_ratio = float(
-                        non_null_count / total_count if total_count > 0 else 0.0
-                    )
+                    non_null_ratio = float(non_null_count / total_count if total_count > 0 else 0.0)
                 elif hasattr(feature_data, "index"):  # Series case
                     non_null_count = feature_data.notna().sum()
                     # Handle case where sum() returns a Series (duplicate data)
                     if hasattr(non_null_count, "iloc"):
                         non_null_count = non_null_count.iloc[0]
                     total_count = len(feature_data)
-                    non_null_ratio = float(
-                        non_null_count / total_count if total_count > 0 else 0.0
-                    )
+                    non_null_ratio = float(non_null_count / total_count if total_count > 0 else 0.0)
                 else:  # Scalar case
                     non_null_ratio = float(feature_data)
 

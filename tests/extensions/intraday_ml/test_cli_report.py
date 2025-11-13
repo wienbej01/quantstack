@@ -26,17 +26,13 @@ class TestReportingCLI:
 
     def test_experiment_command_missing_dir(self):
         """Test experiment command with missing directory."""
-        result = self.runner.invoke(
-            app, ["experiment", "--exp-dir", "/nonexistent/directory"]
-        )
+        result = self.runner.invoke(app, ["experiment", "--exp-dir", "/nonexistent/directory"])
         assert result.exit_code == 1
         assert "Experiment directory not found" in result.stdout
 
     def test_run_metrics_command_missing_dir(self):
         """Test run-metrics command with missing directory."""
-        result = self.runner.invoke(
-            app, ["run-metrics", "--run-dir", "/nonexistent/directory"]
-        )
+        result = self.runner.invoke(app, ["run-metrics", "--run-dir", "/nonexistent/directory"])
         assert result.exit_code == 1
         assert "Run directory not found" in result.stdout
 

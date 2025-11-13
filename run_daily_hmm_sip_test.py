@@ -45,9 +45,7 @@ def run_vwap_backtest_with_daily_hmm_sip():
     print("=" * 60)
 
     # Load configuration
-    config_path = (
-        Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
-    )
+    config_path = Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
     config = load_config(config_path)
 
     print(f"Loaded configuration from: {config_path}")
@@ -117,9 +115,7 @@ def run_vwap_backtest_with_daily_hmm_sip():
     )
 
     print(f"Applied features, shape: {feature_df.shape}")
-    print(
-        f"Feature columns: {[col for col in feature_df.columns if col.startswith('f__')]}"
-    )
+    print(f"Feature columns: {[col for col in feature_df.columns if col.startswith('f__')]}")
 
     # Setup SIP selector
     print("\nSetting up HMM SIP selector...")
@@ -269,9 +265,7 @@ def analyze_results(result, config):
             "daily_pnl",
             "max_positions",
         ]
-        daily_stats["daily_return"] = (
-            daily_stats["end_equity"] / daily_stats["start_equity"]
-        ) - 1
+        daily_stats["daily_return"] = (daily_stats["end_equity"] / daily_stats["start_equity"]) - 1
 
         print("\nDaily Performance (first 10 days):")
         print(daily_stats.head(10).to_string())

@@ -105,9 +105,7 @@ def debug_individual_features(df):
 
     print("\n5. Testing stress_metrics...")
     try:
-        stress = stress_metrics(
-            df, volatility_window=10, volume_window=10, min_periods=3
-        )
+        stress = stress_metrics(df, volatility_window=10, volume_window=10, min_periods=3)
         print(f"   stress NaN count: {stress.isna().sum()}/{len(stress)}")
         print(f"   First 5 values: {stress.head().tolist()}")
         print(f"   Last 5 values: {stress.tail().tolist()}")
@@ -132,9 +130,7 @@ def main():
         print("Combined function completed successfully")
 
         # Check NaN counts for each regime feature
-        regime_features = [
-            col for col in df_with_features.columns if col.startswith("f__regime__")
-        ]
+        regime_features = [col for col in df_with_features.columns if col.startswith("f__regime__")]
         print(f"\nRegime features computed: {len(regime_features)}")
 
         for feature in regime_features:

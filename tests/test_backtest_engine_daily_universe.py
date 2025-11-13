@@ -25,16 +25,12 @@ def test_engine_daily_universe_updates() -> None:
     # This method should be implemented
     try:
         universe_updates = engine._get_daily_universe_updates(bars)
-        assert (
-            len(universe_updates) == EXPECTED_TRADING_DAYS
-        )  # Should detect 2 trading days
+        assert len(universe_updates) == EXPECTED_TRADING_DAYS  # Should detect 2 trading days
         # The method should return empty sets that will be populated by SIP selector
         for universe in universe_updates.values():
             assert isinstance(universe, set)
     except AttributeError:
-        pytest.fail(
-            "_get_daily_universe_updates method not found - needs to be implemented"
-        )
+        pytest.fail("_get_daily_universe_updates method not found - needs to be implemented")
 
 
 def test_engine_daily_universe_state_management() -> None:
@@ -70,9 +66,7 @@ def test_engine_universe_update_check() -> None:
         assert not engine._check_universe_update_needed(bar_same_day)
         assert engine._check_universe_update_needed(bar_next_day)
     except AttributeError:
-        pytest.fail(
-            "_check_universe_update_needed method not found - needs to be implemented"
-        )
+        pytest.fail("_check_universe_update_needed method not found - needs to be implemented")
 
 
 def test_engine_initializes_daily_universe_attributes() -> None:

@@ -97,9 +97,7 @@ class TestIntradayMLFeaturePack:
     def test_returns_trend_features(self, sample_config, sample_data):
         """Test returns and trend feature computation."""
         pack = IntradayMLFeaturePack(sample_config)
-        ts_cut = sample_data[
-            "ts"
-        ].max()  # Use max timestamp to avoid time discipline issues
+        ts_cut = sample_data["ts"].max()  # Use max timestamp to avoid time discipline issues
 
         features = pack.compute_features(sample_data, ts_cut)
 
@@ -148,10 +146,7 @@ class TestIntradayMLFeaturePack:
             symbol_features = features[symbol_mask]
             symbol_data = sample_data[symbol_mask]
 
-            if (
-                len(symbol_features) > 0
-                and symbol_features["f__vwap__value_5"].notna().any()
-            ):
+            if len(symbol_features) > 0 and symbol_features["f__vwap__value_5"].notna().any():
                 vwap_values = symbol_features["f__vwap__value_5"].dropna()
                 min_prices = symbol_data["low"].min()
                 max_prices = symbol_data["high"].max()
@@ -202,19 +197,13 @@ class TestIntradayMLFeaturePack:
 
         # Test with valid ts_cut (should not raise)
         valid_ts_cut = sample_data["ts"].max()
-        features = pack.compute_features(
-            sample_data, valid_ts_cut, validate_time_discipline=True
-        )
+        features = pack.compute_features(sample_data, valid_ts_cut, validate_time_discipline=True)
         assert len(features) > 0
 
         # Test with invalid ts_cut (should raise)
         invalid_ts_cut = sample_data["ts"].iloc[5]  # Too early
-        with pytest.raises(
-            ValueError, match="Input data contains timestamps after ts_cut"
-        ):
-            pack.compute_features(
-                sample_data, invalid_ts_cut, validate_time_discipline=True
-            )
+        with pytest.raises(ValueError, match="Input data contains timestamps after ts_cut"):
+            pack.compute_features(sample_data, invalid_ts_cut, validate_time_discipline=True)
 
     def test_feature_count_limit(self, sample_config, sample_data):
         """Test that feature count limit is enforced."""
@@ -245,9 +234,7 @@ class TestIntradayMLFeaturePack:
         pack = IntradayMLFeaturePack(sample_config)
 
         # Empty DataFrame
-        empty_df = pd.DataFrame(
-            columns=["ts", "symbol", "open", "high", "low", "close", "volume"]
-        )
+        empty_df = pd.DataFrame(columns=["ts", "symbol", "open", "high", "low", "close", "volume"])
         ts_cut = pd.Timestamp("2024-01-02 16:00:00")
 
         features = pack.compute_features(empty_df, ts_cut)
@@ -351,9 +338,7 @@ class TestFeatureProperties:
         features = pack.compute_features(sample_data, ts_cut)
 
         # Test cyclical features are bounded [-1, 1]
-        cyclical_features = [
-            col for col in features.columns if "sin" in col or "cos" in col
-        ]
+        cyclical_features = [col for col in features.columns if "sin" in col or "cos" in col]
         for col in cyclical_features:
             values = features[col].dropna()
             if len(values) > 0:
@@ -361,9 +346,7 @@ class TestFeatureProperties:
                 assert (values <= 1.01).all()
 
         # Test log returns are reasonable (should be small)
-        log_return_features = [
-            col for col in features.columns if "log" in col and "ret" in col
-        ]
+        log_return_features = [col for col in features.columns if "log" in col and "ret" in col]
         for col in log_return_features:
             values = features[col].dropna()
             if len(values) > 0:
@@ -399,15 +382,13 @@ class TestFeatureProperties:
             if any(window in col for window in ["_5", "_10", "_14"]):
                 # Windowed features should have NaN in early rows
                 early_values = features[col].head(5)
-                assert (
-                    early_values.isna().any()
-                ), f"Expected NaN values in early rows for {col}"
+                assert early_values.isna().any(), f"Expected NaN values in early rows for {col}"
 
                 # Later values should be mostly non-NaN
                 later_values = features[col].tail(10)
-                assert (
-                    later_values.notna().any()
-                ), f"Expected non-NaN values in later rows for {col}"
+                assert later_values.notna().any(), (
+                    f"Expected non-NaN values in later rows for {col}"
+                )
 
 
 class TestFeatureRegistry:
@@ -473,9 +454,7 @@ class TestFeatureRegistry:
 
         # Create mock feature data
         feature_names = registry.get_feature_names()
-        feature_data = pd.DataFrame(
-            np.random.randn(100, len(feature_names)), columns=feature_names
-        )
+        feature_data = pd.DataFrame(np.random.randn(100, len(feature_names)), columns=feature_names)
 
         # Add some NaN values
         feature_data.iloc[0, 0] = np.nan

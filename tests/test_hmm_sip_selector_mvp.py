@@ -20,9 +20,7 @@ def create_sample_bars():
     base_prices = {symbol: 100.0 + hash(symbol) % 50 for symbol in symbols}
 
     for day_offset in [0, 1]:  # Day 0 = 2024-01-02, Day 1 = 2024-01-03
-        et_date = pd.Timestamp("2024-01-02", tz="America/New_York") + pd.Timedelta(
-            days=day_offset
-        )
+        et_date = pd.Timestamp("2024-01-02", tz="America/New_York") + pd.Timedelta(days=day_offset)
 
         # Pre-market (4:00 AM to 9:29 AM ET)
         for hour in range(4, 9):
@@ -256,9 +254,9 @@ def test_hmm_sip_selector_rth_filtering():
 
     # Check that all timestamps are during RTH
     for ts_et in bars_et["ts_et"]:
-        assert (ts_et.hour > 9) or (
-            ts_et.hour == 9 and ts_et.minute >= 30
-        ), f"Timestamp {ts_et} is not in RTH"
+        assert (ts_et.hour > 9) or (ts_et.hour == 9 and ts_et.minute >= 30), (
+            f"Timestamp {ts_et} is not in RTH"
+        )
         assert ts_et.hour < 16, f"Timestamp {ts_et} is not in RTH"
 
     # Should have exactly 1 symbol per timestamp (top_k=1)

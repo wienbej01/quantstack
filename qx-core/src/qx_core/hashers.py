@@ -287,9 +287,7 @@ if __name__ == "__main__":
 
     # Test dtype equivalent frames
     df3 = df1.copy()
-    df3["close"] = df3["close"].astype(
-        "float32"
-    )  # Different dtype but equivalent values
+    df3["close"] = df3["close"].astype("float32")  # Different dtype but equivalent values
     hash3 = hash_dataframe(df3)
     assert hash1 == hash3, f"Hashes differ for dtype equivalent: {hash1} != {hash3}"
     print("✓ Stability across dtype equivalents")

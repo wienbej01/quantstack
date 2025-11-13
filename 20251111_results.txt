@@ -1,0 +1,147 @@
+((.venv) ) jacobw@jacob-20nks0qn06:~/quantstack$ python run_phaseA_pipeline.py --config configs/extensions/intraday_ml/phaseA_sip_full.yaml
+🚀 Intraday ML Pipeline
+============================================================
+   Artifacts will be saved to: artefacts/extensions/intraday_ml/phaseA_full_sip
+📋 Loading configurations...
+   Master config: configs/extensions/intraday_ml/phaseA_sip_full.yaml
+✅ universe: configs/extensions/intraday_ml/universe_gold_full.yaml
+✅ splits: configs/extensions/intraday_ml/splits_smoke.yaml
+✅ cuts: configs/extensions/intraday_ml/cuts_10m.yaml
+✅ features: configs/extensions/intraday_ml/features_10m.yaml
+✅ targets: configs/extensions/intraday_ml/targets_loose.yaml
+✅ model: configs/extensions/intraday_ml/model_lgbm.yaml
+✅ cv: configs/extensions/intraday_ml/cv/phaseA.yaml
+
+🔧 Step 1: Building dataset manifest...
+   Splits config after conversion: {'train': {'start': '2024-01-02', 'end': '2024-03-31'}, 'val': {'start': '2024-04-01', 'end': '2024-04-30'}, 'oos': {'start': '2024-05-01', 'end': '2024-05-31'}}
+   SIP filter enabled for phase 'train' with mode 'sip_only'.
+   Filtered symbol list for phase 'train': 139 symbols from 510 candidates.
+   SIP filter enabled for phase 'val' with mode 'sip_only'.
+   Filtered symbol list for phase 'val': 27 symbols from 510 candidates.
+   SIP filter enabled for phase 'oos' with mode 'sip_only'.
+   Filtered symbol list for phase 'oos': 10 symbols from 510 candidates.
+   Training symbols (post-SIP): 139 symbols [AAPL, ABBV, ABNB, ABT, ADBE, ADI, ADP, AEP, ALB, ALL ... (+129 more)]
+   Deployment symbols (post-SIP): 10 symbols [AAPL, AMZN, GOOGL, JNJ, JPM, META, MSFT, NVDA, TSLA, V]
+✅ Manifest created: artefacts/extensions/intraday_ml/phaseA_full_sip/manifest.json
+   Manifest symbols: 142 symbols [tjx, kvue, abbv, kim, tgt, nee, unh, elv, mo, mrk, kr, ko, vz, ibm, irm, orcl, wmt, apa, cboe, fdx ... (+122 more)]
+   Total days: 151
+   Final training symbols: 139 symbols [AAPL, ABBV, ABNB, ABT, ADBE, ADI, ADP, AEP, ALB, ALL ... (+129 more)]
+   Final deployment symbols: 10 symbols [AAPL, AMZN, GOOGL, JNJ, JPM, META, MSFT, NVDA, TSLA, V]
+
+🔧 Step 2: Data preparation with aligned features and labels...
+✅ Aligned training data created: artefacts/extensions/intraday_ml/phaseA_full_sip/training_data.parquet
+   Shape: (329820, 54)
+   Features: 46
+   Label distribution: {0: 300800, 1: 14778, -1: 14242}
+
+🔧 Step 3: Training LightGBM model...
+Training until validation scores don't improve for 75 rounds
+Did not meet early stopping. Best iteration is:
+[900]   valid_0's multi_logloss: 0.370515
+✅ Policy calibration stats saved: artefacts/extensions/intraday_ml/phaseA_full_sip/policy_calibration.json
+✅ Model trained: artefacts/extensions/intraday_ml/phaseA_full_sip/model_lgbm
+
+🔧 Step 4: Running cross-validation...
+Running CV fold 2/2
+Training until validation scores don't improve for 75 rounds
+Did not meet early stopping. Best iteration is:
+[900]   valid_0's multi_logloss: 0.333664
+Running CV fold 3/2
+Training until validation scores don't improve for 75 rounds
+Did not meet early stopping. Best iteration is:
+[900]   valid_0's multi_logloss: 0.362504
+CV results saved to artefacts/extensions/intraday_ml/phaseA_full_sip/cv_report.json
+✅ Cross-validation completed: artefacts/extensions/intraday_ml/phaseA_full_sip/cv_report.json
+
+🔧 Step 5: Generating OOS feature set...
+✅ OOS features created: artefacts/extensions/intraday_ml/phaseA_full_sip/oos_features.parquet
+   Shape: (8580, 54)
+
+🔧 Step 6: Generating OOS predictions...
+   Feature coverage (lowest OOS non-null ratios):
+     - f__range__ratio_1.0: train=0.992, oos=0.978
+     - f__conv__obv_mom_12: train=0.995, oos=0.986
+     - f__conv__mom_vol_12: train=0.995, oos=0.986
+     - f__conv__adl_strength_12: train=0.995, oos=0.987
+     - f__conv__body_strength_12: train=0.995, oos=0.987
+✅ OOS predictions created: artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions.parquet
+   Shape: (8580, 5)
+   OOS data columns: ['symbol', 'ts', 'open', 'high', 'low', 'close', 'volume', 'f__ret__simple_1', 'f__ret__simple_2', 'f__ret__simple_3', 'f__vol__atr_3', 'f__vol__atr_6', 'f__vol__rolling_std_3', 'f__vol__rolling_std_6', 'f__range__ratio_1.0', 'f__vol__sum_3', 'f__vol__sum_6', 'f__vwap__value_3', 'f__vwap__value_6', 'f__vol__rel_6', 'f__time__hour_sin', 'f__time__hour_cos', 'f__time__minute_sin', 'f__time__minute_cos', 'f__time__dow_sin', 'f__time__dow_cos', 'f__mom__roc_1', 'f__mom__roc_2', 'f__mom__roc_3', 'f__mom__rsi_6', 'f__ma__ratio_3', 'f__ma__ratio_6', 'f__conv__zscore_3', 'f__conv__mom_vol_3', 'f__conv__range_pos_3', 'f__conv__body_strength_3', 'f__conv__wick_skew_3', 'f__conv__adl_strength_3', 'f__conv__obv_mom_3', 'f__conv__zscore_6', 'f__conv__mom_vol_6', 'f__conv__range_pos_6', 'f__conv__body_strength_6', 'f__conv__wick_skew_6', 'f__conv__adl_strength_6', 'f__conv__obv_mom_6', 'f__conv__zscore_12', 'f__conv__mom_vol_12', 'f__conv__range_pos_12', 'f__conv__body_strength_12', 'f__conv__wick_skew_12', 'f__conv__adl_strength_12', 'f__conv__obv_mom_12', 'label']
+
+🔧 Step 7: Generating orders from OOS predictions...
+✅ Orders generated: artefacts/extensions/intraday_ml/phaseA_full_sip/oos_orders.parquet
+   Total orders: 6
+✅ Rejections logged: artefacts/extensions/intraday_ml/phaseA_full_sip/oos_rejections.parquet
+   Total rejections: 8574
+   Order reasons:
+     - trade: 3
+     - conviction_decay: 3
+   Rejection reasons:
+     - gap_insufficient: 7915
+     - below_threshold: 432
+     - time_filter: 220
+     - cooldown: 6
+     - holding_long: 1
+   Rejection summary saved: artefacts/extensions/intraday_ml/phaseA_full_sip/rejection_summary.csv
+✅ Policy config saved: artefacts/extensions/intraday_ml/phaseA_full_sip/policy_config.json
+
+🔧 Step 8: Running backtest...
+[TRACE] Position jnj quantity=1 after fill ml_order_1715109000000000000_0000 side=BUY fill_qty=1
+[TRACE] Position jnj quantity=1 after fill ml_order_1715191800000000000_0002 side=BUY fill_qty=1
+[TRACE] Position jnj quantity=1 after fill ml_order_1715195400000000000_0004 side=BUY fill_qty=1
+✅ Backtest completed.
+   Metrics:
+     - total_return: -2.2900893309474313e-06
+     - annualized_return: -6.72614193564236e-07
+     - volatility: 0.0001981335684563174
+     - sharpe_ratio: -100.94540147851383
+     - max_drawdown: -0.00015095007443000075
+     - max_drawdown_duration: 667
+     - total_commissions: 2.1
+     - total_slippage: 0.0
+     - fill_rate: 0.5
+     - total_trades: 3
+     - trades: 3
+     - win_rate: 0.3333333333333333
+     - avg_R: -0.763363110331873
+     - total_pnl: -2.290089330995619
+     - fees_total: 2.1
+   Trade summary saved: artefacts/extensions/intraday_ml/phaseA_full_sip/trade_summary.parquet (3 trades)
+
+🎉 Phase A Pipeline Completed Successfully!
+============================================================
+📊 Generated Artifacts:
+   - oos_predictions.parquet (0.3 MB)
+   - policy_config.json (0.0 MB)
+   - oos_features.parquet (3.3 MB)
+   - equity.parquet (0.0 MB)
+   - oos_rejections.parquet (0.0 MB)
+   - training_data.parquet (114.8 MB)
+   - manifest.json (0.0 MB)
+   - trade_summary.parquet (0.0 MB)
+   - oos_orders.parquet (0.0 MB)
+   - policy_calibration.json (0.2 MB)
+   - policy_orders.parquet (0.0 MB)
+   - rejection_summary.csv (0.0 MB)
+   - cv_report.json (0.0 MB)
+   - fills.parquet (0.0 MB)
+   - trades.parquet (0.0 MB)
+   - metrics.json (0.0 MB)
+   - feature_coverage.csv (0.0 MB)
+   - orders.parquet (0.0 MB)
+   - model_lgbm (0.0 MB)
+   - pilot_report.json (0.0 MB)
+   - trade_summary.md (0.0 MB)
+
+📋 Phase A Summary:
+   - Manifest symbols: AAPL, ABBV, ABNB, ABT, ADBE, ADI, ADP, AEP, ALB, ALL, AMAT, AMD, AMGN, AMZN, ANET, APA, AVGO, AXON, BA, BAC, BKNG, BMY, C, CAT, CBOE, CBRE, CCL, CMCSA, CMI, COIN, COST, CPRT, CRM, CRWD, CSCO, CSX, CTRA, CVX, D, DAL, DASH, DDOG, DE, DELL, DIS, DLTR, DUK, DVN, EBAY, EL, ELV, ENPH, EXC, EXPE, F, FCX, FDX, FE, GE, GILD, GM, GOOG, GOOGL, GPN, GS, HAL, HON, HPE, HPQ, IBM, INTC, IP, IRM, ISRG, JNJ, JPM, KDP, KIM, KO, KR, KVUE, LIN, LLY, LOW, LULU, LUV, MCD, MDLZ, META, MO, MRK, MRNA, MSFT, MTCH, MU, NCLH, NEE, NEM, NFLX, NKE, NOW, NVDA, NXPI, O, ORCL, OXY, PANW, PCG, PEP, PFE, PHM, PLTR, PNW, PYPL, QCOM, RCL, SBUX, SLB, SLV, SMCI, SNPS, SYF, T, TGT, TJX, TMUS, TPR, TRGP, TSLA, TTD, UAL, UBER, UNG, UNH, UPS, V, VRTX, VTRS, VZ, WFC, WMT, XOM
+   - Training symbols: AAPL, ABBV, ABNB, ABT, ADBE, ADI, ADP, AEP, ALB, ALL, AMAT, AMD, AMGN, AMZN, ANET, APA, AVGO, AXON, BA, BAC, BKNG, BMY, C, CAT, CBOE, CBRE, CCL, CMCSA, CMI, COIN, COST, CPRT, CRM, CRWD, CSCO, CSX, CTRA, CVX, DAL, DASH, DDOG, DE, DELL, DIS, DLTR, DUK, DVN, EBAY, EL, ELV, ENPH, EXPE, F, FCX, FDX, FE, GE, GILD, GM, GOOG, GOOGL, GPN, GS, HAL, HON, HPE, HPQ, IBM, INTC, IP, IRM, ISRG, JNJ, JPM, KDP, KIM, KO, KR, KVUE, LIN, LLY, LOW, LULU, LUV, MCD, MDLZ, META, MO, MRK, MRNA, MSFT, MTCH, MU, NCLH, NEE, NEM, NFLX, NKE, NOW, NVDA, NXPI, O, ORCL, OXY, PANW, PCG, PEP, PFE, PHM, PLTR, PNW, PYPL, QCOM, RCL, SBUX, SLB, SLV, SMCI, SNPS, SYF, T, TGT, TJX, TMUS, TPR, TRGP, TSLA, TTD, UAL, UBER, UNG, UNH, UPS, VRTX, VTRS, VZ, WFC, WMT, XOM
+   - Deployment symbols: AAPL, AMZN, GOOGL, JNJ, JPM, META, MSFT, NVDA, TSLA, V
+   - Train: 2024-01-02 to 2024-03-31
+   - Validation: n/a
+   - OOS: 2024-05-01 to 2024-05-31
+   - Data: Aligned features+labels via sliding window
+   - Model: LightGBM tri-class
+   - Status file: artefacts/extensions/intraday_ml/phaseA_full_sip/phaseA_status.json
+   - CV: 2 fold(s) purged cv
+   - OOS trades: 3

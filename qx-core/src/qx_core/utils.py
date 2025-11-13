@@ -420,9 +420,7 @@ class TimeWindow:
         return None
 
     def __str__(self) -> str:
-        return (
-            f"TimeWindow({format_utc_ns(self.start_ns)}, {format_utc_ns(self.end_ns)})"
-        )
+        return f"TimeWindow({format_utc_ns(self.start_ns)}, {format_utc_ns(self.end_ns)})"
 
     def __repr__(self) -> str:
         return self.__str__()

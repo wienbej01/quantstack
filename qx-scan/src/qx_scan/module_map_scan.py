@@ -87,9 +87,7 @@ def scan_repos() -> dict[str, Any]:
             continue
         for py_file in repo.rglob("*.py"):
             rel_path = py_file.relative_to(repo)
-            module_name = (
-                str(rel_path).replace("/", ".").replace("\\", ".").rstrip(".py")
-            )
+            module_name = str(rel_path).replace("/", ".").replace("\\", ".").rstrip(".py")
             parsed = parse_python_file(py_file)
             topology[module_name]["files"].append(str(py_file))
             topology[module_name]["imports"].update(parsed.get("imports", []))

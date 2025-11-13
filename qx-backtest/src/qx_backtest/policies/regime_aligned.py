@@ -132,18 +132,14 @@ class AVWAPMomentumPolicy(Policy):
         if position.is_long:
             if bar["low"] <= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["high"] >= entry_price + (
-                atr * self.params.atr_target_multiple
-            ):
+            elif atr > 0 and bar["high"] >= entry_price + (atr * self.params.atr_target_multiple):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
         elif position.is_short:
             if bar["high"] >= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["low"] <= entry_price - (
-                atr * self.params.atr_target_multiple
-            ):
+            elif atr > 0 and bar["low"] <= entry_price - (atr * self.params.atr_target_multiple):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
@@ -295,18 +291,14 @@ class AVWAPPullbackPolicy(Policy):
         if position.is_long:
             if bar["low"] <= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["high"] >= entry_price + (
-                atr * self.params.atr_target_multiple
-            ):
+            elif atr > 0 and bar["high"] >= entry_price + (atr * self.params.atr_target_multiple):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
         elif position.is_short:
             if bar["high"] >= stop_level:
                 exit_reason = "stop_loss"
-            elif atr > 0 and bar["low"] <= entry_price - (
-                atr * self.params.atr_target_multiple
-            ):
+            elif atr > 0 and bar["low"] <= entry_price - (atr * self.params.atr_target_multiple):
                 exit_reason = "take_profit"
             elif bars_held >= self.params.max_position_bars:
                 exit_reason = "timeout"
@@ -339,9 +331,7 @@ class ValueRotationParameters(PolicyParameters):
     atr_stop_multiple: float = 1.2
     max_position_bars: int = 90
     entry_dev_multiple: float = 0.1  # % deviation outside value area for entry
-    enabled_regimes: list[RegimeType] = field(
-        default_factory=lambda: [RegimeType.SIDEWAYS]
-    )
+    enabled_regimes: list[RegimeType] = field(default_factory=lambda: [RegimeType.SIDEWAYS])
 
 
 @dataclass

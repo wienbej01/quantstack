@@ -86,9 +86,7 @@ def run_entry_ab_experiment(
         variant_results[variant_name] = variant_result
 
     # Validate fairness across variants
-    checksums_validation = _validate_variant_checksums(
-        base_hashes, variant_results, force
-    )
+    checksums_validation = _validate_variant_checksums(base_hashes, variant_results, force)
 
     # Write experiment manifest
     manifest = {
@@ -214,9 +212,7 @@ def _load_base_data(config: dict[str, Any]) -> dict[str, Any]:
     return {"bars": bars}
 
 
-def _compute_base_hashes(
-    base_data: dict[str, Any], config: dict[str, Any]
-) -> dict[str, str]:
+def _compute_base_hashes(base_data: dict[str, Any], config: dict[str, Any]) -> dict[str, str]:
     """Compute hashes for base data and configuration."""
     bars = base_data["bars"]
 
@@ -230,9 +226,7 @@ def _compute_base_hashes(
 
     # Apply screener for hash computation
     screener_config = config.get("screener", {})
-    intraday_ml_screen_universe(
-        bars_with_features, screener_config, config.get("reference_date")
-    )
+    intraday_ml_screen_universe(bars_with_features, screener_config, config.get("reference_date"))
 
     return {
         "bars_hash": intraday_ml_get_data_hash(
@@ -346,9 +340,9 @@ def _generate_signals(
         ).sum() / symbol_data["volume"].rolling(vwap_window).sum()
 
         # Generate signals when price deviates from VWAP
-        symbol_data["deviation"] = (
-            symbol_data["close"] - symbol_data["vwap"]
-        ) / symbol_data["vwap"]
+        symbol_data["deviation"] = (symbol_data["close"] - symbol_data["vwap"]) / symbol_data[
+            "vwap"
+        ]
 
         # Buy when below VWAP, sell when above
         deviation_threshold = config.get("policy", {}).get("deviation_threshold", 0.02)
@@ -402,9 +396,7 @@ def _validate_variant_checksums(
     }
 
 
-def _deep_merge_configs(
-    base: dict[str, Any], overlay: dict[str, Any]
-) -> dict[str, Any]:
+def _deep_merge_configs(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     """Deep merge two configuration dictionaries."""
     result = base.copy()
 

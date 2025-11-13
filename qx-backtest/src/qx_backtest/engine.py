@@ -135,9 +135,9 @@ class BacktestResult:
         trading_days = len(equity_series)
         years = trading_days / 252.0
         if years > 0:
-            self.annualized_return = (
-                equity_series.iloc[-1] / equity_series.iloc[0]
-            ) ** (1 / years) - 1
+            self.annualized_return = (equity_series.iloc[-1] / equity_series.iloc[0]) ** (
+                1 / years
+            ) - 1
 
         # Risk metrics
         self.volatility = returns.std() * (252**0.5)  # Annualized volatility
@@ -204,9 +204,7 @@ class BacktestResult:
 class BacktestEngine:
     """Event-driven backtesting engine."""
 
-    def __init__(
-        self, config: BacktestConfig, sip_config: dict[str, Any] | None = None
-    ):
+    def __init__(self, config: BacktestConfig, sip_config: dict[str, Any] | None = None):
         """Initialize backtesting engine.
 
         Args:
@@ -248,9 +246,7 @@ class BacktestEngine:
         self._strategy_map = {}
         for regime, strategies in raw_strategy_map.items():
             if isinstance(strategies, (list, tuple, set)):
-                self._strategy_map[regime] = [
-                    str(strategy).lower() for strategy in strategies
-                ]
+                self._strategy_map[regime] = [str(strategy).lower() for strategy in strategies]
             else:
                 # Allow single string values for convenience
                 self._strategy_map[regime] = [str(strategies).lower()]
@@ -286,9 +282,7 @@ class BacktestEngine:
         # Process data bar by bar
         total_bars = len(data.groupby("ts"))
 
-        for processed_bars, (timestamp, group) in enumerate(
-            data.groupby("ts"), start=1
-        ):
+        for processed_bars, (timestamp, group) in enumerate(data.groupby("ts"), start=1):
             # log_debug(f"Processing bar {processed_bars}/{total_bars} at {timestamp}")
             self.current_time = timestamp
 
@@ -338,9 +332,7 @@ class BacktestEngine:
         if data.empty:
             raise ValueError("Input data is empty")
 
-        missing_cols = [
-            col for col in self.config.required_columns if col not in data.columns
-        ]
+        missing_cols = [col for col in self.config.required_columns if col not in data.columns]
         if missing_cols:
             raise ValueError(f"Missing required columns: {missing_cols}")
 
@@ -450,11 +442,7 @@ class BacktestEngine:
 
     def get_position(self, symbol: str) -> Position | None:
         """Get current position for symbol."""
-        return (
-            self.portfolio.get_position(symbol)
-            if symbol in self.portfolio.positions
-            else None
-        )
+        return self.portfolio.get_position(symbol) if symbol in self.portfolio.positions else None
 
     def _get_daily_universe_updates(self, bars: list[dict]) -> dict[date, set[str]]:
         """Extract trading days and prepare for daily universe updates."""
@@ -556,16 +544,12 @@ class BacktestEngine:
         # Convert equity curve to DataFrame
         if self.equity_curve:
             result.equity_curve = pd.DataFrame(self.equity_curve)
-            result.equity_curve["datetime"] = pd.to_datetime(
-                result.equity_curve["timestamp"]
-            )
+            result.equity_curve["datetime"] = pd.to_datetime(result.equity_curve["timestamp"])
 
         # Copy histories
         result.positions_history = self.positions_history.copy()
         result.trades_history = self.trades_history.copy()
-        result.orders_history = [
-            order.to_dict() for order in self.portfolio.filled_orders
-        ]
+        result.orders_history = [order.to_dict() for order in self.portfolio.filled_orders]
 
         # Copy portfolio statistics
         result.total_commissions = self.portfolio.total_commissions
@@ -580,19 +564,17 @@ class BacktestEngine:
 
         # Set metadata
         if self.equity_curve:
-            result.start_date = pd.to_datetime(
-                self.equity_curve[0]["timestamp"]
-            ).strftime("%Y-%m-%d")
-            result.end_date = pd.to_datetime(
-                self.equity_curve[-1]["timestamp"]
-            ).strftime("%Y-%m-%d")
+            result.start_date = pd.to_datetime(self.equity_curve[0]["timestamp"]).strftime(
+                "%Y-%m-%d"
+            )
+            result.end_date = pd.to_datetime(self.equity_curve[-1]["timestamp"]).strftime(
+                "%Y-%m-%d"
+            )
 
         result.benchmark = self.config.benchmark
 
         # Calculate fill rate
-        total_orders = len(self.portfolio.filled_orders) + len(
-            self.portfolio.pending_orders
-        )
+        total_orders = len(self.portfolio.filled_orders) + len(self.portfolio.pending_orders)
         if total_orders > 0:
             result.fill_rate = len(self.portfolio.filled_orders) / total_orders
 
@@ -734,9 +716,7 @@ class BacktestEngine:
 
         stats = self._regime_detector.get_statistics()
         stats["regime_detection_enabled"] = True
-        stats["current_regime"] = (
-            self._current_regime.value if self._current_regime else None
-        )
+        stats["current_regime"] = self._current_regime.value if self._current_regime else None
         stats["current_segment"] = self._current_segment
         stats["current_session_date"] = self._current_session_date
 

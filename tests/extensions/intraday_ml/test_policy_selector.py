@@ -142,9 +142,7 @@ class TestPolicySelector:
         self.policies["low_data"] = low_data_policy
         self.performance_tracker.policy_metrics["low_data"] = low_data_metrics
 
-        criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
-        )
+        criteria = SelectionCriteria(method=SelectionMethod.BEST_PERFORMANCE, min_executions=10)
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
 
@@ -160,9 +158,7 @@ class TestPolicySelector:
             metrics = self.performance_tracker.policy_metrics[policy_id]
             metrics.total_executions = 5
 
-        criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
-        )
+        criteria = SelectionCriteria(method=SelectionMethod.BEST_PERFORMANCE, min_executions=10)
 
         best_policy = self.selector.select_best_policy(self.policies, criteria)
 
@@ -190,9 +186,7 @@ class TestPolicySelector:
 
     def test_get_policy_rankings(self):
         """Test policy ranking functionality."""
-        criteria = SelectionCriteria(
-            method=SelectionMethod.BEST_PERFORMANCE, min_executions=10
-        )
+        criteria = SelectionCriteria(method=SelectionMethod.BEST_PERFORMANCE, min_executions=10)
 
         rankings = self.selector.get_policy_rankings(self.policies, criteria)
 
@@ -239,9 +233,7 @@ class TestPolicySelector:
             method=SelectionMethod.BEST_PERFORMANCE, required_tags={"momentum"}
         )
 
-        filtered_policies = self.selector._filter_policies_by_criteria(
-            self.policies, criteria
-        )
+        filtered_policies = self.selector._filter_policies_by_criteria(self.policies, criteria)
 
         # Should only include policies with required tags
         assert "custom_policy" in filtered_policies
@@ -346,9 +338,7 @@ class TestPolicySelector:
 
         # Test negative weights
         with pytest.raises(ValueError):
-            SelectionCriteria(
-                weight_success_rate=-0.1, weight_sharpe_ratio=0.6, weight_return=0.5
-            )
+            SelectionCriteria(weight_success_rate=-0.1, weight_sharpe_ratio=0.6, weight_return=0.5)
 
     def test_edge_cases(self):
         """Test edge cases in selection."""

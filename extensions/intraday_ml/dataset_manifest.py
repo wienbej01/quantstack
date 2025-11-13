@@ -24,6 +24,7 @@ def _ts_to_iso(value: Any) -> str:
         return str(value)
     return ts.isoformat()
 
+
 from .universe_adapter import IntradayMLUniverseAdapter
 
 
@@ -96,9 +97,7 @@ class DatasetManifestBuilder:
         all_dates = []
         for _split_name, split_dates in date_ranges.items():
             if split_dates and "start" in split_dates and "end" in split_dates:
-                all_dates.extend(
-                    self._get_date_list(split_dates["start"], split_dates["end"])
-                )
+                all_dates.extend(self._get_date_list(split_dates["start"], split_dates["end"]))
         all_dates = sorted(set(all_dates))
 
         # Load data for hashing
@@ -249,16 +248,12 @@ class DatasetManifestBuilder:
         universe_data = {
             "symbols": sorted(universe["symbol"].tolist()),
             "prices": universe["close"].round(2).tolist(),
-            "volumes": (
-                universe["volume"].tolist() if "volume" in universe.columns else []
-            ),
+            "volumes": (universe["volume"].tolist() if "volume" in universe.columns else []),
         }
         universe_str = json.dumps(universe_data, sort_keys=True, default=str)
         return hashlib.blake2b(universe_str.encode()).hexdigest()
 
-    def _compute_features_hash(
-        self, bars: pd.DataFrame, features_config: dict[str, Any]
-    ) -> str:
+    def _compute_features_hash(self, bars: pd.DataFrame, features_config: dict[str, Any]) -> str:
         """Compute features hash for given data and configuration.
 
         Args:
@@ -275,9 +270,7 @@ class DatasetManifestBuilder:
                 _ts_to_iso(bars["ts"].max()),
             ],
             "features_config": features_config,
-            "data_hash": hash_dataframe(
-                bars, cols=["open", "high", "low", "close", "volume"]
-            ),
+            "data_hash": hash_dataframe(bars, cols=["open", "high", "low", "close", "volume"]),
         }
         feature_str = json.dumps(feature_info, sort_keys=True, default=str)
         return hashlib.blake2b(feature_str.encode()).hexdigest()
@@ -291,9 +284,7 @@ class DatasetManifestBuilder:
             json.dump(manifest_dict, f, indent=2, default=str)
 
 
-def intraday_ml_get_data_hash(
-    symbols: list[str], dates: list[str], vendor: str = "gold"
-) -> str:
+def intraday_ml_get_data_hash(symbols: list[str], dates: list[str], vendor: str = "gold") -> str:
     """Compute data hash for given symbols and dates.
 
     Args:
@@ -314,9 +305,7 @@ def intraday_ml_get_data_hash(
     return hashlib.blake2b(data_str.encode()).hexdigest()
 
 
-def intraday_ml_get_features_hash(
-    bars: pd.DataFrame, features_config: dict[str, Any]
-) -> str:
+def intraday_ml_get_features_hash(bars: pd.DataFrame, features_config: dict[str, Any]) -> str:
     """Compute features hash for given data and configuration.
 
     Args:
@@ -333,9 +322,7 @@ def intraday_ml_get_features_hash(
             _ts_to_iso(bars["ts"].max()),
         ],
         "features_config": features_config,
-        "data_hash": hash_dataframe(
-            bars, cols=["open", "high", "low", "close", "volume"]
-        ),
+        "data_hash": hash_dataframe(bars, cols=["open", "high", "low", "close", "volume"]),
     }
     feature_str = json.dumps(feature_info, sort_keys=True, default=str)
     return hashlib.blake2b(feature_str.encode()).hexdigest()

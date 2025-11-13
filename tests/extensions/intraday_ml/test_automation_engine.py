@@ -74,9 +74,7 @@ class TestPolicyAutomationEngine:
             with patch(
                 "extensions.intraday_ml_policies.automation_engine.PolicyPerformanceTracker"
             ):
-                self.engine = PolicyAutomationEngine(
-                    policies=self.policies, config=self.config
-                )
+                self.engine = PolicyAutomationEngine(policies=self.policies, config=self.config)
 
     def teardown_method(self):
         """Clean up after tests."""
@@ -176,9 +174,7 @@ class TestPolicyAutomationEngine:
 
     def test_policy_selection_single_mode(self):
         """Test policy selection for single execution mode."""
-        config = AutomationConfig(
-            execution_mode=ExecutionMode.SINGLE, update_interval_seconds=1
-        )
+        config = AutomationConfig(execution_mode=ExecutionMode.SINGLE, update_interval_seconds=1)
 
         with patch(
             "extensions.intraday_ml_policies.automation_engine.PolicySelector"
@@ -197,9 +193,7 @@ class TestPolicyAutomationEngine:
 
     def test_policy_selection_parallel_mode(self):
         """Test policy selection for parallel execution mode."""
-        config = AutomationConfig(
-            execution_mode=ExecutionMode.PARALLEL, update_interval_seconds=1
-        )
+        config = AutomationConfig(execution_mode=ExecutionMode.PARALLEL, update_interval_seconds=1)
 
         with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
             engine = PolicyAutomationEngine(self.policies, config)
@@ -300,9 +294,7 @@ class TestPolicyAutomationEngine:
 
     def test_concurrent_execution_limits(self):
         """Test concurrent execution limits."""
-        config = AutomationConfig(
-            execution_mode=ExecutionMode.PARALLEL, max_concurrent_policies=2
-        )
+        config = AutomationConfig(execution_mode=ExecutionMode.PARALLEL, max_concurrent_policies=2)
 
         with patch("extensions.intraday_ml_policies.automation_engine.PolicySelector"):
             with patch(

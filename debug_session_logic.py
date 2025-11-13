@@ -27,18 +27,16 @@ def debug_session_logic(df):
     print(f"Ready bars after warmup: {len(ready_bars)}")
 
     # Add date and session info for session-based counting
-    ready_bars["dt_et"] = pd.to_datetime(
-        ready_bars["ts"], unit="ns", utc=True
-    ).dt.tz_convert("America/New_York")
+    ready_bars["dt_et"] = pd.to_datetime(ready_bars["ts"], unit="ns", utc=True).dt.tz_convert(
+        "America/New_York"
+    )
     ready_bars["date"] = ready_bars["dt_et"].dt.date
     ready_bars["session"] = ready_bars["dt_et"].apply(
         lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
     )
 
     print(f"Date range: {ready_bars['date'].min()} to {ready_bars['date'].max()}")
-    print(
-        f"Sessions per day: {ready_bars.groupby('date')['session'].nunique().to_dict()}"
-    )
+    print(f"Sessions per day: {ready_bars.groupby('date')['session'].nunique().to_dict()}")
 
     # Only process bars with valid regime features (no defaults)
     valid_mask = (
@@ -91,15 +89,9 @@ def debug_session_logic(df):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif (
-            features["var_ratio"] > BULL_VAR_RATIO_MIN
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BULL"
-        elif (
-            features["var_ratio"] < BEAR_VAR_RATIO_MAX
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
@@ -133,15 +125,9 @@ def debug_session_logic(df):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif (
-            features["var_ratio"] > BULL_VAR_RATIO_MIN
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BULL"
-        elif (
-            features["var_ratio"] < BEAR_VAR_RATIO_MAX
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE

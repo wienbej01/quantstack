@@ -139,9 +139,7 @@ def load_strategy_bars(
                         print(f"   Loading entire month {date_list}")
                     else:
                         # YYYY-MM-DD format - filter to specific dates
-                        df["date"] = pd.to_datetime(df["ts"], unit="ns").dt.strftime(
-                            "%Y-%m-%d"
-                        )
+                        df["date"] = pd.to_datetime(df["ts"], unit="ns").dt.strftime("%Y-%m-%d")
                         df = df[df["date"].isin(date_list)].copy()
                         df = df.drop("date", axis=1)
                         print(f"   Filtered to {len(date_list)} specific dates")
@@ -252,8 +250,7 @@ def generate_trading_signals(features_df, symbols, config):
                 symbol_data["atr"] = symbol_data[atr_col]
             else:
                 symbol_data["atr"] = (
-                    symbol_data["high"].rolling(14).max()
-                    - symbol_data["low"].rolling(14).min()
+                    symbol_data["high"].rolling(14).max() - symbol_data["low"].rolling(14).min()
                 )
 
             # Generate signals with INTRADAY risk management
@@ -274,10 +271,7 @@ def generate_trading_signals(features_df, symbols, config):
                 current_datetime = pd.to_datetime(current_ts, unit="ns")
 
                 # Skip if too close to last signal
-                if (
-                    signal_times
-                    and (current_ts - signal_times[-1]) < min_signal_spacing
-                ):
+                if signal_times and (current_ts - signal_times[-1]) < min_signal_spacing:
                     continue
 
                 # INTRADAY CONSTRAINT 1: End of day hard close (3:55 PM EST)
@@ -287,30 +281,20 @@ def generate_trading_signals(features_df, symbols, config):
                 if current_datetime >= market_close_time:
                     if current_position is not None:
                         # DEBUG: Print forced close details
-                        entry_datetime = pd.to_datetime(
-                            current_position["entry_ts"], unit="ns"
-                        )
-                        days_held = (
-                            current_datetime - entry_datetime
-                        ).total_seconds() / 86400
+                        entry_datetime = pd.to_datetime(current_position["entry_ts"], unit="ns")
+                        days_held = (current_datetime - entry_datetime).total_seconds() / 86400
 
                         print(
                             f"   🚨 FORCED CLOSE: {symbol} {current_position['type'].upper()} at {current_datetime}"
                         )
-                        print(
-                            f"       Entry: {entry_datetime} ({days_held:.1f} days held)"
-                        )
+                        print(f"       Entry: {entry_datetime} ({days_held:.1f} days held)")
                         print("       Reason: End of day hard close")
 
                         # Force close position at end of day
                         signals.append(
                             {
                                 "symbol": row["symbol"],
-                                "side": (
-                                    "sell"
-                                    if current_position["type"] == "long"
-                                    else "buy"
-                                ),
+                                "side": ("sell" if current_position["type"] == "long" else "buy"),
                                 "close": current_price,
                                 "ts": current_ts,
                                 "confidence": 1.0,  # High confidence for forced close
@@ -332,9 +316,7 @@ def generate_trading_signals(features_df, symbols, config):
 
                     # INTRADAY CONSTRAINT 2: Same-day forced exit (PRIORITY CHECK)
                     current_date = current_datetime.date()
-                    entry_date = (
-                        position_entry_date.date() if position_entry_date else None
-                    )
+                    entry_date = position_entry_date.date() if position_entry_date else None
 
                     # DEBUG: Print date comparison
                     if entry_date:
@@ -389,12 +371,8 @@ def generate_trading_signals(features_df, symbols, config):
 
                     if should_exit:
                         # DEBUG: Print exit details
-                        entry_datetime = pd.to_datetime(
-                            current_position["entry_ts"], unit="ns"
-                        )
-                        current_datetime_readable = pd.to_datetime(
-                            current_ts, unit="ns"
-                        )
+                        entry_datetime = pd.to_datetime(current_position["entry_ts"], unit="ns")
+                        current_datetime_readable = pd.to_datetime(current_ts, unit="ns")
                         days_held = (
                             current_datetime_readable - entry_datetime
                         ).total_seconds() / 86400
@@ -402,9 +380,7 @@ def generate_trading_signals(features_df, symbols, config):
                         print(
                             f"   🔔 EXIT SIGNAL: {symbol} {current_position['type'].upper()} at {current_datetime_readable}"
                         )
-                        print(
-                            f"       Entry: {entry_datetime} ({days_held:.1f} days held)"
-                        )
+                        print(f"       Entry: {entry_datetime} ({days_held:.1f} days held)")
                         print(
                             f"       Reason: {exit_reason}, P&L: {current_price - current_position['entry_price']:.2f}"
                         )
@@ -412,11 +388,7 @@ def generate_trading_signals(features_df, symbols, config):
                         signals.append(
                             {
                                 "symbol": row["symbol"],
-                                "side": (
-                                    "sell"
-                                    if current_position["type"] == "long"
-                                    else "buy"
-                                ),
+                                "side": ("sell" if current_position["type"] == "long" else "buy"),
                                 "close": current_price,
                                 "ts": current_ts,
                                 "confidence": 0.8,
@@ -442,9 +414,7 @@ def generate_trading_signals(features_df, symbols, config):
 
                     if current_dev < long_threshold:  # LONG signal
                         # INTRADAY risk management (tighter stops/profits)
-                        stop_loss_pct = min(
-                            1.0 * current_atr / current_price, 0.02
-                        )  # 1 ATR or 2%
+                        stop_loss_pct = min(1.0 * current_atr / current_price, 0.02)  # 1 ATR or 2%
                         take_profit_pct = min(
                             1.5 * current_atr / current_price, 0.03
                         )  # 1.5 ATR or 3%
@@ -474,9 +444,7 @@ def generate_trading_signals(features_df, symbols, config):
 
                     elif current_dev > short_threshold:  # SHORT signal
                         # INTRADAY risk management (tighter stops/profits)
-                        stop_loss_pct = min(
-                            1.0 * current_atr / current_price, 0.02
-                        )  # 1 ATR or 2%
+                        stop_loss_pct = min(1.0 * current_atr / current_price, 0.02)  # 1 ATR or 2%
                         take_profit_pct = min(
                             1.5 * current_atr / current_price, 0.03
                         )  # 1.5 ATR or 3%
@@ -523,11 +491,7 @@ def generate_trading_signals(features_df, symbols, config):
                 ]
             )
             exit_signals = len(
-                [
-                    s
-                    for s in signals
-                    if s["symbol"] == symbol and s.get("signal_type") == "exit"
-                ]
+                [s for s in signals if s["symbol"] == symbol and s.get("signal_type") == "exit"]
             )
 
             print(
@@ -554,9 +518,7 @@ def create_proper_trade_report(trades_df: pd.DataFrame) -> pd.DataFrame:
         symbol_trades = trades_df[trades_df["symbol"] == symbol].copy()
 
         # Convert timestamps to human readable
-        symbol_trades["datetime"] = pd.to_datetime(
-            symbol_trades["timestamp"], unit="us"
-        )
+        symbol_trades["datetime"] = pd.to_datetime(symbol_trades["timestamp"], unit="us")
 
         # Track open positions (simple stack for each symbol)
         open_positions = []
@@ -587,12 +549,8 @@ def create_proper_trade_report(trades_df: pd.DataFrame) -> pd.DataFrame:
                     else:  # LONG position open
                         # This SELL closes the LONG position
                         open_positions.pop()
-                        pnl = (trade["price"] - last_position["entry_price"]) * trade[
-                            "quantity"
-                        ]
-                        total_commission = (
-                            last_position["entry_commission"] + trade["commission"]
-                        )
+                        pnl = (trade["price"] - last_position["entry_price"]) * trade["quantity"]
+                        total_commission = last_position["entry_commission"] + trade["commission"]
 
                         paired_trades.append(
                             {
@@ -605,9 +563,7 @@ def create_proper_trade_report(trades_df: pd.DataFrame) -> pd.DataFrame:
                                 "exit_price": trade["price"],
                                 "commission": total_commission,
                                 "pnl": pnl,
-                                "return_pct": (
-                                    (trade["price"] / last_position["entry_price"]) - 1
-                                )
+                                "return_pct": ((trade["price"] / last_position["entry_price"]) - 1)
                                 * 100,
                                 "entry_order_id": last_position["entry_order_id"],
                                 "exit_order_id": trade["order_id"],
@@ -639,12 +595,8 @@ def create_proper_trade_report(trades_df: pd.DataFrame) -> pd.DataFrame:
                     else:  # SHORT position open
                         # This BUY closes the SHORT position
                         open_positions.pop()
-                        pnl = (last_position["entry_price"] - trade["price"]) * trade[
-                            "quantity"
-                        ]
-                        total_commission = (
-                            last_position["entry_commission"] + trade["commission"]
-                        )
+                        pnl = (last_position["entry_price"] - trade["price"]) * trade["quantity"]
+                        total_commission = last_position["entry_commission"] + trade["commission"]
 
                         paired_trades.append(
                             {
@@ -657,9 +609,7 @@ def create_proper_trade_report(trades_df: pd.DataFrame) -> pd.DataFrame:
                                 "exit_price": trade["price"],
                                 "commission": total_commission,
                                 "pnl": pnl,
-                                "return_pct": (
-                                    (last_position["entry_price"] / trade["price"]) - 1
-                                )
+                                "return_pct": ((last_position["entry_price"] / trade["price"]) - 1)
                                 * 100,
                                 "entry_order_id": last_position["entry_order_id"],
                                 "exit_order_id": trade["order_id"],
@@ -680,9 +630,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
         json.dump(config, f, indent=2, default=str)
 
     # Save bars hash
-    data_hash = intraday_ml_get_data_hash(
-        symbols=config["symbols"], dates=config["dates"]
-    )
+    data_hash = intraday_ml_get_data_hash(symbols=config["symbols"], dates=config["dates"])
     with open(run_dir / "inputs_checksum.json", "w") as f:
         json.dump({"bars_hash": data_hash}, f)
 
@@ -707,9 +655,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
             if hasattr(trades_df, "to_csv") and not trades_df.empty:
                 # Save raw order fills
                 trades_df.to_csv(run_dir / "trades_raw.csv", index=False)
-                print(
-                    f"✅ Saved {len(trades_df)} raw trades to {run_dir / 'trades_raw.csv'}"
-                )
+                print(f"✅ Saved {len(trades_df)} raw trades to {run_dir / 'trades_raw.csv'}")
 
                 # Create and save proper paired trades report
                 paired_trades = create_proper_trade_report(trades_df)
@@ -743,9 +689,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
                         f"   🎯 Win Rate: {winning_trades}/{len(paired_trades)} ({winning_trades / len(paired_trades) * 100:.1f}%)"
                     )
                 else:
-                    print(
-                        f"⚠️  No paired trades could be created from {len(trades_df)} raw trades"
-                    )
+                    print(f"⚠️  No paired trades could be created from {len(trades_df)} raw trades")
             else:
                 print("⚠️  Trades not saved: empty or not DataFrame")
 
@@ -755,9 +699,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
             if hasattr(equity_df, "to_csv") and not equity_df.empty:
                 # Fix datetime column if it exists
                 if "datetime" in equity_df.columns and "timestamp" in equity_df.columns:
-                    equity_df["datetime"] = pd.to_datetime(
-                        equity_df["timestamp"], unit="us"
-                    )
+                    equity_df["datetime"] = pd.to_datetime(equity_df["timestamp"], unit="us")
 
                 equity_df.to_csv(run_dir / "equity.csv", index=False)
                 print(f"✅ Saved equity curve to {run_dir / 'equity.csv'}")
@@ -796,9 +738,7 @@ def save_run_artifacts(run_id, results, bars, orders, config):
     # Handle object with attributes (fallback)
     elif hasattr(engine_result, "__dict__"):
         # Object with attributes
-        print(
-            f"🔍 Debug: Engine result attributes: {list(engine_result.__dict__.keys())}"
-        )
+        print(f"🔍 Debug: Engine result attributes: {list(engine_result.__dict__.keys())}")
 
         # Save trades
         if hasattr(engine_result, "trades"):
@@ -975,14 +915,9 @@ def run_ml_portfolio_test():
                     win_rate = winning_trades / total_trades if total_trades > 0 else 0
 
                     print(f"   💰 Total P&L: ${total_pnl:,.2f}")
-                    print(
-                        f"   🎯 Win Rate: {win_rate:.1%} ({winning_trades}/{total_trades})"
-                    )
+                    print(f"   🎯 Win Rate: {win_rate:.1%} ({winning_trades}/{total_trades})")
 
-                    if (
-                        "entry_price" in trades_df.columns
-                        and "exit_price" in trades_df.columns
-                    ):
+                    if "entry_price" in trades_df.columns and "exit_price" in trades_df.columns:
                         avg_return = (
                             (trades_df["exit_price"] / trades_df["entry_price"]) - 1
                         ).mean()

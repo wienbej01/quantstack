@@ -23,15 +23,11 @@ def test_sharpe_ratio_annualization(synthetic_equity_curve):
     synthetic_equity_curve["equity"].resample("D").last().pct_change().dropna()
     # Since we only have one day of data, daily_returns will be empty.
     # Let's create a multi-day curve for a better test.
-    timestamps_2days = pd.date_range(
-        start="2024-01-09 09:30:00", periods=780, freq="min"
-    )
+    timestamps_2days = pd.date_range(start="2024-01-09 09:30:00", periods=780, freq="min")
     equity_2days = 100000 * (1 + np.random.normal(0.0001, 0.001, 780)).cumprod()
     equity_curve_2days = pd.DataFrame({"equity": equity_2days}, index=timestamps_2days)
 
-    daily_returns_2days = (
-        equity_curve_2days["equity"].resample("D").last().pct_change().dropna()
-    )
+    daily_returns_2days = equity_curve_2days["equity"].resample("D").last().pct_change().dropna()
     daily_sharpe = np.sqrt(252) * daily_returns_2days.mean() / daily_returns_2days.std()
 
     # This is a conceptual check. The ratio depends on the data.
@@ -43,7 +39,6 @@ def test_return_calculation(synthetic_equity_curve):
     """Validate the percentage change formula for returns."""
     returns = synthetic_equity_curve["equity"].pct_change()
     manual_return = (
-        synthetic_equity_curve["equity"].iloc[1]
-        - synthetic_equity_curve["equity"].iloc[0]
+        synthetic_equity_curve["equity"].iloc[1] - synthetic_equity_curve["equity"].iloc[0]
     ) / synthetic_equity_curve["equity"].iloc[0]
     assert np.isclose(returns.iloc[1], manual_return)

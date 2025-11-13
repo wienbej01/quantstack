@@ -287,9 +287,7 @@ def run_ml_pilot_test():
                 # Trade analysis
                 if "trades" in backtest_results:
                     trades = backtest_results["trades"]
-                    win_rate = (
-                        (trades["pnl"] > 0).mean() if "pnl" in trades.columns else 0
-                    )
+                    win_rate = (trades["pnl"] > 0).mean() if "pnl" in trades.columns else 0
                     print(f"✅ Win Rate: {win_rate:.2%}")
                     print(f"✅ Total Trades: {len(trades)}")
 

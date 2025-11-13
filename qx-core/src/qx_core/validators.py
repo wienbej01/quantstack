@@ -96,9 +96,7 @@ def validate_signals_dataframe(df: pd.DataFrame) -> None:
     valid_sides = {"BUY", "SELL"}
     invalid_sides = set(df["side"].unique()) - valid_sides
     if invalid_sides:
-        raise ValidationError(
-            f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}"
-        )
+        raise ValidationError(f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}")
 
     if not pd.api.types.is_numeric_dtype(df["strength"]):
         raise ValidationError("Column 'strength' must be numeric")
@@ -144,9 +142,7 @@ def validate_orders_dataframe(df: pd.DataFrame) -> None:
     valid_sides = {"BUY", "SELL"}
     invalid_sides = set(df["side"].unique()) - valid_sides
     if invalid_sides:
-        raise ValidationError(
-            f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}"
-        )
+        raise ValidationError(f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}")
 
     if not pd.api.types.is_integer_dtype(df["qty"]):
         raise ValidationError("Column 'qty' must be integer type")
@@ -202,9 +198,7 @@ def validate_trades_dataframe(df: pd.DataFrame) -> None:
     valid_sides = {"BUY", "SELL"}
     invalid_sides = set(df["side"].unique()) - valid_sides
     if invalid_sides:
-        raise ValidationError(
-            f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}"
-        )
+        raise ValidationError(f"Invalid side values: {invalid_sides}. Must be one of {valid_sides}")
 
     if not pd.api.types.is_integer_dtype(df["qty"]):
         raise ValidationError("Column 'qty' must be integer type")
@@ -315,9 +309,7 @@ def validate_inputs_checksum(data: dict[str, Any]) -> None:
             if not isinstance(data[field], str):
                 raise ValidationError(f"Field '{field}' must be a string")
             if len(data[field]) < 8:
-                raise ValidationError(
-                    f"Field '{field}' appears too short to be a valid hash"
-                )
+                raise ValidationError(f"Field '{field}' appears too short to be a valid hash")
 
     # Validate seed
     if not isinstance(data["seed"], int):
@@ -349,9 +341,7 @@ def validate_dataframe_schema(df: pd.DataFrame, schema_type: str) -> None:
     validators[schema_type](df)
 
 
-def validate_pydantic_models(
-    data_list: list[dict[str, Any]], model_class: type
-) -> list:
+def validate_pydantic_models(data_list: list[dict[str, Any]], model_class: type) -> list:
     """Validate list of dictionaries against Pydantic model.
 
     Args:
@@ -376,9 +366,7 @@ def validate_pydantic_models(
 
 
 # Convenience functions for common validation patterns
-def validate_no_duplicates(
-    df: pd.DataFrame, columns: list[str], entity_name: str = "row"
-) -> None:
+def validate_no_duplicates(df: pd.DataFrame, columns: list[str], entity_name: str = "row") -> None:
     """Validate that specified columns have no duplicate combinations."""
     if df.duplicated(subset=columns).any():
         raise ValidationError(f"Duplicate {entity_name} found for columns: {columns}")
@@ -391,17 +379,13 @@ def validate_positive_values(df: pd.DataFrame, columns: list[str]) -> None:
             raise ValidationError(f"Column '{col}' contains non-positive values")
 
 
-def validate_range(
-    df: pd.DataFrame, column: str, min_val: float, max_val: float
-) -> None:
+def validate_range(df: pd.DataFrame, column: str, min_val: float, max_val: float) -> None:
     """Validate that column values are within specified range."""
     if column not in df.columns:
         return
 
     if (df[column] < min_val).any() or (df[column] > max_val).any():
-        raise ValidationError(
-            f"Column '{column}' values must be between {min_val} and {max_val}"
-        )
+        raise ValidationError(f"Column '{column}' values must be between {min_val} and {max_val}")
 
 
 def validate_enum_values(df: pd.DataFrame, column: str, valid_values: set[str]) -> None:

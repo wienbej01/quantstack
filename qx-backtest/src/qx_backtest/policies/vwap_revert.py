@@ -83,9 +83,7 @@ class VwapRevertPolicy(Policy):
         # If regime gating disables the strategy, only manage open positions
         if not self.is_allowed():
             if position is not None and not position.is_flat:
-                self._check_exit_signal(
-                    symbol, bar, position, close, vwap, high, low, timestamp
-                )
+                self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
             return
 
         if position is None or position.is_flat:
@@ -93,9 +91,7 @@ class VwapRevertPolicy(Policy):
             self._check_entry_signal(symbol, bar, close, vwap, rvol, timestamp)
         else:
             # Check for exit signal (both long and short)
-            self._check_exit_signal(
-                symbol, bar, position, close, vwap, high, low, timestamp
-            )
+            self._check_exit_signal(symbol, bar, position, close, vwap, high, low, timestamp)
 
     def _check_entry_signal(
         self,
@@ -123,9 +119,7 @@ class VwapRevertPolicy(Policy):
 
         # Entry criteria for both long and short positions
         if rvol >= self.min_rvol and deviation_pct >= self.min_deviation_pct:
-            position_size, stop_price, target_price = self._calculate_position_size(
-                close, bar
-            )
+            position_size, stop_price, target_price = self._calculate_position_size(close, bar)
 
             if position_size > 0:
                 if close < vwap:
@@ -241,8 +235,7 @@ class VwapRevertPolicy(Policy):
                     quantity=abs(position.quantity),
                     tags={
                         "policy": self.name,
-                        "direction": "EXIT_"
-                        + ("LONG" if is_long_position else "SHORT"),
+                        "direction": "EXIT_" + ("LONG" if is_long_position else "SHORT"),
                         "exit_reason": exit_reason,
                         "bars_held": bars_held,
                         "entry_price": position.avg_cost,
@@ -273,9 +266,7 @@ class VwapRevertPolicy(Policy):
                     "entry_hint": price,
                     "stop_hint": price - atr * self.risk_params.get("atr_mult", 1.0),
                 }
-                risk_qty = size_order(
-                    signal_dict, current_equity, atr, self.risk_params
-                )
+                risk_qty = size_order(signal_dict, current_equity, atr, self.risk_params)
                 if risk_qty:
                     base_size = risk_qty
                     stop_price, target_price = set_stops(
@@ -375,9 +366,7 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
 
         if position is None or position.is_flat:
             # Enhanced entry signal
-            self._check_entry_signal_enhanced(
-                symbol, bar, close, vwap, rvol, atr, timestamp
-            )
+            self._check_entry_signal_enhanced(symbol, bar, close, vwap, rvol, atr, timestamp)
         else:
             # Enhanced exit signal
             self._check_exit_signal_enhanced(
@@ -499,9 +488,7 @@ class VwapRevertPolicyEnhanced(VwapRevertPolicy):
                         "atr": atr,
                         "stop_loss_price": stop_loss_price,
                         "profit_target_price": profit_target_price,
-                        "pnl_per_atr": (
-                            (close - position.avg_cost) / atr if atr > 0 else 0
-                        ),
+                        "pnl_per_atr": ((close - position.avg_cost) / atr if atr > 0 else 0),
                     },
                 )
 
@@ -542,9 +529,7 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             in_sip = symbol in sip_universe[ts]
 
         # Get position state from START of bar
-        pos_before_decision = position_tracker.get(
-            symbol, {"entry_ts": None, "bars_held": 0}
-        )
+        pos_before_decision = position_tracker.get(symbol, {"entry_ts": None, "bars_held": 0})
 
         # Decision logic
         decision = "hold"
@@ -562,9 +547,7 @@ def generate_signals(df: pd.DataFrame, params: dict) -> pd.DataFrame:
             position_tracker[symbol] = {"entry_ts": ts, "bars_held": 1}
 
         # Get position state AFTER decision for the current bar
-        pos_after_decision = position_tracker.get(
-            symbol, {"entry_ts": None, "bars_held": 0}
-        )
+        pos_after_decision = position_tracker.get(symbol, {"entry_ts": None, "bars_held": 0})
 
         # Generate signal based on the state AFTER the decision
         signal = 1 if pos_after_decision["entry_ts"] is not None else 0

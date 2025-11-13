@@ -261,9 +261,7 @@ class TestLightGBMTraining:
         targets_hash = "test_targets_hash"
 
         # Train with and without calibration
-        calibrated_result = trainer.train_model(
-            features, labels, features_hash, targets_hash
-        )
+        calibrated_result = trainer.train_model(features, labels, features_hash, targets_hash)
         uncalibrated_result = uncalibrated_trainer.train_model(
             features, labels, features_hash, targets_hash
         )
@@ -303,9 +301,7 @@ class TestLightGBMTraining:
         features_hash = "test_features_hash"
         targets_hash = "test_targets_hash"
 
-        cv_results = trainer.cross_validate(
-            features, labels, features_hash, targets_hash
-        )
+        cv_results = trainer.cross_validate(features, labels, features_hash, targets_hash)
 
         assert cv_results is not None
         if cv_results.get("cv_enabled", False):
@@ -369,9 +365,7 @@ class TestModelIO:
             assert "model_card_path" in save_info
 
             # Load model
-            load_info = model_io.load_model(
-                "test_model", "v1.0.0", load_calibrated=True
-            )
+            load_info = model_io.load_model("test_model", "v1.0.0", load_calibrated=True)
 
             # Validate load info
             assert load_info["model"] is not None
@@ -385,9 +379,7 @@ class TestModelIO:
             model_io = ModelIO(temp_dir)
 
             # Save model
-            save_info = model_io.save_model(
-                sample_training_result, model_name="test_model"
-            )
+            save_info = model_io.save_model(sample_training_result, model_name="test_model")
 
             # Load model card
             model_card = model_io.get_model_info("test_model", save_info["version"])
@@ -407,13 +399,9 @@ class TestModelIO:
             model_io = ModelIO(temp_dir)
 
             # Save model without specifying version
-            save_info1 = model_io.save_model(
-                sample_training_result, model_name="test_model"
-            )
+            save_info1 = model_io.save_model(sample_training_result, model_name="test_model")
             time.sleep(0.1)  # Small delay to ensure different timestamps
-            save_info2 = model_io.save_model(
-                sample_training_result, model_name="test_model"
-            )
+            save_info2 = model_io.save_model(sample_training_result, model_name="test_model")
 
             # Versions should be different due to timestamp
             assert save_info1["version"] != save_info2["version"]
@@ -422,14 +410,10 @@ class TestModelIO:
         """Test convenience save/load functions."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Save using convenience function
-            save_info = save_model_with_card(
-                sample_training_result, temp_dir, "test_model"
-            )
+            save_info = save_model_with_card(sample_training_result, temp_dir, "test_model")
 
             # Load using convenience function
-            load_info = load_model_with_card(
-                temp_dir, "test_model", save_info["version"]
-            )
+            load_info = load_model_with_card(temp_dir, "test_model", save_info["version"])
 
             assert load_info["model"] is not None
             assert load_info["model_card"] is not None
@@ -466,9 +450,7 @@ class TestDecisionPolicy:
 
         # Should reject low probability
         low_probs = {1: 0.3, -1: 0.2, 0: 0.5}
-        should_trade, direction, reason = policy.should_trade(
-            "AAPL", low_probs, 0.5, current_time
-        )
+        should_trade, direction, reason = policy.should_trade("AAPL", low_probs, 0.5, current_time)
         assert not should_trade
         assert "Probability gate" in reason
 
@@ -528,17 +510,13 @@ class TestDecisionPolicy:
 
         # Early morning (first 3 minutes after 9:30)
         early_time = datetime(2024, 1, 2, 9, 31, 0)
-        should_trade, direction, reason = policy.should_trade(
-            "AAPL", high_probs, 1.0, early_time
-        )
+        should_trade, direction, reason = policy.should_trade("AAPL", high_probs, 1.0, early_time)
         assert not should_trade
         assert "Time-of-day restriction" in reason
 
         # Near EOD
         late_time = datetime(2024, 1, 2, 15, 59, 0)
-        should_trade, direction, reason = policy.should_trade(
-            "AAPL", high_probs, 1.0, late_time
-        )
+        should_trade, direction, reason = policy.should_trade("AAPL", high_probs, 1.0, late_time)
         assert not should_trade
 
     def test_cooldown_tracking(self, decision_config):

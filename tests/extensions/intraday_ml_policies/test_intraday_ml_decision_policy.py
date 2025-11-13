@@ -135,12 +135,8 @@ def test_cooldown_logic(sample_policy_config, sample_signals):
     assert rejections["reason"].tolist() == ["cooldown", "cooldown", "holding_long"]
     first_order_time = orders["timestamp"].iloc[0].tz_convert("America/New_York")
     second_order_time = orders["timestamp"].iloc[1].tz_convert("America/New_York")
-    assert first_order_time == pd.Timestamp(
-        "2025-11-03 10:00:00", tz="America/New_York"
-    )
-    assert second_order_time == pd.Timestamp(
-        "2025-11-03 11:00:00", tz="America/New_York"
-    )
+    assert first_order_time == pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York")
+    assert second_order_time == pd.Timestamp("2025-11-03 11:00:00", tz="America/New_York")
 
 
 def test_order_structure(sample_policy_config, sample_signals):
@@ -168,6 +164,23 @@ def test_order_structure(sample_policy_config, sample_signals):
     assert pytest.approx(order["take_profit_pct"], rel=1e-6) == 0.0015
     assert order["side"] == "long"
     assert pytest.approx(order["risk_r_multiple"], rel=1e-6) == 1.5
+    assert pytest.approx(order["expected_r"], rel=1e-6) == 1.5
+
+
+def test_expected_r_gate_blocks_low_payoff(sample_policy_config, sample_signals):
+    """Ensure entries fail when expected R falls below the configured floor."""
+    config = sample_policy_config.copy()
+    config["risk"] = dict(config["risk"])
+    config["risk"]["min_expected_r"] = 2.0
+    policy = IntradayMLDecisionPolicy(config)
+
+    signals = sample_signals.copy().head(1)
+    signals["ts"] = [pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York").tz_convert("UTC")]
+    signals["prob_long"] = 0.95
+
+    orders, rejections = policy.process_signals(signals)
+    assert orders.empty
+    assert "expected_r_low" in rejections["reason"].tolist()
 
 
 def test_strategy_check_momentum_valid():
@@ -278,12 +291,8 @@ def test_force_flat_generates_exit(sample_policy_config):
     )
     policy = IntradayMLDecisionPolicy(config)
 
-    entry_ts = pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York").tz_convert(
-        "UTC"
-    )
-    exit_ts = pd.Timestamp("2025-11-03 16:00:00", tz="America/New_York").tz_convert(
-        "UTC"
-    )
+    entry_ts = pd.Timestamp("2025-11-03 10:00:00", tz="America/New_York").tz_convert("UTC")
+    exit_ts = pd.Timestamp("2025-11-03 16:00:00", tz="America/New_York").tz_convert("UTC")
 
     signals = pd.DataFrame(
         {
@@ -309,9 +318,7 @@ def test_force_flat_generates_exit(sample_policy_config):
 def test_required_feature_columns_exposed():
     """Required feature columns are exposed for upstream orchestration."""
 
-    policy = IntradayMLDecisionPolicy(
-        {"enabled_strategies": ["momentum", "value_rotation"]}
-    )
+    policy = IntradayMLDecisionPolicy({"enabled_strategies": ["momentum", "value_rotation"]})
     columns = policy.get_required_feature_columns()
 
     assert "f__anchor__session_avwap" in columns

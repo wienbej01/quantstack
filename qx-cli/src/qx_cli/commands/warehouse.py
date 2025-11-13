@@ -83,9 +83,7 @@ def ingest(
 
                 console.print("🔗 Tracking data lineage...", style="blue")
 
-                lineage_ingestor = LineageIngestor(
-                    warehouse_path.replace("/warehouse.db", "")
-                )
+                lineage_ingestor = LineageIngestor(warehouse_path.replace("/warehouse.db", ""))
 
                 for exp_dir in pathlib.Path(experiments_path).expanduser().iterdir():
                     if exp_dir.is_dir():
@@ -97,9 +95,7 @@ def ingest(
                                 with open(manifest_path) as f:
                                     manifest = json.load(f)
                                 for run_id in manifest.get("run_ids", []):
-                                    run_dir = (
-                                        pathlib.Path(runs_path).expanduser() / run_id
-                                    )
+                                    run_dir = pathlib.Path(runs_path).expanduser() / run_id
                                     if run_dir.exists():
                                         lineage_ingestor.track_run(run_dir, exp_id)
                         except Exception as e:
@@ -190,9 +186,7 @@ def query(
         "-w",
         help="Path to warehouse database",
     ),
-    limit: int | None = typer.Option(
-        10, "--limit", "-l", help="Maximum number of rows to return"
-    ),
+    limit: int | None = typer.Option(10, "--limit", "-l", help="Maximum number of rows to return"),
 ) -> None:
     """Execute SQL query on warehouse."""
     try:
@@ -216,9 +210,7 @@ def query(
 
                 # Add rows
                 for row in response["rows"]:
-                    table.add_row(
-                        *[str(val) if val is not None else "NULL" for val in row]
-                    )
+                    table.add_row(*[str(val) if val is not None else "NULL" for val in row])
 
                 console.print(table)
             else:
@@ -284,9 +276,7 @@ def view(
             console.print(f"   • {col}", style="cyan")
 
         if view_info["sample_data"]:
-            console.print(
-                f"\n📋 Sample Data ({view_info['sample_count']} rows):", style="bold"
-            )
+            console.print(f"\n📋 Sample Data ({view_info['sample_count']} rows):", style="bold")
             table = Table(show_header=True, header_style="bold magenta")
             for col in view_info["columns"]:
                 table.add_column(col)
@@ -327,9 +317,7 @@ def experiments(
             response = mcp.search_experiments(search, limit)
 
         if response["success"] and response["row_count"] > 0:
-            console.print(
-                f"🧪 Experiments ({response['row_count']} found):", style="bold blue"
-            )
+            console.print(f"🧪 Experiments ({response['row_count']} found):", style="bold blue")
             table = Table(show_header=True, header_style="bold magenta")
             table.add_column("Experiment ID", style="cyan")
             table.add_column("Name", style="white")
@@ -356,9 +344,7 @@ def leaderboard(
     metric: str = typer.Option(
         "sharpe_ci_high", "--metric", "-m", help="Performance metric to rank by"
     ),
-    limit: int = typer.Option(
-        10, "--limit", "-l", help="Maximum number of results to show"
-    ),
+    limit: int = typer.Option(10, "--limit", "-l", help="Maximum number of results to show"),
     warehouse_path: str | None = typer.Option(
         "~/strategy_repo/warehouse/warehouse.db",
         "--warehouse-path",
@@ -428,18 +414,12 @@ def status(
 
             for table_name in tables:
                 try:
-                    count_result = mcp.con.execute(
-                        f"SELECT COUNT(*) FROM {table_name}"
-                    ).fetchone()
+                    count_result = mcp.con.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
                     count = count_result[0] if count_result else 0
-                    entity_name = (
-                        table_name.replace("dim_", "").replace("fact_", "").title()
-                    )
+                    entity_name = table_name.replace("dim_", "").replace("fact_", "").title()
                     table.add_row(entity_name, str(count))
                 except Exception:
-                    table.add_row(
-                        table_name.replace("dim_", "").replace("fact_", ""), "Error"
-                    )
+                    table.add_row(table_name.replace("dim_", "").replace("fact_", ""), "Error")
 
             console.print(table)
 
@@ -476,18 +456,10 @@ def lineage(
 
         if experiment_id:
             # Show specific experiment lineage
-            console.print(
-                f"🔗 Lineage for experiment: {experiment_id}", style="bold blue"
-            )
+            console.print(f"🔗 Lineage for experiment: {experiment_id}", style="bold blue")
 
-            repro_check = lineage_ingestor.verify_experiment_reproducibility(
-                experiment_id
-            )
-            status = (
-                "✅ REPRODUCIBLE"
-                if repro_check["reproducible"]
-                else "❌ NOT REPRODUCIBLE"
-            )
+            repro_check = lineage_ingestor.verify_experiment_reproducibility(experiment_id)
+            status = "✅ REPRODUCIBLE" if repro_check["reproducible"] else "❌ NOT REPRODUCIBLE"
             console.print(
                 f"Status: {status}",
                 style="bold green" if repro_check["reproducible"] else "bold red",
@@ -508,9 +480,7 @@ def lineage(
             if lineage:
                 console.print("\nLineage Chain:", style="bold")
                 for i, node in enumerate(lineage):
-                    console.print(
-                        f"   {i + 1}. {node['type']}: {node['name']} ({node['id']})"
-                    )
+                    console.print(f"   {i + 1}. {node['type']}: {node['name']} ({node['id']})")
                     console.print(f"      Hash: {node['hash']}")
                     console.print(f"      Created: {node['created_at']}")
 
@@ -538,9 +508,7 @@ def lineage(
             for exp in sorted(experiments, key=lambda x: x.created_at, reverse=True):
                 repro_check = lineage_ingestor.verify_experiment_reproducibility(exp.id)
                 status = "✅ Yes" if repro_check["reproducible"] else "❌ No"
-                table.add_row(
-                    exp.id, exp.name, status, exp.created_at.strftime("%Y-%m-%d %H:%M")
-                )
+                table.add_row(exp.id, exp.name, status, exp.created_at.strftime("%Y-%m-%d %H:%M"))
 
             console.print(table)
 
@@ -558,9 +526,7 @@ def reset(
         "-w",
         help="Path to warehouse database",
     ),
-    confirm: bool = typer.Option(
-        False, "--confirm", "-y", help="Confirm warehouse reset"
-    ),
+    confirm: bool = typer.Option(False, "--confirm", "-y", help="Confirm warehouse reset"),
 ) -> None:
     """Reset warehouse (delete all data)."""
     if not confirm:

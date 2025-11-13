@@ -210,23 +210,17 @@ class ExposureMonitor:
                 pos["exposure"] for pos in self.positions.values() if pos["size"] > 0
             )
             short_exposure = sum(
-                abs(pos["exposure"])
-                for pos in self.positions.values()
-                if pos["size"] < 0
+                abs(pos["exposure"]) for pos in self.positions.values() if pos["size"] < 0
             )
             gross_exposure = long_exposure + short_exposure
             net_exposure = long_exposure - short_exposure
 
             # Calculate leverage
-            leverage_ratio = (
-                gross_exposure / self.total_capital if self.total_capital > 0 else 0
-            )
+            leverage_ratio = gross_exposure / self.total_capital if self.total_capital > 0 else 0
 
             # Calculate concentration (largest position / total capital)
             max_exposure = max(abs(pos["exposure"]) for pos in self.positions.values())
-            concentration_ratio = (
-                max_exposure / self.total_capital if self.total_capital > 0 else 0
-            )
+            concentration_ratio = max_exposure / self.total_capital if self.total_capital > 0 else 0
 
             # Calculate sector exposures
             sector_exposures = {}
@@ -269,18 +263,14 @@ class ExposureMonitor:
 
         # Check single position concentration
         if self.positions:
-            max_position_exposure = max(
-                abs(pos["exposure"]) for pos in self.positions.values()
-            )
+            max_position_exposure = max(abs(pos["exposure"]) for pos in self.positions.values())
             self._check_limit("single_position", max_position_exposure)
 
         # Check sector exposures
         for sector, exposure in metrics.sector_exposures.items():
             self._check_limit("sector_exposure", exposure, f"sector_{sector}")
 
-    def _check_limit(
-        self, limit_name: str, current_value: float, custom_name: str | None = None
-    ):
+    def _check_limit(self, limit_name: str, current_value: float, custom_name: str | None = None):
         """Check individual exposure limit."""
         if limit_name not in self.limits:
             return
@@ -290,9 +280,7 @@ class ExposureMonitor:
             return
 
         limit.current_value = current_value
-        limit.utilization = (
-            current_value / limit.limit_value if limit.limit_value > 0 else 0
-        )
+        limit.utilization = current_value / limit.limit_value if limit.limit_value > 0 else 0
 
         display_name = custom_name or limit_name
 
@@ -375,11 +363,7 @@ class ExposureMonitor:
                 "status": (
                     "normal"
                     if limit.utilization < limit.warning_threshold
-                    else (
-                        "warning"
-                        if limit.utilization < limit.critical_threshold
-                        else "critical"
-                    )
+                    else ("warning" if limit.utilization < limit.critical_threshold else "critical")
                 ),
             }
 
@@ -472,9 +456,7 @@ class ExposureMonitor:
                 )
             return positions
 
-    def calculate_scenario_exposure(
-        self, price_changes: dict[str, float]
-    ) -> dict[str, float]:
+    def calculate_scenario_exposure(self, price_changes: dict[str, float]) -> dict[str, float]:
         """Calculate exposure under different price scenarios."""
         scenario_exposures = {}
 

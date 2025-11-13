@@ -65,9 +65,7 @@ class TestBacktestEngine:
                     }
                 )
 
-        self.test_data = (
-            pd.DataFrame(bars).sort_values(["ts", "symbol"]).reset_index(drop=True)
-        )
+        self.test_data = pd.DataFrame(bars).sort_values(["ts", "symbol"]).reset_index(drop=True)
 
     def test_engine_initialization(self):
         """Test engine initialization."""
@@ -181,9 +179,7 @@ class TestBacktestEngine:
         order_factory = OrderFactory()
 
         # Test order creation
-        order = order_factory.create_market_order(
-            symbol="AAPL", side=OrderSide.BUY, quantity=100
-        )
+        order = order_factory.create_market_order(symbol="AAPL", side=OrderSide.BUY, quantity=100)
 
         assert order.symbol == "AAPL"
         assert order.side == OrderSide.BUY
@@ -281,9 +277,7 @@ class TestABTesting:
                     }
                 )
 
-        self.test_data = (
-            pd.DataFrame(bars).sort_values(["ts", "symbol"]).reset_index(drop=True)
-        )
+        self.test_data = pd.DataFrame(bars).sort_values(["ts", "symbol"]).reset_index(drop=True)
 
     def test_ab_test_config_creation(self):
         """Test AB test configuration creation."""

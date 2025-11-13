@@ -1,0 +1,52 @@
+{
+  "status": "success",
+  "timestamp": "2025-11-11T09:11:02.113469+00:00",
+  "artifacts_dir": "artefacts/extensions/intraday_ml/phaseA_full_sip",
+  "policy": {
+    "order_qty": 1,
+    "prob_threshold_long": 0.55,
+    "prob_threshold_short": 0.55,
+    "score_margin": 0.05,
+    "min_directional_gap": 0.05,
+    "cooldown_minutes": 20,
+    "max_hold_minutes": 60
+  },
+  "orders": {
+    "total": 6,
+    "entry_side_counts": {
+      "long": 3
+    },
+    "reason_counts": {
+      "trade": 3,
+      "conviction_decay": 3
+    }
+  },
+  "rejections": {
+    "total": 8574,
+    "top_reasons": {
+      "gap_insufficient": 7915,
+      "below_threshold": 432,
+      "time_filter": 220,
+      "cooldown": 6,
+      "holding_long": 1
+    }
+  },
+  "performance": {
+    "total_return": -2.2900893309474313e-06,
+    "annualized_return": -6.72614193564236e-07,
+    "volatility": 0.0001981335684563174,
+    "sharpe_ratio": -100.94540147851383,
+    "max_drawdown": -0.00015095007443000075,
+    "max_drawdown_duration": 667,
+    "total_commissions": 2.1,
+    "total_slippage": 0.0,
+    "fill_rate": 0.5,
+    "total_trades": 3,
+    "trades": 3,
+    "win_rate": 0.3333333333333333,
+    "avg_R": -0.763363110331873,
+    "total_pnl": -2.290089330995619,
+    "fees_total": 2.1
+  },
+  "feature_coverage": "artefacts/extensions/intraday_ml/phaseA_full_sip/feature_coverage.csv"
+}

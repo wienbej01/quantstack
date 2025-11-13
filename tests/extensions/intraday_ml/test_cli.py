@@ -168,9 +168,7 @@ policy:
 
     def test_validate_command_missing_dir(self):
         """Test validate command with missing directory."""
-        result = self.runner.invoke(
-            app, ["validate", "--exp-dir", "/nonexistent/directory"]
-        )
+        result = self.runner.invoke(app, ["validate", "--exp-dir", "/nonexistent/directory"])
         assert result.exit_code == 1
         assert "Experiment directory not found" in result.stdout
 

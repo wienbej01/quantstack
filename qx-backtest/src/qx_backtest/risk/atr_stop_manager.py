@@ -120,10 +120,7 @@ class ATRStopManager:
             profit_atr = (current_price - entry_price) / atr
 
             # Check if trailing should activate
-            if (
-                not self._trailing_activated
-                and profit_atr >= self.trailing_activation_atr
-            ):
+            if not self._trailing_activated and profit_atr >= self.trailing_activation_atr:
                 self._trailing_activated = True
 
             # Update trailing stop if activated
@@ -136,10 +133,7 @@ class ATRStopManager:
             profit_atr = (entry_price - current_price) / atr
 
             # Check if trailing should activate
-            if (
-                not self._trailing_activated
-                and profit_atr >= self.trailing_activation_atr
-            ):
+            if not self._trailing_activated and profit_atr >= self.trailing_activation_atr:
                 self._trailing_activated = True
 
             # Update trailing stop if activated

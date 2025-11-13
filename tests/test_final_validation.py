@@ -184,13 +184,9 @@ def test_complete_workflow_validation():
     )
 
     # Verify signal workflow
-    assert len(signals_df) == len(
-        bars_with_features
-    ), "Signal DataFrame should match input length"
+    assert len(signals_df) == len(bars_with_features), "Signal DataFrame should match input length"
     assert "signal" in signals_df.columns, "Signals should have signal column"
-    assert (
-        "breakout_strength" in signals_df.columns
-    ), "Signals should have breakout_strength column"
+    assert "breakout_strength" in signals_df.columns, "Signals should have breakout_strength column"
     assert "decision" in signals_df.columns, "Signals should have decision column"
 
     # Check that signals were generated
@@ -228,9 +224,7 @@ def test_error_handling_and_edge_cases():
         policy_processed = True
     except Exception as e:
         policy_processed = False
-        pytest.fail(
-            f"Policy should handle missing features gracefully, but raised: {e}"
-        )
+        pytest.fail(f"Policy should handle missing features gracefully, but raised: {e}")
 
     assert policy_processed, "Policy should handle missing features"
 
@@ -340,21 +334,17 @@ def test_performance_and_resource_validation():
     processing_time = end_time - start_time
 
     # Performance assertions
-    assert (
-        processing_time < 1.0
-    ), f"Processing 100 bars should take < 1 second, took {processing_time:.3f}s"
+    assert processing_time < 1.0, (
+        f"Processing 100 bars should take < 1 second, took {processing_time:.3f}s"
+    )
     # Orders may be 0 due to strict entry criteria, which is expected
-    assert (
-        engine.order_count >= 0
-    ), f"Order count should be non-negative: {engine.order_count}"
+    assert engine.order_count >= 0, f"Order count should be non-negative: {engine.order_count}"
 
     bars_per_second = len(test_bars) / processing_time
     print(f"✅ Performance validation: {bars_per_second:.0f} bars/second")
 
     # Test memory efficiency (policy doesn't accumulate state unnecessarily)
-    assert (
-        len(policy.position_entry_times) < 10
-    ), "Policy should not accumulate excessive state"
+    assert len(policy.position_entry_times) < 10, "Policy should not accumulate excessive state"
     policy.on_start()  # Should clear state
     assert len(policy.position_entry_times) == 0, "on_start should clear all state"
 
@@ -369,35 +359,27 @@ def test_documentation_and_examples():
     assert os.path.exists("docs/vwap_momentum_guide.md"), "Documentation should exist"
 
     # Test example exists
-    assert os.path.exists(
-        "examples/vwap_momentum_example.py"
-    ), "Example script should exist"
+    assert os.path.exists("examples/vwap_momentum_example.py"), "Example script should exist"
 
     # Test experiment configurations exist
-    assert os.path.exists(
-        "experiments/vwap_momentum_test/strategy.yaml"
-    ), "Test config should exist"
-    assert os.path.exists(
-        "experiments/vwap_comparison/manifest.json"
-    ), "Comparison config should exist"
+    assert os.path.exists("experiments/vwap_momentum_test/strategy.yaml"), (
+        "Test config should exist"
+    )
+    assert os.path.exists("experiments/vwap_comparison/manifest.json"), (
+        "Comparison config should exist"
+    )
 
     # Test documentation content
     with open("docs/vwap_momentum_guide.md") as f:
         doc_content = f.read()
-        assert (
-            "VwapMomentumPolicy" in doc_content
-        ), "Documentation should mention policy class"
-        assert (
-            "min_breakout_strength" in doc_content
-        ), "Documentation should mention key parameter"
+        assert "VwapMomentumPolicy" in doc_content, "Documentation should mention policy class"
+        assert "min_breakout_strength" in doc_content, "Documentation should mention key parameter"
         assert "ATR" in doc_content, "Documentation should mention enhanced features"
 
     # Test example script is runnable
     with open("examples/vwap_momentum_example.py") as f:
         example_content = f.read()
-        assert (
-            "VwapMomentumPolicy" in example_content
-        ), "Example should import policy class"
+        assert "VwapMomentumPolicy" in example_content, "Example should import policy class"
         assert "def main()" in example_content, "Example should have main function"
 
     print("✅ Documentation and examples validation passed!")
@@ -410,14 +392,10 @@ def test_integration_with_existing_framework():
         from qx_backtest.policies.base import Policy
         from qx_backtest.policies.vwap_momentum import VwapMomentumPolicy
     except ImportError as e:
-        pytest.skip(
-            f"Framework integration test skipped due to missing dependencies: {e}"
-        )
+        pytest.skip(f"Framework integration test skipped due to missing dependencies: {e}")
 
     # Test policy inheritance
-    assert issubclass(
-        VwapMomentumPolicy, Policy
-    ), "VwapMomentumPolicy should inherit from Policy"
+    assert issubclass(VwapMomentumPolicy, Policy), "VwapMomentumPolicy should inherit from Policy"
 
     # Test registry functionality
     policies = list_policies()
@@ -462,9 +440,7 @@ def test_complete_system_validation():
         )
         from qx_features.core_basics import compute_all_core_features
     except ImportError as e:
-        pytest.skip(
-            f"Complete system validation skipped due to missing dependencies: {e}"
-        )
+        pytest.skip(f"Complete system validation skipped due to missing dependencies: {e}")
 
     print("Running complete system validation...")
 
@@ -607,9 +583,7 @@ def test_complete_system_validation():
     # (Orders may not be generated due to strict entry criteria in realistic market data)
     assert processing_time < 5.0, "Processing should complete in reasonable time"
     assert len(basic_orders) >= 0, "Basic policy order count should be non-negative"
-    assert (
-        len(enhanced_orders) >= 0
-    ), "Enhanced policy order count should be non-negative"
+    assert len(enhanced_orders) >= 0, "Enhanced policy order count should be non-negative"
 
     # Test legacy signal generation
     signals = generate_signals(
@@ -652,9 +626,7 @@ def test_comprehensive_final_system_validation():
         )
         from qx_features.core_basics import compute_all_core_features
     except ImportError as e:
-        pytest.skip(
-            f"Comprehensive validation skipped due to missing dependencies: {e}"
-        )
+        pytest.skip(f"Comprehensive validation skipped due to missing dependencies: {e}")
 
     print("Running comprehensive final system validation...")
 
@@ -705,10 +677,7 @@ def test_comprehensive_final_system_validation():
             noise = np.random.normal(0, scenario["volatility"])
 
             # Add breakout pattern for trending scenarios
-            if (
-                scenario["expected_behavior"] in ["long_entries", "short_entries"]
-                and i > 30
-            ):
+            if scenario["expected_behavior"] in ["long_entries", "short_entries"] and i > 30:
                 breakout = (
                     abs(scenario["trend"]) * 2
                     if scenario["trend"] > 0
@@ -721,9 +690,7 @@ def test_comprehensive_final_system_validation():
             high = close + abs(np.random.normal(0, 0.1))
             low = close - abs(np.random.normal(0, 0.1))
             open_price = close + np.random.normal(0, 0.05)
-            volume = int(
-                np.random.uniform(500000, 1500000) * scenario["volume_multiplier"]
-            )
+            volume = int(np.random.uniform(500000, 1500000) * scenario["volume_multiplier"])
 
             bars_data.append(
                 {
@@ -812,9 +779,7 @@ def test_comprehensive_final_system_validation():
 
         # Test enhanced policy
         enhanced_params = policy_params.copy()
-        enhanced_params.update(
-            {"atr_window": 10, "atr_multiplier": 1.5, "min_profit_atr": 0.5}
-        )
+        enhanced_params.update({"atr_window": 10, "atr_multiplier": 1.5, "min_profit_atr": 0.5})
         enhanced_policy = VwapMomentumPolicyEnhanced(**enhanced_params)
         enhanced_engine = MockEngine(f"Enhanced_{scenario['name']}")
         enhanced_policy.set_engine(enhanced_engine)
@@ -842,15 +807,9 @@ def test_comprehensive_final_system_validation():
             "enhanced_orders": len(enhanced_engine.orders),
             "legacy_signals": len(signals),
             "signal_changes": signals["signal"].diff().abs().sum(),
-            "basic_buy_orders": len(
-                [o for o in basic_engine.orders if str(o.side) == "BUY"]
-            ),
-            "basic_sell_orders": len(
-                [o for o in basic_engine.orders if str(o.side) == "SELL"]
-            ),
-            "enhanced_buy_orders": len(
-                [o for o in enhanced_engine.orders if str(o.side) == "BUY"]
-            ),
+            "basic_buy_orders": len([o for o in basic_engine.orders if str(o.side) == "BUY"]),
+            "basic_sell_orders": len([o for o in basic_engine.orders if str(o.side) == "SELL"]),
+            "enhanced_buy_orders": len([o for o in enhanced_engine.orders if str(o.side) == "BUY"]),
             "enhanced_sell_orders": len(
                 [o for o in enhanced_engine.orders if str(o.side) == "SELL"]
             ),
@@ -885,12 +844,10 @@ def test_comprehensive_final_system_validation():
 
     # Validate each scenario processed correctly
     for scenario_name, results in all_results.items():
-        assert (
-            results["bars_processed"] > 0
-        ), f"Scenario {scenario_name} should process bars"
-        assert (
-            results["legacy_signals"] == results["bars_processed"]
-        ), f"Legacy signals should match input length for {scenario_name}"
+        assert results["bars_processed"] > 0, f"Scenario {scenario_name} should process bars"
+        assert results["legacy_signals"] == results["bars_processed"], (
+            f"Legacy signals should match input length for {scenario_name}"
+        )
 
     # Test policy lifecycle methods
     for scenario in test_scenarios:

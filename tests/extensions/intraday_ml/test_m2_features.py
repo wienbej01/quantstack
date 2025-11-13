@@ -74,12 +74,8 @@ class TestM2FeatureIntegration:
 
                 # Volume with some intraday pattern
                 base_volume = {"AAPL": 100000, "MSFT": 80000, "SPY": 200000}[symbol]
-                volume_pattern = 1.0 + 0.5 * np.sin(
-                    2 * np.pi * i / 390
-                )  # Intraday pattern
-                volume = int(
-                    base_volume * volume_pattern * (1 + np.random.normal(0, 0.2))
-                )
+                volume_pattern = 1.0 + 0.5 * np.sin(2 * np.pi * i / 390)  # Intraday pattern
+                volume = int(base_volume * volume_pattern * (1 + np.random.normal(0, 0.2)))
 
                 data.append(
                     {
@@ -201,9 +197,7 @@ class TestM2FeatureIntegration:
 
                 # Validate that features hash is included
                 assert manifest.features_hash is not None
-                assert (
-                    len(manifest.features_hash) >= 64
-                )  # Hash length (64+ chars for security)
+                assert len(manifest.features_hash) >= 64  # Hash length (64+ chars for security)
 
                 # Validate manifest structure
                 assert manifest.total_symbols >= 3
@@ -263,21 +257,19 @@ class TestM2FeatureIntegration:
                             value = value.iloc[0]
                         if pd.notna(value):
                             # Values should be realistic (not infinite, not extreme NaN patterns)
-                            assert np.isfinite(
-                                value
-                            ), f"Non-finite value in {col} at {idx}"
+                            assert np.isfinite(value), f"Non-finite value in {col} at {idx}"
 
                             # Check for reasonable bounds based on feature type
                             if "ret" in col and "log" in col:
                                 # Log returns should be small for 1-minute bars
-                                assert (
-                                    abs(value) < 0.1
-                                ), f"Suspicious log return magnitude in {col}: {value}"
+                                assert abs(value) < 0.1, (
+                                    f"Suspicious log return magnitude in {col}: {value}"
+                                )
                             elif "sin" in col or "cos" in col:
                                 # Cyclical features should be in [-1, 1]
-                                assert (
-                                    -1.1 <= value <= 1.1
-                                ), f"Cyclical feature out of bounds in {col}: {value}"
+                                assert -1.1 <= value <= 1.1, (
+                                    f"Cyclical feature out of bounds in {col}: {value}"
+                                )
 
     def test_feature_count_compliance(self, feature_config, sample_bars):
         """Test that feature count complies with ≤150 limit."""
@@ -287,14 +279,14 @@ class TestM2FeatureIntegration:
         features = pack.compute_features(sample_bars, ts_cut)
 
         # Should be within the limit
-        assert (
-            len(features.columns) <= 150
-        ), f"Generated {len(features.columns)} features, exceeding limit of 150"
+        assert len(features.columns) <= 150, (
+            f"Generated {len(features.columns)} features, exceeding limit of 150"
+        )
 
         # Should have generated a reasonable number of features
-        assert (
-            len(features.columns) >= 10
-        ), f"Generated only {len(features.columns)} features, expected more"
+        assert len(features.columns) >= 10, (
+            f"Generated only {len(features.columns)} features, expected more"
+        )
 
     def test_performance_budget(self, feature_config, sample_bars):
         """Test that feature computation meets performance budget."""
@@ -310,9 +302,9 @@ class TestM2FeatureIntegration:
 
         # Should complete within reasonable time (120 seconds for full dataset)
         # Our test dataset is much smaller, so expect much faster completion
-        assert (
-            computation_time < 10.0
-        ), f"Feature computation took {computation_time:.2f}s, expected < 10s"
+        assert computation_time < 10.0, (
+            f"Feature computation took {computation_time:.2f}s, expected < 10s"
+        )
 
         # Should have produced results
         assert len(features) > 0

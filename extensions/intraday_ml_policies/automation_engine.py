@@ -152,9 +152,7 @@ class PolicyAutomationEngine:
         self.stop_event.clear()
         self.pause_event.clear()
 
-        self.execution_thread = threading.Thread(
-            target=self._execution_loop, daemon=True
-        )
+        self.execution_thread = threading.Thread(target=self._execution_loop, daemon=True)
         self.execution_thread.start()
 
         # Wait for startup
@@ -245,9 +243,7 @@ class PolicyAutomationEngine:
             ),
         }
 
-    def add_execution_callback(
-        self, callback: Callable[[ExecutionResult], None]
-    ) -> None:
+    def add_execution_callback(self, callback: Callable[[ExecutionResult], None]) -> None:
         """Add callback for execution results."""
         self.execution_callbacks.append(callback)
 
@@ -309,9 +305,7 @@ class PolicyAutomationEngine:
             elif self.config.execution_mode == ExecutionMode.ADAPTIVE:
                 results = self._execute_adaptive(policy_ids)
             else:
-                raise ValueError(
-                    f"Unknown execution mode: {self.config.execution_mode}"
-                )
+                raise ValueError(f"Unknown execution mode: {self.config.execution_mode}")
 
             # Process results
             self._process_execution_results(results)
@@ -328,9 +322,7 @@ class PolicyAutomationEngine:
         if self.config.execution_mode == ExecutionMode.SINGLE:
             # Select single best policy
             criteria = SelectionCriteria(method="best_performance", min_executions=10)
-            best_policy = self.policy_selector.select_best_policy(
-                self.policies, criteria
-            )
+            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
             return [best_policy] if best_policy else []
 
         elif self.config.execution_mode == ExecutionMode.PARALLEL:
@@ -339,20 +331,14 @@ class PolicyAutomationEngine:
 
         elif self.config.execution_mode == ExecutionMode.ENSEMBLE:
             # Select top policies for ensemble
-            criteria = SelectionCriteria(
-                method="ensemble", top_k=min(3, len(self.policies))
-            )
-            best_policy = self.policy_selector.select_best_policy(
-                self.policies, criteria
-            )
+            criteria = SelectionCriteria(method="ensemble", top_k=min(3, len(self.policies)))
+            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
             return [best_policy] if best_policy else list(self.policies.keys())
 
         elif self.config.execution_mode == ExecutionMode.ADAPTIVE:
             # Adaptively select based on current conditions
             criteria = SelectionCriteria(method="regime_based", min_executions=5)
-            best_policy = self.policy_selector.select_best_policy(
-                self.policies, criteria
-            )
+            best_policy = self.policy_selector.select_best_policy(self.policies, criteria)
             return [best_policy] if best_policy else list(self.policies.keys())
 
         return list(self.policies.keys())
@@ -379,9 +365,7 @@ class PolicyAutomationEngine:
             )
 
             # Record in performance tracker
-            self.performance_tracker.record_decision(
-                policy_id, decision, execution_time_ms
-            )
+            self.performance_tracker.record_decision(policy_id, decision, execution_time_ms)
 
             return result
 
@@ -407,9 +391,7 @@ class PolicyAutomationEngine:
                 futures[future] = policy_id
 
         results = []
-        for future in as_completed(
-            futures, timeout=self.config.max_execution_time_ms / 1000.0
-        ):
+        for future in as_completed(futures, timeout=self.config.max_execution_time_ms / 1000.0):
             try:
                 result = future.result()
                 results.append(result)
@@ -481,9 +463,7 @@ class PolicyAutomationEngine:
                 )
             ]
 
-    def _create_ensemble_decision(
-        self, decisions: list[PolicyDecision]
-    ) -> PolicyDecision:
+    def _create_ensemble_decision(self, decisions: list[PolicyDecision]) -> PolicyDecision:
         """Create ensemble decision from multiple decisions."""
         if not decisions:
             raise ValueError("No decisions provided for ensemble")
@@ -548,8 +528,7 @@ class PolicyAutomationEngine:
             else:
                 alpha = 0.1
                 stats["avg_execution_time_ms"] = (
-                    alpha * result.execution_time_ms
-                    + (1 - alpha) * stats["avg_execution_time_ms"]
+                    alpha * result.execution_time_ms + (1 - alpha) * stats["avg_execution_time_ms"]
                 )
 
             # Update error rate

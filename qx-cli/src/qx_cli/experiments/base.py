@@ -177,9 +177,7 @@ class BaseExperiment(ABC):
             # Finalize result
             result.end_time = datetime.now()
             if result.start_time:
-                result.duration_seconds = (
-                    result.end_time - result.start_time
-                ).total_seconds()
+                result.duration_seconds = (result.end_time - result.start_time).total_seconds()
 
             self._log_end(result)
 

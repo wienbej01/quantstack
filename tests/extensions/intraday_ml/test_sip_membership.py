@@ -1,6 +1,7 @@
 """
 Unit tests for the SIP membership I/O layer and pipeline integration.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -68,9 +69,7 @@ def test_save_and_load_sip_membership(sample_sip_data: pd.DataFrame, mock_gold_r
     assert not no_sip_df["is_sip"].any()
 
     # Mode: all
-    all_df = load_sip_membership_for_dates(
-        mock_gold_root, "2023-01-02", "2023-01-03", mode="all"
-    )
+    all_df = load_sip_membership_for_dates(mock_gold_root, "2023-01-02", "2023-01-03", mode="all")
     assert len(all_df) == 4
     assert set(all_df["symbol"]) == {"AAPL", "MSFT", "GOOG"}
 
@@ -85,9 +84,7 @@ def test_save_and_load_sip_membership(sample_sip_data: pd.DataFrame, mock_gold_r
 def test_load_sip_membership_missing_data(mock_gold_root: Path):
     """Test that loading from an empty or non-existent path raises an error."""
     with pytest.raises(FileNotFoundError):
-        load_sip_membership_for_dates(
-            mock_gold_root, "2024-01-01", "2024-01-02", mode="all"
-        )
+        load_sip_membership_for_dates(mock_gold_root, "2024-01-01", "2024-01-02", mode="all")
 
 
 def test_get_phase_symbols_with_sip_disabled():
@@ -96,15 +93,11 @@ def test_get_phase_symbols_with_sip_disabled():
     candidate_symbols = ["AAPL", "MSFT", "GOOG"]
     splits_config = {}
 
-    result = get_phase_symbols_with_sip(
-        splits_config, sip_config, candidate_symbols, "train"
-    )
+    result = get_phase_symbols_with_sip(splits_config, sip_config, candidate_symbols, "train")
     assert result == candidate_symbols
 
 
-def test_get_phase_symbols_with_sip_enabled(
-    sample_sip_data: pd.DataFrame, mock_gold_root: Path
-):
+def test_get_phase_symbols_with_sip_enabled(sample_sip_data: pd.DataFrame, mock_gold_root: Path):
     """Test symbol filtering when SIP is enabled."""
     save_sip_membership(sample_sip_data, mock_gold_root)
 
@@ -126,9 +119,7 @@ def test_get_phase_symbols_with_sip_enabled(
     assert set(train_symbols) == {"AAPL", "GOOG"}
 
     # Test OOS phase (should only contain symbols from that date)
-    oos_symbols = get_phase_symbols_with_sip(
-        splits_config, sip_config, candidate_symbols, "oos"
-    )
+    oos_symbols = get_phase_symbols_with_sip(splits_config, sip_config, candidate_symbols, "oos")
     # TSLA is not a SIP stock on 2023-01-04
     assert oos_symbols == []
 
@@ -161,7 +152,5 @@ def test_get_phase_symbols_with_sip_empty_result(
         "membership_path": str(get_sip_membership_base_path(mock_gold_root)),
     }
 
-    result = get_phase_symbols_with_sip(
-        splits_config, sip_config, candidate_symbols, "train"
-    )
+    result = get_phase_symbols_with_sip(splits_config, sip_config, candidate_symbols, "train")
     assert result == []

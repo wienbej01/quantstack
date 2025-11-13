@@ -206,9 +206,7 @@ def validate_gold_data_availability() -> bool:
         date_min = pd.to_datetime(df_feb["ts"], unit="ns", utc=True).min()
         date_max = pd.to_datetime(df_feb["ts"], unit="ns", utc=True).max()
         print(f"📊 Date range: {date_min} to {date_max}")
-        print(
-            f"📈 Price range: ${df_feb['close'].min():.2f} - ${df_feb['close'].max():.2f}"
-        )
+        print(f"📈 Price range: ${df_feb['close'].min():.2f} - ${df_feb['close'].max():.2f}")
         return True
     except Exception as e:
         print(f"❌ Error loading February 2024 data: {e}")
@@ -221,18 +219,14 @@ def load_real_aapl_data_multiple_months(months: list[str]) -> pd.DataFrame | Non
     all_data = []
 
     for month in months:
-        parquet_path = (
-            f"/home/jacobw/gcs-mount/gold/stocks/1m/AAPL/2024/{month}.parquet"
-        )
+        parquet_path = f"/home/jacobw/gcs-mount/gold/stocks/1m/AAPL/2024/{month}.parquet"
 
         try:
             df = pd.read_parquet(parquet_path)
             print(f"✅ Loaded {len(df)} real market records for {month}")
 
             # Convert timestamps to ET for analysis
-            df["ts_et"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.tz_convert(
-                "US/Eastern"
-            )
+            df["ts_et"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.tz_convert("US/Eastern")
 
             # Filter for regular trading hours only (09:30-15:59 ET)
             trading_start = pd.to_datetime("09:30:00").time()
@@ -309,17 +303,13 @@ def analyze_vwap_signals_from_real_data(df: pd.DataFrame) -> dict[str, Any] | No
     print(f"   Total potential entries: {len(long_signals) + len(short_signals)}")
 
     if len(long_signals) > 0:
-        print(
-            f"   Average long deviation: {long_signals['vwap_deviation_pct'].mean():.2f}%"
-        )
+        print(f"   Average long deviation: {long_signals['vwap_deviation_pct'].mean():.2f}%")
         long_min = long_signals["close"].min()
         long_max = long_signals["close"].max()
         print(f"   Long price range: ${long_min:.2f} - ${long_max:.2f}")
 
     if len(short_signals) > 0:
-        print(
-            f"   Average short deviation: {short_signals['vwap_deviation_pct'].mean():.2f}%"
-        )
+        print(f"   Average short deviation: {short_signals['vwap_deviation_pct'].mean():.2f}%")
         short_min = short_signals["close"].min()
         short_max = short_signals["close"].max()
         print(f"   Short price range: ${short_min:.2f} - ${short_max:.2f}")
@@ -353,9 +343,7 @@ def simulate_realistic_trades_from_signals(
     # Process long signals
     for _, signal in long_signals.iterrows():
         # Skip if we already have too many trades in same day
-        existing_trades_same_day = [
-            t for t in trades if t["date"] == signal["ts_et"].date()
-        ]
+        existing_trades_same_day = [t for t in trades if t["date"] == signal["ts_et"].date()]
         MAX_TRADES_PER_DAY = 2
         if len(existing_trades_same_day) >= MAX_TRADES_PER_DAY:
             continue
@@ -425,9 +413,7 @@ def simulate_realistic_trades_from_signals(
 
     # Process short signals (similar logic)
     for _, signal in short_signals.iterrows():
-        existing_trades_same_day = [
-            t for t in trades if t["date"] == signal["ts_et"].date()
-        ]
+        existing_trades_same_day = [t for t in trades if t["date"] == signal["ts_et"].date()]
         if len(existing_trades_same_day) >= MAX_TRADES_PER_DAY:
             continue
 
@@ -436,8 +422,7 @@ def simulate_realistic_trades_from_signals(
         vwap_price = signal[vwap_col]
 
         future_bars = df[
-            (df["ts_et"] > entry_time)
-            & (df["ts_et"] <= entry_time + pd.Timedelta(minutes=50))
+            (df["ts_et"] > entry_time) & (df["ts_et"] <= entry_time + pd.Timedelta(minutes=50))
         ].sort_values("ts_et")
 
         if len(future_bars) > 0:
@@ -586,9 +571,7 @@ def generate_real_data_report(
         print(f"   VWAP column: {signal_analysis['vwap_col']}")
         print(f"   Long signals found: {len(signal_analysis['long_signals'])}")
         print(f"   Short signals found: {len(signal_analysis['short_signals'])}")
-        total_signals = len(signal_analysis["long_signals"]) + len(
-            signal_analysis["short_signals"]
-        )
+        total_signals = len(signal_analysis["long_signals"]) + len(signal_analysis["short_signals"])
         conversion_rate = total_trades / total_signals
         print(
             f"   Signal-to-trade conversion: {total_trades}/{total_signals} ({conversion_rate:.1%})"

@@ -114,9 +114,7 @@ class TestWalkForwardEvaluator:
             "start_date": "2024-01-01",
             "min_observations_per_period": 500,
             "min_symbols_per_period": 2,
-            "kpi_tracking": {
-                "performance_thresholds": {"min_f1_score": 0.6, "min_accuracy": 0.65}
-            },
+            "kpi_tracking": {"performance_thresholds": {"min_f1_score": 0.6, "min_accuracy": 0.65}},
         }
 
     @pytest.fixture
@@ -586,9 +584,7 @@ class TestWalkForwardEvaluator:
 
         # Create dynamic mock that returns right size for any input
         def mock_predict_proba(X):
-            n_samples = (
-                len(X) if hasattr(X, "__len__") else 28
-            )  # Default to sample size
+            n_samples = len(X) if hasattr(X, "__len__") else 28  # Default to sample size
             return np.array([[0.3, 0.4, 0.3]] * n_samples)  # 3 classes
 
         def mock_predict(X):

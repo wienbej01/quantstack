@@ -29,6 +29,4 @@ class DeploymentPipeline:
         message = "Deployment completed"
         if self._notifier:
             self._notifier(f"Deploying {model_id}:{version}")
-        return DeploymentResult(
-            model_id=model_id, version=version, succeeded=True, message=message
-        )
+        return DeploymentResult(model_id=model_id, version=version, succeeded=True, message=message)

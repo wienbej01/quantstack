@@ -19,9 +19,7 @@ def vwap_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         Series of VWAP values with same index as input
     """
     if not all(col in df.columns for col in ["ts", "symbol", "close", "volume"]):
-        raise ValueError(
-            "DataFrame must contain 'ts', 'symbol', 'close', 'volume' columns"
-        )
+        raise ValueError("DataFrame must contain 'ts', 'symbol', 'close', 'volume' columns")
 
     results = []
     for _symbol, group in df.groupby("symbol"):
@@ -82,9 +80,7 @@ def rel_volume_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         # Fill NaN values with 1.0 (average volume)
         rvol = np.where(np.isnan(rvol), 1.0, rvol)
 
-        result = pd.Series(
-            rvol, index=group.index, name=f"f__vol__rel_volume_{lookback_m}"
-        )
+        result = pd.Series(rvol, index=group.index, name=f"f__vol__rel_volume_{lookback_m}")
         results.append(result)
 
     return pd.concat(results).sort_index()
@@ -100,9 +96,7 @@ def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
     Returns:
         Series of ATR values with same index as input
     """
-    if not all(
-        col in df.columns for col in ["ts", "symbol", "open", "high", "low", "close"]
-    ):
+    if not all(col in df.columns for col in ["ts", "symbol", "open", "high", "low", "close"]):
         raise ValueError(
             "DataFrame must contain 'ts', 'symbol', 'open', 'high', 'low', 'close' columns"
         )
@@ -123,17 +117,13 @@ def atr_m(df: pd.DataFrame, lookback_m: int) -> pd.Series:
         # Rolling average of True Range (ATR)
         atr = tr.rolling(lookback_m, min_periods=1).mean()
 
-        result = pd.Series(
-            atr.values, index=group.index, name=f"f__vol__atr_{lookback_m}"
-        )
+        result = pd.Series(atr.values, index=group.index, name=f"f__vol__atr_{lookback_m}")
         results.append(result)
 
     return pd.concat(results).sort_index()
 
 
-def compute_warmup_masks(
-    df: pd.DataFrame, feature_windows: dict[str, int]
-) -> pd.Series:
+def compute_warmup_masks(df: pd.DataFrame, feature_windows: dict[str, int]) -> pd.Series:
     """Compute warmup mask based on maximum feature window.
 
     Args:
@@ -179,9 +169,7 @@ def validate_feature_inputs(df: pd.DataFrame, required_cols: list) -> None:
             .all()
         )
     ):
-        raise ValueError(
-            "DataFrame must be sorted by [symbol, ts] for proper feature computation"
-        )
+        raise ValueError("DataFrame must be sorted by [symbol, ts] for proper feature computation")
 
 
 def get_feature_name(feature_type: str, params: dict[str, Any]) -> str:
@@ -229,9 +217,7 @@ def compute_all_core_features(
     import time
 
     # Validate inputs
-    validate_feature_inputs(
-        df, ["ts", "symbol", "open", "high", "low", "close", "volume"]
-    )
+    validate_feature_inputs(df, ["ts", "symbol", "open", "high", "low", "close", "volume"])
 
     result = df.copy()
     symbols = df["symbol"].unique()
@@ -239,12 +225,8 @@ def compute_all_core_features(
     total_bars = len(df)
 
     if verbose:
-        print(
-            f"  Computing features for {total_symbols:,} symbols ({total_bars:,} bars)..."
-        )
-        print(
-            "  [VECTORIZED] Using vectorized operations for SP500-scale performance..."
-        )
+        print(f"  Computing features for {total_symbols:,} symbols ({total_bars:,} bars)...")
+        print("  [VECTORIZED] Using vectorized operations for SP500-scale performance...")
     start_time = time.time()
 
     # HYBRID VWAP - vectorized where possible, but with safe groupby
@@ -276,9 +258,7 @@ def compute_all_core_features(
 
     # Convert timestamps once for all symbols
     result["datetime"] = utc_ns_to_datetime(result["ts"].values)
-    result["time_of_day_min"] = (
-        result["datetime"].dt.hour * 60 + result["datetime"].dt.minute
-    )
+    result["time_of_day_min"] = result["datetime"].dt.hour * 60 + result["datetime"].dt.minute
 
     # Compute average volume per time-of-day across all symbols
     avg_vol_by_tod = (
@@ -304,25 +284,17 @@ def compute_all_core_features(
 
     # Calculate True Range components vectorized
     result["high_low"] = result["high"] - result["low"]
-    result["high_prev_close"] = (
-        result["high"] - result.groupby("symbol")["close"].shift(1).abs()
-    )
-    result["low_prev_close"] = (
-        result["low"] - result.groupby("symbol")["close"].shift(1).abs()
-    )
+    result["high_prev_close"] = result["high"] - result.groupby("symbol")["close"].shift(1).abs()
+    result["low_prev_close"] = result["low"] - result.groupby("symbol")["close"].shift(1).abs()
 
     # True Range is max of three components
-    result["true_range"] = result[
-        ["high_low", "high_prev_close", "low_prev_close"]
-    ].max(axis=1)
+    result["true_range"] = result[["high_low", "high_prev_close", "low_prev_close"]].max(axis=1)
 
     # Rolling average of True Range (ATR) using groupby-apply
     def compute_atr(group):
         return group["true_range"].rolling(atr_window, min_periods=1).mean()
 
-    atr_result = result.groupby("symbol", group_keys=False).apply(
-        compute_atr, include_groups=False
-    )
+    atr_result = result.groupby("symbol", group_keys=False).apply(compute_atr, include_groups=False)
     if isinstance(atr_result, pd.DataFrame):
         atr_result = atr_result.stack().reset_index(level=0, drop=True)
     else:
@@ -345,18 +317,14 @@ def compute_all_core_features(
         print("  [VECTORIZED] Computing warmup masks...")
     feature_windows = {"vwap": vwap_window, "rvol": rvol_window, "atr": atr_window}
     max_window = max(feature_windows.values())
-    result["f__warmup_ok"] = (
-        result.groupby("symbol", group_keys=False).cumcount() >= max_window
-    )
+    result["f__warmup_ok"] = result.groupby("symbol", group_keys=False).cumcount() >= max_window
 
     # Final timing
     total_time = time.time() - start_time
     bars_per_second = total_bars / total_time if total_time > 0 else 0
 
     if verbose:
-        print(
-            f"  ✓ Features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)"
-        )
+        print(f"  ✓ Features computed in {total_time:.1f}s ({bars_per_second:.0f} bars/sec)")
         print(f"  ✓ Processed {total_symbols:,} symbols and {total_bars:,} bars")
         print(
             f"  ✓ Vectorized operations: {total_time:.1f}s vs estimated {total_time * 16.7:.1f}s (16.7x speedup)"

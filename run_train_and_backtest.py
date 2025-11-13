@@ -71,15 +71,11 @@ def add_regime_feature(data: pd.DataFrame) -> pd.DataFrame:
 
     data["f__regime__state"] = data["ts"].map(regime_map)
     data["f__regime__state"] = data["f__regime__state"].fillna(0).astype(int)
-    logger.info(
-        f"Regime feature added. Distribution:\n{data['f__regime__state'].value_counts()}"
-    )
+    logger.info(f"Regime feature added. Distribution:\n{data['f__regime__state'].value_counts()}")
     return data
 
 
-def run_workflow(
-    train_start, train_end, test_start, test_end, benchmark_symbol: str = "SPY"
-):  # noqa: PLR0915
+def run_workflow(train_start, train_end, test_start, test_end, benchmark_symbol: str = "SPY"):  # noqa: PLR0915
     """Executes the full train-and-backtest workflow."""
 
     # --- Configuration ---
@@ -105,9 +101,7 @@ def run_workflow(
     # 1. Create Training Dataset with buffer for label horizons
     label_buffer_days = 7
     train_end_dt = datetime.strptime(train_end, "%Y-%m-%d")
-    extended_train_end = (train_end_dt + timedelta(days=label_buffer_days)).strftime(
-        "%Y-%m-%d"
-    )
+    extended_train_end = (train_end_dt + timedelta(days=label_buffer_days)).strftime("%Y-%m-%d")
     loader_config = {
         "root": "/home/jacobw/gcs-mount",
         "family": "bars_1m",
@@ -144,9 +138,7 @@ def run_workflow(
         features_hash="not_used",
         targets_hash="not_used",
     )
-    logger.info(
-        f"Model training complete. Accuracy: {result.metrics.get('accuracy', 0):.2%}"
-    )
+    logger.info(f"Model training complete. Accuracy: {result.metrics.get('accuracy', 0):.2%}")
 
     # 5. Save Model
     joblib.dump(result.model, MODEL_PATH)
@@ -162,9 +154,7 @@ def run_workflow(
 
     # 2. Create OOS features with buffer for label horizons
     test_end_dt = datetime.strptime(test_end, "%Y-%m-%d")
-    extended_test_end = (test_end_dt + timedelta(days=label_buffer_days)).strftime(
-        "%Y-%m-%d"
-    )
+    extended_test_end = (test_end_dt + timedelta(days=label_buffer_days)).strftime("%Y-%m-%d")
 
     oos_features = create_training_dataset(
         symbols=SYMBOLS,
@@ -200,8 +190,7 @@ def run_workflow(
     # 4. Setup Policy and Strategy
     policy = DecisionPolicy({"probability_threshold": 0.65, "cooldown_minutes": 15})
     signal_map = {
-        (row.ts, row.symbol): (row.signal, row.probability)
-        for row in trade_signals.itertuples()
+        (row.ts, row.symbol): (row.signal, row.probability) for row in trade_signals.itertuples()
     }
     EOD_EXIT_TIME = time(15, 55)
 
@@ -213,9 +202,7 @@ def run_workflow(
             current_position = engine.get_position(symbol)
             if current_position and current_position.quantity != 0:
                 logger.info(f"EOD EXIT: Closing position for {symbol} at {bar_time}")
-                side = (
-                    OrderSide.SELL if current_position.quantity > 0 else OrderSide.BUY
-                )
+                side = OrderSide.SELL if current_position.quantity > 0 else OrderSide.BUY
                 engine.submit_order(
                     Order(
                         order_id=uuid.uuid4().hex,
@@ -262,21 +249,11 @@ def run_workflow(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run a full ML training and backtesting workflow."
-    )
-    parser.add_argument(
-        "--train-start", required=True, help="Training start date (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--train-end", required=True, help="Training end date (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--test-start", required=True, help="Backtest start date (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--test-end", required=True, help="Backtest end date (YYYY-MM-DD)"
-    )
+    parser = argparse.ArgumentParser(description="Run a full ML training and backtesting workflow.")
+    parser.add_argument("--train-start", required=True, help="Training start date (YYYY-MM-DD)")
+    parser.add_argument("--train-end", required=True, help="Training end date (YYYY-MM-DD)")
+    parser.add_argument("--test-start", required=True, help="Backtest start date (YYYY-MM-DD)")
+    parser.add_argument("--test-end", required=True, help="Backtest end date (YYYY-MM-DD)")
     parser.add_argument(
         "--benchmark",
         type=str,

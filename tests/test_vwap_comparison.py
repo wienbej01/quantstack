@@ -129,9 +129,7 @@ def test_vwap_revert_vs_momentum_comparison():
     assert len(momentum_orders) > 0, "Momentum policy should generate orders"
 
     # The orders should be different (opposite strategies)
-    assert (
-        revert_orders != momentum_orders
-    ), "Orders should be different between strategies"
+    assert revert_orders != momentum_orders, "Orders should be different between strategies"
 
     # Analyze order patterns
     revert_buy_signals = [o for o in revert_orders if "BUY" in str(o.side)]
@@ -140,9 +138,7 @@ def test_vwap_revert_vs_momentum_comparison():
     momentum_sell_signals = [o for o in momentum_orders if "SELL" in str(o.side)]
 
     print(f"Revert: {len(revert_buy_signals)} buys, {len(revert_sell_signals)} sells")
-    print(
-        f"Momentum: {len(momentum_buy_signals)} buys, {len(momentum_sell_signals)} sells"
-    )
+    print(f"Momentum: {len(momentum_buy_signals)} buys, {len(momentum_sell_signals)} sells")
 
     # At minimum, both strategies should generate some orders
     assert len(revert_buy_signals) + len(revert_sell_signals) > 0
@@ -158,9 +154,7 @@ def test_enhanced_vwap_comparison():
         from qx_backtest.policies.vwap_revert import VwapRevertPolicyEnhanced
         from qx_features.core_basics import compute_all_core_features
     except ImportError as e:
-        pytest.skip(
-            f"Enhanced comparison test skipped due to missing dependencies: {e}"
-        )
+        pytest.skip(f"Enhanced comparison test skipped due to missing dependencies: {e}")
 
     np = pytest.importorskip("numpy")
 
@@ -296,13 +290,13 @@ def test_enhanced_vwap_comparison():
 
     # Orders that are generated should have ATR information
     if len(revert_orders) > 0:
-        assert (
-            len(revert_with_atr) >= len(revert_orders) * 0.5
-        ), "Most revert orders should have ATR info"
+        assert len(revert_with_atr) >= len(revert_orders) * 0.5, (
+            "Most revert orders should have ATR info"
+        )
     if len(momentum_orders) > 0:
-        assert (
-            len(momentum_with_atr) >= len(momentum_orders) * 0.5
-        ), "Most momentum orders should have ATR info"
+        assert len(momentum_with_atr) >= len(momentum_orders) * 0.5, (
+            "Most momentum orders should have ATR info"
+        )
 
     print("✅ Enhanced comparison test completed")
 

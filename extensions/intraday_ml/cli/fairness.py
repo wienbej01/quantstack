@@ -62,11 +62,7 @@ class ChecksumValidator:
         self._validate_metric_differences(run_results, violations, warnings)
 
         is_fair = len(violations) == 0
-        reason = (
-            "All fairness checks passed"
-            if is_fair
-            else f"Violations: {', '.join(violations)}"
-        )
+        reason = "All fairness checks passed" if is_fair else f"Violations: {', '.join(violations)}"
 
         return FairnessResult(
             is_fair=is_fair,

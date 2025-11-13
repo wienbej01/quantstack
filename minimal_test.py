@@ -29,9 +29,7 @@ def main():
         if not bars.empty:
             print(f"Sample columns: {list(bars.columns)}")
             print(f"Timestamp range: {bars['ts'].min()} to {bars['ts'].max()}")
-            print(
-                f"Price range: ${bars['close'].min():.2f} - ${bars['close'].max():.2f}"
-            )
+            print(f"Price range: ${bars['close'].min():.2f} - ${bars['close'].max():.2f}")
 
         print("✓ Data access test successful!")
 

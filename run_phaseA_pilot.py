@@ -107,9 +107,7 @@ def main():
         extended_end_date = end_date + timedelta(days=2)  # 2 day buffer
 
         logger.info(f"   Pilot period: {pilot_start} to {pilot_end}")
-        logger.info(
-            f"   Extended to: {extended_end_date.strftime('%Y-%m-%d')} (for labels)"
-        )
+        logger.info(f"   Extended to: {extended_end_date.strftime('%Y-%m-%d')} (for labels)")
         logger.info("   Starting data preparation with optimized sliding window...")
 
         # Create training dataset with progress tracking
@@ -141,9 +139,7 @@ def main():
         logger.info(
             f"   Features: {len([col for col in training_data.columns if col.startswith('f__')])}"
         )
-        logger.info(
-            f"   Label distribution: {training_data['label'].value_counts().to_dict()}"
-        )
+        logger.info(f"   Label distribution: {training_data['label'].value_counts().to_dict()}")
 
         # Check if we have multiple classes for training
         unique_labels = training_data["label"].unique()
@@ -154,9 +150,7 @@ def main():
             logger.error(
                 "   This means ATR threshold is too high or data doesn't have enough movement."
             )
-            logger.error(
-                f"   Current ATR multiplier: {configs['targets']['atr_multiplier']}"
-            )
+            logger.error(f"   Current ATR multiplier: {configs['targets']['atr_multiplier']}")
             return 1
 
         # Step 3: Train LightGBM Model
@@ -168,9 +162,7 @@ def main():
         model_dir.mkdir(parents=True, exist_ok=True)
 
         # Separate features and labels from the aligned training data
-        feature_columns = [
-            col for col in training_data.columns if col.startswith("f__")
-        ]
+        feature_columns = [col for col in training_data.columns if col.startswith("f__")]
         features_df = training_data[feature_columns]
         labels_series = training_data["label"]
 
@@ -212,13 +204,9 @@ def main():
             logger.warning(f"   ⚠️ Model accuracy {accuracy:.1%} below baseline 35%")
 
         if brier_improvement > 0:
-            logger.info(
-                f"   ✅ Brier score improvement {brier_improvement:.1%} positive"
-            )
+            logger.info(f"   ✅ Brier score improvement {brier_improvement:.1%} positive")
         else:
-            logger.warning(
-                f"   ⚠️ Brier score improvement {brier_improvement:.1%} negative"
-            )
+            logger.warning(f"   ⚠️ Brier score improvement {brier_improvement:.1%} negative")
 
         step_time = time.time() - step_start
         logger.info(f"✅ Step 4 completed in {step_time:.1f}s")
@@ -227,9 +215,7 @@ def main():
         total_time = time.time() - time.time()  # Will be updated
         logger.info("\n🎉 PILOT COMPLETED SUCCESSFULLY!")
         logger.info("=" * 60)
-        logger.info(
-            f"📊 Total execution time: {total_time:.1f}s ({total_time / 60:.1f} minutes)"
-        )
+        logger.info(f"📊 Total execution time: {total_time:.1f}s ({total_time / 60:.1f} minutes)")
         logger.info("📊 Generated Artifacts:")
 
         for artifact in artifact_dir.glob("*"):

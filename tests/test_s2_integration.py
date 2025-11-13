@@ -86,9 +86,9 @@ class TestS2Integration:
 
             # Check required columns
             required_cols = {"ts", "symbol", "open", "high", "low", "close", "volume"}
-            assert required_cols.issubset(
-                bars.columns
-            ), f"Missing required columns: {required_cols - set(bars.columns)}"
+            assert required_cols.issubset(bars.columns), (
+                f"Missing required columns: {required_cols - set(bars.columns)}"
+            )
 
             # Check data types
             assert bars["ts"].dtype == "int64"
@@ -108,16 +108,12 @@ class TestS2Integration:
             assert (bars["low"] <= bars["open"]).all(), "Low > Open found"
             assert (bars["low"] <= bars["close"]).all(), "Low > Close found"
 
-            print(
-                f"Successfully loaded {len(bars)} bars for {test_symbol} on {test_dates[0]}"
-            )
+            print(f"Successfully loaded {len(bars)} bars for {test_symbol} on {test_dates[0]}")
             print(f"Time range: {bars['ts'].min()} to {bars['ts'].max()}")
 
         except Exception as e:
             if "No parquet files could be read" in str(e):
-                pytest.skip(
-                    f"No parquet files found for {test_symbol} on {test_dates[0]}"
-                )
+                pytest.skip(f"No parquet files found for {test_symbol} on {test_dates[0]}")
             else:
                 raise
 
@@ -154,9 +150,7 @@ class TestS2Integration:
 
         except Exception as e:
             if "No parquet files could be read" in str(e):
-                pytest.skip(
-                    f"No parquet files found for {test_symbol} on {test_dates[0]}"
-                )
+                pytest.skip(f"No parquet files found for {test_symbol} on {test_dates[0]}")
             else:
                 raise
 

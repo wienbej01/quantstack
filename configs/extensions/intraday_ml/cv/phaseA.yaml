@@ -1,8 +1,38 @@
 n_folds: 3
-embargo_days: 5
+validation_method: purged_cv
 purge_days: 5
-walk_forward: false
-metrics: [f1_posneg, aucpr_posneg, brier, expectancy, trade_rate]
-min_observations_per_fold: 200
-min_symbols_per_fold: 1
+embargo_days: 5
+strict_temporal_order: true
 cross_symbol_consistency: false
+min_observations_per_fold: 400
+min_symbols_per_fold: 1
+
+metrics:
+  primary_metrics:
+    - accuracy
+    - f1_macro
+    - brier_score
+  economic_metrics:
+    - expectancy
+    - sharpe_ratio
+    - win_rate
+  trade_density:
+    - trades_per_ticker_day
+    - abstention_rate
+
+trading_evaluation:
+  enabled: true
+  horizon_minutes: 30
+  transaction_cost_bps: 12
+  context_columns: ["open", "high", "low", "close"]
+  policies:
+    - name: cv_threshold
+      kind: threshold
+      prob_threshold: 0.6
+      min_edge: 0.02
+      min_score: 0.01
+    - name: cv_top2
+      kind: topk
+      top_k: 2
+      prob_threshold: 0.58
+      score_column: trade_score

@@ -1,5 +1,5 @@
-# Intraday ML LightGBM Model Configuration
-# Tri-class classifier with probability calibration for prominent moves
+# Intraday ML LightGBM Model Configuration (Sprint 2 big-move focus)
+# Tri-class classifier tuned for sparse, high-conviction targets.
 
 # Model architecture
 model_type: "lightgbm"
@@ -9,81 +9,94 @@ metric: "multi_logloss"
 
 # LightGBM hyperparameters
 lgbm_params:
-  num_leaves: 47
+  num_leaves: 64
   max_depth: -1
-  learning_rate: 0.03
-  n_estimators: 520
-  subsample: 0.85
-  colsample_bytree: 0.85
-  reg_alpha: 0.0
-  reg_lambda: 0.0
-  min_child_samples: 25
+  learning_rate: 0.018
+  n_estimators: 900
+  subsample: 0.8
+  subsample_freq: 1
+  colsample_bytree: 0.7
+  reg_alpha: 0.25
+  reg_lambda: 0.9
+  min_child_samples: 35
+  min_split_gain: 0.05
   random_state: 42
+  deterministic: true
   n_jobs: -1
   verbose: -1
 
 # Class weights (to handle class imbalance)
 class_weights:
   base:
-    # Amplify directional samples and down-weight neutral regimes to boost conviction
-    -1: 1.7
-    0: 0.45
-    1: 1.7
+    # emphasize directional hits without starving neutral class
+    -1: 2.4
+    0: 1.0
+    1: 2.4
   auto_balance:
     enabled: true
-    mix: 0.65
+    mix: 0.45
     target_ratio: 1.0
-    tolerance: 0.18
-    ratio_adjust: 0.3
+    tolerance: 0.12
+    ratio_adjust: 0.35
     equalize_directional: true
-    neutral_weight_floor: 0.35
-    neutral_weight_cap: 0.65
-    missing_class_weight: 1.4
+    neutral_weight_floor: 0.85
+    neutral_weight_cap: 1.15
+    missing_class_weight: 1.8
     min_weight: 0.08
-    max_weight: 4.5
+    max_weight: 5.0
     normalize: true
+
+loss_tuning:
+  focal_loss:
+    enabled: true
+    gamma: 1.4
+    alpha:
+      -1: 1.0
+      0: 0.4
+      1: 1.0
 
 # Training parameters
 training:
-  early_stopping_rounds: 30
+  early_stopping_rounds: 75
   eval_metric: "multi_logloss"
   validation_split: 0.25
   shuffle: true
   stratify_by_class: true
+  abstention_guard:
+    max_trade_density: 0.45
+    min_abstention_rate: 0.55
+    fail_on_worse_than_baseline: true
+  topk_objective:
+    enabled: true
+    bars_per_day: 39
+    trades_per_day:
+      - 3
+      - 5
 
 # Probability calibration
 calibration:
   enabled: true
-  method: "sigmoid"  # Options: "isotonic", "sigmoid"
+  method: "isotonic"
   cv_folds: 5
 
 # Decision policy parameters
 decision_policy:
-  # Probability gate threshold (θ)
-  probability_threshold: 0.65  # Minimum max probability to trade
-
-  # Minimum expected move threshold (λ*ATR)
-  expected_move_multiplier: 0.8  # E[|move|] >= 0.8*ATR
-
-  # Volatility-aware cooldown
+  probability_threshold: 0.7
+  expected_move_multiplier: 1.1
   cooldown:
-    base_minutes: 15
-    atr_multiplier: 0.5  # cooldown = base + ATR_factor * ATR
-    max_minutes: 60
-
-  # Time-of-day filter
+    base_minutes: 20
+    atr_multiplier: 0.6
+    max_minutes: 75
   time_filter:
-    first_minutes_after_open: 3  # No entries in first 3 minutes
-    high_confidence_threshold: 0.8  # Allow in first minutes only if prob >= this
-
-  # EOD flatness
-  force_flat_before_close: "15:59:59"  # Force flat positions
+    first_minutes_after_open: 5
+    high_confidence_threshold: 0.85
+  force_flat_before_close: "15:58:00"
 
 # Feature selection
 feature_selection:
   enabled: false
   method: "importance"
-  top_k: 50
+  top_k: 60
 
 # Model evaluation
 evaluation:
@@ -94,7 +107,6 @@ evaluation:
     - "f1_macro"
     - "brier_score"
     - "log_loss"
-
   cross_validation:
     enabled: true
     folds: 5
@@ -114,12 +126,14 @@ model_io:
 
 # Performance requirements
 performance:
-  max_training_time_minutes: 30
-  max_inference_time_ms: 10
+  max_training_time_minutes: 45
+  max_inference_time_ms: 12
   max_memory_gb: 4
 
 # Reproducibility
 reproducibility:
   seed: 42
+  bagging_seed: 1337
+  feature_fraction_seed: 9001
   deterministic: true
   save_random_state: true

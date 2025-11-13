@@ -10,6 +10,7 @@ import math
 
 import pandas as pd
 
+from extensions.intraday_ml.risk_levels import compute_risk_levels
 
 from .calibration import SymbolThresholdCalibrator
 from .strategy_checks import StrategyCheckRegistry
@@ -80,6 +81,19 @@ class IntradayMLDecisionPolicy:
         self.risk_min_stop_pct = float(risk_cfg.get("min_stop_pct", 0.0005))
         self.risk_max_stop_pct = float(risk_cfg.get("max_stop_pct", 0.05))
         self.risk_allow_missing_support = bool(risk_cfg.get("allow_missing_support", True))
+        self.min_expected_r = float(risk_cfg.get("min_expected_r", self.risk_target_r_multiple))
+        self._risk_helper_config = {
+            "price_column": "close",
+            "atr_feature": self.risk_atr_feature,
+            "support_feature_long": self.risk_support_long_feature,
+            "resistance_feature_short": self.risk_resistance_short_feature,
+            "max_atr_multiple": self.risk_max_atr_multiple,
+            "support_buffer_atr": self.risk_buffer_atr,
+            "target_r_multiple": self.risk_target_r_multiple,
+            "min_stop_pct": self.risk_min_stop_pct,
+            "max_stop_pct": self.risk_max_stop_pct,
+            "allow_missing_support": self.risk_allow_missing_support,
+        }
 
         # State tracking
         self.last_trade_ts: dict[str, pd.Timestamp] = {}  # (symbol -> last trade ts) for cooldown
@@ -90,13 +104,16 @@ class IntradayMLDecisionPolicy:
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
         self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
         self.required_feature_columns = set(self.strategy_checks.required_columns)
-        self.required_feature_columns.update({
-            "close",
-            self.risk_atr_feature,
-            self.risk_support_long_feature,
-            self.risk_resistance_short_feature,
-        })
+        self.required_feature_columns.update(
+            {
+                "close",
+                self.risk_atr_feature,
+                self.risk_support_long_feature,
+                self.risk_resistance_short_feature,
+            }
+        )
         self.required_feature_columns.discard(None)
+        self._order_seq = 0
 
         self.base_thresholds = {
             "prob_threshold_long": self.prob_threshold_long,
@@ -109,6 +126,7 @@ class IntradayMLDecisionPolicy:
             "min_conviction_score": self.min_conviction_score,
             "max_entries_per_day": self.max_entries_per_day,
             "gap_exit_delay_minutes": self.gap_exit_delay_minutes,
+            "min_expected_r": self.min_expected_r,
         }
 
         calibration_config = config.get("calibration")
@@ -143,6 +161,37 @@ class IntradayMLDecisionPolicy:
                 self.last_trade_ts[symbol] = dt_utc
                 continue
 
+            prob_long = float(row.get("prob_long", 0.0))
+            prob_short = float(row.get("prob_short", 0.0))
+            prob_neutral = float(row.get("prob_neutral", 0.0))
+            directional_gap = abs(prob_long - prob_short)
+            conviction_score = directional_gap * max(prob_long, prob_short)
+
+            def append_rejection(
+                reason: str,
+                *,
+                gap_reason: str | None = None,
+                stop_pct: float | None = None,
+                take_pct: float | None = None,
+                expected_r: float | None = None,
+            ) -> None:
+                rejections.append(
+                    self._rejection_record(
+                        dt_utc,
+                        symbol,
+                        reason,
+                        context=self._build_rejection_context(
+                            prob_long=prob_long,
+                            prob_short=prob_short,
+                            directional_gap=directional_gap,
+                            stop_pct=stop_pct,
+                            take_pct=take_pct,
+                            expected_r=expected_r,
+                            gap_reason=gap_reason,
+                        ),
+                    )
+                )
+
             thresholds = self._get_thresholds(symbol)
             prob_threshold_long = thresholds["prob_threshold_long"]
             prob_threshold_short = thresholds["prob_threshold_short"]
@@ -155,25 +204,20 @@ class IntradayMLDecisionPolicy:
             max_entries_per_day = thresholds.get("max_entries_per_day")
             gap_exit_delay = thresholds.get("gap_exit_delay_minutes", self.gap_exit_delay_minutes)
             gap_exit_delay = float(gap_exit_delay) if gap_exit_delay is not None else None
+            min_expected_r = thresholds.get("min_expected_r", self.min_expected_r)
 
             # 1. Time filter (entry + exit decisions respect trading window)
             current_time = dt_et.time()
             if not (self.min_time <= current_time <= self.max_time):
-                rejections.append(self._rejection_record(dt_utc, symbol, "time_filter"))
+                append_rejection("time_filter")
                 continue
 
             # 2. Cooldown
             cooldown_duration = pd.Timedelta(minutes=self.cooldown_minutes)
             last_trade = self.last_trade_ts.get(symbol)
             if last_trade is not None and (dt_utc - last_trade) < cooldown_duration:
-                rejections.append(self._rejection_record(dt_utc, symbol, "cooldown"))
+                append_rejection("cooldown")
                 continue
-
-            prob_long = float(row.get("prob_long", 0.0))
-            prob_short = float(row.get("prob_short", 0.0))
-            prob_neutral = float(row.get("prob_neutral", 0.0))
-            directional_gap = abs(prob_long - prob_short)
-            conviction_score = directional_gap * max(prob_long, prob_short)
 
             side: str | None = None
             exit_reason: str | None = None
@@ -202,9 +246,7 @@ class IntradayMLDecisionPolicy:
                 )
             shrinkage_trigger = directional_gap <= gap_threshold
             if min_conviction_score > 0.0:
-                shrinkage_trigger = shrinkage_trigger or (
-                    conviction_score <= conviction_threshold
-                )
+                shrinkage_trigger = shrinkage_trigger or (conviction_score <= conviction_threshold)
 
             hold_threshold = self.conviction_decay_min_hold_minutes
             if gap_exit_delay is not None:
@@ -226,7 +268,7 @@ class IntradayMLDecisionPolicy:
                     side = "long"
                     exit_reason = "flatten_short"
                 else:
-                    rejections.append(self._rejection_record(dt_utc, symbol, "holding_short"))
+                    append_rejection("holding_short")
                     continue
             elif position and position["side"] == "long":
                 exit_signal = prob_short >= exit_threshold_short or (
@@ -236,21 +278,21 @@ class IntradayMLDecisionPolicy:
                     side = "short"
                     exit_reason = "flatten_long"
                 else:
-                    rejections.append(self._rejection_record(dt_utc, symbol, "holding_long"))
+                    append_rejection("holding_long")
                     continue
             else:
                 if max_entries_per_day and self.entries_per_day.get(day_key, 0) >= int(
                     max_entries_per_day
                 ):
-                    rejections.append(self._rejection_record(dt_utc, symbol, "max_entries_reached"))
+                    append_rejection("max_entries_reached")
                     continue
 
                 if directional_gap < min_directional_gap:
-                    rejections.append(self._rejection_record(dt_utc, symbol, "gap_insufficient"))
+                    append_rejection("gap_insufficient", gap_reason="directional_gap")
                     continue
 
                 if min_conviction_score and conviction_score < min_conviction_score:
-                    rejections.append(self._rejection_record(dt_utc, symbol, "conviction_low"))
+                    append_rejection("conviction_low", gap_reason="conviction")
                     continue
 
                 long_score = prob_long - max(prob_short, prob_neutral)
@@ -271,24 +313,35 @@ class IntradayMLDecisionPolicy:
                     side = "short"
                     exit_reason = "trade"
                 else:
-                    rejections.append(self._rejection_record(dt_utc, symbol, "below_threshold"))
+                    append_rejection("below_threshold", gap_reason="probability")
                     continue
 
                 if side:
                     risk_calc = self._compute_risk_targets(row, side)
                     if risk_calc is None:
-                        rejections.append(
-                            self._rejection_record(dt_utc, symbol, "risk_unavailable")
-                        )
+                        append_rejection("risk_unavailable", gap_reason="risk")
                         side = None
                         continue
                     (stop_loss_pct_dynamic, take_profit_pct_dynamic, risk_metadata) = risk_calc
+                    expected_r_value = risk_metadata.get("expected_r")
+                    if (
+                        expected_r_value is None
+                        or not math.isfinite(expected_r_value)
+                        or expected_r_value < min_expected_r
+                    ):
+                        append_rejection(
+                            "expected_r_low",
+                            gap_reason="expected_r",
+                            stop_pct=stop_loss_pct_dynamic,
+                            take_pct=take_profit_pct_dynamic,
+                            expected_r=expected_r_value,
+                        )
+                        side = None
+                        continue
 
                 valid_strategy, strategy_name, detail = self.strategy_checks.validate(row, side)
                 if not valid_strategy:
-                    rejections.append(
-                        self._rejection_record(dt_utc, symbol, f"strategy_check:{detail}")
-                    )
+                    append_rejection(f"strategy_check:{detail}")
                     side = None
                     continue
                 entry_strategy = (strategy_name, detail)
@@ -307,11 +360,7 @@ class IntradayMLDecisionPolicy:
                         row, side
                     )
                     if not valid_strategy:
-                        rejections.append(
-                            self._rejection_record(
-                                dt_utc, symbol, f"strategy_check:{strategy_detail}"
-                            )
-                        )
+                        append_rejection(f"strategy_check:{strategy_detail}")
                         continue
                 else:
                     strategy_name, strategy_detail = entry_strategy
@@ -335,9 +384,7 @@ class IntradayMLDecisionPolicy:
                 strategy=strategy_name,
                 strategy_detail=strategy_detail if position is None else exit_reason,
                 stop_loss_pct=(
-                    stop_loss_pct_dynamic
-                    if position is None
-                    else position.get("entry_stop_pct")
+                    stop_loss_pct_dynamic if position is None else position.get("entry_stop_pct")
                 ),
                 take_profit_pct=(
                     take_profit_pct_dynamic
@@ -370,12 +417,32 @@ class IntradayMLDecisionPolicy:
                 ]
             )
 
+        rejection_columns = [
+            "ts",
+            "timestamp",
+            "symbol",
+            "reason",
+            "prob_long",
+            "prob_short",
+            "directional_gap",
+            "atr_stop",
+            "atr_target",
+            "expected_R",
+            "gap_reason",
+        ]
         rejections_df = pd.DataFrame(rejections)
         if not rejections_df.empty:
             rejections_df["timestamp"] = pd.to_datetime(rejections_df["timestamp"], utc=True)
             rejections_df["ts"] = rejections_df["timestamp"].astype("int64")
+            for column in rejection_columns:
+                if column not in rejections_df.columns:
+                    rejections_df[column] = pd.NA
+            ordered_columns = rejection_columns + [
+                col for col in rejections_df.columns if col not in rejection_columns
+            ]
+            rejections_df = rejections_df[ordered_columns]
         else:
-            rejections_df = pd.DataFrame(columns=["ts", "timestamp", "symbol", "reason"])
+            rejections_df = pd.DataFrame(columns=rejection_columns)
 
         return orders_df, rejections_df
 
@@ -442,14 +509,60 @@ class IntradayMLDecisionPolicy:
         return True
 
     @staticmethod
-    def _rejection_record(dt_utc: pd.Timestamp, symbol: str, reason: str) -> dict[str, object]:
+    def _rejection_record(
+        dt_utc: pd.Timestamp,
+        symbol: str,
+        reason: str,
+        *,
+        context: dict[str, object] | None = None,
+    ) -> dict[str, object]:
         """Create a rejection record."""
-        return {
+        record: dict[str, object] = {
             "timestamp": dt_utc,
             "ts": dt_utc.value,
             "symbol": symbol,
             "reason": reason,
         }
+        if context:
+            for key, value in context.items():
+                record.setdefault(key, value)
+        return record
+
+    def _build_rejection_context(
+        self,
+        *,
+        prob_long: float | None,
+        prob_short: float | None,
+        directional_gap: float | None,
+        stop_pct: float | None = None,
+        take_pct: float | None = None,
+        expected_r: float | None = None,
+        gap_reason: str | None = None,
+    ) -> dict[str, object]:
+        """Assemble diagnostic payload for a rejection record."""
+        context = {
+            "prob_long": self._clean_float(prob_long),
+            "prob_short": self._clean_float(prob_short),
+            "directional_gap": self._clean_float(directional_gap),
+            "atr_stop": self._clean_float(stop_pct),
+            "atr_target": self._clean_float(take_pct),
+            "expected_R": self._clean_float(expected_r),
+        }
+        if gap_reason:
+            context["gap_reason"] = gap_reason
+        return context
+
+    @staticmethod
+    def _clean_float(value: object) -> float | None:
+        if value is None:
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(numeric):
+            return None
+        return numeric
 
     def _get_numeric(self, row: pd.Series, column: str | None) -> float | None:
         if not column or column not in row:
@@ -468,95 +581,19 @@ class IntradayMLDecisionPolicy:
     def _compute_risk_targets(
         self, row: pd.Series, side: str
     ) -> tuple[float, float, dict[str, object]] | None:
-        price = self._get_numeric(row, "close")
-        if price is None or price <= 0:
+        risk_levels = compute_risk_levels(
+            row=row,
+            side=side,
+            config=self._risk_helper_config,
+        )
+        if risk_levels is None:
             return None
 
-        atr = self._get_numeric(row, self.risk_atr_feature)
-        if atr is None or atr <= 0:
-            return None
-
-        max_distance = atr * self.risk_max_atr_multiple
-        if max_distance <= 0:
-            return None
-        buffer_price = self.risk_buffer_atr * atr
-
-        stop_distance = None
-        stop_price = None
-        reference_level = None
-
-        if side == "long":
-            level = self._get_numeric(row, self.risk_support_long_feature)
-            if level is not None:
-                reference_level = level
-                stop_price_candidate = level - buffer_price
-                if stop_price_candidate >= price:
-                    return None
-                stop_distance_candidate = price - stop_price_candidate
-                if stop_distance_candidate <= 0:
-                    return None
-                if stop_distance_candidate > max_distance + 1e-9:
-                    return None
-                stop_price = stop_price_candidate
-                stop_distance = stop_distance_candidate
-            elif not self.risk_allow_missing_support:
-                return None
-            if stop_distance is None:
-                stop_distance = max_distance
-                stop_price = price - stop_distance
-        else:
-            level = self._get_numeric(row, self.risk_resistance_short_feature)
-            if level is not None:
-                reference_level = level
-                stop_price_candidate = level + buffer_price
-                if stop_price_candidate <= price:
-                    return None
-                stop_distance_candidate = stop_price_candidate - price
-                if stop_distance_candidate <= 0:
-                    return None
-                if stop_distance_candidate > max_distance + 1e-9:
-                    return None
-                stop_price = stop_price_candidate
-                stop_distance = stop_distance_candidate
-            elif not self.risk_allow_missing_support:
-                return None
-            if stop_distance is None:
-                stop_distance = max_distance
-                stop_price = price + stop_distance
-
-        if stop_distance is None or stop_distance <= 0:
-            return None
-
-        min_distance = price * self.risk_min_stop_pct
-        max_pct_distance = price * self.risk_max_stop_pct
-        stop_distance = max(stop_distance, min_distance)
-        stop_distance = min(stop_distance, max_distance)
-        stop_distance = min(stop_distance, max_pct_distance)
-
-        if stop_distance <= 0:
-            return None
-
-        stop_pct = stop_distance / price
-
-        if side == "long":
-            stop_price = price - stop_distance
-        else:
-            stop_price = price + stop_distance
-
-        target_distance = stop_distance * self.risk_target_r_multiple
-        take_profit_pct = target_distance / price
-        take_price = price + target_distance if side == "long" else price - target_distance
-
-        risk_metadata = {
-            "risk_stop_price": float(stop_price),
-            "risk_take_profit_price": float(take_price),
-            "risk_distance": float(stop_distance),
-            "risk_r_multiple": float(self.risk_target_r_multiple),
-        }
-        if reference_level is not None:
-            risk_metadata["risk_reference_level"] = float(reference_level)
-
-        return stop_pct, take_profit_pct, risk_metadata
+        metadata = dict(risk_levels.metadata)
+        if "expected_r" not in metadata:
+            metadata["expected_r"] = risk_levels.expected_r
+        metadata.setdefault("risk_r_multiple", self.risk_target_r_multiple)
+        return risk_levels.stop_pct, risk_levels.take_profit_pct, metadata
 
     def _build_order(
         self,
@@ -588,6 +625,12 @@ class IntradayMLDecisionPolicy:
             "strategy": strategy,
             "strategy_detail": strategy_detail or reason,
         }
+
+        order_id = f"ml_order_{int(dt_utc.value)}_{self._order_seq:04d}"
+        self._order_seq += 1
+        order["order_id"] = order_id
+        order["signal_ts"] = dt_utc.value
+        order["signal_timestamp"] = dt_utc
 
         if metadata:
             for key, value in metadata.items():

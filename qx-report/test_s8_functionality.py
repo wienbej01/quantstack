@@ -287,9 +287,7 @@ def test_ab_diff_tables():
         diff_df, pct_df = ABDiffTables.create_difference_table(exp_id, temp_dir)
         assert not diff_df.empty, "Should create difference table"
         assert not pct_df.empty, "Should create percentage table"
-        assert (
-            diff_df.shape == pct_df.shape
-        ), "Difference and % tables should have same shape"
+        assert diff_df.shape == pct_df.shape, "Difference and % tables should have same shape"
 
         # Test winner identification
         winner_info = ABDiffTables.identify_winner(exp_id, temp_dir)
@@ -299,9 +297,9 @@ def test_ab_diff_tables():
             "variant_a",
             "variant_b",
         ], "Winner should be a valid variant"
-        assert (
-            winner_info["primary_metric"] == "sharpe_CI_high"
-        ), "Should use correct primary metric"
+        assert winner_info["primary_metric"] == "sharpe_CI_high", (
+            "Should use correct primary metric"
+        )
 
         print("✓ ABDiffTables works correctly")
 
@@ -361,9 +359,7 @@ def test_leaderboard_generator():
 
         # Check that variant_b (highest Sharpe) is ranked first
         first_place = leaderboard_df.iloc[0]
-        assert (
-            first_place["variant"] == "variant_b"
-        ), "Highest Sharpe should be ranked first"
+        assert first_place["variant"] == "variant_b", "Highest Sharpe should be ranked first"
 
         # Test formatted leaderboard
         leaderboard_str = LeaderboardGenerator.format_leaderboard(leaderboard_df)

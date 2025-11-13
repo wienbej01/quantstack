@@ -17,6 +17,7 @@ from extensions.intraday_ml_models.cv_runner import (
     TimeSeriesCVRunner,
     run_cross_validation,
 )
+from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
 
 
 class TestTimeSeriesCVRunner:
@@ -57,6 +58,15 @@ class TestTimeSeriesCVRunner:
         return features, targets
 
     @pytest.fixture
+    def sample_context(self, sample_data):
+        """Aligned close-price context for trading evaluation."""
+        features, _ = sample_data
+        index = features.index
+        closes = np.linspace(100, 110, len(index))
+        context = pd.DataFrame({"close": closes}, index=index)
+        return context
+
+    @pytest.fixture
     def cv_config(self):
         """Sample CV configuration."""
         return {
@@ -74,6 +84,27 @@ class TestTimeSeriesCVRunner:
                 "trade_density": ["trades_per_ticker_day"],
             },
         }
+
+    @pytest.fixture
+    def cv_config_with_trading(self, cv_config):
+        """CV configuration with trading evaluation enabled."""
+        cfg = cv_config.copy()
+        cfg["trading_evaluation"] = {
+            "enabled": True,
+            "horizon_minutes": 1,
+            "transaction_cost_bps": 0,
+            "context_columns": ["close"],
+            "policies": [
+                {
+                    "name": "cv_threshold",
+                    "kind": "threshold",
+                    "prob_threshold": 0.4,
+                    "min_edge": 0.0,
+                    "min_score": 0.0,
+                }
+            ],
+        }
+        return cfg
 
     @pytest.fixture
     def model_config(self):
@@ -160,6 +191,27 @@ class TestTimeSeriesCVRunner:
         splits = runner.create_splits(combined_data, "ts")
         assert isinstance(splits, list)
 
+    def test_trading_metrics_logging(
+        self, sample_data, sample_context, cv_config_with_trading, model_config
+    ):
+        """Ensure trading metrics are computed when context data is available."""
+        features, targets = sample_data
+        runner = TimeSeriesCVRunner(cv_config_with_trading)
+        trainer = LightGBMTrainer(model_config)
+
+        result = runner.run_cv(
+            features,
+            targets,
+            trainer,
+            model_config,
+            context_data=sample_context,
+        )
+
+        assert any(m.trading_metrics for m in result.fold_metrics)
+        assert any(
+            key.startswith("trading_cv_threshold") for key in result.aggregated_metrics.keys()
+        )
+
     def test_validate_cv_inputs_valid(self, sample_data):
         """Test input validation with valid data."""
         features, targets = sample_data
@@ -237,9 +289,7 @@ class TestTimeSeriesCVRunner:
 
         mock_calibrated = Mock()
         mock_calibrated.predict.return_value = np.array([0] * 20)
-        mock_calibrated.predict_proba.return_value = np.array(
-            [[0.7, 0.2, 0.1] for _ in range(20)]
-        )
+        mock_calibrated.predict_proba.return_value = np.array([[0.7, 0.2, 0.1] for _ in range(20)])
         mock_calibrated.classes_ = np.array([-1, 0, 1])
 
         training_result = TrainingResult(
@@ -253,12 +303,14 @@ class TestTimeSeriesCVRunner:
         # Get validation data
         val_features = features[:20]
         val_labels = targets[:20]
+        val_full_data = val_features.reset_index()
 
         # Calculate metrics
         metrics = runner._calculate_comprehensive_metrics(
             training_result,
             val_features,
             val_labels,
+            val_full_data,
             split,
             "features_hash",
             "targets_hash",
@@ -491,9 +543,7 @@ class TestTimeSeriesCVRunner:
         # Skipping for unit test efficiency
         pass
 
-    def test_run_cross_validation_convenience_function(
-        self, sample_data, cv_config, model_config
-    ):
+    def test_run_cross_validation_convenience_function(self, sample_data, cv_config, model_config):
         """Test convenience function for CV."""
         features, targets = sample_data
 
@@ -553,6 +603,7 @@ class TestCVMetrics:
             abstention_rate=0.2,
             feature_importance={"feature_1": 0.5},
             top_features=[("feature_1", 0.5)],
+            trading_metrics={"policy": {"avg_return": 0.01}},
             features_hash="hash1",
             targets_hash="hash2",
             config_hash="hash3",
@@ -563,6 +614,7 @@ class TestCVMetrics:
         assert metrics.accuracy == 0.8
         assert metrics.feature_importance == {"feature_1": 0.5}
         assert len(metrics.top_features) == 1
+        assert metrics.trading_metrics == {"policy": {"avg_return": 0.01}}
 
 
 class TestCVResult:

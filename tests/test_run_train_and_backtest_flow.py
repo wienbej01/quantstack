@@ -23,9 +23,7 @@ def mock_dependencies():
     with (
         patch("run_train_and_backtest.load_bars") as mock_load_bars,
         patch("run_train_and_backtest.resample_data") as mock_resample_data,
-        patch(
-            "run_train_and_backtest.create_training_dataset"
-        ) as mock_create_training_dataset,
+        patch("run_train_and_backtest.create_training_dataset") as mock_create_training_dataset,
         patch("run_train_and_backtest.LightGBMTrainer") as mock_trainer_class,
         patch("run_train_and_backtest.joblib.dump"),
         patch("run_train_and_backtest.joblib.load") as mock_joblib_load,
@@ -44,9 +42,7 @@ def mock_dependencies():
         # Mock dataset and feature creation
         training_df = pd.DataFrame(
             {
-                "ts": pd.to_datetime(
-                    ["2023-01-01 09:30", "2023-01-01 09:40", "2023-01-01 09:50"]
-                ),
+                "ts": pd.to_datetime(["2023-01-01 09:30", "2023-01-01 09:40", "2023-01-01 09:50"]),
                 "symbol": ["BAC", "BAC", "BAC"],
                 "f__dummy": [1.0, 2.0, 3.0],
                 "label": [0, 1, -1],
@@ -54,9 +50,7 @@ def mock_dependencies():
         )
         oos_df = pd.DataFrame(
             {
-                "ts": pd.to_datetime(
-                    ["2023-01-03 09:30", "2023-01-03 09:40", "2023-01-03 09:50"]
-                ),
+                "ts": pd.to_datetime(["2023-01-03 09:30", "2023-01-03 09:40", "2023-01-03 09:50"]),
                 "symbol": ["BAC", "BAC", "BAC"],
                 "f__dummy": [4.0, 5.0, 6.0],
                 "label": [0, 0, 1],

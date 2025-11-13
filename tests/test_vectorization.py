@@ -57,7 +57,5 @@ def test_feature_pack_execution(test_data, feature_config):
 
     assert isinstance(features, pd.DataFrame)
     assert not features.empty
-    assert (
-        len(features.columns) > 20
-    )  # Check that a reasonable number of features were generated
+    assert len(features.columns) > 20  # Check that a reasonable number of features were generated
     print("✅ Feature pack executed successfully and produced a valid DataFrame.")

@@ -132,9 +132,7 @@ class ABDiffTables:
         Returns:
             DataFrame showing differences from baseline
         """
-        comparison_df = ABDiffTables.create_comparison_table(
-            experiment_id, experiments_dir
-        )
+        comparison_df = ABDiffTables.create_comparison_table(experiment_id, experiments_dir)
 
         if comparison_df.empty or len(comparison_df.columns) < 2:
             return pd.DataFrame()
@@ -144,9 +142,7 @@ class ABDiffTables:
             baseline_variant = comparison_df.columns[0]
 
         if baseline_variant not in comparison_df.columns:
-            raise ValueError(
-                f"Baseline variant '{baseline_variant}' not found in comparison"
-            )
+            raise ValueError(f"Baseline variant '{baseline_variant}' not found in comparison")
 
         # Calculate differences
         baseline_values = comparison_df[baseline_variant]
@@ -167,10 +163,7 @@ class ABDiffTables:
                 pct_change_data[variant] = 0.0
             else:
                 # Avoid division by zero
-                pct_change = (
-                    comparison_df[variant] / baseline_values.replace(0, float("nan"))
-                    - 1
-                )
+                pct_change = comparison_df[variant] / baseline_values.replace(0, float("nan")) - 1
                 pct_change_data[variant] = pct_change
 
         pct_change_df = pd.DataFrame(pct_change_data, index=comparison_df.index)
@@ -178,9 +171,7 @@ class ABDiffTables:
         return diff_df, pct_change_df
 
     @staticmethod
-    def format_diff_table(
-        diff_df: pd.DataFrame, pct_change_df: pd.DataFrame
-    ) -> pd.DataFrame:
+    def format_diff_table(diff_df: pd.DataFrame, pct_change_df: pd.DataFrame) -> pd.DataFrame:
         """Format difference table with absolute and percentage changes.
 
         Args:
@@ -232,9 +223,7 @@ class ABDiffTables:
         Returns:
             Dictionary with winner information
         """
-        summary_df = PerRunSummaries.create_summary_table(
-            experiment_id, experiments_dir
-        )
+        summary_df = PerRunSummaries.create_summary_table(experiment_id, experiments_dir)
 
         if summary_df.empty or primary_metric not in summary_df.columns:
             return {"error": f"Metric '{primary_metric}' not found"}
@@ -244,9 +233,7 @@ class ABDiffTables:
         best_variant = summary_df.loc[best_idx]
 
         return {
-            "winner": best_variant.get(
-                "variant", best_variant.get("run_id", "Unknown")
-            ),
+            "winner": best_variant.get("variant", best_variant.get("run_id", "Unknown")),
             "primary_metric": primary_metric,
             "primary_value": best_variant[primary_metric],
             "all_metrics": best_variant.to_dict(),
@@ -272,9 +259,7 @@ class LeaderboardGenerator:
         Returns:
             Ranked DataFrame with leaderboard
         """
-        summary_df = PerRunSummaries.create_summary_table(
-            experiment_id, experiments_dir
-        )
+        summary_df = PerRunSummaries.create_summary_table(experiment_id, experiments_dir)
 
         if summary_df.empty:
             return summary_df

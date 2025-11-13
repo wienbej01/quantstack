@@ -55,9 +55,7 @@ def test_p_hat_gating_simple():
         )
 
         selector_no_gating = HMMSIPUniverseSelector(config_no_gating)
-        universe_map_no_gating = selector_no_gating.select(
-            bars_df, {"target_date": "2024-01-03"}
-        )
+        universe_map_no_gating = selector_no_gating.select(bars_df, {"target_date": "2024-01-03"})
 
         all_symbols_no_gating = set()
         for symbols in universe_map_no_gating.values():
@@ -73,9 +71,7 @@ def test_p_hat_gating_simple():
             enable_gold_fallback=True,
         )
 
-        selector_with_gating_no_files = HMMSIPUniverseSelector(
-            config_with_gating_no_files
-        )
+        selector_with_gating_no_files = HMMSIPUniverseSelector(config_with_gating_no_files)
         universe_map_with_gating_no_files = selector_with_gating_no_files.select(
             bars_df, {"target_date": "2024-01-03"}
         )
@@ -128,12 +124,12 @@ def test_p_hat_gating_simple():
             del os.environ["HOME"]
 
         # Assertions
-        assert (
-            len(all_symbols_no_gating) == 4
-        ), f"Expected 4 symbols without gating, got {len(all_symbols_no_gating)}"
-        assert (
-            len(all_symbols_with_gating_no_files) == 4
-        ), f"Expected 4 symbols with gating but no files, got {len(all_symbols_with_gating_no_files)}"
+        assert len(all_symbols_no_gating) == 4, (
+            f"Expected 4 symbols without gating, got {len(all_symbols_no_gating)}"
+        )
+        assert len(all_symbols_with_gating_no_files) == 4, (
+            f"Expected 4 symbols with gating but no files, got {len(all_symbols_with_gating_no_files)}"
+        )
 
         # The key test: with p_hat files, only symbols with p_hat >= threshold should remain
         # In this case, AAPL and AMZN should be included, MSFT and GOOGL should be excluded

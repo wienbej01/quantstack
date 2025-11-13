@@ -53,9 +53,7 @@ def check_metrics(run_dir: Path):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Validate artifacts emitted by experiments harness"
-    )
+    ap = argparse.ArgumentParser(description="Validate artifacts emitted by experiments harness")
     ap.add_argument("--runs-root", default="runs", help="Root where run_* folders live")
     args = ap.parse_args()
 

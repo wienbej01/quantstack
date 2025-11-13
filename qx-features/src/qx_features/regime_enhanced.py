@@ -36,9 +36,7 @@ def compute_session_anchors(df: pd.DataFrame) -> pd.DataFrame:
     first_hour_et = midnight_et + pd.Timedelta(hours=10, minutes=30)
 
     result["session_start_ns"] = session_start_et.dt.tz_convert("UTC").astype("int64")
-    result["premarket_start_ns"] = premarket_start_et.dt.tz_convert("UTC").astype(
-        "int64"
-    )
+    result["premarket_start_ns"] = premarket_start_et.dt.tz_convert("UTC").astype("int64")
     result["first_hour_ns"] = first_hour_et.dt.tz_convert("UTC").astype("int64")
 
     return result
@@ -86,9 +84,7 @@ def _compute_session_avwap(df: pd.DataFrame) -> pd.DataFrame:
         group = group.sort_values("ts")
 
         group.groupby("session_date", sort=False)
-        pv_cumsum = (
-            (group["close"] * group["volume"]).groupby(group["session_date"]).cumsum()
-        )
+        pv_cumsum = (group["close"] * group["volume"]).groupby(group["session_date"]).cumsum()
         vol_cumsum = group["volume"].groupby(group["session_date"]).cumsum()
 
         # Avoid division by zero
@@ -123,13 +119,9 @@ def _compute_premarket_avwap(df: pd.DataFrame) -> pd.DataFrame:
         pv_cumsum = pv.groupby(group["session_date"]).cumsum()
         vol_cumsum = vol.groupby(group["session_date"]).cumsum()
 
-        avwap = np.where(
-            (vol_cumsum > 0) & is_premarket, pv_cumsum / vol_cumsum, np.nan
-        )
+        avwap = np.where((vol_cumsum > 0) & is_premarket, pv_cumsum / vol_cumsum, np.nan)
 
-        avwap_series = pd.Series(
-            avwap, index=group.index, name="f__anchor__premarket_avwap"
-        )
+        avwap_series = pd.Series(avwap, index=group.index, name="f__anchor__premarket_avwap")
         avwap_series = avwap_series.groupby(group["session_date"]).ffill()
         avwap_series = avwap_series.fillna(group["close"])
 
@@ -221,9 +213,7 @@ def _compute_prev_extreme_avwaps(df: pd.DataFrame) -> pd.DataFrame:
         session_idx = group.groupby("session_date").cumcount()
         session_lengths = group.groupby("session_date")["ts"].transform("size")
 
-        has_prev_high = (
-            prev_high.notna().groupby(group["session_date"]).transform("any")
-        )
+        has_prev_high = prev_high.notna().groupby(group["session_date"]).transform("any")
         has_prev_low = prev_low.notna().groupby(group["session_date"]).transform("any")
 
         fallback_touch_bar = 4
@@ -233,9 +223,7 @@ def _compute_prev_extreme_avwaps(df: pd.DataFrame) -> pd.DataFrame:
         fallback_low_trigger = (~has_prev_low) & (session_idx == fallback_target)
 
         min_prev_extreme_wait = 6
-        allowed_after_wait = session_idx >= np.minimum(
-            min_prev_extreme_wait, session_lengths - 1
-        )
+        allowed_after_wait = session_idx >= np.minimum(min_prev_extreme_wait, session_lengths - 1)
         high_touch_allowed = prev_high.notna() & allowed_after_wait
         low_touch_allowed = prev_low.notna() & allowed_after_wait
 
@@ -243,9 +231,7 @@ def _compute_prev_extreme_avwaps(df: pd.DataFrame) -> pd.DataFrame:
         touches_prev_high = (
             (group["high"] >= prev_high) & high_touch_allowed
         ) | fallback_high_trigger
-        touches_prev_low = (
-            (group["low"] <= prev_low) & low_touch_allowed
-        ) | fallback_low_trigger
+        touches_prev_low = ((group["low"] <= prev_low) & low_touch_allowed) | fallback_low_trigger
         touches_prev_high = touches_prev_high.fillna(False)
         touches_prev_low = touches_prev_low.fillna(False)
 
@@ -310,12 +296,12 @@ def _compute_prev_extreme_avwaps(df: pd.DataFrame) -> pd.DataFrame:
         compute_group_prev_extremes, include_groups=False
     )
 
-    df["f__anchor__prev_high_avwap"] = extreme_avwaps[
-        "f__anchor__prev_high_avwap"
-    ].reset_index(drop=True)
-    df["f__anchor__prev_low_avwap"] = extreme_avwaps[
-        "f__anchor__prev_low_avwap"
-    ].reset_index(drop=True)
+    df["f__anchor__prev_high_avwap"] = extreme_avwaps["f__anchor__prev_high_avwap"].reset_index(
+        drop=True
+    )
+    df["f__anchor__prev_low_avwap"] = extreme_avwaps["f__anchor__prev_low_avwap"].reset_index(
+        drop=True
+    )
 
     # Clean up temporary columns
     temp_cols = ["pv_high_cumsum", "vol_high_cumsum", "pv_low_cumsum", "vol_low_cumsum"]
@@ -590,15 +576,11 @@ def compute_ict_structures(
 
         group["f__ict__fvg_bull_lower"] = pd.Series(bull_lower_vals, index=group.index)
         group["f__ict__fvg_bull_upper"] = pd.Series(bull_upper_vals, index=group.index)
-        group["f__ict__fvg_bull_active"] = pd.Series(
-            bull_active_vals, index=group.index
-        )
+        group["f__ict__fvg_bull_active"] = pd.Series(bull_active_vals, index=group.index)
 
         group["f__ict__fvg_bear_lower"] = pd.Series(bear_lower_vals, index=group.index)
         group["f__ict__fvg_bear_upper"] = pd.Series(bear_upper_vals, index=group.index)
-        group["f__ict__fvg_bear_active"] = pd.Series(
-            bear_active_vals, index=group.index
-        )
+        group["f__ict__fvg_bear_active"] = pd.Series(bear_active_vals, index=group.index)
 
         # Displacement legs detection
         range_atr_ratio = (group["high"] - group["low"]) / group["f__vol__atr_30"]
@@ -619,12 +601,8 @@ def compute_ict_structures(
         leg_range = group["f__ict__disp_high"] - group["f__ict__disp_low"]
 
         group["f__ict__pd_discount_top"] = group["f__ict__disp_low"] + 0.62 * leg_range
-        group["f__ict__pd_discount_bottom"] = (
-            group["f__ict__disp_low"] + 0.79 * leg_range
-        )
-        group["f__ict__pd_premium_bottom"] = (
-            group["f__ict__disp_high"] - 0.62 * leg_range
-        )
+        group["f__ict__pd_discount_bottom"] = group["f__ict__disp_low"] + 0.79 * leg_range
+        group["f__ict__pd_premium_bottom"] = group["f__ict__disp_high"] - 0.62 * leg_range
         group["f__ict__pd_premium_top"] = group["f__ict__disp_high"] - 0.79 * leg_range
 
         # Determine if price is in discount/premium zones
@@ -643,12 +621,8 @@ def compute_ict_structures(
         rolling_low = group["low"].rolling(sweep_window, min_periods=10)
 
         # Equal highs/lows detection (very tight ranges)
-        high_range = (
-            rolling_high.max() - rolling_high.min()
-        ) / rolling_high.max().clip(lower=1e-6)
-        low_range = (rolling_low.max() - rolling_low.min()) / rolling_low.max().clip(
-            lower=1e-6
-        )
+        high_range = (rolling_high.max() - rolling_high.min()) / rolling_high.max().clip(lower=1e-6)
+        low_range = (rolling_low.max() - rolling_low.min()) / rolling_low.max().clip(lower=1e-6)
 
         equal_high = high_range <= sweep_range_threshold
         equal_low = low_range <= sweep_range_threshold
@@ -673,12 +647,8 @@ def compute_ict_structures(
         )
 
         # Forward fill sweep levels for context
-        group["f__ict__liq_sweep_high_level"] = group[
-            "f__ict__liq_sweep_high_level"
-        ].ffill()
-        group["f__ict__liq_sweep_low_level"] = group[
-            "f__ict__liq_sweep_low_level"
-        ].ffill()
+        group["f__ict__liq_sweep_high_level"] = group["f__ict__liq_sweep_high_level"].ffill()
+        group["f__ict__liq_sweep_low_level"] = group["f__ict__liq_sweep_low_level"].ffill()
 
         return group
 
@@ -768,9 +738,7 @@ def compute_order_flow_vpa(
         true_range = (group["high"] - group["low"]).replace(0, tick)
 
         # OFI proxy: signed volume based on price movement within the bar
-        group["f__flow__ofi"] = (
-            group["volume"] * (group["close"] - group["open"]) / true_range
-        )
+        group["f__flow__ofi"] = group["volume"] * (group["close"] - group["open"]) / true_range
 
         # OFI trend with EMA smoothing
         def compute_ofi_trend(ofi_series):
@@ -780,9 +748,7 @@ def compute_order_flow_vpa(
 
         # Cast order-flow columns to float and normalise to avoid int→float overflow downstream
         group["f__flow__ofi"] = group["f__flow__ofi"].astype("float64") / 1e6
-        group["f__flow__ofi_trend"] = (
-            group["f__flow__ofi_trend"].astype("float64") / 1e6
-        )
+        group["f__flow__ofi_trend"] = group["f__flow__ofi_trend"].astype("float64") / 1e6
 
         # VPA Absorption detection
         # High volume with low range and small body suggests absorption
@@ -815,9 +781,7 @@ def compute_order_flow_vpa(
                     file=sys.stderr,
                     flush=True,
                 )
-                volume_pct = (
-                    group["volume"].rolling(window=50, min_periods=20).rank(pct=True)
-                )
+                volume_pct = group["volume"].rolling(window=50, min_periods=20).rank(pct=True)
                 print(
                     f"  [DEBUG] rank(pct=True) COMPLETE: elapsed {time.time() - group_start:.2f}s",
                     file=sys.stderr,
@@ -902,8 +866,8 @@ def compute_order_flow_vpa(
         # Apply stopping volume detection
         group["f__vpa__stopping_volume"] = False
         for i in range(len(group)):
-            group.iloc[i, group.columns.get_loc("f__vpa__stopping_volume")] = (
-                is_stopping_volume(i, lookback=3)
+            group.iloc[i, group.columns.get_loc("f__vpa__stopping_volume")] = is_stopping_volume(
+                i, lookback=3
             )
 
         return group

@@ -35,8 +35,7 @@ def quick_debug():
 
         # Check VWAP values and deviations
         features["vwap_deviation_pct"] = (
-            (features["close"] - features["f__ta__vwap_30"])
-            / features["f__ta__vwap_30"]
+            (features["close"] - features["f__ta__vwap_30"]) / features["f__ta__vwap_30"]
         ) * 100
 
         print("\nVWAP Deviation Analysis:")
@@ -76,9 +75,7 @@ def quick_debug():
 
         # Show some examples
         print("\nSample VWAP deviations:")
-        sample = features[["ts", "close", "f__ta__vwap_30", "vwap_deviation_pct"]].head(
-            10
-        )
+        sample = features[["ts", "close", "f__ta__vwap_30", "vwap_deviation_pct"]].head(10)
         for _, row in sample.iterrows():
             print(
                 f"  {row['ts']}: Close=${row['close']:.2f}, VWAP=${row['f__ta__vwap_30']:.2f}, Dev={row['vwap_deviation_pct']:.2f}%"

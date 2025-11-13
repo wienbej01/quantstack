@@ -19,9 +19,7 @@ app = typer.Typer(help=f"Intraday ML Reporting v{__version__}")
 
 @app.command("experiment")
 def experiment_report(
-    experiment_dir: pathlib.Path = typer.Option(
-        ..., "--exp-dir", help="Experiment directory"
-    ),
+    experiment_dir: pathlib.Path = typer.Option(..., "--exp-dir", help="Experiment directory"),
     output_format: str = typer.Option(
         "console",
         "--format",
@@ -32,18 +30,14 @@ def experiment_report(
     ),
 ) -> None:
     """Generate report from experiment artifacts."""
-    console.print(
-        f"[bold blue]Experiment Report Generation[/bold blue]: {experiment_dir}"
-    )
+    console.print(f"[bold blue]Experiment Report Generation[/bold blue]: {experiment_dir}")
 
     if not experiment_dir.exists():
         console.print(f"[red]Experiment directory not found: {experiment_dir}[/red]")
         raise typer.Exit(1)
 
     try:
-        report_data = generate_experiment_report(
-            str(experiment_dir), output_format=output_format
-        )
+        report_data = generate_experiment_report(str(experiment_dir), output_format=output_format)
 
         # Display results
         _display_report_results(report_data)
@@ -110,9 +104,7 @@ def compare_experiments(
     baseline_dir: pathlib.Path = typer.Option(
         ..., "--baseline", help="Baseline experiment directory"
     ),
-    variant_dir: pathlib.Path = typer.Option(
-        ..., "--variant", help="Variant experiment directory"
-    ),
+    variant_dir: pathlib.Path = typer.Option(..., "--variant", help="Variant experiment directory"),
     output_format: str = typer.Option(
         "console",
         "--format",
@@ -123,9 +115,7 @@ def compare_experiments(
     ),
 ) -> None:
     """Compare baseline and variant experiment results."""
-    console.print(
-        f"[bold blue]Experiment Comparison[/bold blue]: {baseline_dir} vs {variant_dir}"
-    )
+    console.print(f"[bold blue]Experiment Comparison[/bold blue]: {baseline_dir} vs {variant_dir}")
 
     if not baseline_dir.exists():
         console.print(f"[red]Baseline directory not found: {baseline_dir}[/red]")
@@ -138,12 +128,8 @@ def compare_experiments(
     try:
         # This would implement a more complex comparison across different experiments
         # For Sprint 8 minimal implementation, show placeholder
-        console.print(
-            "[yellow]Experiment comparison requires full implementation[/yellow]"
-        )
-        console.print(
-            "[yellow]This is a placeholder for Sprint 8 functionality[/yellow]"
-        )
+        console.print("[yellow]Experiment comparison requires full implementation[/yellow]")
+        console.print("[yellow]This is a placeholder for Sprint 8 functionality[/yellow]")
 
     except Exception as e:
         console.print(f"[red]Comparison failed: {e}[/red]")

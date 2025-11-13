@@ -31,9 +31,7 @@ class Position:
     def __post_init__(self):
         """Initialize position after creation."""
         if self.quantity != 0 and self.avg_cost == 0.0:
-            self.avg_cost = (
-                self.total_cost / abs(self.quantity) if self.quantity != 0 else 0.0
-            )
+            self.avg_cost = self.total_cost / abs(self.quantity) if self.quantity != 0 else 0.0
 
     @property
     def is_long(self) -> bool:
@@ -151,9 +149,7 @@ class Position:
             if self.quantity > 0:
                 self.unrealized_pnl = (current_price - self.avg_cost) * self.quantity
             else:
-                self.unrealized_pnl = (self.avg_cost - current_price) * abs(
-                    self.quantity
-                )
+                self.unrealized_pnl = (self.avg_cost - current_price) * abs(self.quantity)
 
     def get_total_pnl(self) -> float:
         """Get total P&L (realized + unrealized)."""
@@ -307,9 +303,7 @@ class Portfolio:
             "pending_order_count": len(self.pending_orders),
             "filled_order_count": len(self.filled_orders),
             "fill_count": len(self.fills),
-            "positions": {
-                symbol: pos.to_dict() for symbol, pos in self.positions.items()
-            },
+            "positions": {symbol: pos.to_dict() for symbol, pos in self.positions.items()},
         }
 
     def get_positions_df(self) -> pd.DataFrame:

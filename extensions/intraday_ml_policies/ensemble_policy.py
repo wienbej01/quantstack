@@ -102,9 +102,7 @@ class EnsemblePolicy(BaseMLPolicy):
             try:
                 self.predictors[model_id] = type(self.predictor)(self.registry)
             except Exception as e:
-                self.logger.warning(
-                    f"Failed to initialize predictor for {model_id}: {e}"
-                )
+                self.logger.warning(f"Failed to initialize predictor for {model_id}: {e}")
 
         # Performance tracking for individual models
         self.model_performance: dict[str, dict[str, float]] = defaultdict(
@@ -208,15 +206,10 @@ class EnsemblePolicy(BaseMLPolicy):
         accuracy_multiplier = 0.5 + 0.5 * self.ensemble_metrics["accuracy"]
 
         return (
-            base_position_size
-            * consensus_multiplier
-            * diversity_multiplier
-            * accuracy_multiplier
+            base_position_size * consensus_multiplier * diversity_multiplier * accuracy_multiplier
         )
 
-    def get_ensemble_prediction(
-        self, features: dict[str, float]
-    ) -> EnsemblePrediction | None:
+    def get_ensemble_prediction(self, features: dict[str, float]) -> EnsemblePrediction | None:
         """
         Get ensemble prediction from all models.
 
@@ -241,19 +234,14 @@ class EnsemblePolicy(BaseMLPolicy):
             try:
                 # Get prediction from model
                 features_df = pd.DataFrame([features])
-                results = predictor.predict(
-                    model_id, features_df, return_probabilities=True
-                )
+                results = predictor.predict(model_id, features_df, return_probabilities=True)
 
                 if results and len(results) > 0:
                     result = results[0]
-                    prediction = (
-                        float(result.prediction[0]) if result.prediction else 0.0
-                    )
+                    prediction = float(result.prediction[0]) if result.prediction else 0.0
                     confidence = (
                         float(result.prediction_probability[0])
-                        if result.prediction_probability
-                        and len(result.prediction_probability) > 0
+                        if result.prediction_probability and len(result.prediction_probability) > 0
                         else 0.5
                     )
 
@@ -304,9 +292,7 @@ class EnsemblePolicy(BaseMLPolicy):
             metadata={
                 "model_count": len(individual_predictions),
                 "prediction_variance": np.var(list(individual_predictions.values())),
-                "agreement_score": self._calculate_agreement_score(
-                    individual_predictions
-                ),
+                "agreement_score": self._calculate_agreement_score(individual_predictions),
             },
         )
 
@@ -330,9 +316,7 @@ class EnsemblePolicy(BaseMLPolicy):
         perf["prediction_count"] += 1
 
         # Update success based on direction accuracy
-        if (actual_outcome > 0 and predicted > 0) or (
-            actual_outcome < 0 and predicted < 0
-        ):
+        if (actual_outcome > 0 and predicted > 0) or (actual_outcome < 0 and predicted < 0):
             perf["success_count"] += 1
 
         # Update accuracy
@@ -385,11 +369,7 @@ class EnsemblePolicy(BaseMLPolicy):
         winners = [k for k, v in votes.items() if v == max_votes]
 
         # Use weighted votes to break ties
-        winner = (
-            winners[0]
-            if len(winners) == 1
-            else max(weighted_votes, key=weighted_votes.get)
-        )
+        winner = winners[0] if len(winners) == 1 else max(weighted_votes, key=weighted_votes.get)
 
         # Convert to numeric prediction
         if winner == "buy":
@@ -454,9 +434,7 @@ class EnsemblePolicy(BaseMLPolicy):
 
         if agreement_score > 0.8:  # High agreement
             # Use simple average
-            return np.mean(list(predictions.values())), np.mean(
-                list(confidences.values())
-            )
+            return np.mean(list(predictions.values())), np.mean(list(confidences.values()))
         elif prediction_variance > 0.5:  # High disagreement
             # Use voting to be more conservative
             final_pred, conf, _ = self._voting_ensemble(predictions, confidences)
@@ -519,8 +497,7 @@ class EnsemblePolicy(BaseMLPolicy):
         """Update model weights based on recent performance."""
         # Calculate performance-based weights
         total_performance = sum(
-            self.model_performance[model_id]["accuracy"]
-            for model_id in self.model_performance
+            self.model_performance[model_id]["accuracy"] for model_id in self.model_performance
         )
 
         if total_performance > 0:
@@ -533,9 +510,7 @@ class EnsemblePolicy(BaseMLPolicy):
                     1 - self.weight_learning_rate
                 ) * config.weight + self.weight_learning_rate * target_weight
 
-                config.weight = max(
-                    0.1, min(2.0, new_weight)
-                )  # Keep weights reasonable
+                config.weight = max(0.1, min(2.0, new_weight))  # Keep weights reasonable
 
     def _prediction_to_signal(self, prediction: float) -> PolicySignal:
         """Convert numeric prediction to policy signal."""

@@ -29,9 +29,7 @@ def test_checksum_computation():
             return True
         first = checksums[0]
         keys_to_check = ["bars_norm_hash", "features_hash", "sip_hash", "seed"]
-        return all(
-            all(c.get(k) == first.get(k) for k in keys_to_check) for c in checksums
-        )
+        return all(all(c.get(k) == first.get(k) for k in keys_to_check) for c in checksums)
 
     assert checksums_match(checksums), "Identical checksums should match"
 
@@ -40,9 +38,7 @@ def test_checksum_computation():
     different_checksum["features_hash"] = "different_hash"
     checksums_with_diff = [test_data, different_checksum]
 
-    assert not checksums_match(
-        checksums_with_diff
-    ), "Different checksums should not match"
+    assert not checksums_match(checksums_with_diff), "Different checksums should not match"
 
     print("✓ Checksum computation logic works correctly")
 
@@ -114,9 +110,7 @@ def test_inputs_checksum_structure():
     ]
 
     for key in required_keys:
-        assert (
-            key in inputs_checksum
-        ), f"Required hash key {key} missing from inputs checksum"
+        assert key in inputs_checksum, f"Required hash key {key} missing from inputs checksum"
 
     print("✓ Inputs checksum structure meets S7 requirements")
 
@@ -167,9 +161,7 @@ def test_fairness_validation():
 
     is_fair, message = validate_fairness([base_checksum, unfair_checksum])
     assert not is_fair, "Unfair case should fail"
-    assert (
-        "bars_norm_hash" in message
-    ), f"Error message should mention the differing key: {message}"
+    assert "bars_norm_hash" in message, f"Error message should mention the differing key: {message}"
 
     # Test force case
     is_fair, message = validate_fairness([base_checksum, unfair_checksum], force=True)

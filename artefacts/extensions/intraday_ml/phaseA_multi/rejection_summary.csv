@@ -1,7 +1,8 @@
 reason,count
-gap_insufficient,2127
-below_threshold,285
+gap_insufficient,2128
+below_threshold,288
 conviction_low,112
 time_filter,69
-cooldown,44
-holding_long,8
+cooldown,42
+holding_long,6
+risk_unavailable,2

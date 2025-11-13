@@ -57,9 +57,7 @@ def backtest(
     elif symbols:
         symbol_list = [s.strip() for s in symbols.split(",") if s.strip()]
     else:
-        symbol_list = full_config.get(
-            "symbols", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
-        )
+        symbol_list = full_config.get("symbols", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"])
 
     if verbose:
         typer.echo(f"Symbols: {symbol_list}")
@@ -87,11 +85,7 @@ def backtest(
     try:
         # If SIP filtering enabled and no symbols specified in config, discover all available symbols
         config_symbols = full_config.get("symbols")
-        if (
-            symbol_list is None
-            and config_symbols is None
-            and full_config.get("sip_filter", False)
-        ):
+        if symbol_list is None and config_symbols is None and full_config.get("sip_filter", False):
             # Discover all available symbols from gold/stocks/1m directory structure
             all_symbols = set()
             base_path = os.path.join(gold_root, "gold", "stocks", "1m")
@@ -147,9 +141,7 @@ def backtest(
                                 typer.echo(
                                     f"Running SIP selection for {date} with {len(date_data)} bars and {date_data['symbol'].nunique()} symbols"
                                 )
-                            sip_result = sip_selector.select(
-                                date_data, {"target_date": date}
-                            )
+                            sip_result = sip_selector.select(date_data, {"target_date": date})
                             # Extract all symbols from all timestamps in the result
                             date_symbols = set()
                             for ts_symbols in sip_result.values():
@@ -162,9 +154,7 @@ def backtest(
                         elif verbose:
                             typer.echo(f"No data available for {date}")
                     except Exception as e:
-                        typer.echo(
-                            f"Warning: SIP selection failed for {date}: {e}", err=True
-                        )
+                        typer.echo(f"Warning: SIP selection failed for {date}: {e}", err=True)
                         # No symbols selected - trading will be stopped for this date
 
                 # Filter data to selected symbols only
@@ -172,15 +162,11 @@ def backtest(
                 data = data[data["symbol"].isin(selected_symbols)]
                 final_symbols = len(data["symbol"].unique())
 
-                typer.echo(
-                    f"SIP filtering: {original_symbols} -> {final_symbols} symbols"
-                )
+                typer.echo(f"SIP filtering: {original_symbols} -> {final_symbols} symbols")
 
                 # If no symbols selected, stop the backtest
                 if final_symbols == 0:
-                    typer.echo(
-                        "❌ No symbols passed SIP gate for any trading day", err=True
-                    )
+                    typer.echo("❌ No symbols passed SIP gate for any trading day", err=True)
                     typer.echo(
                         "⚠️  Stopping backtest - trading requires universe selection",
                         err=True,
@@ -215,9 +201,7 @@ def backtest(
             )
         )
         data_with_features = apply(data, features_config)
-        data_with_features = data_with_features.sort_values(
-            ["ts", "symbol"]
-        ).reset_index(drop=True)
+        data_with_features = data_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
         typer.echo("Applied regime and core features")
     except Exception as e:
         typer.echo(f"Error applying features: {e}", err=True)
@@ -262,18 +246,14 @@ def backtest(
         if current_regime == "BULL":
             # In BULL markets, prefer momentum strategy (long momentum)
             if engine.is_strategy_allowed("vwap_momentum"):
-                vwap_momentum_strategy(
-                    engine, bar, symbol, close, vwap_signal, regime="BULL"
-                )
+                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BULL")
             elif engine.is_strategy_allowed("vwap_revert"):
                 vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
 
         elif current_regime == "BEAR":
             # In BEAR markets, prefer momentum strategy (short momentum)
             if engine.is_strategy_allowed("vwap_momentum"):
-                vwap_momentum_strategy(
-                    engine, bar, symbol, close, vwap_signal, regime="BEAR"
-                )
+                vwap_momentum_strategy(engine, bar, symbol, close, vwap_signal, regime="BEAR")
             elif engine.is_strategy_allowed("vwap_revert"):
                 vwap_revert_strategy(engine, bar, symbol, close, vwap_signal)
 
@@ -331,9 +311,7 @@ def backtest(
 
         elif regime == "BEAR":
             # BEAR momentum: Short on weakness, cover on strength
-            if (
-                close < vwap_signal * 0.998
-            ):  # 0.2% below VWAP - momentum breakdown (short signal)
+            if close < vwap_signal * 0.998:  # 0.2% below VWAP - momentum breakdown (short signal)
                 if engine.get_position(symbol) is None:
                     order = engine.order_factory.create_order(
                         symbol=symbol,
@@ -349,9 +327,7 @@ def backtest(
                     )
                     engine.submit_order(order)
 
-            elif (
-                close > vwap_signal * 1.002
-            ):  # 0.2% above VWAP - momentum breakout (cover signal)
+            elif close > vwap_signal * 1.002:  # 0.2% above VWAP - momentum breakout (cover signal)
                 position = engine.get_position(symbol)
                 if position and position.quantity < 0:  # Short position
                     order = engine.order_factory.create_market_order(
@@ -373,9 +349,7 @@ def backtest(
 
         # Reversion logic: Buy when price is below VWAP (oversold), sell when above (overbought)
         # Use very loose thresholds to ensure trades are generated for testing
-        if (
-            close < vwap_signal * 0.995
-        ):  # 0.5% below VWAP - oversold (very loose for testing)
+        if close < vwap_signal * 0.995:  # 0.5% below VWAP - oversold (very loose for testing)
             if engine.get_position(symbol) is None:
                 order = engine.order_factory.create_order(
                     symbol=symbol,
@@ -390,9 +364,7 @@ def backtest(
                 )
                 engine.submit_order(order)
 
-        elif (
-            close > vwap_signal * 1.005
-        ):  # 0.5% above VWAP - overbought (very loose for testing)
+        elif close > vwap_signal * 1.005:  # 0.5% above VWAP - overbought (very loose for testing)
             position = engine.get_position(symbol)
             if position and position.quantity > 0:
                 order = engine.order_factory.create_market_order(
@@ -421,8 +393,7 @@ def backtest(
 
         # Save results
         results_file = (
-            output_path
-            / f"regime_backtest_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.json"
+            output_path / f"regime_backtest_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.json"
         )
         results_data = {
             "performance": result.to_dict()["performance"],
@@ -465,9 +436,7 @@ def analyze(
     output_path: str = typer.Option(
         "regime_analysis.json", help="Output file for analysis results"
     ),
-    detector_config: str = typer.Option(
-        None, help="Path to detector configuration file"
-    ),
+    detector_config: str = typer.Option(None, help="Path to detector configuration file"),
 ):
     """Analyze regime detection on historical data."""
 
@@ -666,9 +635,7 @@ def _parse_config_file(config_path: str) -> dict[str, Any]:
     return data
 
 
-def _normalize_feature_config(
-    config_items: list[dict[str, Any]]
-) -> list[dict[str, Any]]:
+def _normalize_feature_config(config_items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Normalize feature configuration entries for the registry apply helper."""
     normalized: list[dict[str, Any]] = []
     for item in config_items:

@@ -86,9 +86,7 @@ def resample_bars(df: pd.DataFrame, minutes: int) -> pd.DataFrame:
     return out.drop(columns=["date_et"])
 
 
-def prepare_feature_dataframe(
-    raw_df: pd.DataFrame, minutes: int
-) -> tuple[pd.DataFrame, int, int]:
+def prepare_feature_dataframe(raw_df: pd.DataFrame, minutes: int) -> tuple[pd.DataFrame, int, int]:
     """Compute features with scaled windows."""
     if raw_df.empty:
         return raw_df, 0, 0
@@ -106,9 +104,7 @@ def prepare_feature_dataframe(
     return feature_df, vwap_window, atr_window
 
 
-def filter_by_sip(
-    feature_df: pd.DataFrame, rvol_col: str, top_n: int = 5
-) -> pd.DataFrame:
+def filter_by_sip(feature_df: pd.DataFrame, rvol_col: str, top_n: int = 5) -> pd.DataFrame:
     """Apply original SIP top-N filter."""
     universe_map = screen(feature_df, rvol_col, top_n=top_n, whitelist=None)
     if not universe_map:
@@ -195,9 +191,7 @@ def main():
 
     for freq_label, minutes in timeframe_specs:
         resampled = resample_bars(base_df, minutes)
-        features_df, vwap_window, atr_window = prepare_feature_dataframe(
-            resampled, minutes
-        )
+        features_df, vwap_window, atr_window = prepare_feature_dataframe(resampled, minutes)
         if vwap_window == 0 or features_df.empty:
             continue
 

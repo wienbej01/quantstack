@@ -26,17 +26,13 @@ def version():
 @app.command("entry-ab")
 def entry_ab(
     cfg: pathlib.Path = typer.Option(..., "--cfg", help="Base config file"),
-    variants: str = typer.Option(
-        ..., "--variants", help="Variant overlay files pattern"
-    ),
+    variants: str = typer.Option(..., "--variants", help="Variant overlay files pattern"),
     name: str = typer.Option(..., "--name", help="Experiment name"),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be done without executing"
     ),
     force: bool = typer.Option(False, "--force", help="Force run even with issues"),
-    allow_unfair: bool = typer.Option(
-        False, "--allow-unfair", help="Allow unfair experiments"
-    ),
+    allow_unfair: bool = typer.Option(False, "--allow-unfair", help="Allow unfair experiments"),
 ):
     """Run entry/exit A/B testing experiment."""
     if not cfg.exists():
@@ -100,9 +96,7 @@ def entry_ab(
 
 @app.command("validate")
 def validate(
-    exp_dir: pathlib.Path = typer.Option(
-        ..., "--exp-dir", help="Experiment directory to validate"
-    ),
+    exp_dir: pathlib.Path = typer.Option(..., "--exp-dir", help="Experiment directory to validate"),
 ):
     """Validate experiment fairness and checksums."""
     if not exp_dir.exists():

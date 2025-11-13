@@ -94,13 +94,9 @@ class TestReproducibility:
         assert hash1 == hash2, "Same dataframe should produce identical hash"
 
         # Test 2: Reordered rows should produce different hash (sorting matters)
-        df_shuffled = sample_data.sample(frac=1.0, random_state=42).reset_index(
-            drop=True
-        )
+        df_shuffled = sample_data.sample(frac=1.0, random_state=42).reset_index(drop=True)
         hash_shuffled = hash_dataframe(df_shuffled)
-        assert (
-            hash1 != hash_shuffled
-        ), "Shuffled dataframe should produce different hash"
+        assert hash1 != hash_shuffled, "Shuffled dataframe should produce different hash"
 
         # Test 3: Properly sorted dataframe should produce same hash
         df_sorted = df_shuffled.sort_values(["symbol", "ts"]).reset_index(drop=True)
@@ -140,9 +136,7 @@ class TestReproducibility:
             temp_path = pathlib.Path(temp_dir)
 
             # Create sample gold data
-            gold_path = (
-                temp_path / "test_gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
-            )
+            gold_path = temp_path / "test_gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
             gold_path.mkdir(parents=True, exist_ok=True)
             sample_data.to_parquet(gold_path / "part-000.parquet")
 
@@ -179,9 +173,7 @@ class TestReproducibility:
             with open(checksum_path) as f:
                 loaded_checksum = json.load(f)
 
-            assert (
-                loaded_checksum == inputs_checksum
-            ), "Saved checksum should match original"
+            assert loaded_checksum == inputs_checksum, "Saved checksum should match original"
 
     def test_config_hash_consistency(self, standard_config):
         """Test that identical configs produce identical hashes."""
@@ -189,20 +181,14 @@ class TestReproducibility:
         config2 = standard_config.copy()
 
         # Compute config hashes
-        hash1 = hashlib.sha256(
-            json.dumps(config1, sort_keys=True).encode()
-        ).hexdigest()[:16]
-        hash2 = hashlib.sha256(
-            json.dumps(config2, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        hash1 = hashlib.sha256(json.dumps(config1, sort_keys=True).encode()).hexdigest()[:16]
+        hash2 = hashlib.sha256(json.dumps(config2, sort_keys=True).encode()).hexdigest()[:16]
 
         assert hash1 == hash2, "Identical configs should produce identical hashes"
 
         # Test that different configs produce different hashes
         config2["policy_params"]["rvol_min"] = 1.5  # Change parameter
-        hash3 = hashlib.sha256(
-            json.dumps(config2, sort_keys=True).encode()
-        ).hexdigest()[:16]
+        hash3 = hashlib.sha256(json.dumps(config2, sort_keys=True).encode()).hexdigest()[:16]
 
         assert hash1 != hash3, "Different configs should produce different hashes"
 
@@ -212,9 +198,7 @@ class TestReproducibility:
             temp_path = pathlib.Path(temp_dir)
 
             # Create sample gold data
-            gold_path = (
-                temp_path / "test_gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
-            )
+            gold_path = temp_path / "test_gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
             gold_path.mkdir(parents=True, exist_ok=True)
             sample_data.to_parquet(gold_path / "part-000.parquet")
 
@@ -236,12 +220,8 @@ class TestReproducibility:
                     # 2. Apply features (hash)
                     features_config = config["features"]
                     df_features = apply(sample_data.copy(), features_config)
-                    feature_cols = [
-                        col for col in df_features.columns if col.startswith("f__")
-                    ]
-                    features_hash = hash_dataframe(
-                        df_features[["symbol", "ts"] + feature_cols]
-                    )
+                    feature_cols = [col for col in df_features.columns if col.startswith("f__")]
+                    features_hash = hash_dataframe(df_features[["symbol", "ts"] + feature_cols])
 
                     # 3. Create inputs checksum
                     inputs_checksum = {
@@ -268,14 +248,14 @@ class TestReproducibility:
             # All critical hashes should be identical
             critical_keys = ["bars_norm_hash", "features_hash", "sip_hash", "seed"]
             for key in critical_keys:
-                assert (
-                    checksum1[key] == checksum2[key]
-                ), f"Hash {key} should be identical across runs"
+                assert checksum1[key] == checksum2[key], (
+                    f"Hash {key} should be identical across runs"
+                )
 
             # Config hash should also be identical
-            assert (
-                checksum1["config_hash"] == checksum2["config_hash"]
-            ), "Config hash should be identical"
+            assert checksum1["config_hash"] == checksum2["config_hash"], (
+                "Config hash should be identical"
+            )
 
     def test_golden_reproducibility_reference(self):
         """Test against golden reproducibility reference data."""
@@ -307,23 +287,21 @@ class TestReproducibility:
                 "seed",
             ]
             for key in required_keys:
-                assert (
-                    key in loaded_checksum
-                ), f"Golden checksum missing required key: {key}"
-                assert isinstance(
-                    loaded_checksum[key], str
-                ), f"Golden checksum {key} should be string"
+                assert key in loaded_checksum, f"Golden checksum missing required key: {key}"
+                assert isinstance(loaded_checksum[key], str), (
+                    f"Golden checksum {key} should be string"
+                )
 
             # Validate hash format (16 characters typical)
             for key in ["bars_norm_hash", "features_hash", "sip_hash", "config_hash"]:
-                assert (
-                    len(loaded_checksum[key]) == 16
-                ), f"Golden checksum {key} should be 16 characters"
+                assert len(loaded_checksum[key]) == 16, (
+                    f"Golden checksum {key} should be 16 characters"
+                )
 
             # Validate seed
-            assert isinstance(
-                loaded_checksum["seed"], int
-            ), "Golden checksum seed should be integer"
+            assert isinstance(loaded_checksum["seed"], int), (
+                "Golden checksum seed should be integer"
+            )
 
         finally:
             golden_file.unlink()
@@ -348,9 +326,9 @@ class TestReproducibility:
         np.random.seed(123)
         result_b = np.random.normal(0, 1, 10)
 
-        assert not np.array_equal(
-            result_a, result_b
-        ), "Different seeds should produce different results"
+        assert not np.array_equal(result_a, result_b), (
+            "Different seeds should produce different results"
+        )
 
     def test_temporal_determinism(self):
         """Test that temporal processing is deterministic."""
@@ -392,9 +370,7 @@ class TestReproducibility:
                 exp_dir.mkdir()
 
                 # Create gold data
-                gold_path = (
-                    temp_path / "gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
-                )
+                gold_path = temp_path / "gold" / "bars_1m" / "symbol=TEST" / "date=SMOKE"
                 gold_path.mkdir(parents=True, exist_ok=True)
                 sample_data.to_parquet(gold_path / f"part-{exp_name}.parquet")
 
@@ -434,16 +410,16 @@ class TestReproducibility:
 
             # Validate consistency across experiments
             # Bars hash should be identical (same data)
-            assert (
-                checksums[0]["bars_norm_hash"] == checksums[1]["bars_norm_hash"]
-            ), "Bars hash should be identical across experiments"
+            assert checksums[0]["bars_norm_hash"] == checksums[1]["bars_norm_hash"], (
+                "Bars hash should be identical across experiments"
+            )
 
             # Seed should be identical
-            assert (
-                checksums[0]["seed"] == checksums[1]["seed"]
-            ), "Seed should be identical across experiments"
+            assert checksums[0]["seed"] == checksums[1]["seed"], (
+                "Seed should be identical across experiments"
+            )
 
             # Config hash should be different (different experiment names)
-            assert (
-                checksums[0]["config_hash"] != checksums[1]["config_hash"]
-            ), "Config hash should differ across experiments"
+            assert checksums[0]["config_hash"] != checksums[1]["config_hash"], (
+                "Config hash should differ across experiments"
+            )

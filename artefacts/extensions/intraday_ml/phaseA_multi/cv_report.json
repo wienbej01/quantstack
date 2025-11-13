@@ -199,7 +199,7 @@
       "features_hash": "53332f048f83d2f3c4029a86ab7282b5e32810aaf95e01fd7d890b1b2947692c",
       "targets_hash": "059556edf781acf9eef28aad646f94cb9c122773733d660d0bbe9934efca25b8",
       "config_hash": "418795d6b0ad4ef06212df47e35302a4c61264b3ede8199ff491e4d5f29dc787",
-      "train_time_seconds": 48.07908034324646
+      "train_time_seconds": 1531.376958847046
     },
     {
       "fold": 3,
@@ -330,7 +330,7 @@
       "features_hash": "4a3f9391bb42b4de968246fe06d1d1172a94630efdc6c6eaf5da89d66c25ae28",
       "targets_hash": "6b3b664350f760ef887e85a51d180973db339f3a44a2f2ee5b99bf893e23be37",
       "config_hash": "418795d6b0ad4ef06212df47e35302a4c61264b3ede8199ff491e4d5f29dc787",
-      "train_time_seconds": 72.65517044067383
+      "train_time_seconds": 2094.4322502613068
     }
   ],
   "aggregated_metrics": {
@@ -399,11 +399,11 @@
     "abstention_rate_min": 0.0,
     "abstention_rate_max": 0.0,
     "abstention_rate_median": 0.0,
-    "train_time_seconds_mean": 60.367125391960144,
-    "train_time_seconds_std": 12.288045048713684,
-    "train_time_seconds_min": 48.07908034324646,
-    "train_time_seconds_max": 72.65517044067383,
-    "train_time_seconds_median": 60.367125391960144
+    "train_time_seconds_mean": 1812.9046045541763,
+    "train_time_seconds_std": 281.52764570713043,
+    "train_time_seconds_min": 1531.376958847046,
+    "train_time_seconds_max": 2094.4322502613068,
+    "train_time_seconds_median": 1812.9046045541763
   },
   "stability_metrics": {
     "accuracy_cv": 0.014081405003979646,
@@ -427,5 +427,5 @@
     "total_folds": 2,
     "hash_collisions": 0
   },
-  "total_time_seconds": 152.927863
+  "total_time_seconds": 3632.763582
 }

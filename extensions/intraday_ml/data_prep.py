@@ -30,7 +30,6 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import pandas as pd
-
 from qx_data.gold_loader import load_bars
 from qx_data.resample import resample_data
 
@@ -128,9 +127,7 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
             for column in ["open", "high", "low", "close", "volume"]:
                 symbol_dataset[column] = symbol_sorted[column].to_numpy()
 
-        symbol_dataset = pd.concat(
-            [symbol_dataset, features.reset_index(drop=True)], axis=1
-        )
+        symbol_dataset = pd.concat([symbol_dataset, features.reset_index(drop=True)], axis=1)
         symbol_dataset["label"] = labels.to_numpy(dtype=int, copy=False)
 
         symbol_frames.append(symbol_dataset)
@@ -164,8 +161,7 @@ def _build_date_list(start_date: str, end_date: str) -> list[str]:
 
     total_days = (end_dt - start_dt).days + 1
     return [
-        (start_dt + timedelta(days=offset)).strftime("%Y-%m-%d")
-        for offset in range(total_days)
+        (start_dt + timedelta(days=offset)).strftime("%Y-%m-%d") for offset in range(total_days)
     ]
 
 
@@ -184,9 +180,7 @@ def _resolve_loader_options(
     requested_family = loader_config.get("family", "bars_1m")
     market_timezone = loader_config.get("market_timezone", DEFAULT_MARKET_TZ)
     assume_naive_as_market = loader_config.get("assume_naive_as_market", True)
-    output_mode: TimestampOutput = loader_config.get(
-        "output_timestamp_mode", "naive_market"
-    )
+    output_mode: TimestampOutput = loader_config.get("output_timestamp_mode", "naive_market")
 
     resample_frequency: str | None = None
     loader_family = requested_family
@@ -263,9 +257,7 @@ def _finalize_loaded_data(
         if resampled.empty:
             return pd.DataFrame()
         if "volume" in resampled:
-            resampled["volume"] = (
-                resampled["volume"].fillna(0).round().astype("int64", copy=False)
-            )
+            resampled["volume"] = resampled["volume"].fillna(0).round().astype("int64", copy=False)
 
         resampled["ts"] = normalize_timestamp_series(
             resampled["ts"],
@@ -354,9 +346,7 @@ def create_feature_set(  # noqa: PLR0913 - legacy compatibility signature
 
     if data_window is None:
         if not symbols or not start_date or not end_date:
-            raise ValueError(
-                "Must provide either data_window or symbols/start_date/end_date"
-            )
+            raise ValueError("Must provide either data_window or symbols/start_date/end_date")
         loader_cfg = data_loader_config or {}
         data_window = load_data_window(
             symbols=symbols,
@@ -371,9 +361,7 @@ def create_feature_set(  # noqa: PLR0913 - legacy compatibility signature
     required_cols = {"ts", "symbol", "open", "high", "low", "close", "volume"}
     missing_cols = required_cols - set(data_window.columns)
     if missing_cols:
-        raise ValueError(
-            f"Missing required columns for feature generation: {sorted(missing_cols)}"
-        )
+        raise ValueError(f"Missing required columns for feature generation: {sorted(missing_cols)}")
 
     feature_pack = IntradayMLFeaturePack(features_config)
     feature_frames: list[pd.DataFrame] = []

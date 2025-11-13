@@ -1,0 +1,68 @@
+# Phase A pipeline config using the full Gold universe with SIP filtering.
+artifacts: 'artefacts/extensions/intraday_ml/phaseA_full_sip'
+
+data:
+  family: 'bars_10m'
+
+sip_filter:
+  enabled: true
+  mode: "sip_only"
+  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+
+includes:
+  universe: 'configs/extensions/intraday_ml/universe_gold_full.yaml'
+  splits: 'configs/extensions/intraday_ml/splits_smoke.yaml'
+  cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
+  features: 'configs/extensions/intraday_ml/features_10m.yaml'
+  targets: 'configs/extensions/intraday_ml/targets_bigmove.yaml'
+  model: 'configs/extensions/intraday_ml/model_lgbm.yaml'
+  cv: 'configs/extensions/intraday_ml/cv/phaseA.yaml'
+
+label_guard:
+  enabled: true
+  min_per_direction: 30        # require ≥30 long AND ≥30 short labels per deployment symbol
+  min_total_directional: 120   # combined ±1 hits before allowing live deployment
+  drop_from_deployment: true   # automatically remove symbols that fail the guard
+  report_filename: "label_guard_report.json"
+
+policy:
+  prob_threshold_long: 0.62
+  prob_threshold_short: 0.62
+  score_margin: 0.06
+  min_directional_gap: 0.055
+  min_conviction_score: 0.015
+  cooldown_minutes: 18
+  min_time: "09:40:00"
+  max_time: "15:50:00"
+  order_qty: 1
+  max_entries_per_day: 3
+  gap_exit_delay_minutes: 18
+  target_trades_min: 3
+  target_trades_max: 5
+  calibration:
+    enabled: true
+    stats_filename: "policy_calibration.json"
+    min_samples: 150
+    prob_long_percentile: 0.85
+    prob_short_percentile: 0.85
+    gap_percentile: 0.7
+    conviction_percentile: 0.8
+    expected_r_percentile: 0.4
+    score_margin_percentile: 0.75
+    floors:
+      min_directional_gap: 0.04
+      score_margin: 0.04
+      min_expected_r: 1.5
+    ceilings:
+      min_expected_r: 4.0
+  risk:
+    atr_feature: "f__vol__atr_6"
+    support_feature_long: "low"
+    resistance_feature_short: "high"
+    max_atr_multiple: 1.25
+    support_buffer_atr: 0.15
+    target_r_multiple: 1.6
+    min_stop_pct: 0.002
+    max_stop_pct: 0.045
+    min_expected_r: 1.5
+    allow_missing_support: true

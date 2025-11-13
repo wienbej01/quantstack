@@ -46,9 +46,7 @@ def debug_labeling():
     df_out["label"] = 0
 
     high_low = df_out["high"] - df_out["low"]
-    high_prev_close = (
-        df_out["high"] - df_out.groupby("symbol")["close"].shift(1)
-    ).abs()
+    high_prev_close = (df_out["high"] - df_out.groupby("symbol")["close"].shift(1)).abs()
     low_prev_close = (df_out["low"] - df_out.groupby("symbol")["close"].shift(1)).abs()
     tr = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(axis=1)
     atr = (
@@ -62,9 +60,7 @@ def debug_labeling():
     df_out["threshold"] = df_out["atr"] * labeler.atr_multiplier
 
     future_highs_grouped = (
-        df_out.groupby("symbol")["high"]
-        .rolling(window=labeler.horizon, min_periods=1)
-        .max()
+        df_out.groupby("symbol")["high"].rolling(window=labeler.horizon, min_periods=1).max()
     )
     future_highs = (
         future_highs_grouped.groupby(level="symbol")
@@ -72,9 +68,7 @@ def debug_labeling():
         .reset_index(level=0, drop=True)
     )
     future_lows_grouped = (
-        df_out.groupby("symbol")["low"]
-        .rolling(window=labeler.horizon, min_periods=1)
-        .min()
+        df_out.groupby("symbol")["low"].rolling(window=labeler.horizon, min_periods=1).min()
     )
     future_lows = (
         future_lows_grouped.groupby(level="symbol")
@@ -123,12 +117,8 @@ def debug_labeling():
     print(f"Calculated Threshold: {sample_row['threshold']:.4f}")
     print(f"Upper Barrier (Price to Hit for BUY): {sample_row['upper_barrier']:.4f}")
     print(f"Lower Barrier (Price to Hit for SELL): {sample_row['lower_barrier']:.4f}")
-    print(
-        f"Actual Future High in next {labeler.horizon} mins: {sample_row['future_high']:.4f}"
-    )
-    print(
-        f"Actual Future Low in next {labeler.horizon} mins: {sample_row['future_low']:.4f}"
-    )
+    print(f"Actual Future High in next {labeler.horizon} mins: {sample_row['future_high']:.4f}")
+    print(f"Actual Future Low in next {labeler.horizon} mins: {sample_row['future_low']:.4f}")
 
     if sample_row["future_high"] < sample_row["upper_barrier"]:
         print("==> Conclusion: Future high did NOT cross the upper barrier.")

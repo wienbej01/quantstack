@@ -28,9 +28,7 @@ def main():
     print("=" * 50)
 
     # Load configuration
-    config_path = (
-        Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
-    )
+    config_path = Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
@@ -125,9 +123,7 @@ def main():
 
             first_ts = min(universe_map.keys())
             first_universe = sorted(universe_map[first_ts])
-            print(
-                f"Example universe at {pd.to_datetime(first_ts, unit='ns')}: {first_universe}"
-            )
+            print(f"Example universe at {pd.to_datetime(first_ts, unit='ns')}: {first_universe}")
     except Exception as e:
         print(f"✗ HMM SIP failed: {e}")
         import traceback
@@ -236,12 +232,8 @@ def main():
     print("\n✓ Focused test completed successfully!")
     print("\nSUMMARY:")
     print(f"- Daily HMM SIP mode: {'✓ WORKING' if universe_map else '✗ FAILED'}")
-    print(
-        f"- VWAP Strategy: {'✓ WORKING' if result.total_trades > 0 else '✗ NO TRADES'}"
-    )
-    print(
-        f"- Universe Selection: {'✓ WORKING' if len(universe_map) > 0 else '✗ FAILED'}"
-    )
+    print(f"- VWAP Strategy: {'✓ WORKING' if result.total_trades > 0 else '✗ NO TRADES'}")
+    print(f"- Universe Selection: {'✓ WORKING' if len(universe_map) > 0 else '✗ FAILED'}")
 
 
 if __name__ == "__main__":

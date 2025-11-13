@@ -87,10 +87,8 @@ def create_s9_experiment():
 
             trades.append(
                 {
-                    "entry_ts": pd.Timestamp("2024-01-15")
-                    + pd.Timedelta(hours=j * 2 + i),
-                    "exit_ts": pd.Timestamp("2024-01-15")
-                    + pd.Timedelta(hours=j * 2 + i + 1),
+                    "entry_ts": pd.Timestamp("2024-01-15") + pd.Timedelta(hours=j * 2 + i),
+                    "exit_ts": pd.Timestamp("2024-01-15") + pd.Timedelta(hours=j * 2 + i + 1),
                     "symbol": "AAPL",
                     "side": "BUY",
                     "qty": 100,
@@ -203,9 +201,7 @@ def create_s9_experiment():
 
         results.append(result)
         print(f"   ✅ Generated {metrics['trades']} trades")
-        print(
-            f"   📈 Avg R: {metrics['avg_R']:.3f}, Sharpe CI: {metrics['sharpe_CI_high']:.2f}"
-        )
+        print(f"   📈 Avg R: {metrics['avg_R']:.3f}, Sharpe CI: {metrics['sharpe_CI_high']:.2f}")
         print(f"   🎯 Win Rate: {metrics['win_rate']:.1%}")
 
     # Create experiment manifest
@@ -379,10 +375,7 @@ The end-to-end VWAP A/B test successfully demonstrated:
 
     # Overall status
     all_passed = (
-        all(trades_exist)
-        and trade_count_different
-        and performance_different
-        and checksums_equal
+        all(trades_exist) and trade_count_different and performance_different and checksums_equal
     )
 
     print("\n🏁 FINAL STATUS:")

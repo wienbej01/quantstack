@@ -140,28 +140,21 @@ def test_diagnostic_regime_counts() -> None:
             run_diagnostic_check(df_features, detector, verbose=True)
         except ImportError:
             # Function doesn't exist yet - test should fail
-            pytest.fail(
-                "run_diagnostic_check function not found in test_regime_pilot.py"
-            )
+            pytest.fail("run_diagnostic_check function not found in test_regime_pilot.py")
 
     # Assert regime counts were logged
     log_calls = [str(call) for call in mock_print.call_args_list]
 
     # Should contain diagnostic header
     assert any(
-        "DIAGNOSTIC" in call and "Regime Signal Distribution" in call
-        for call in log_calls
+        "DIAGNOSTIC" in call and "Regime Signal Distribution" in call for call in log_calls
     ), "Diagnostic header not found in logs"
 
     # Should contain regime counts (format: "BULL: 0 (0.0%)")
-    assert any(
-        "BULL:" in call for call in log_calls
-    ), "BULL regime count not found in logs"
+    assert any("BULL:" in call for call in log_calls), "BULL regime count not found in logs"
 
     # Should contain ready bars count
-    assert any(
-        "Ready bars" in call for call in log_calls
-    ), "Ready bars count not found in logs"
+    assert any("Ready bars" in call for call in log_calls), "Ready bars count not found in logs"
 
 
 def test_detector_produces_non_sideways_signals() -> None:

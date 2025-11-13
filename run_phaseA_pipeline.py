@@ -6,11 +6,14 @@ Executes all 6 steps for BAC single-ticker pilot test
 
 import argparse
 import json
+import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 from datetime import datetime, timezone
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -29,6 +32,37 @@ from extensions.intraday_ml.reporting import (
     write_trade_report,
 )
 from extensions.intraday_ml.sip_membership import get_phase_symbols_with_sip
+
+_SYMBOL_TOKEN = re.compile(r"^[A-Z0-9.\-]{1,6}$")
+
+
+def _normalize_symbol_list(symbols: Sequence[str] | None) -> list[str]:
+    """Upper-case and de-duplicate a sequence of symbols."""
+    if not symbols:
+        return []
+
+    normalized: list[str] = []
+    for symbol in symbols:
+        token = str(symbol).strip()
+        if not token:
+            continue
+        upper_token = token.upper()
+        if not _SYMBOL_TOKEN.match(upper_token):
+            continue
+        normalized.append(upper_token)
+
+    return sorted(dict.fromkeys(normalized))
+
+
+def _log_symbol_summary(label: str, symbols: list[str], limit: int = 10) -> None:
+    """Print a short summary for potentially large symbol lists."""
+    if not symbols:
+        print(f"   {label}: 0 symbols")
+        return
+
+    preview = ", ".join(symbols[:limit])
+    suffix = "" if len(symbols) <= limit else f" ... (+{len(symbols) - limit} more)"
+    print(f"   {label}: {len(symbols)} symbols [{preview}{suffix}]")
 
 
 def _summarize_feature_coverage(
@@ -75,6 +109,148 @@ def _summarize_feature_coverage(
             )
 
     return coverage_path
+
+
+def _print_trade_readiness_summary(
+    training_df: pd.DataFrame,
+    feature_columns: list[str],
+    model: Any,
+    policy_cfg: dict[str, Any],
+) -> None:
+    """Log directional precision stats aligned with target trades/day goals."""
+
+    if training_df.empty or not feature_columns:
+        return
+    if "label" not in training_df or "ts" not in training_df:
+        return
+
+    ts_series = pd.to_datetime(training_df["ts"], errors="coerce")
+    if ts_series.isna().all():
+        return
+
+    trading_days = ts_series.dt.normalize().nunique()
+    if trading_days == 0:
+        return
+
+    feature_matrix = training_df[feature_columns].copy()
+    feature_matrix = feature_matrix.fillna(0.0)
+    feature_matrix = feature_matrix.reset_index(drop=True)
+    labels = training_df["label"].reset_index(drop=True)
+
+    probabilities = model.predict_proba(feature_matrix)
+    classes = [int(cls) for cls in model.classes_]
+    class_positions = {int(cls): idx for idx, cls in enumerate(classes)}
+
+    target_min = int(policy_cfg.get("target_trades_min", 3) or 3)
+    target_max = int(policy_cfg.get("target_trades_max", max(target_min, 3)))
+    trade_targets = sorted({max(target_min, 1), max(target_max, 1)})
+
+    print("   Trade readiness diagnostics (training set):")
+    print(f"     - Trading days observed: {trading_days}")
+
+    base_rates = {
+        direction: float((labels == direction).mean()) if len(labels) else 0.0
+        for direction in (-1, 1)
+    }
+
+    for direction in (-1, 1):
+        idx = class_positions.get(direction)
+        if idx is None or probabilities.shape[0] == 0:
+            continue
+        dir_probs = probabilities[:, idx]
+        order = np.argsort(dir_probs)[::-1]
+        base_rate = base_rates.get(direction, 0.0)
+        direction_label = "long" if direction == 1 else "short"
+
+        for target_trades in trade_targets:
+            top_k = min(len(order), max(1, int(trading_days * target_trades)))
+            selected_idx = order[:top_k]
+            selected_labels = labels.iloc[selected_idx]
+            hit_rate = float((selected_labels == direction).mean()) if top_k else 0.0
+            lift = hit_rate / base_rate if base_rate > 0 else float("inf")
+            min_prob = float(dir_probs[selected_idx[-1]]) if top_k else float("nan")
+            approx_trades_per_day = top_k / trading_days if trading_days else 0.0
+
+            print(
+                "     - Direction %s | target %.1f/day | realized %.2f/day | hit_rate %.2f%% | "
+                "lift %.2fx | min_prob %.3f"
+                % (
+                    direction_label,
+                    target_trades,
+                    approx_trades_per_day,
+                    hit_rate * 100.0,
+                    lift,
+                    min_prob,
+                )
+            )
+
+
+def _apply_label_guard(
+    training_df: pd.DataFrame,
+    deployment_symbols: list[str],
+    guard_cfg: dict[str, Any] | None,
+    artifact_dir: Path,
+) -> tuple[list[str], Path | None, list[str]]:
+    """Drop deployment symbols that lack sufficient directional labels."""
+    if not guard_cfg or not guard_cfg.get("enabled", True):
+        return deployment_symbols, None, []
+
+    min_per_direction = int(guard_cfg.get("min_per_direction", 0))
+    min_total_directional = int(guard_cfg.get("min_total_directional", 0))
+    drop_from_deployment = bool(guard_cfg.get("drop_from_deployment", False))
+    report_filename = guard_cfg.get("report_filename", "label_guard_report.json")
+
+    if training_df.empty or not deployment_symbols:
+        return deployment_symbols, None, []
+
+    label_counts = (
+        training_df.groupby(["symbol", "label"])
+        .size()
+        .unstack(fill_value=0)
+        .rename_axis(index="symbol")
+    )
+    label_counts.index = label_counts.index.str.upper()
+    label_counts = label_counts.reindex(columns=[-1, 0, 1], fill_value=0)
+
+    report: dict[str, dict[str, int | str | list[str] | None]] = {}
+    insufficient: list[str] = []
+
+    for symbol in deployment_symbols:
+        if symbol in label_counts.index:
+            stats = label_counts.loc[symbol]
+        else:
+            stats = pd.Series({-1: 0, 0: 0, 1: 0})
+
+        long_hits = int(stats.get(1, 0))
+        short_hits = int(stats.get(-1, 0))
+        total_dir = long_hits + short_hits
+        reasons: list[str] = []
+        if min_per_direction and long_hits < min_per_direction:
+            reasons.append("insufficient_long")
+        if min_per_direction and short_hits < min_per_direction:
+            reasons.append("insufficient_short")
+        if min_total_directional and total_dir < min_total_directional:
+            reasons.append("insufficient_total")
+
+        status = "kept"
+        if reasons and drop_from_deployment:
+            insufficient.append(symbol)
+            status = "dropped"
+
+        report[symbol] = {
+            "long_labels": long_hits,
+            "short_labels": short_hits,
+            "total_directional": total_dir,
+            "status": status,
+            "reasons": reasons or None,
+        }
+
+    report_path = artifact_dir / report_filename
+    with open(report_path, "w") as f:
+        json.dump(report, f, indent=2)
+
+    filtered = [sym for sym in deployment_symbols if sym not in insufficient]
+    return filtered, report_path, insufficient
 
 
 def main():
@@ -131,6 +307,7 @@ def main():
             configs["universe"]["symbols"] = [args.symbol]
 
         policy_section = master_config.get("policy", {})
+        label_guard_cfg = master_config.get("label_guard", {})
         session_timezone = policy_section.get("session_timezone", "America/New_York")
         policy_calibration_cfg = dict(policy_section.get("calibration", {}))
         calibration_stats_path: Path | None = None
@@ -140,10 +317,10 @@ def main():
         data_loader_config.setdefault("root", "/home/jacobw/gcs-mount/gold")
         data_loader_config.setdefault("validate", True)
         data_loader_config.setdefault("sort", True)
-        
+
         # SIP filter config
         sip_config = master_config.get("sip_filter", {"enabled": False})
-
+        sip_enabled = sip_config.get("enabled", False)
 
         # Step 1: Build Dataset Manifest
         print("\n🔧 Step 1: Building dataset manifest...")
@@ -157,6 +334,85 @@ def main():
 
         print(f"   Splits config after conversion: {configs['splits']}")
 
+        candidate_symbols = _normalize_symbol_list(configs["universe"].get("symbols", ["BAC"]))
+        if not candidate_symbols:
+            raise RuntimeError("Universe configuration produced zero candidate symbols.")
+
+        training_symbols_cfg = master_config.get("training_symbols")
+        deployment_symbols_cfg = master_config.get("deployment_symbols")
+
+        training_symbols_base = (
+            _normalize_symbol_list(training_symbols_cfg)
+            if training_symbols_cfg
+            else candidate_symbols.copy()
+        )
+        deployment_symbols_base = (
+            _normalize_symbol_list(deployment_symbols_cfg)
+            if deployment_symbols_cfg
+            else candidate_symbols.copy()
+        )
+
+        if args.symbol:
+            override_list = _normalize_symbol_list([args.symbol])
+            candidate_symbols = override_list
+            training_symbols_base = override_list
+            deployment_symbols_base = override_list
+
+        phase_defaults = {
+            "train": training_symbols_base,
+            "val": candidate_symbols,
+            "oos": deployment_symbols_base,
+        }
+
+        sip_log = lambda message: print(f"   {message}")
+        resolved_phase_symbols: dict[str, list[str]] = {}
+
+        if sip_enabled:
+            for phase_name, base_list in phase_defaults.items():
+                if phase_name not in configs["splits"]:
+                    continue
+                if not base_list:
+                    continue
+                resolved_phase_symbols[phase_name] = get_phase_symbols_with_sip(
+                    splits_config=configs["splits"],
+                    sip_config=sip_config,
+                    candidate_symbols=base_list,
+                    phase=phase_name,
+                    log_fn=sip_log,
+                )
+        else:
+            for phase_name, base_list in phase_defaults.items():
+                if base_list:
+                    resolved_phase_symbols[phase_name] = base_list
+
+        training_symbols = resolved_phase_symbols.get("train", [])
+        deployment_symbols = resolved_phase_symbols.get("oos", [])
+        val_symbols = resolved_phase_symbols.get("val", [])
+
+        if not training_symbols:
+            raise RuntimeError(
+                "No training symbols available after applying SIP filtering. "
+                "Ensure SIP membership exists for the training window."
+            )
+        if "oos" in configs["splits"] and not deployment_symbols:
+            raise RuntimeError(
+                "No deployment symbols available after applying SIP filtering. "
+                "Ensure SIP membership exists for the OOS window."
+            )
+
+        _log_symbol_summary(
+            "Training symbols (post-SIP)" if sip_enabled else "Training symbols",
+            training_symbols,
+        )
+        if "oos" in configs["splits"]:
+            _log_symbol_summary(
+                "Deployment symbols (post-SIP)" if sip_enabled else "Deployment symbols",
+                deployment_symbols,
+            )
+
+        manifest_sources = training_symbols + deployment_symbols + val_symbols
+        manifest_candidate_symbols = _normalize_symbol_list(manifest_sources) or candidate_symbols
+
         builder = DatasetManifestBuilder(
             gold_root="/home/jacobw/gcs-mount/gold",
             universe_config=configs["universe"],
@@ -164,37 +420,15 @@ def main():
             splits_config=configs["splits"],
         )
         manifest_path = artifact_dir / "manifest.json"
-        candidate_symbols = configs["universe"].get("symbols", ["BAC"])
         manifest = builder.build_manifest(
-            candidate_symbols=candidate_symbols,
+            candidate_symbols=manifest_candidate_symbols,
             output_path=manifest_path,
         )
         print(f"✅ Manifest created: {manifest_path}")
-        print(f"   Symbols: {manifest.symbols}")
+        _log_symbol_summary("Manifest symbols", manifest.symbols, limit=20)
         print(f"   Total days: {manifest.total_days}")
 
         available_symbols = sorted({str(symbol).upper() for symbol in manifest.symbols})
-
-        def _normalize_symbols(symbols: list[str]) -> list[str]:
-            return sorted({str(symbol).upper() for symbol in symbols})
-
-        training_symbols_cfg = master_config.get("training_symbols")
-        deployment_symbols_cfg = master_config.get("deployment_symbols")
-
-        if training_symbols_cfg:
-            training_symbols = _normalize_symbols(training_symbols_cfg)
-        else:
-            training_symbols = available_symbols.copy()
-
-        if deployment_symbols_cfg:
-            deployment_symbols = _normalize_symbols(deployment_symbols_cfg)
-        else:
-            deployment_symbols = available_symbols.copy()
-
-        if args.symbol:
-            override_symbol = str(args.symbol).upper()
-            training_symbols = [override_symbol]
-            deployment_symbols = [override_symbol]
 
         missing_training = sorted(set(training_symbols) - set(available_symbols))
         missing_deployment = sorted(set(deployment_symbols) - set(available_symbols))
@@ -211,29 +445,9 @@ def main():
                 + ". Check universe configuration."
             )
 
-        print(f"   Initial training symbols: {training_symbols}")
-        print(f"   Initial deployment symbols: {deployment_symbols}")
-
-        # Apply SIP filtering if enabled
-        sip_log = lambda message: print(f"   {message}")
-        training_symbols = get_phase_symbols_with_sip(
-            splits_config=configs["splits"],
-            sip_config=sip_config,
-            candidate_symbols=training_symbols,
-            phase="train",
-            log_fn=sip_log,
-        )
-        deployment_symbols = get_phase_symbols_with_sip(
-            splits_config=configs["splits"],
-            sip_config=sip_config,
-            candidate_symbols=deployment_symbols,
-            phase="oos",
-            log_fn=sip_log,
-        )
-
-        print(f"   Final training symbols: {training_symbols}")
-        print(f"   Final deployment symbols: {deployment_symbols}")
-
+        _log_symbol_summary("Final training symbols", training_symbols)
+        if "oos" in configs["splits"]:
+            _log_symbol_summary("Final deployment symbols", deployment_symbols)
 
         # Step 2: Data Preparation (Features + Labels using sliding window)
         print("\n🔧 Step 2: Data preparation with aligned features and labels...")
@@ -284,6 +498,28 @@ def main():
         )
         print(f"   Label distribution: {training_data['label'].value_counts().to_dict()}")
 
+        deployment_symbols_filtered = deployment_symbols
+        label_guard_report_path: Path | None = None
+        dropped_symbols: list[str] = []
+        if label_guard_cfg:
+            deployment_symbols_filtered, label_guard_report_path, dropped_symbols = (
+                _apply_label_guard(training_data, deployment_symbols, label_guard_cfg, artifact_dir)
+            )
+            if label_guard_report_path:
+                print(f"✅ Label guard report saved: {label_guard_report_path}")
+            if dropped_symbols:
+                print(
+                    "⚠️ Dropped deployment symbols due to insufficient directional labels: "
+                    + ", ".join(dropped_symbols)
+                )
+            if not deployment_symbols_filtered:
+                raise RuntimeError(
+                    "All deployment symbols failed label guard checks. "
+                    "Relax guard thresholds or extend the training window."
+                )
+            deployment_symbols = deployment_symbols_filtered
+            resolved_phase_symbols["oos"] = deployment_symbols_filtered
+
         # Step 3: Train LightGBM Model
         print("\n🔧 Step 3: Training LightGBM model...")
         trainer = LightGBMTrainer(configs["model"])
@@ -313,6 +549,7 @@ def main():
                 data=training_data,
                 feature_columns=feature_columns,
                 calibration_config=policy_calibration_cfg,
+                risk_config=policy_section.get("risk"),
             )
             stats_filename = policy_calibration_cfg.get("stats_filename", "policy_calibration.json")
             calibration_stats_path = artifact_dir / stats_filename
@@ -325,6 +562,37 @@ def main():
 
         joblib.dump(result.model, model_dir / "model.pkl")
         print(f"✅ Model trained: {model_dir}")
+
+        # Print a concise metric summary to catch regressions early
+        try:
+            m = result.metrics or {}
+            ll = m.get("log_loss")
+            bll = m.get("baseline_log_loss")
+            bri = m.get("brier_improvement")
+            worse_than_baseline = (m.get("sanity", {}) or {}).get("worse_than_baseline")
+            trade_density = m.get("trade_density")
+            if ll is not None and bll is not None:
+                msg1 = (
+                    f"   Metrics: log_loss={ll:.6f} | baseline_log_loss={bll:.6f}"
+                )
+                msg2 = (
+                    f"   brier_improvement={bri:.6f} | trade_density={trade_density:.4f}"
+                )
+                print(msg1)
+                print(msg2)
+                if bool(worse_than_baseline):
+                    print(
+                        "⚠️ Detected log_loss worse than frequency baseline. "
+                        "Check class mapping and label alignment."
+                    )
+        except Exception:
+            # Do not fail the pipeline on metrics printing
+            pass
+
+        try:
+            _print_trade_readiness_summary(training_data, feature_columns, result.model, policy_section)
+        except Exception as exc:  # pragma: no cover - diagnostics only
+            print(f"⚠️ Trade readiness diagnostics failed: {exc}")
 
         # Step 4: Cross-Validation
         if master_config.get("run_cv", True):
@@ -345,9 +613,7 @@ def main():
                 if column in training_data_for_cv.columns
             ]
             context_data_for_cv = (
-                training_data_for_cv[context_columns_for_cv]
-                if context_columns_for_cv
-                else None
+                training_data_for_cv[context_columns_for_cv] if context_columns_for_cv else None
             )
 
             cv_result = cv_runner.run_cv(
@@ -412,6 +678,23 @@ def main():
             oos_predictions,
             columns=[f"prob_c{i}" for i in range(oos_predictions.shape[1])],
         )
+        # Derive robust probability columns using actual class mapping
+        try:
+            classes = [int(cls) for cls in model.classes_]
+            class_positions = {int(cls): idx for idx, cls in enumerate(classes)}
+            # Provide label-keyed columns for clarity
+            for cls, idx in class_positions.items():
+                oos_predictions_df[f"prob_{cls}"] = oos_predictions[:, idx]
+            # Standardized names expected by policy layer
+            if -1 in class_positions:
+                oos_predictions_df["prob_short"] = oos_predictions[:, class_positions[-1]]
+            if 0 in class_positions:
+                oos_predictions_df["prob_neutral"] = oos_predictions[:, class_positions[0]]
+            if 1 in class_positions:
+                oos_predictions_df["prob_long"] = oos_predictions[:, class_positions[1]]
+        except Exception:
+            # If anything goes wrong, continue with generic c0/c1/c2 columns only
+            pass
         oos_predictions_df["ts"] = oos_data["ts"]
         oos_predictions_df["symbol"] = oos_data["symbol"]
 
@@ -452,6 +735,8 @@ def main():
             "max_entries_per_day": policy_section.get("max_entries_per_day"),
             "gap_exit_delay_minutes": policy_section.get("gap_exit_delay_minutes"),
             "session_timezone": session_timezone,
+            "target_trades_min": policy_section.get("target_trades_min", 3),
+            "target_trades_max": policy_section.get("target_trades_max", 5),
         }
 
         if "risk" in policy_section:
@@ -471,14 +756,15 @@ def main():
 
         policy = IntradayMLDecisionPolicy(policy_config)
 
-        # Rename prediction columns for policy
-        oos_predictions_df = oos_predictions_df.rename(
-            columns={
-                "prob_c0": "prob_short",
-                "prob_c1": "prob_neutral",
-                "prob_c2": "prob_long",
-            }
-        )
+        # Rename prediction columns for policy only if standardized names are missing
+        if not {"prob_long", "prob_short"}.issubset(set(oos_predictions_df.columns)):
+            oos_predictions_df = oos_predictions_df.rename(
+                columns={
+                    "prob_c0": "prob_short",
+                    "prob_c1": "prob_neutral",
+                    "prob_c2": "prob_long",
+                }
+            )
 
         required_feature_columns = policy.get_required_feature_columns()
         merged_signals = oos_predictions_df
@@ -560,9 +846,7 @@ def main():
             for k, v in metrics_dict.items():
                 print(f"     - {k}: {v}")
 
-        trade_orders_df = backtest_artifacts.get(
-            "policy_orders", backtest_artifacts.get("orders")
-        )
+        trade_orders_df = backtest_artifacts.get("policy_orders", backtest_artifacts.get("orders"))
         trade_summary_df = summarize_round_trip_trades(
             backtest_artifacts.get("fills"), trade_orders_df
         )
@@ -570,11 +854,16 @@ def main():
             trade_summary_path = artifact_dir / "trade_summary.parquet"
             trade_summary_df.to_parquet(trade_summary_path, index=False)
             trade_report_path = artifact_dir / "trade_summary.md"
-            write_trade_report(trade_summary_df, trade_report_path, max_rows=50)
-            print(
-                f"   Trade summary saved: {trade_summary_path} "
-                f"({len(trade_summary_df)} trades)"
+            write_trade_report(
+                trade_summary_df,
+                trade_report_path,
+                max_rows=50,
+                target_range=(
+                    policy_config.get("target_trades_min", 3),
+                    policy_config.get("target_trades_max", 5),
+                ),
             )
+            print(f"   Trade summary saved: {trade_summary_path} ({len(trade_summary_df)} trades)")
         else:
             print("   Trade summary: no completed trades")
 
@@ -601,6 +890,8 @@ def main():
         print(f"   - Manifest symbols: {', '.join(available_symbols)}")
         print(f"   - Training symbols: {', '.join(training_symbols)}")
         print(f"   - Deployment symbols: {', '.join(deployment_symbols)}")
+        if label_guard_report_path:
+            print(f"   - Label guard report: {label_guard_report_path}")
         print(f"   - Train: {train_dates['start']} to {train_dates['end']}")
         test_dates = configs["splits"].get("test", {})
         oos_split = configs["splits"].get("oos", {})
@@ -626,6 +917,7 @@ def main():
             "train_window": train_dates,
             "test_window": test_dates,
             "oos_window": oos_split,
+            "label_guard_report": str(label_guard_report_path) if label_guard_report_path else None,
         }
         with open(status_path, "w") as f:
             json.dump(phase_status, f, indent=2)

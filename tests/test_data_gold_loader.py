@@ -138,9 +138,7 @@ class TestParquetPathResolution:
     def test_get_parquet_paths_other_families(self):
         """Test path resolution for non-bars_1m families."""
         with patch("glob.glob") as mock_glob:
-            mock_glob.return_value = [
-                "/fake/features/symbol=AAPL/date=2020-01-15/file.parquet"
-            ]
+            mock_glob.return_value = ["/fake/features/symbol=AAPL/date=2020-01-15/file.parquet"]
 
             _get_parquet_paths("/fake", "features", "AAPL", "2020-01-15")
 

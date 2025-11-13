@@ -64,15 +64,9 @@ class ModelConfig(BaseModel):
     train_test_split: float = Field(default=0.2, description="Test set proportion")
     train_val_split: float = Field(default=0.2, description="Validation set proportion")
     random_seed: int = Field(default=42, description="Random seed")
-    cross_validation_folds: int = Field(
-        default=5, description="CV folds for hyperparameter tuning"
-    )
-    feature_selection: bool = Field(
-        default=False, description="Enable feature selection"
-    )
-    feature_importance_threshold: float = Field(
-        default=0.01, description="Min feature importance"
-    )
+    cross_validation_folds: int = Field(default=5, description="CV folds for hyperparameter tuning")
+    feature_selection: bool = Field(default=False, description="Enable feature selection")
+    feature_importance_threshold: float = Field(default=0.01, description="Min feature importance")
     scale_features: bool = Field(default=True, description="Enable feature scaling")
 
 
@@ -84,9 +78,5 @@ class PredictionResult(BaseModel):
     symbol: str = Field(..., description="Symbol prediction is for")
     features_used: list[str] = Field(..., description="Features used for prediction")
     prediction: float | int = Field(..., description="Model prediction")
-    prediction_probability: float | None = Field(
-        None, description="Prediction confidence"
-    )
-    feature_values: dict[str, float] = Field(
-        ..., description="Feature values at prediction time"
-    )
+    prediction_probability: float | None = Field(None, description="Prediction confidence")
+    feature_values: dict[str, float] = Field(..., description="Feature values at prediction time")

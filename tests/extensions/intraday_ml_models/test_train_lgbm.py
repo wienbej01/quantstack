@@ -25,13 +25,17 @@ class TestLightGBMTrainer(unittest.TestCase):
         with open("configs/extensions/intraday_ml/model_lgbm_loose.yaml") as f:
             config = yaml.safe_load(f)
 
+        # Relax guards for synthetic data
+        guard = config.setdefault("training", {}).setdefault("abstention_guard", {})
+        guard["max_trade_density"] = 1.0
+        guard["min_abstention_rate"] = 0.0
+        guard["fail_on_worse_than_baseline"] = False
+
         trainer = LightGBMTrainer(config)
-        result = trainer.train_model(
-            self.features, self.labels, "features_hash", "targets_hash"
-        )
+        result = trainer.train_model(self.features, self.labels, "features_hash", "targets_hash")
 
         self.assertIsNotNone(result.model)
-        self.assertEqual(result.calibrated_model, result.model)  # No calibration
+        self.assertIsNotNone(result.calibrated_model)
 
         # Check probability shape
         probs = result.model.predict_proba(self.features)
@@ -42,13 +46,48 @@ class TestLightGBMTrainer(unittest.TestCase):
         with open("configs/extensions/intraday_ml/model_lgbm_loose.yaml") as f:
             config = yaml.safe_load(f)
 
+        guard = config.setdefault("training", {}).setdefault("abstention_guard", {})
+        guard["max_trade_density"] = 1.0
+        guard["min_abstention_rate"] = 0.0
+        guard["fail_on_worse_than_baseline"] = False
+
         trainer = LightGBMTrainer(config)
-        result = trainer.train_model(
-            self.features, self.labels, "features_hash", "targets_hash"
-        )
+        result = trainer.train_model(self.features, self.labels, "features_hash", "targets_hash")
 
         self.assertIn("trade_density", result.metrics)
         self.assertIsInstance(result.metrics["trade_density"], float)
+
+    def test_training_guard_blocks_high_trade_density(self):
+        """Ensure guard rails raise when trade density is excessive."""
+        with open("configs/extensions/intraday_ml/model_lgbm_loose.yaml") as f:
+            config = yaml.safe_load(f)
+
+        config.setdefault("training", {}).setdefault("abstention_guard", {})[
+            "max_trade_density"
+        ] = 0.1
+
+        trainer = LightGBMTrainer(config)
+        high_churn_labels = pd.Series(np.random.choice([-1, 1], size=120), name="label")
+
+        with self.assertRaises(ValueError):
+            trainer.train_model(self.features, high_churn_labels, "hash_f", "hash_t")
+
+    def test_topk_metrics_present(self):
+        """Top-K metrics should be computed when enabled."""
+        with open("configs/extensions/intraday_ml/model_lgbm_loose.yaml") as f:
+            config = yaml.safe_load(f)
+
+        guard = config.setdefault("training", {}).setdefault("abstention_guard", {})
+        guard["max_trade_density"] = 1.0
+        guard["min_abstention_rate"] = 0.0
+        guard["fail_on_worse_than_baseline"] = False
+
+        trainer = LightGBMTrainer(config)
+        result = trainer.train_model(self.features, self.labels, "f_hash", "t_hash")
+
+        topk = result.metrics.get("topk_metrics")
+        self.assertIsInstance(topk, dict)
+        self.assertIn("estimated_days", topk)
 
 
 if __name__ == "__main__":

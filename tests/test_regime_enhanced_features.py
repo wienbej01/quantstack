@@ -20,9 +20,7 @@ class TestAnchoredVWAPFeatures:
     def test_session_avwap_computation(self):
         """Test session AVWAP computation."""
         # Create sample data
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
             "symbol": ["AAPL"] * 10,
@@ -93,9 +91,7 @@ class TestAnchoredVWAPFeatures:
     def test_multiple_sessions(self):
         """Test AVWAP reset across multiple sessions."""
         # Create data spanning two days
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York")
         symbols = ["AAPL"] * 10 + ["AAPL"] * 10  # Same symbol, different sessions
 
         data = {
@@ -129,9 +125,7 @@ class TestIntradayVolumeProfile:
 
     def test_profile_computation(self):
         """Test volume profile POC/VAH/VAL computation."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=50, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=50, freq="1min", tz="America/New_York")
 
         # Create data with clear price levels
         np.random.seed(42)
@@ -165,22 +159,14 @@ class TestIntradayVolumeProfile:
             assert col in result.columns
 
         # Check POC is between VAH and VAL
-        valid_rows = result.dropna(
-            subset=["f__profile__poc", "f__profile__vah", "f__profile__val"]
-        )
+        valid_rows = result.dropna(subset=["f__profile__poc", "f__profile__vah", "f__profile__val"])
         if not valid_rows.empty:
-            assert (
-                valid_rows["f__profile__val"] <= valid_rows["f__profile__poc"]
-            ).all()
-            assert (
-                valid_rows["f__profile__poc"] <= valid_rows["f__profile__vah"]
-            ).all()
+            assert (valid_rows["f__profile__val"] <= valid_rows["f__profile__poc"]).all()
+            assert (valid_rows["f__profile__poc"] <= valid_rows["f__profile__vah"]).all()
 
     def test_value_acceptance_logic(self):
         """Test value acceptance detection logic."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York")
 
         # Create data that moves from outside to inside value area
         prices = np.concatenate(
@@ -216,9 +202,7 @@ class TestICTStructures:
 
     def test_fvg_detection(self):
         """Test Fair Value Gap detection."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         # Create data with bullish FVG pattern
         # Bullish FVG: low[t] > high[t-2] and close[t-1] > close[t-2]
@@ -298,9 +282,7 @@ class TestICTStructures:
 
     def test_displacement_leg_detection(self):
         """Test displacement leg detection."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         # Create data with strong displacement (large range, high volume)
         data = {
@@ -328,15 +310,11 @@ class TestICTStructures:
 
     def test_liquidity_sweep_detection(self):
         """Test liquidity sweep detection."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York")
 
         # Create data with equal highs then sweep
         equal_high_price = 152.0
-        prices = (
-            [151.0] * 10 + [equal_high_price] * 10 + [151.5] * 10
-        )  # Sweep above equal high
+        prices = [151.0] * 10 + [equal_high_price] * 10 + [151.5] * 10  # Sweep above equal high
 
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
@@ -372,9 +350,7 @@ class TestOrderFlowVPA:
 
     def test_ofi_computation(self):
         """Test Order Flow Imbalance computation."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         # Create data with clear directional moves
         data = {
@@ -451,9 +427,7 @@ class TestOrderFlowVPA:
 
     def test_vpa_absorption_detection(self):
         """Test VPA absorption detection."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York")
 
         # Create data with absorption characteristics
         # High volume, low range, small body
@@ -494,9 +468,7 @@ class TestStressContraction:
 
     def test_stress_contraction_detection(self):
         """Test stress contraction detection."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
@@ -523,15 +495,11 @@ class TestStressContraction:
         assert "f__stress__contraction" in result.columns
 
         # Should detect contraction at the transition point
-        assert result["f__stress__contraction"].iloc[
-            3
-        ]  # Index 3 where stress goes from 1.0 to 0.0
+        assert result["f__stress__contraction"].iloc[3]  # Index 3 where stress goes from 1.0 to 0.0
 
     def test_no_stress_column(self):
         """Test behavior when stress column is missing."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=5, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=5, freq="1min", tz="America/New_York")
 
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
@@ -551,9 +519,7 @@ class TestRegimeEnhancedPipeline:
 
     def test_complete_pipeline(self):
         """Test complete pipeline with all features."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=50, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=50, freq="1min", tz="America/New_York")
 
         np.random.seed(42)
         prices = np.random.uniform(150.0, 152.0, 50)
@@ -602,9 +568,7 @@ class TestRegimeEnhancedPipeline:
 
     def test_pipeline_with_multiple_symbols(self):
         """Test pipeline with multiple symbols."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=20, freq="1min", tz="America/New_York")
         symbols = ["AAPL"] * 10 + ["MSFT"] * 10
 
         data = {
@@ -631,9 +595,7 @@ class TestRegimeEnhancedPipeline:
 
     def test_pipeline_with_custom_config(self):
         """Ensure configurable parameters are accepted and applied."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=30, freq="1min", tz="America/New_York")
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
             "symbol": ["AAPL"] * 30,
@@ -726,34 +688,30 @@ class TestRegimeEnhancedRegression:
 
         # Session 1: Should be NaN before touch (bars 0-3), then constant after touch (bars 4-9)
         session1_data = result[result["session_date"] == "2024-01-02"]
-        assert (
-            session1_data["f__anchor__prev_high_avwap"].iloc[:4].isna().all()
-        ), "Should be NaN before first touch"
-        assert (
-            not session1_data["f__anchor__prev_high_avwap"].iloc[4:].isna().any()
-        ), "Should not be NaN after touch"
+        assert session1_data["f__anchor__prev_high_avwap"].iloc[:4].isna().all(), (
+            "Should be NaN before first touch"
+        )
+        assert not session1_data["f__anchor__prev_high_avwap"].iloc[4:].isna().any(), (
+            "Should not be NaN after touch"
+        )
 
         # Verify persistence - values should be constant after touch
         post_touch_values = session1_data["f__anchor__prev_high_avwap"].iloc[4:]
-        assert (
-            post_touch_values.nunique() == 1
-        ), "AVWAP should remain constant after touch"
+        assert post_touch_values.nunique() == 1, "AVWAP should remain constant after touch"
 
         # Session 2: Should be NaN before touch (bars 0-5), then constant after touch (bars 6-9)
         session2_data = result[result["session_date"] == "2024-01-03"]
-        assert (
-            session2_data["f__anchor__prev_high_avwap"].iloc[:6].isna().all()
-        ), "Should be NaN before first touch in session 2"
-        assert (
-            not session2_data["f__anchor__prev_high_avwap"].iloc[6:].isna().any()
-        ), "Should not be NaN after touch in session 2"
+        assert session2_data["f__anchor__prev_high_avwap"].iloc[:6].isna().all(), (
+            "Should be NaN before first touch in session 2"
+        )
+        assert not session2_data["f__anchor__prev_high_avwap"].iloc[6:].isna().any(), (
+            "Should not be NaN after touch in session 2"
+        )
 
     def test_first_fvg_levels_non_null(self):
         """Craft three-bar pattern hitting FVG and assert lower/upper populated, active flag toggles off after fill."""
         # Create data with clear three-candle FVG pattern
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         # Bars 0-2: Create bull FVG (bar 2 high > bar 0 low, with uptrend)
         # Bar 3-9: Fill the FVG progressively
@@ -827,29 +785,23 @@ class TestRegimeEnhancedRegression:
         assert fvg_detected.iloc[2], "FVG should be detected at bar 2"
 
         # First detection should have non-null levels
-        assert not pd.isna(
-            result["f__ict__fvg_bull_lower"].iloc[2]
-        ), "FVG lower should be non-null at first detection"
-        assert not pd.isna(
-            result["f__ict__fvg_bull_upper"].iloc[2]
-        ), "FVG upper should be non-null at first detection"
+        assert not pd.isna(result["f__ict__fvg_bull_lower"].iloc[2]), (
+            "FVG lower should be non-null at first detection"
+        )
+        assert not pd.isna(result["f__ict__fvg_bull_upper"].iloc[2]), (
+            "FVG upper should be non-null at first detection"
+        )
 
         # FVG should be active initially
-        assert result["f__ict__fvg_bull_active"].iloc[
-            2
-        ], "FVG should be active at first detection"
+        assert result["f__ict__fvg_bull_active"].iloc[2], "FVG should be active at first detection"
 
         # FVG should be filled when price closes within gap (around bar 6-7)
         # Check that active flag eventually becomes False
-        assert not result["f__ict__fvg_bull_active"].iloc[
-            -1
-        ], "FVG should eventually be filled"
+        assert not result["f__ict__fvg_bull_active"].iloc[-1], "FVG should eventually be filled"
 
     def test_stopping_volume_flag(self):
         """Generate bars with volume spike and trend reversal; assert boolean flag set once."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=10, freq="1min", tz="America/New_York")
 
         # Create uptrend followed by volume spike and reversal
         data = {
@@ -915,26 +867,20 @@ class TestRegimeEnhancedRegression:
 
         # Should detect stopping volume at the volume spike (bar 6, index 5)
         # This is where uptrend continues but with huge volume, followed by reversal
-        assert result[
-            "f__vpa__stopping_volume"
-        ].any(), "Should detect stopping volume at least once"
+        assert result["f__vpa__stopping_volume"].any(), (
+            "Should detect stopping volume at least once"
+        )
 
         # Find where stopping volume was detected
         stopping_bars = result[result["f__vpa__stopping_volume"]]
-        assert (
-            len(stopping_bars) >= 1
-        ), "Should have at least one stopping volume detection"
+        assert len(stopping_bars) >= 1, "Should have at least one stopping volume detection"
 
         # Verify it's a boolean column
-        assert (
-            result["f__vpa__stopping_volume"].dtype == bool
-        ), "Stopping volume should be boolean"
+        assert result["f__vpa__stopping_volume"].dtype == bool, "Stopping volume should be boolean"
 
     def test_logging_hygiene(self, capsys):
         """Capture logging: use capsys to confirm silence unless explicitly enabling verbose flag."""
-        dates = pd.date_range(
-            "2024-01-02 09:30:00", periods=5, freq="1min", tz="America/New_York"
-        )
+        dates = pd.date_range("2024-01-02 09:30:00", periods=5, freq="1min", tz="America/New_York")
 
         data = {
             "ts": dates.tz_convert("UTC").view("int64"),
@@ -959,32 +905,24 @@ class TestRegimeEnhancedRegression:
         # Test individual functions with verbose=False
         compute_intraday_volume_profile(df, verbose=False)
         captured = capsys.readouterr()
-        assert (
-            captured.out == ""
-        ), "Volume profile should produce no output when verbose=False"
+        assert captured.out == "", "Volume profile should produce no output when verbose=False"
 
         compute_ict_structures(df, verbose=False)
         captured = capsys.readouterr()
-        assert (
-            captured.out == ""
-        ), "ICT structures should produce no output when verbose=False"
+        assert captured.out == "", "ICT structures should produce no output when verbose=False"
 
         compute_order_flow_vpa(df, verbose=False)
         captured = capsys.readouterr()
-        assert (
-            captured.out == ""
-        ), "Order flow VPA should produce no output when verbose=False"
+        assert captured.out == "", "Order flow VPA should produce no output when verbose=False"
 
         compute_stress_contraction(df, verbose=False)
         captured = capsys.readouterr()
-        assert (
-            captured.out == ""
-        ), "Stress contraction should produce no output when verbose=False"
+        assert captured.out == "", "Stress contraction should produce no output when verbose=False"
 
         # Test with verbose=True - should produce output
         compute_all_regime_enhanced_features(df, verbose=True)
         captured = capsys.readouterr()
         assert captured.out != "", "Should produce output when verbose=True"
-        assert (
-            "Regime-Enhanced Features Pipeline" in captured.out
-        ), "Should contain pipeline header when verbose=True"
+        assert "Regime-Enhanced Features Pipeline" in captured.out, (
+            "Should contain pipeline header when verbose=True"
+        )

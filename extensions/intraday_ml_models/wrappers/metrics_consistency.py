@@ -8,9 +8,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 
 def run_metrics_consistency_check(backtest_config: dict) -> None:

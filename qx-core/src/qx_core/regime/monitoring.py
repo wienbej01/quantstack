@@ -35,9 +35,7 @@ class RegimeStateMetrics:
         if self.first_entry_time is None:
             self.first_entry_time = timestamp
 
-    def update_exit(
-        self, entry_time: datetime, exit_time: datetime, bar_count: int
-    ) -> None:
+    def update_exit(self, entry_time: datetime, exit_time: datetime, bar_count: int) -> None:
         """Record regime exit and update duration metrics."""
         self.exit_count += 1
         self.last_exit_time = exit_time
@@ -71,9 +69,7 @@ class RegimeStateMetrics:
             "first_entry_time": (
                 self.first_entry_time.isoformat() if self.first_entry_time else None
             ),
-            "last_exit_time": (
-                self.last_exit_time.isoformat() if self.last_exit_time else None
-            ),
+            "last_exit_time": (self.last_exit_time.isoformat() if self.last_exit_time else None),
         }
 
 
@@ -81,9 +77,7 @@ class RegimeStateMetrics:
 class RegimeTransitionMetrics:
     """Metrics for tracking regime transitions and stability."""
 
-    transition_matrix: dict[tuple[RegimeType, RegimeType], int] = field(
-        default_factory=dict
-    )
+    transition_matrix: dict[tuple[RegimeType, RegimeType], int] = field(default_factory=dict)
     total_transitions: int = 0
     regime_flips: int = 0  # Number of times regime changed
     same_regime_continuations: int = 0
@@ -117,18 +111,13 @@ class RegimeTransitionMetrics:
             # Update timing metrics
             if self.last_flip_time is not None:
                 time_diff = int((timestamp - self.last_flip_time).total_seconds() / 60)
-                self.max_time_between_flips = max(
-                    self.max_time_between_flips, time_diff
-                )
-                self.min_time_between_flips = min(
-                    self.min_time_between_flips, time_diff
-                )
+                self.max_time_between_flips = max(self.max_time_between_flips, time_diff)
+                self.min_time_between_flips = min(self.min_time_between_flips, time_diff)
 
                 # Update average time between flips
                 if self.regime_flips > 1:
                     self.avg_time_between_flips = (
-                        self.avg_time_between_flips * (self.regime_flips - 2)
-                        + time_diff
+                        self.avg_time_between_flips * (self.regime_flips - 2) + time_diff
                     ) / (self.regime_flips - 1)
 
             self.last_flip_time = timestamp
@@ -148,9 +137,7 @@ class RegimeTransitionMetrics:
             row = {"from_regime": from_regime.value}
             for to_regime in all_regimes:
                 transition_key = (from_regime, to_regime)
-                row[f"to_{to_regime.value}"] = self.transition_matrix.get(
-                    transition_key, 0
-                )
+                row[f"to_{to_regime.value}"] = self.transition_matrix.get(transition_key, 0)
             matrix_data.append(row)
 
         return pd.DataFrame(matrix_data).set_index("from_regime")
@@ -164,9 +151,7 @@ class RegimeTransitionMetrics:
             "avg_time_between_flips_minutes": round(self.avg_time_between_flips, 2),
             "max_time_between_flips_minutes": self.max_time_between_flips,
             "min_time_between_flips_minutes": (
-                self.min_time_between_flips
-                if self.min_time_between_flips != float("inf")
-                else 0
+                self.min_time_between_flips if self.min_time_between_flips != float("inf") else 0
             ),
             "flip_frequency_per_hour": round(
                 self.regime_flips / max(self.total_transitions / 60, 1), 4
@@ -195,9 +180,7 @@ class RegimePerformanceMetrics:
     total_return: float = 0.0
     regime_attribution: dict[RegimeType, float] = field(default_factory=dict)
 
-    def update_trade(
-        self, regime: RegimeType, trade_return: float, is_win: bool
-    ) -> None:
+    def update_trade(self, regime: RegimeType, trade_return: float, is_win: bool) -> None:
         """Update metrics with completed trade."""
         if regime not in self.regime_returns:
             self.regime_returns[regime] = []
@@ -220,9 +203,7 @@ class RegimePerformanceMetrics:
             returns_array = np.array(self.regime_returns[regime])
             self.regime_sharpe[regime] = (
                 np.mean(returns_array) / (np.std(returns_array) + 1e-8)
-            ) * np.sqrt(
-                252
-            )  # Annualized
+            ) * np.sqrt(252)  # Annualized
 
     def update_drawdown(self, regime: RegimeType, drawdown: float) -> None:
         """Update drawdown metrics for regime."""
@@ -238,9 +219,7 @@ class RegimePerformanceMetrics:
         self.total_return = total_pnl
 
         for regime, pnl in self.regime_pnl.items():
-            self.regime_attribution[regime] = (
-                pnl / abs(total_pnl) if total_pnl != 0 else 0.0
-            )
+            self.regime_attribution[regime] = pnl / abs(total_pnl) if total_pnl != 0 else 0.0
 
     def get_summary(self) -> dict[str, Any]:
         """Get summary dictionary of performance metrics."""
@@ -271,12 +250,8 @@ class RegimeMonitoringMetrics:
 
     # Component metrics
     state_metrics: dict[RegimeType, RegimeStateMetrics] = field(default_factory=dict)
-    transition_metrics: RegimeTransitionMetrics = field(
-        default_factory=RegimeTransitionMetrics
-    )
-    performance_metrics: RegimePerformanceMetrics = field(
-        default_factory=RegimePerformanceMetrics
-    )
+    transition_metrics: RegimeTransitionMetrics = field(default_factory=RegimeTransitionMetrics)
+    performance_metrics: RegimePerformanceMetrics = field(default_factory=RegimePerformanceMetrics)
 
     # Overall statistics
     total_bars: int = 0
@@ -290,9 +265,7 @@ class RegimeMonitoringMetrics:
     def __post_init__(self) -> None:
         """Initialize regime state metrics."""
         for regime_type in RegimeType:
-            self.state_metrics[regime_type] = RegimeStateMetrics(
-                regime_type=regime_type
-            )
+            self.state_metrics[regime_type] = RegimeStateMetrics(regime_type=regime_type)
 
     def update_regime_state(
         self,
@@ -311,9 +284,7 @@ class RegimeMonitoringMetrics:
         # Record transition if this is not the first state
         if hasattr(self, "_last_regime") and self._last_regime != current_regime:
             self.regime_changes += 1
-            self.transition_metrics.record_transition(
-                self._last_regime, current_regime, timestamp
-            )
+            self.transition_metrics.record_transition(self._last_regime, current_regime, timestamp)
 
         self._last_regime = current_regime
         self._last_regime_time = timestamp
@@ -408,9 +379,7 @@ class RegimeMonitor:
     def record_drawdown(self, drawdown: float) -> None:
         """Record drawdown for current regime."""
         if self._current_regime:
-            self.metrics.performance_metrics.update_drawdown(
-                self._current_regime, drawdown
-            )
+            self.metrics.performance_metrics.update_drawdown(self._current_regime, drawdown)
 
     def finalize(self) -> RegimeMonitoringMetrics:
         """Finalize monitoring and return complete metrics."""

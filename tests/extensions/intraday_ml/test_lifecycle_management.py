@@ -446,9 +446,7 @@ class TestVersionManager:
             Path(model_file_path).unlink()
 
     @patch("extensions.intraday_ml_lifecycle.version_manager.MLModelRegistry")
-    def test_create_version_with_parent(
-        self, mock_registry_class, sample_model_metadata
-    ):
+    def test_create_version_with_parent(self, mock_registry_class, sample_model_metadata):
         """Test creating a version with a parent."""
         # Setup mock
         mock_registry = Mock()

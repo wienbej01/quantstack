@@ -66,15 +66,7 @@ def create_p_hat_files(temp_dir, target_date, symbols, p_hat_data):
             continue
 
         # Create directory structure
-        symbol_dir = (
-            Path(temp_dir)
-            / "hybrid-local"
-            / "signals"
-            / "sip"
-            / "1m"
-            / symbol
-            / str(year)
-        )
+        symbol_dir = Path(temp_dir) / "hybrid-local" / "signals" / "sip" / "1m" / symbol / str(year)
         symbol_dir.mkdir(parents=True, exist_ok=True)
 
         # Create p_hat data
@@ -120,9 +112,7 @@ def test_p_hat_gating_basic():
         hybrid_local.mkdir(parents=True)
 
         # Create p_hat files
-        create_p_hat_files(
-            temp_dir, "2024-01-03", ["AAPL", "GOOGL", "MSFT", "AMZN"], p_hat_data
-        )
+        create_p_hat_files(temp_dir, "2024-01-03", ["AAPL", "GOOGL", "MSFT", "AMZN"], p_hat_data)
 
         # Create external premarket file
         premarket_dir = hybrid_local / "signals" / "sip" / "universe" / "pre"
@@ -169,9 +159,9 @@ def test_p_hat_gating_basic():
         # MSFT should never be eligible (p_hat = 0.1)
         assert "AAPL" in all_eligible_symbols
         assert "AMZN" in all_eligible_symbols
-        assert (
-            "MSFT" not in all_eligible_symbols
-        ), f"MSFT should not be eligible but found in: {all_eligible_symbols}"
+        assert "MSFT" not in all_eligible_symbols, (
+            f"MSFT should not be eligible but found in: {all_eligible_symbols}"
+        )
 
         # Verify universe map has entries for RTH timestamps only
         rth_timestamps = bars_df["ts"].unique()
@@ -207,9 +197,7 @@ def test_p_hat_gating_with_min_minutes_in_state():
         hybrid_local.mkdir(parents=True)
 
         # Create p_hat files
-        create_p_hat_files(
-            temp_dir, "2024-01-03", ["AAPL", "GOOGL", "MSFT", "AMZN"], p_hat_data
-        )
+        create_p_hat_files(temp_dir, "2024-01-03", ["AAPL", "GOOGL", "MSFT", "AMZN"], p_hat_data)
 
         # Create external premarket file
         premarket_dir = hybrid_local / "signals" / "sip" / "universe" / "pre"
@@ -259,9 +247,7 @@ def test_p_hat_gating_no_p_hat_files():
         premarket_dir = hybrid_local / "signals" / "sip" / "universe" / "pre"
         premarket_dir.mkdir(parents=True)
 
-        premarket_df = pd.DataFrame(
-            {"sym": ["AAPL", "GOOGL", "MSFT"], "score": [0.9, 0.8, 0.7]}
-        )
+        premarket_df = pd.DataFrame({"sym": ["AAPL", "GOOGL", "MSFT"], "score": [0.9, 0.8, 0.7]})
         premarket_df.to_parquet(premarket_dir / "2024-01-03_pre.parquet", index=False)
 
         # Configure selector with p_hat gating but no files exist
@@ -300,9 +286,7 @@ def test_p_hat_gating_disabled():
         premarket_dir = hybrid_local / "signals" / "sip" / "universe" / "pre"
         premarket_dir.mkdir(parents=True)
 
-        premarket_df = pd.DataFrame(
-            {"sym": ["AAPL", "GOOGL", "MSFT"], "score": [0.9, 0.8, 0.7]}
-        )
+        premarket_df = pd.DataFrame({"sym": ["AAPL", "GOOGL", "MSFT"], "score": [0.9, 0.8, 0.7]})
         premarket_df.to_parquet(premarket_dir / "2024-01-03_pre.parquet", index=False)
 
         # Configure selector without p_hat gating

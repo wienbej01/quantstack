@@ -115,23 +115,19 @@ class PolicyPerformanceTracker:
         self.detailed_logging = detailed_logging
 
         # Core metrics storage
-        self.policy_metrics: dict[str, PerformanceMetrics] = defaultdict(
-            PerformanceMetrics
-        )
-        self.execution_history: dict[str, deque] = defaultdict(
-            lambda: deque(maxlen=1000)
-        )
+        self.policy_metrics: dict[str, PerformanceMetrics] = defaultdict(PerformanceMetrics)
+        self.execution_history: dict[str, deque] = defaultdict(lambda: deque(maxlen=1000))
         self.trade_history: dict[str, list[TradeRecord]] = defaultdict(list)
 
         # Regime-specific performance
-        self.regime_performance: dict[str, dict[MarketRegime, RegimePerformance]] = (
-            defaultdict(lambda: defaultdict(RegimePerformance))
+        self.regime_performance: dict[str, dict[MarketRegime, RegimePerformance]] = defaultdict(
+            lambda: defaultdict(RegimePerformance)
         )
 
         # Time-based performance
-        self.period_performance: dict[
-            str, dict[PerformancePeriod, PerformanceMetrics]
-        ] = defaultdict(lambda: defaultdict(PerformanceMetrics))
+        self.period_performance: dict[str, dict[PerformancePeriod, PerformanceMetrics]] = (
+            defaultdict(lambda: defaultdict(PerformanceMetrics))
+        )
 
         # Performance trends
         self.performance_trends: dict[str, dict[str, deque]] = defaultdict(
@@ -235,9 +231,7 @@ class PolicyPerformanceTracker:
             metrics.profit_factor = total_wins / total_losses
 
         # Update trade duration
-        durations = [
-            t.bars_held for t in self.trade_history[policy_id] if t.bars_held > 0
-        ]
+        durations = [t.bars_held for t in self.trade_history[policy_id] if t.bars_held > 0]
         if durations:
             metrics.avg_trade_duration_bars = sum(durations) / len(durations)
 
@@ -292,9 +286,7 @@ class PolicyPerformanceTracker:
         if recent_trades:
             recent_pnl = sum(t.pnl for t in recent_trades)
             recent_return = statistics.mean([t.return_pct for t in recent_trades])
-            recent_win_rate = sum(1 for t in recent_trades if t.pnl > 0) / len(
-                recent_trades
-            )
+            recent_win_rate = sum(1 for t in recent_trades if t.pnl > 0) / len(recent_trades)
 
             summary["recent_30_days"] = {
                 "total_trades": len(recent_trades),
@@ -306,14 +298,11 @@ class PolicyPerformanceTracker:
         # Regime breakdown
         if self.regime_tracking:
             regime_breakdown = {}
-            for regime, regime_perf in self.regime_performance.get(
-                policy_id, {}
-            ).items():
+            for regime, regime_perf in self.regime_performance.get(policy_id, {}).items():
                 if regime_perf.total_trades > 0:
                     regime_breakdown[regime.value] = {
                         "trades": regime_perf.total_trades,
-                        "win_rate": regime_perf.winning_trades
-                        / regime_perf.total_trades,
+                        "win_rate": regime_perf.winning_trades / regime_perf.total_trades,
                         "avg_return": regime_perf.avg_return,
                         "sharpe_ratio": regime_perf.sharpe_ratio,
                     }
@@ -394,9 +383,7 @@ class PolicyPerformanceTracker:
         # Clean trade history
         for policy_id in self.trade_history:
             self.trade_history[policy_id] = [
-                trade
-                for trade in self.trade_history[policy_id]
-                if trade.entry_time > cutoff_date
+                trade for trade in self.trade_history[policy_id] if trade.entry_time > cutoff_date
             ]
 
         # Clean execution history
@@ -418,9 +405,7 @@ class PolicyPerformanceTracker:
                 "metrics": metrics.to_dict(),
                 "regime_performance": {
                     regime.value: asdict(regime_perf)
-                    for regime, regime_perf in self.regime_performance.get(
-                        policy_id, {}
-                    ).items()
+                    for regime, regime_perf in self.regime_performance.get(policy_id, {}).items()
                 },
                 "trade_count": len(self.trade_history.get(policy_id, [])),
                 "execution_count": metrics.total_executions,
@@ -546,14 +531,11 @@ class PolicyPerformanceTracker:
             else:
                 alpha = 0.1
                 regime_perf.avg_duration_bars = (
-                    alpha * trade.bars_held
-                    + (1 - alpha) * regime_perf.avg_duration_bars
+                    alpha * trade.bars_held + (1 - alpha) * regime_perf.avg_duration_bars
                 )
 
         # Calculate regime-specific risk metrics
-        regime_trades = [
-            t for t in self.trade_history[policy_id] if t.regime == trade.regime
-        ]
+        regime_trades = [t for t in self.trade_history[policy_id] if t.regime == trade.regime]
         if len(regime_trades) >= 2:
             returns = [t.return_pct for t in regime_trades]
             regime_perf.volatility = statistics.stdev(returns)

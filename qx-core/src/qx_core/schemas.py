@@ -107,24 +107,14 @@ class RegimeSignal(BaseModel):
     """Regime classification signal for strategy gating."""
 
     ts: int = Field(..., description="UTC nanosecond timestamp")
-    symbol: str | None = Field(
-        None, description="Symbol associated with this regime signal"
-    )
+    symbol: str | None = Field(None, description="Symbol associated with this regime signal")
     regime: RegimeType = Field(..., description="Current market regime")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Classification confidence"
-    )
-    features: dict[str, Any] = Field(
-        default_factory=dict, description="Underlying feature values"
-    )
-    persistence_count: int = Field(
-        default=0, description="Consecutive bars in current regime"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Classification confidence")
+    features: dict[str, Any] = Field(default_factory=dict, description="Underlying feature values")
+    persistence_count: int = Field(default=0, description="Consecutive bars in current regime")
     model_version: str = Field("rules_v1", description="Detector version")
     src: str = Field("regime", description="Signal source identifier")
-    segment: str | None = Field(
-        None, description="Intraday session segment label (e.g., AM/PM)"
-    )
+    segment: str | None = Field(None, description="Intraday session segment label (e.g., AM/PM)")
     session_date: str | None = Field(
         None, description="Trading date in America/New_York (YYYY-MM-DD)"
     )
@@ -165,9 +155,7 @@ class Trade(BaseModel):
     exit_px: float = Field(..., gt=0, description="Exit price")
     fees: float = Field(0.0, ge=0, description="Trading fees")
     slippage_est: float = Field(0.0, description="Estimated slippage")
-    stop_dist_ps: float | None = Field(
-        None, ge=0, description="Stop distance as percentage"
-    )
+    stop_dist_ps: float | None = Field(None, ge=0, description="Stop distance as percentage")
     pnl: float = Field(..., description="Profit/loss")
     r_multiple: float | None = Field(None, description="R-multiple")
     mfe: float | None = Field(None, description="Maximum favorable excursion")
@@ -230,9 +218,7 @@ class Metrics(BaseModel):
     pvalue_u: float = Field(..., description="P-value (upper tail)")
     sharpe_CI_low: float = Field(..., description="Sharpe ratio CI lower bound")
     sharpe_CI_high: float = Field(..., description="Sharpe ratio CI upper bound")
-    capacity_break_even_bps: float = Field(
-        ..., description="Capacity break-even in basis points"
-    )
+    capacity_break_even_bps: float = Field(..., description="Capacity break-even in basis points")
     total_pnl: float | None = Field(None, description="Total P&L")
     win_rate: float | None = Field(None, ge=0, le=1, description="Win rate")
     max_drawdown: float | None = Field(None, le=0, description="Maximum drawdown")
@@ -244,9 +230,7 @@ class ExperimentManifest(BaseModel):
     exp_id: str = Field(..., description="Experiment identifier")
     type: ExperimentType = Field(..., description="Experiment type")
     base_config: str | None = Field(None, description="Base configuration path")
-    variants: list[str] = Field(
-        default_factory=list, description="Variant configurations"
-    )
+    variants: list[str] = Field(default_factory=list, description="Variant configurations")
     grid: str | None = Field(None, description="Grid configuration")
     plan: str | None = Field(None, description="Plan configuration")
     regimes: str | None = Field(None, description="Regime configuration")
@@ -265,9 +249,7 @@ class CompareReport(BaseModel):
     results: list[dict[str, Any]] = Field(..., description="Results per variant")
     leaderboard: list[dict[str, Any]] = Field(..., description="Ranked results")
     created_at: datetime | None = Field(None, description="Report creation timestamp")
-    fairness_check: dict[str, bool] | None = Field(
-        None, description="Fairness validation results"
-    )
+    fairness_check: dict[str, bool] | None = Field(None, description="Fairness validation results")
 
 
 # Legacy JSON schema functions for backward compatibility

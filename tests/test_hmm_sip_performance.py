@@ -48,9 +48,7 @@ def create_large_synthetic_dataset(num_symbols: int = 1000) -> pd.DataFrame:
 
                 bars.append(
                     {
-                        "ts": int(
-                            ts.tz_convert("UTC").timestamp() * 1e9
-                        ),  # Convert to nanoseconds
+                        "ts": int(ts.tz_convert("UTC").timestamp() * 1e9),  # Convert to nanoseconds
                         "symbol": symbol,
                         "open": round(open_price, 2),
                         "high": round(high, 2),
@@ -107,9 +105,7 @@ def test_performance_1000_symbols_external_file():
         assert len(universe_map) > 0, "Selector should return some universe data"
 
         # Performance assertion - should be under 30 seconds
-        assert (
-            elapsed_time < 30.0
-        ), f"Selector took {elapsed_time:.2f}s, should be < 30s"
+        assert elapsed_time < 30.0, f"Selector took {elapsed_time:.2f}s, should be < 30s"
 
         print(f"✅ Performance test passed: {elapsed_time:.2f}s < 30s")
 
@@ -142,9 +138,7 @@ def test_performance_1000_symbols_gold_fallback():
     assert len(universe_map) > 0, "Gold fallback should return some universe data"
 
     # Performance assertion - should be under 30 seconds
-    assert (
-        elapsed_time < 30.0
-    ), f"Gold fallback took {elapsed_time:.2f}s, should be < 30s"
+    assert elapsed_time < 30.0, f"Gold fallback took {elapsed_time:.2f}s, should be < 30s"
 
     print(f"✅ Gold fallback performance test passed: {elapsed_time:.2f}s < 30s")
 

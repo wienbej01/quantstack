@@ -26,16 +26,12 @@ def main():
     print("=" * 40)
 
     # Load configuration
-    config_path = (
-        Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
-    )
+    config_path = Path(__file__).parent / "experiments" / "vwap_revert" / "strategy.yaml"
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
     print(f"Testing with {len(config['symbols'])} symbols")
-    print(
-        f"Date range: {config['dates'][0]} to {config['dates'][2]}"
-    )  # Just first 3 days
+    print(f"Date range: {config['dates'][0]} to {config['dates'][2]}")  # Just first 3 days
 
     # Load data for just 3 days (disable validation to handle duplicates ourselves)
     test_dates = config["dates"][:3]
@@ -77,16 +73,12 @@ def main():
 
     # Apply features
     print("Applying features...")
-    feature_df = compute_all_core_features(
-        bars, vwap_window=30, rvol_window=30, atr_window=14
-    )
+    feature_df = compute_all_core_features(bars, vwap_window=30, rvol_window=30, atr_window=14)
     print(f"✓ Features applied, shape: {feature_df.shape}")
 
     # Test HMM SIP
     print("Testing HMM SIP...")
-    sip_config = HMMSIPConfig(
-        mode="daily", score_floor=0.0, top_k=5, enable_gold_fallback=True
-    )
+    sip_config = HMMSIPConfig(mode="daily", score_floor=0.0, top_k=5, enable_gold_fallback=True)
 
     sip_selector = HMMSIPUniverseSelector(sip_config)
     ref_context = {"target_date": test_dates[0]}

@@ -156,9 +156,7 @@ class TestDayLevelRegimeLock:
         detector = RegimeDetectorRules(config)
 
         # Create time series that spans a trading day
-        timestamps = pd.date_range(
-            "2024-01-02 09:30:00", "2024-01-02 16:00:00", freq="5min"
-        )
+        timestamps = pd.date_range("2024-01-02 09:30:00", "2024-01-02 16:00:00", freq="5min")
         features_data = []
 
         for i, ts in enumerate(timestamps):
@@ -293,21 +291,15 @@ class TestDayLevelRegimeLock:
 
         # Create data that suggests BEAR regime but within cooldown
         bear_features = features.copy()
-        bear_features.update(
-            {"f__regime__var_ratio_10_60": 0.7, "f__regime__band_pos_20_2.0": 0.2}
-        )
+        bear_features.update({"f__regime__var_ratio_10_60": 0.7, "f__regime__band_pos_20_2.0": 0.2})
 
         # Try to switch to BEAR regime during cooldown (should be blocked)
         signal2 = detector.evaluate(pd.DataFrame([bear_features]), bear_features["ts"])
-        assert (
-            signal2.regime == RegimeType.BULL
-        ), "Should remain in BULL regime during cooldown"
+        assert signal2.regime == RegimeType.BULL, "Should remain in BULL regime during cooldown"
 
         # Test with different symbol
         signal3 = detector.evaluate_symbol("OTHER", bear_features, bear_features["ts"])
-        assert (
-            signal3.regime == RegimeType.BULL
-        ), "Different symbol should also respect cooldown"
+        assert signal3.regime == RegimeType.BULL, "Different symbol should also respect cooldown"
 
 
 class TestComplexMultiRegimeScenarios:
@@ -331,9 +323,9 @@ class TestComplexMultiRegimeScenarios:
         # Test strategy permissions in different regimes
         for regime, allowed_strategies in strategies.items():
             for strategy in allowed_strategies:
-                assert engine.is_strategy_allowed(
-                    strategy
-                ), f"Strategy {strategy} should be allowed in {regime}"
+                assert engine.is_strategy_allowed(strategy), (
+                    f"Strategy {strategy} should be allowed in {regime}"
+                )
             # Test a strategy not allowed in this regime
             blocked_strategies = [
                 s
@@ -341,9 +333,9 @@ class TestComplexMultiRegimeScenarios:
                 if s not in allowed_strategies
             ]
             for blocked in blocked_strategies:
-                assert not engine.is_strategy_allowed(
-                    blocked
-                ), f"Strategy {blocked} should be blocked in {regime}"
+                assert not engine.is_strategy_allowed(blocked), (
+                    f"Strategy {blocked} should be blocked in {regime}"
+                )
 
     def test_regime_aware_portfolio_allocation(self):
         """Test portfolio allocation changes based on regime."""
@@ -375,9 +367,9 @@ class TestComplexMultiRegimeScenarios:
 
             # Verify allowed strategies
             for strategy in strategies:
-                assert engine.is_strategy_allowed(
-                    strategy
-                ), f"Strategy {strategy} should be allowed in {regime}"
+                assert engine.is_strategy_allowed(strategy), (
+                    f"Strategy {strategy} should be allowed in {regime}"
+                )
 
             # Verify blocked strategies
             all_strategies = [
@@ -391,9 +383,9 @@ class TestComplexMultiRegimeScenarios:
             ]
             blocked_strategies = [s for s in all_strategies if s not in strategies]
             for blocked in blocked_strategies:
-                assert not engine.is_strategy_allowed(
-                    blocked
-                ), f"Strategy {blocked} should be blocked in {regime}"
+                assert not engine.is_strategy_allowed(blocked), (
+                    f"Strategy {blocked} should be blocked in {regime}"
+                )
 
     def test_multi_symbol_regime_diversification(self):
         """Test regime detection across multiple symbols with different characteristics."""
@@ -465,17 +457,15 @@ class TestComplexMultiRegimeScenarios:
                 symbol_regimes[symbol] = dominant_regime
 
         # Verify regime diversity
-        assert (
-            len(set(symbol_regimes.values())) > 1
-        ), "Should have different regimes across symbols"
+        assert len(set(symbol_regimes.values())) > 1, "Should have different regimes across symbols"
 
         # AAPL should be mostly BULL
         assert symbol_regimes.get("AAPL") == RegimeType.BULL
 
         # At least one symbol should experience stress
-        assert any(
-            regime == RegimeType.STRESS for regime in symbol_regimes.values()
-        ), "At least one symbol should experience stress"
+        assert any(regime == RegimeType.STRESS for regime in symbol_regimes.values()), (
+            "At least one symbol should experience stress"
+        )
 
     def _create_features_for_regime(self, regime: RegimeType, timestamp: int) -> dict:
         """Create features for a specific regime."""
@@ -559,9 +549,9 @@ class TestRegimeDetectionPerformance:
         execution_time = end_time - start_time
 
         # Should complete quickly
-        assert (
-            execution_time < 0.01
-        ), f"Regime detection took {execution_time:.4f}s, should be < 0.01s"
+        assert execution_time < 0.01, (
+            f"Regime detection took {execution_time:.4f}s, should be < 0.01s"
+        )
 
         # Should return valid signal
         assert isinstance(signal, RegimeSignal)

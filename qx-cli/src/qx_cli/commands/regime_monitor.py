@@ -30,9 +30,7 @@ def regime_monitor():
 @click.option("--config", "-c", help="Regime configuration file")
 @click.option("--output", "-o", help="Output file for metrics (JSON)")
 @click.option("--live", is_flag=True, help="Run in live monitoring mode")
-@click.option(
-    "--update-interval", default=60, help="Update interval in seconds for live mode"
-)
+@click.option("--update-interval", default=60, help="Update interval in seconds for live mode")
 def monitor(
     symbol: str,
     start_date: str,
@@ -161,9 +159,7 @@ def analyze(metrics_file: str, output_dir: str | None):
 
 
 @regime_monitor.command()
-@click.option(
-    "--symbols", "-s", multiple=True, required=True, help="Symbols to compare"
-)
+@click.option("--symbols", "-s", multiple=True, required=True, help="Symbols to compare")
 @click.option("--start-date", required=True, help="Start date (YYYY-MM-DD)")
 @click.option("--end-date", help="End date (YYYY-MM-DD, default: start-date)")
 @click.option("--output", "-o", help="Output file for comparison (JSON)")
@@ -250,9 +246,7 @@ def display_regime_metrics(metrics: RegimeMonitoringMetrics) -> None:
     click.echo(f"  Total transitions: {trans_metrics.total_transitions}")
     click.echo(f"  Regime flips: {trans_metrics.regime_flips}")
     click.echo(f"  Stability ratio: {trans_metrics.stability_ratio:.2%}")
-    click.echo(
-        f"  Avg time between flips: {trans_metrics.avg_time_between_flips:.1f} min"
-    )
+    click.echo(f"  Avg time between flips: {trans_metrics.avg_time_between_flips:.1f} min")
 
     # Performance metrics
     perf_metrics = metrics.performance_metrics
@@ -282,9 +276,7 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
     click.echo(f"\nSystem Health Assessment: {health_score:.2f}")
 
     if health_score >= 0.8:
-        click.echo(
-            "  Status: EXCELLENT - Regime detection is highly stable and reliable"
-        )
+        click.echo("  Status: EXCELLENT - Regime detection is highly stable and reliable")
     elif health_score >= 0.6:
         click.echo("  Status: GOOD - Regime detection is functioning well")
     elif health_score >= 0.4:
@@ -332,9 +324,7 @@ def display_regime_analysis(metrics: RegimeMonitoringMetrics) -> None:
     click.echo("\n" + "=" * 60)
 
 
-def generate_comparison_report(
-    all_metrics: dict[str, RegimeMonitoringMetrics]
-) -> dict[str, Any]:
+def generate_comparison_report(all_metrics: dict[str, RegimeMonitoringMetrics]) -> dict[str, Any]:
     """Generate comparison report across multiple symbols."""
     comparison = {
         "metadata": {
@@ -421,18 +411,14 @@ def load_metrics(metrics_file: str) -> RegimeMonitoringMetrics | None:
             symbol=metadata["symbol"],
             start_time=datetime.fromisoformat(metadata["start_time"]),
             end_time=(
-                datetime.fromisoformat(metadata["end_time"])
-                if metadata["end_time"]
-                else None
+                datetime.fromisoformat(metadata["end_time"]) if metadata["end_time"] else None
             ),
         )
 
         # Restore other properties
         metrics.total_bars = metadata["total_bars"]
         metrics.regime_changes = metadata["regime_changes"]
-        metrics.unique_regimes_seen = {
-            RegimeType(r) for r in metadata["unique_regimes_seen"]
-        }
+        metrics.unique_regimes_seen = {RegimeType(r) for r in metadata["unique_regimes_seen"]}
 
         return metrics
 

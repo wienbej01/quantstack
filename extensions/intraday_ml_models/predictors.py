@@ -67,9 +67,7 @@ class MLPredictor:
 
         # Apply scaling if model has scaler
         if hasattr(model, "scaler"):
-            X = pd.DataFrame(
-                model.scaler.transform(X), index=X.index, columns=X.columns
-            )
+            X = pd.DataFrame(model.scaler.transform(X), index=X.index, columns=X.columns)
 
         # Make predictions
         predictions = model.predict(X)
@@ -95,9 +93,7 @@ class MLPredictor:
         # Create prediction results
         results = []
         for i, _idx in enumerate(X.index):
-            feature_values = {
-                feature: float(X.iloc[i][feature]) for feature in metadata.features
-            }
+            feature_values = {feature: float(X.iloc[i][feature]) for feature in metadata.features}
 
             result = PredictionResult(
                 model_id=model_id,
@@ -148,9 +144,7 @@ class MLPredictor:
 
         return results[0]
 
-    def _validate_features(
-        self, features: pd.DataFrame, expected_features: list[str]
-    ) -> None:
+    def _validate_features(self, features: pd.DataFrame, expected_features: list[str]) -> None:
         """Validate that required features are present."""
         missing_features = [f for f in expected_features if f not in features.columns]
         if missing_features:

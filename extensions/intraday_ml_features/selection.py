@@ -86,22 +86,16 @@ class FeatureSelector:
         # Get selected features and scores
         selected_mask = selector.get_support()
         selected_features = [
-            self.feature_names[i]
-            for i in range(len(self.feature_names))
-            if selected_mask[i]
+            self.feature_names[i] for i in range(len(self.feature_names)) if selected_mask[i]
         ]
 
         # Get feature scores and ranks
         scores = selector.scores_
-        feature_scores = {
-            self.feature_names[i]: scores[i] for i in range(len(self.feature_names))
-        }
+        feature_scores = {self.feature_names[i]: scores[i] for i in range(len(self.feature_names))}
 
         # Rank features by score
         sorted_indices = np.argsort(scores)[::-1]  # Descending order
-        feature_ranks = {
-            self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)
-        }
+        feature_ranks = {self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)}
 
         return SelectionResult(
             selected_features=selected_features,
@@ -136,9 +130,7 @@ class FeatureSelector:
         self.feature_names = X.columns.tolist()
 
         # Choose scoring function
-        score_func = (
-            mutual_info_regression if task_type == "regression" else mutual_info_classif
-        )
+        score_func = mutual_info_regression if task_type == "regression" else mutual_info_classif
 
         # Calculate mutual information scores
         scores = score_func(X, y, random_state=random_state)
@@ -154,13 +146,9 @@ class FeatureSelector:
         selected_features = [self.feature_names[i] for i in top_indices]
 
         # Create feature scores and ranks
-        feature_scores = {
-            self.feature_names[i]: scores[i] for i in range(len(self.feature_names))
-        }
+        feature_scores = {self.feature_names[i]: scores[i] for i in range(len(self.feature_names))}
         sorted_indices = np.argsort(scores)[::-1]
-        feature_ranks = {
-            self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)
-        }
+        feature_ranks = {self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)}
 
         # Store selector info
         self.selection_method = "mutual_info"
@@ -223,17 +211,11 @@ class FeatureSelector:
                 estimator=estimator,
                 step=step,
                 cv=5,
-                scoring=(
-                    "neg_mean_squared_error"
-                    if task_type == "regression"
-                    else "accuracy"
-                ),
+                scoring=("neg_mean_squared_error" if task_type == "regression" else "accuracy"),
                 n_jobs=-1,
             )
         else:
-            selector = RFE(
-                estimator=estimator, n_features_to_select=n_features, step=step
-            )
+            selector = RFE(estimator=estimator, n_features_to_select=n_features, step=step)
 
         # Fit selector
         selector.fit_transform(X, y)
@@ -243,16 +225,13 @@ class FeatureSelector:
         # Get selected features
         selected_mask = selector.get_support()
         selected_features = [
-            self.feature_names[i]
-            for i in range(len(self.feature_names))
-            if selected_mask[i]
+            self.feature_names[i] for i in range(len(self.feature_names)) if selected_mask[i]
         ]
 
         # Get feature rankings
         if hasattr(selector, "ranking_"):
             feature_ranks = {
-                self.feature_names[i]: selector.ranking_[i]
-                for i in range(len(self.feature_names))
+                self.feature_names[i]: selector.ranking_[i] for i in range(len(self.feature_names))
             }
         else:
             feature_ranks = {
@@ -263,8 +242,7 @@ class FeatureSelector:
         # Create dummy scores (use inverse ranking as score)
         max_rank = max(feature_ranks.values())
         feature_scores = {
-            name: (max_rank - rank + 1) / max_rank
-            for name, rank in feature_ranks.items()
+            name: (max_rank - rank + 1) / max_rank for name, rank in feature_ranks.items()
         }
 
         return SelectionResult(
@@ -308,9 +286,7 @@ class FeatureSelector:
         non_zero_mask = np.abs(coef) > 1e-6  # Small threshold to avoid numerical issues
 
         selected_features = [
-            self.feature_names[i]
-            for i in range(len(self.feature_names))
-            if non_zero_mask[i]
+            self.feature_names[i] for i in range(len(self.feature_names)) if non_zero_mask[i]
         ]
 
         # Limit number of features if specified
@@ -331,9 +307,7 @@ class FeatureSelector:
             self.feature_names[i]: abs(coef[i]) for i in range(len(self.feature_names))
         }
         sorted_indices = np.argsort(list(feature_scores.values()))[::-1]
-        feature_ranks = {
-            self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)
-        }
+        feature_ranks = {self.feature_names[i]: rank + 1 for rank, i in enumerate(sorted_indices)}
 
         # Store selector info
         self.selection_method = "lasso"
@@ -367,9 +341,7 @@ class FeatureSelector:
         corr_matrix = X.corr().abs()
 
         # Find highly correlated feature pairs
-        upper_tri = corr_matrix.where(
-            np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
-        )
+        upper_tri = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
 
         # Identify features to remove
         to_remove = set()
@@ -387,9 +359,7 @@ class FeatureSelector:
         feature_ranks = {
             col: rank + 1
             for rank, col in enumerate(
-                sorted(
-                    feature_scores.keys(), key=lambda x: feature_scores[x], reverse=True
-                )
+                sorted(feature_scores.keys(), key=lambda x: feature_scores[x], reverse=True)
             )
         }
 
@@ -423,16 +393,12 @@ class FeatureSelector:
 
         if hasattr(self.fitted_selector, "transform"):
             X_transformed = self.fitted_selector.transform(X)
-            return pd.DataFrame(
-                X_transformed, columns=self.get_selected_features(), index=X.index
-            )
+            return pd.DataFrame(X_transformed, columns=self.get_selected_features(), index=X.index)
         else:
             # For custom selectors
             selected_mask = self.fitted_selector.get_support()
             selected_features = [
-                self.feature_names[i]
-                for i in range(len(self.feature_names))
-                if selected_mask[i]
+                self.feature_names[i] for i in range(len(self.feature_names)) if selected_mask[i]
             ]
             return X[selected_features]
 
@@ -442,11 +408,7 @@ class FeatureSelector:
             raise ValueError("Selector not fitted.")
 
         selected_mask = self.fitted_selector.get_support()
-        return [
-            self.feature_names[i]
-            for i in range(len(self.feature_names))
-            if selected_mask[i]
-        ]
+        return [self.feature_names[i] for i in range(len(self.feature_names)) if selected_mask[i]]
 
     def get_feature_importance(self) -> dict[str, float]:
         """Get feature importance scores."""
@@ -465,6 +427,4 @@ class FeatureSelector:
         else:
             raise ValueError("Cannot extract feature importance from fitted selector.")
 
-        return {
-            self.feature_names[i]: importance[i] for i in range(len(self.feature_names))
-        }
+        return {self.feature_names[i]: importance[i] for i in range(len(self.feature_names))}

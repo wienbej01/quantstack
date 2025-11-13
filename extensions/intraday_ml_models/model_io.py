@@ -155,9 +155,7 @@ class ModelIO:
 
         # Load model
         if load_calibrated:
-            model_path = (
-                self.model_dir / f"{model_name}_{version}_calibrated.{load_format}"
-            )
+            model_path = self.model_dir / f"{model_name}_{version}_calibrated.{load_format}"
         else:
             model_path = self.model_dir / f"{model_name}_{version}_raw.{load_format}"
 
@@ -257,9 +255,7 @@ class ModelIO:
             metrics=training_result.metrics,
             cross_validation=None,  # Could be added if CV results available
             feature_names=(
-                [f"feature_{i}" for i in range(feature_names)]
-                if feature_names
-                else None
+                [f"feature_{i}" for i in range(feature_names)] if feature_names else None
             ),
             feature_importance=training_result.metrics.get("feature_importance"),
             top_features=training_result.metrics.get("top_features"),

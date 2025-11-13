@@ -15,9 +15,7 @@ console = Console()
 @app.command("portfolio")
 def portfolio(
     cfg: pathlib.Path = typer.Option(..., "--cfg", help="Base config file"),
-    variants: list[pathlib.Path] = typer.Option(
-        ..., "--variants", help="Portfolio overlay files"
-    ),
+    variants: list[pathlib.Path] = typer.Option(..., "--variants", help="Portfolio overlay files"),
     name: str = typer.Option(..., "--name", help="Experiment ID"),
 ) -> None:
     """Run portfolio test with multiple portfolio variants."""

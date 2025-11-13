@@ -68,31 +68,24 @@ class ModelValidator:
             "issues": [issue.to_dict() for issue in issues],
         }
 
-    def validate_feature_importance(
-        self, feature_importance: dict[str, float]
-    ) -> dict[str, Any]:
+    def validate_feature_importance(self, feature_importance: dict[str, float]) -> dict[str, Any]:
         """Ensure feature importance sums to ~1 and identify top features."""
         total_importance = float(sum(feature_importance.values()))
         if total_importance == 0.0:
             normalized = {feature: 0.0 for feature in feature_importance}
         else:
             normalized = {
-                feature: value / total_importance
-                for feature, value in feature_importance.items()
+                feature: value / total_importance for feature, value in feature_importance.items()
             }
 
-        top_features = sorted(
-            normalized.items(), key=lambda item: item[1], reverse=True
-        )
+        top_features = sorted(normalized.items(), key=lambda item: item[1], reverse=True)
         return {
             "total_importance": total_importance,
             "importance_distribution": normalized,
             "top_features": [feature for feature, _ in top_features],
         }
 
-    def validate_prediction_distribution(
-        self, predictions: Iterable[float]
-    ) -> dict[str, Any]:
+    def validate_prediction_distribution(self, predictions: Iterable[float]) -> dict[str, Any]:
         """Return distribution summary of model predictions."""
         preds = np.asarray(list(predictions), dtype=float)
         if preds.size == 0:
@@ -201,9 +194,7 @@ class DriftDetector:
 
             mean_ref = float(ref.mean())
             mean_cur = float(cur.mean())
-            pooled_std = float(
-                np.sqrt(np.var(np.concatenate([ref.values, cur.values])))
-            )
+            pooled_std = float(np.sqrt(np.var(np.concatenate([ref.values, cur.values]))))
             pooled_std = max(pooled_std, 1e-9)
             relative_shift = abs(mean_cur - mean_ref) / pooled_std
             drift_detected = relative_shift > (threshold * 10)

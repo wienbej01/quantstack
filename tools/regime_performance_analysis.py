@@ -261,9 +261,7 @@ class RegimePerformanceAnalyzer:
             disabled_return = disabled_result["performance"]["total_return"]
             comparison["return_improvement"] = enabled_return - disabled_return
             comparison["return_improvement_pct"] = (
-                ((enabled_return / abs(disabled_return)) - 1) * 100
-                if disabled_return != 0
-                else 0
+                ((enabled_return / abs(disabled_return)) - 1) * 100 if disabled_return != 0 else 0
             )
 
         if (
@@ -274,9 +272,7 @@ class RegimePerformanceAnalyzer:
             disabled_sharpe = disabled_result["performance"]["sharpe_ratio"]
             comparison["sharpe_improvement"] = enabled_sharpe - disabled_sharpe
             comparison["sharpe_improvement_pct"] = (
-                ((enabled_sharpe / abs(disabled_sharpe)) - 1) * 100
-                if disabled_sharpe != 0
-                else 0
+                ((enabled_sharpe / abs(disabled_sharpe)) - 1) * 100 if disabled_sharpe != 0 else 0
             )
 
         if (
@@ -285,9 +281,7 @@ class RegimePerformanceAnalyzer:
         ):
             enabled_dd = enabled_result["performance"]["max_drawdown"]
             disabled_dd = disabled_result["performance"]["max_drawdown"]
-            comparison["drawdown_improvement"] = (
-                disabled_dd - enabled_dd
-            )  # Less negative is better
+            comparison["drawdown_improvement"] = disabled_dd - enabled_dd  # Less negative is better
             comparison["drawdown_improvement_pct"] = (
                 ((disabled_dd / abs(enabled_dd)) - 1) * 100 if enabled_dd != 0 else 0
             )
@@ -341,13 +335,10 @@ class RegimePerformanceAnalyzer:
             "drawdown_improvement": comparison.get("drawdown_improvement_pct", 0),
             "trade_count_difference": len(comparison.get("enabled_trades", []))
             - len(comparison.get("disabled_trades", [])),
-            "regime_detection_effective": comparison.get("return_improvement_pct", 0)
-            > 0,
+            "regime_detection_effective": comparison.get("return_improvement_pct", 0) > 0,
         }
 
-    def _generate_performance_comparison(
-        self, comparison: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _generate_performance_comparison(self, comparison: dict[str, Any]) -> dict[str, Any]:
         """Generate detailed performance comparison."""
         return {
             "returns": {
@@ -400,12 +391,8 @@ class RegimePerformanceAnalyzer:
 
         analysis = {
             "trade_count_by_regime": {
-                "enabled": {
-                    regime: len(trades) for regime, trades in enabled_trades.items()
-                },
-                "disabled": {
-                    regime: len(trades) for regime, trades in disabled_trades.items()
-                },
+                "enabled": {regime: len(trades) for regime, trades in enabled_trades.items()},
+                "disabled": {regime: len(trades) for regime, trades in disabled_trades.items()},
             }
         }
 
@@ -428,9 +415,7 @@ class RegimePerformanceAnalyzer:
 
         return analysis
 
-    def _generate_recommendations(
-        self, comparison: dict, improvement_pct: float
-    ) -> list[str]:
+    def _generate_recommendations(self, comparison: dict, improvement_pct: float) -> list[str]:
         """Generate actionable recommendations based on analysis."""
         recommendations = []
 
@@ -455,9 +440,7 @@ class RegimePerformanceAnalyzer:
                 "Significant Sharpe ratio improvement detected. Risk-adjusted performance enhanced."
             )
         elif sharpe_improvement < -5:
-            recommendations[
-                "Sharpe ratio decreased. Review risk management in regime-aware mode."
-            ]
+            recommendations["Sharpe ratio decreased. Review risk management in regime-aware mode."]
 
         drawdown_improvement = comparison.get("drawdown_improvement_pct", 0)
         if drawdown_improvement > 10:
@@ -512,19 +495,13 @@ class RegimePerformanceAnalyzer:
         output_path.mkdir(parents=True, exist_ok=True)
 
         # Create performance comparison chart
-        self._create_performance_chart(
-            comparison, output_path / "performance_comparison.png"
-        )
+        self._create_performance_chart(comparison, output_path / "performance_comparison.png")
 
         # Create regime distribution chart
-        self._create_regime_distribution_chart(
-            comparison, output_path / "regime_distribution.png"
-        )
+        self._create_regime_distribution_chart(comparison, output_path / "regime_distribution.png")
 
         # Create trade timeline chart
-        self._create_trade_timeline_chart(
-            comparison, output_path / "trade_timeline.png"
-        )
+        self._create_trade_timeline_chart(comparison, output_path / "trade_timeline.png")
 
         print(f"Visualizations saved to: {output_path}")
 
@@ -532,20 +509,14 @@ class RegimePerformanceAnalyzer:
         """Create performance comparison bar chart."""
         metrics = ["total_return", "sharpe_ratio", "max_drawdown", "win_rate"]
         enabled_vals = [comparison["enabled_performance"][metric] for metric in metrics]
-        disabled_vals = [
-            comparison["disabled_performance"][metric] for metric in metrics
-        ]
+        disabled_vals = [comparison["disabled_performance"][metric] for metric in metrics]
 
         x = np.arange(len(metrics))
         width = 0.35
 
         fig, ax = plt.subplots(figsize=(12, 6))
-        bars1 = ax.bar(
-            x - width / 2, enabled_vals, width, label="Regime Enabled", alpha=0.8
-        )
-        bars2 = ax.bar(
-            x + width / 2, disabled_vals, width, label="Regime Disabled", alpha=0.8
-        )
+        bars1 = ax.bar(x - width / 2, enabled_vals, width, label="Regime Enabled", alpha=0.8)
+        bars2 = ax.bar(x + width / 2, disabled_vals, width, label="Regime Disabled", alpha=0.8)
 
         ax.set_xlabel("Metrics")
         ax.set_ylabel("Values")
@@ -581,9 +552,7 @@ class RegimePerformanceAnalyzer:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
 
-    def _create_regime_distribution_chart(
-        self, comparison: dict[str, Any], output_path: Path
-    ):
+    def _create_regime_distribution_chart(self, comparison: dict[str, Any], output_path: Path):
         """Create regime distribution pie chart."""
         stats = comparison["regime_enabled_stats"]
 
@@ -607,9 +576,7 @@ class RegimePerformanceAnalyzer:
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
         plt.close()
 
-    def _create_trade_timeline_chart(
-        self, comparison: dict[str, Any], output_path: Path
-    ):
+    def _create_trade_timeline_chart(self, comparison: dict[str, Any], output_path: Path):
         """Create trade timeline chart showing trades by regime."""
         enabled_trades = comparison["trades_by_regime_enabled"]
 
@@ -671,12 +638,8 @@ class RegimePerformanceAnalyzer:
 def main():
     """Main function for CLI interface."""
     parser = argparse.ArgumentParser(description="Regime Performance Analysis Tool")
-    parser.add_argument(
-        "--config", required=True, help="Path to regime-enabled configuration file"
-    )
-    parser.add_argument(
-        "--baseline", help="Path to baseline (regime disabled) configuration file"
-    )
+    parser.add_argument("--config", required=True, help="Path to regime-enabled configuration file")
+    parser.add_argument("--baseline", help="Path to baseline (regime disabled) configuration file")
     parser.add_argument(
         "--output",
         default="regime_analysis.json",
@@ -690,12 +653,8 @@ def main():
     parser.add_argument(
         "--symbols", default="AAPL,MSFT,GOOGL", help="Comma-separated list of symbols"
     )
-    parser.add_argument(
-        "--start-date", default="2024-01-01", help="Start date (YYYY-MM-DD)"
-    )
-    parser.add_argument(
-        "--end-date", default="2024-01-31", help="End date (YYYY-MM-DD)"
-    )
+    parser.add_argument("--start-date", default="2024-01-01", help="Start date (YYYY-MM-DD)")
+    parser.add_argument("--end-date", default="2024-01-31", help="End date (YYYY-MM-DD)")
     parser.add_argument(
         "--sample-data",
         action="store_true",
@@ -733,9 +692,7 @@ def main():
 
         if args.sample_data:
             print("Generating sample data...")
-            data = analyzer.generate_sample_data(
-                symbols, args.start_date, args.end_date
-            )
+            data = analyzer.generate_sample_data(symbols, args.start_date, args.end_date)
         else:
             print("Loading real data from Gold...")
             try:
@@ -749,9 +706,7 @@ def main():
             except Exception as e:
                 print(f"Warning: Could not load real data: {e}")
                 print("Falling back to sample data...")
-                data = analyzer.generate_sample_data(
-                    symbols, args.start_date, args.end_date
-                )
+                data = analyzer.generate_sample_data(symbols, args.start_date, args.end_date)
 
         # Run comparison
         print("\nRunning performance comparison...")

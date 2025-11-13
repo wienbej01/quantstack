@@ -161,9 +161,7 @@ class ABOrchestrator:
             policy.process_bar(bar)
 
         # Execute backtest
-        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(
-            drop=True
-        )
+        bars_for_engine = df_with_features.sort_values(["ts", "symbol"]).reset_index(drop=True)
         result = engine.run(bars_for_engine, strategy_fn)
         policy.on_end()
 

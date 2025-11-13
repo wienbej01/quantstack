@@ -67,16 +67,12 @@ def load_real_test_data():
                 continue
 
     if not all_data:
-        raise RuntimeError(
-            "No gold data could be loaded. Cannot proceed without real market data."
-        )
+        raise RuntimeError("No gold data could be loaded. Cannot proceed without real market data.")
 
     df = pd.concat(all_data, ignore_index=True)
     # Sort by [symbol, ts] as required by feature computation
     df = df.sort_values(["symbol", "ts"]).reset_index(drop=True)
-    print(
-        f"Successfully loaded {len(df)} bars for {len(symbols)} symbols from real market data"
-    )
+    print(f"Successfully loaded {len(df)} bars for {len(symbols)} symbols from real market data")
     return df
 
 
@@ -177,9 +173,9 @@ def run_diagnostic_check(df, detector, verbose=False):
         return
 
     # Add date and session info for session-based counting
-    ready_bars["dt_et"] = pd.to_datetime(
-        ready_bars["ts"], unit="ns", utc=True
-    ).dt.tz_convert("America/New_York")
+    ready_bars["dt_et"] = pd.to_datetime(ready_bars["ts"], unit="ns", utc=True).dt.tz_convert(
+        "America/New_York"
+    )
     ready_bars["date"] = ready_bars["dt_et"].dt.date
     ready_bars["session"] = ready_bars["dt_et"].apply(
         lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
@@ -206,15 +202,9 @@ def run_diagnostic_check(df, detector, verbose=False):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif (
-            features["var_ratio"] > BULL_VAR_RATIO_MIN
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BULL"
-        elif (
-            features["var_ratio"] < BEAR_VAR_RATIO_MAX
-            and features["adx"] >= TRENDING_ADX_MIN
-        ):
+        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
@@ -229,9 +219,7 @@ def run_diagnostic_check(df, detector, verbose=False):
         regime_counts[regime].add(session_key)
 
     # Convert sets to counts
-    regime_session_counts = {
-        regime: len(sessions) for regime, sessions in regime_counts.items()
-    }
+    regime_session_counts = {regime: len(sessions) for regime, sessions in regime_counts.items()}
 
     total_sessions = sum(regime_session_counts.values())
     print(f"Trading sessions (twice per day): {total_sessions}")
@@ -315,9 +303,7 @@ def test_policies(df, detector):
                 final_equity = result.equity_curve["total_equity"].iloc[-1]
             else:
                 final_equity = (
-                    engine.portfolio.total_equity
-                    if hasattr(engine, "portfolio")
-                    else 100000.0
+                    engine.portfolio.total_equity if hasattr(engine, "portfolio") else 100000.0
                 )
 
             final_return = final_equity - config.initial_cash
@@ -329,9 +315,7 @@ def test_policies(df, detector):
                 "orders": len(orders),
             }
 
-            print(
-                f"{name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L"
-            )
+            print(f"{name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L")
 
             if len(trades) > 0:
                 print(f"   First trade: {trades[0] if trades else 'None'}")
@@ -404,9 +388,7 @@ def main():
     if total_trades > 0:
         print("🎉 SUCCESS: Regime-aligned trading is working with real market data!")
     else:
-        print(
-            "⚠️  No trades generated - market conditions may not meet strategy criteria"
-        )
+        print("⚠️  No trades generated - market conditions may not meet strategy criteria")
 
     print("\nInfrastructure Validation:")
     print("✅ Real market data loading successful")
