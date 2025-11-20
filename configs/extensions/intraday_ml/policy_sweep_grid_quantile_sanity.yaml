@@ -1,0 +1,13 @@
+prob_threshold_long:
+  - 0.50
+
+score_margin:
+  - -0.10
+  - -0.05
+  - 0.00
+
+bigmove_policy.quantile_threshold:
+  - 0.990
+
+max_open_positions_global:
+  - 2

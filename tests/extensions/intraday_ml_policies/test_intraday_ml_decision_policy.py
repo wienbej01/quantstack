@@ -26,11 +26,11 @@ def sample_policy_config():
         "enabled_strategies": [],
         "risk": {
             "atr_feature": "atr",
-            "support_feature_long": "low",
-            "resistance_feature_short": "high",
-            "max_atr_multiple": 1.0,
-            "support_buffer_atr": 0.0,
-            "target_r_multiple": 1.5,
+            "stop_atr_multiple": 0.5,
+            "tp_r_multiple": 1.5,
+            "min_stop_pct": 0.0005,
+            "max_stop_pct": 0.05,
+            "min_expected_r": 1.5,
         },
     }
 
@@ -64,6 +64,13 @@ def sample_signals():
         "atr": [0.2, 0.2, 0.2, 0.2, 0.2],
     }
     return pd.DataFrame(data)
+
+
+def _tz_timestamp(time_str: str) -> pd.Timestamp:
+    return (
+        pd.Timestamp(f"2025-11-03 {time_str}", tz="America/New_York")
+        .tz_convert("UTC")
+    )
 
 
 def test_policy_initialization(sample_policy_config):
@@ -313,6 +320,46 @@ def test_force_flat_generates_exit(sample_policy_config):
     assert orders.iloc[0]["side"] == "long"
     assert orders.iloc[1]["reason"] == "force_flat"
     assert rejections.empty
+
+
+def test_process_signals_accumulates_entries(sample_policy_config):
+    """Every decision bar contributes its accepted entries before advancing."""
+    config = dict(sample_policy_config)
+    config.update(
+        {
+            "cooldown_minutes": 0,
+            "min_time": "09:30:00",
+            "max_time": "16:00:00",
+            "session_timezone": "America/New_York",
+            "max_entries_per_day": 5,
+            "max_open_positions_global": 5,
+            "max_trades_per_symbol_per_day": 5,
+            "max_trades_per_bar_global": 5,
+            "risk": {
+                "atr_feature": "atr",
+                "stop_atr_multiple": 1.0,
+                "tp_r_multiple": 2.0,
+                "min_stop_pct": 0.001,
+                "max_stop_pct": 0.05,
+                "min_expected_r": 1.2,
+            },
+        }
+    )
+    policy = IntradayMLDecisionPolicy(config)
+    base = {"low": 99.5, "high": 100.5, "atr": 0.5, "prob_short": 0.05, "prob_neutral": 0.05}
+    signals = pd.DataFrame(
+        [
+            {"symbol": "AAA", "ts": _tz_timestamp("10:00:00"), "prob_long": 0.9, "close": 100.0, **base},
+            {"symbol": "BBB", "ts": _tz_timestamp("10:10:00"), "prob_long": 0.9, "close": 100.0, **base},
+            {"symbol": "CCC", "ts": _tz_timestamp("10:20:00"), "prob_long": 0.9, "close": 100.0, **base},
+        ]
+    )
+
+    orders, rejections = policy.process_signals(signals)
+
+    assert len(orders) == 3
+    assert rejections.empty
+    assert set(orders["symbol"]) == {"AAA", "BBB", "CCC"}
 
 
 def test_required_feature_columns_exposed():

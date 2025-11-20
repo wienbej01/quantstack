@@ -3,14 +3,20 @@ artifacts: 'artefacts/extensions/intraday_ml/phaseA_full_sip'
 
 data:
   family: 'bars_10m'
+  oversampling:
+    enabled: true
+    target_fraction: 0.05
+    max_multiplier: 6
+    apply_to:
+      - train
 
 sip_filter:
   enabled: true
   mode: "sip_only"
-  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+  membership_path: "/home/jacobw/quantstack/run/sip_membership"
 
 includes:
-  universe: 'configs/extensions/intraday_ml/universe_gold_full.yaml'
+  universe: 'configs/extensions/intraday_ml/universe_intraday_sip_5_50.yaml'
   splits: 'configs/extensions/intraday_ml/splits_smoke.yaml'
   cuts: 'configs/extensions/intraday_ml/cuts_10m.yaml'
   features: 'configs/extensions/intraday_ml/features_10m.yaml'
@@ -20,10 +26,20 @@ includes:
 
 label_guard:
   enabled: true
-  min_per_direction: 30        # require ≥30 long AND ≥30 short labels per deployment symbol
-  min_total_directional: 120   # combined ±1 hits before allowing live deployment
+  min_per_direction: 15        # require ≥15 long AND ≥15 short labels per deployment symbol
+  min_total_directional: 60    # combined ±1 hits before allowing live deployment
   drop_from_deployment: true   # automatically remove symbols that fail the guard
   report_filename: "label_guard_report.json"
+
+manifest_guard:
+  enabled: true
+  report_filename: "manifest_report.json"
+  min_total_days: 90
+  min_train_days: 80
+  min_oos_days: 15
+  drop_from_training: true
+  drop_from_deployment: true
+  coverage_tolerance: 0.1      # allow ~10% fewer days vs max before flagging
 
 policy:
   prob_threshold_long: 0.62

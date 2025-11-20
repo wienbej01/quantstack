@@ -185,6 +185,51 @@ class TestSipScreener:
                 filtered_data["relative_volume"] >= self.screener.config.min_relative_volume
             ).all()
 
+    def test_min_dollar_volume_uses_avg_daily_volume(self):
+        """Ensure the min dollar volume filter uses the average daily value."""
+        config = ScreenerConfig(
+            min_relative_volume=0.0,
+            min_price=0.0,
+            max_price=500.0,
+            min_dollar_volume=300_000,
+        )
+        screener = SipScreener(config)
+
+        rows = []
+        for day in ["2023-01-03", "2023-01-04"]:
+            base_ts = pd.Timestamp(f"{day} 09:30")
+            for minute in range(2):
+                ts = (base_ts + pd.Timedelta(minutes=minute)).value
+                rows.append(
+                    {
+                        "ts": ts,
+                        "symbol": "HIGH",
+                        "open": 50.0,
+                        "high": 50.0,
+                        "low": 50.0,
+                        "close": 50.0,
+                        "volume": 10_000,
+                    }
+                )
+                rows.append(
+                    {
+                        "ts": ts,
+                        "symbol": "LOW",
+                        "open": 10.0,
+                        "high": 10.0,
+                        "low": 10.0,
+                        "close": 10.0,
+                        "volume": 100,
+                    }
+                )
+
+        bars = pd.DataFrame(rows)
+        result = screener.screen_universe(bars)
+
+        assert not result.empty
+        assert result["symbol"].tolist() == ["HIGH"]
+        assert result["avg_daily_dollar_volume"].iloc[0] >= 300_000
+
     def test_rank_by_relative_volume(self):
         """Test ranking by relative volume."""
         test_data = pd.DataFrame(

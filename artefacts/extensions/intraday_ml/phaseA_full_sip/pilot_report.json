@@ -1,52 +1,118 @@
 {
   "status": "success",
-  "timestamp": "2025-11-11T09:11:02.113469+00:00",
+  "timestamp": "2025-11-13T21:19:15.323092+00:00",
   "artifacts_dir": "artefacts/extensions/intraday_ml/phaseA_full_sip",
   "policy": {
     "order_qty": 1,
-    "prob_threshold_long": 0.55,
-    "prob_threshold_short": 0.55,
-    "score_margin": 0.05,
-    "min_directional_gap": 0.05,
-    "cooldown_minutes": 20,
-    "max_hold_minutes": 60
+    "prob_threshold_long": 0.62,
+    "prob_threshold_short": 0.62,
+    "score_margin": 0.06,
+    "min_directional_gap": 0.055,
+    "cooldown_minutes": 18,
+    "max_hold_minutes": 60,
+    "target_trades_min": 3,
+    "target_trades_max": 5
   },
   "orders": {
-    "total": 6,
+    "total": 686,
     "entry_side_counts": {
-      "long": 3
+      "short": 303,
+      "long": 40
     },
     "reason_counts": {
-      "trade": 3,
-      "conviction_decay": 3
+      "trade": 343,
+      "conviction_decay": 226,
+      "flatten_short": 104,
+      "flatten_long": 13
+    },
+    "entries_by_symbol": {
+      "aes": 21,
+      "pltr": 21,
+      "usb": 21,
+      "czr": 20,
+      "rf": 19,
+      "gm": 18,
+      "ccl": 18,
+      "nem": 18,
+      "bac": 18,
+      "key": 17,
+      "t": 16,
+      "eqt": 16,
+      "tfc": 15,
+      "csco": 15,
+      "vz": 14,
+      "dvn": 13,
+      "intc": 13,
+      "f": 13,
+      "pfe": 13,
+      "luv": 12,
+      "cmcsa": 12
+    },
+    "daily_frequency": {
+      "avg_per_day": 15.590909090909092,
+      "min_per_day": 4,
+      "max_per_day": 22,
+      "days_observed": 22,
+      "within_target_days": 1,
+      "target_range": [
+        3,
+        5
+      ],
+      "per_day_counts": {
+        "2024-05-01": 22,
+        "2024-05-02": 18,
+        "2024-05-03": 15,
+        "2024-05-06": 15,
+        "2024-05-07": 20,
+        "2024-05-08": 18,
+        "2024-05-09": 14,
+        "2024-05-10": 15,
+        "2024-05-13": 16,
+        "2024-05-14": 12,
+        "2024-05-15": 19,
+        "2024-05-16": 16,
+        "2024-05-17": 18,
+        "2024-05-20": 9,
+        "2024-05-21": 10,
+        "2024-05-22": 20,
+        "2024-05-23": 22,
+        "2024-05-24": 4,
+        "2024-05-28": 12,
+        "2024-05-29": 17,
+        "2024-05-30": 15,
+        "2024-05-31": 16
+      }
     }
   },
   "rejections": {
-    "total": 8574,
+    "total": 17332,
     "top_reasons": {
-      "gap_insufficient": 7915,
-      "below_threshold": 432,
-      "time_filter": 220,
-      "cooldown": 6,
-      "holding_long": 1
+      "gap_insufficient": 11813,
+      "below_threshold": 2240,
+      "conviction_low": 2001,
+      "cooldown": 685,
+      "time_filter": 462,
+      "risk_unavailable": 79,
+      "expected_r_low": 28,
+      "holding_short": 24
     }
   },
   "performance": {
-    "total_return": -2.2900893309474313e-06,
-    "annualized_return": -6.72614193564236e-07,
-    "volatility": 0.0001981335684563174,
-    "sharpe_ratio": -100.94540147851383,
-    "max_drawdown": -0.00015095007443000075,
-    "max_drawdown_duration": 667,
-    "total_commissions": 2.1,
+    "total_return": -0.00024168744808295006,
+    "annualized_return": -7.099118410758276e-05,
+    "volatility": 0.0008485846027543602,
+    "sharpe_ratio": -23.65231600828083,
+    "max_drawdown": -0.0006690474596175703,
+    "max_drawdown_duration": 816,
+    "total_commissions": 240.09999999999732,
     "total_slippage": 0.0,
     "fill_rate": 0.5,
-    "total_trades": 3,
-    "trades": 3,
-    "win_rate": 0.3333333333333333,
-    "avg_R": -0.763363110331873,
-    "total_pnl": -2.290089330995619,
-    "fees_total": 2.1
+    "total_trades": 146,
+    "trades": 146,
+    "win_rate": 0.5273972602739726,
+    "avg_R": -0.9275097106535909,
+    "total_pnl": -135.41641775542428,
+    "fees_total": 240.10000000000005
   },
   "feature_coverage": "artefacts/extensions/intraday_ml/phaseA_full_sip/feature_coverage.csv"
 }

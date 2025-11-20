@@ -1,98 +1,131 @@
 {
-  "AAPL": {
-    "long_labels": 1,
-    "short_labels": 2,
-    "total_directional": 3,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "AMZN": {
-    "long_labels": 4,
-    "short_labels": 3,
-    "total_directional": 7,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "GOOGL": {
-    "long_labels": 1,
-    "short_labels": 1,
-    "total_directional": 2,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "JNJ": {
-    "long_labels": 0,
-    "short_labels": 1,
-    "total_directional": 1,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "JPM": {
-    "long_labels": 0,
-    "short_labels": 2,
-    "total_directional": 2,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "META": {
-    "long_labels": 9,
-    "short_labels": 12,
-    "total_directional": 21,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "MSFT": {
-    "long_labels": 0,
-    "short_labels": 1,
-    "total_directional": 1,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_long",
-      "insufficient_short",
-      "insufficient_total"
-    ]
-  },
-  "NVDA": {
-    "long_labels": 40,
-    "short_labels": 67,
-    "total_directional": 107,
-    "status": "dropped",
-    "reasons": [
-      "insufficient_total"
-    ]
-  },
-  "TSLA": {
-    "long_labels": 66,
-    "short_labels": 72,
-    "total_directional": 138,
+  "BAC": {
+    "long_labels": 346,
+    "short_labels": 257,
+    "total_directional": 603,
     "status": "kept",
     "reasons": null
   },
-  "V": {
+  "INTC": {
+    "long_labels": 419,
+    "short_labels": 312,
+    "total_directional": 731,
+    "status": "kept",
+    "reasons": null
+  },
+  "PFE": {
+    "long_labels": 366,
+    "short_labels": 275,
+    "total_directional": 641,
+    "status": "kept",
+    "reasons": null
+  },
+  "PLTR": {
+    "long_labels": 344,
+    "short_labels": 344,
+    "total_directional": 688,
+    "status": "kept",
+    "reasons": null
+  },
+  "CSCO": {
+    "long_labels": 367,
+    "short_labels": 227,
+    "total_directional": 594,
+    "status": "kept",
+    "reasons": null
+  },
+  "GM": {
+    "long_labels": 319,
+    "short_labels": 326,
+    "total_directional": 645,
+    "status": "kept",
+    "reasons": null
+  },
+  "F": {
+    "long_labels": 337,
+    "short_labels": 300,
+    "total_directional": 637,
+    "status": "kept",
+    "reasons": null
+  },
+  "CCL": {
+    "long_labels": 364,
+    "short_labels": 325,
+    "total_directional": 689,
+    "status": "kept",
+    "reasons": null
+  },
+  "NEM": {
+    "long_labels": 404,
+    "short_labels": 309,
+    "total_directional": 713,
+    "status": "kept",
+    "reasons": null
+  },
+  "TFC": {
+    "long_labels": 406,
+    "short_labels": 300,
+    "total_directional": 706,
+    "status": "kept",
+    "reasons": null
+  },
+  "AES": {
+    "long_labels": 462,
+    "short_labels": 398,
+    "total_directional": 860,
+    "status": "kept",
+    "reasons": null
+  },
+  "RF": {
+    "long_labels": 398,
+    "short_labels": 283,
+    "total_directional": 681,
+    "status": "kept",
+    "reasons": null
+  },
+  "VZ": {
+    "long_labels": 364,
+    "short_labels": 259,
+    "total_directional": 623,
+    "status": "kept",
+    "reasons": null
+  },
+  "CMCSA": {
+    "long_labels": 377,
+    "short_labels": 294,
+    "total_directional": 671,
+    "status": "kept",
+    "reasons": null
+  },
+  "T": {
+    "long_labels": 316,
+    "short_labels": 253,
+    "total_directional": 569,
+    "status": "kept",
+    "reasons": null
+  },
+  "KEY": {
+    "long_labels": 419,
+    "short_labels": 291,
+    "total_directional": 710,
+    "status": "kept",
+    "reasons": null
+  },
+  "DVN": {
+    "long_labels": 402,
+    "short_labels": 309,
+    "total_directional": 711,
+    "status": "kept",
+    "reasons": null
+  },
+  "EQT": {
+    "long_labels": 490,
+    "short_labels": 355,
+    "total_directional": 845,
+    "status": "kept",
+    "reasons": null
+  },
+  "HBAN": {
     "long_labels": 0,
     "short_labels": 0,
     "total_directional": 0,
@@ -102,5 +135,48 @@
       "insufficient_short",
       "insufficient_total"
     ]
+  },
+  "USB": {
+    "long_labels": 369,
+    "short_labels": 289,
+    "total_directional": 658,
+    "status": "kept",
+    "reasons": null
+  },
+  "KVUE": {
+    "long_labels": 0,
+    "short_labels": 0,
+    "total_directional": 0,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "CZR": {
+    "long_labels": 480,
+    "short_labels": 433,
+    "total_directional": 913,
+    "status": "kept",
+    "reasons": null
+  },
+  "HPQ": {
+    "long_labels": 0,
+    "short_labels": 0,
+    "total_directional": 0,
+    "status": "dropped",
+    "reasons": [
+      "insufficient_long",
+      "insufficient_short",
+      "insufficient_total"
+    ]
+  },
+  "LUV": {
+    "long_labels": 481,
+    "short_labels": 362,
+    "total_directional": 843,
+    "status": "kept",
+    "reasons": null
   }
 }

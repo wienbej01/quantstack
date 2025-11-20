@@ -1,0 +1,12 @@
+stage1:
+  model_path: artefacts/extensions/intraday_ml/bigmove_stage1/model.pkl
+  feature_list_path: artefacts/extensions/intraday_ml/bigmove_stage1/features.json
+  target_name: y_bigmove
+  positive_labels: [1]
+
+stage2_direction:
+  model_path: artefacts/extensions/intraday_ml/bigmove_stage2_dir/model.pkl
+  feature_list_path: artefacts/extensions/intraday_ml/bigmove_stage2_dir/features.json
+  target_name: y_bigmove_direction
+  long_label: 1
+  short_label: 0

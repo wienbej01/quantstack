@@ -1,0 +1,15 @@
+bigmove_policy.probability_threshold:
+  - 1.0e-05
+  - 2.0e-05
+  - 5.0e-05
+
+prob_threshold_long:
+  - 0.50
+
+score_margin:
+  - -0.10
+  - -0.05
+  - 0.00
+
+max_open_positions_global:
+  - 2

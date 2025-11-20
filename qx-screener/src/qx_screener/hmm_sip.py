@@ -276,7 +276,8 @@ class HMMSIPUniverseSelector(UniverseSelector):
         bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(ET_TZ)
 
         # Filter to target ET date
-        target_date_parsed = pd.to_datetime(target_et_date).date()
+        target_date = pd.to_datetime(target_et_date)
+        target_date_parsed = target_date.date()
         bars_et = bars_et[bars_et["ts_et"].dt.date == target_date_parsed]
 
         if bars_et.empty:
@@ -289,6 +290,21 @@ class HMMSIPUniverseSelector(UniverseSelector):
             | ((bars_et["ts_et"].dt.hour == 9) & (bars_et["ts_et"].dt.minute < 30))
         )
         premarket_bars = bars_et[premarket_mask]
+
+        if premarket_bars.empty:
+            # Some Gold families (e.g., RTH-only bars) do not include premarket data.
+            # Fall back to the first N minutes of RTH so we can still rank symbols.
+            fallback_minutes = 20
+            print(
+                "  [HMM SIP] No premarket bars available; using first "
+                f"{fallback_minutes} minutes of RTH as proxy"
+            )
+            fallback_mask = (
+                (bars_et["ts_et"].dt.hour == 9)
+                & (bars_et["ts_et"].dt.minute >= 30)
+                & (bars_et["ts_et"].dt.minute < 30 + fallback_minutes)
+            )
+            premarket_bars = bars_et[fallback_mask]
 
         if premarket_bars.empty:
             return []

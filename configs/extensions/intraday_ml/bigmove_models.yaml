@@ -1,0 +1,10 @@
+stage1:
+  path: artefacts/extensions/intraday_ml/phaseA_full_sip/model_lgbm/model.pkl
+  positive_labels: [-1, 1]
+
+stage2_direction:
+  path: artefacts/extensions/intraday_ml/phaseA_full_sip/model_lgbm/model.pkl
+  long_label: 1
+  short_label: -1
+
+# Stage 2 expected-R is not yet trained for the SIP pilot.

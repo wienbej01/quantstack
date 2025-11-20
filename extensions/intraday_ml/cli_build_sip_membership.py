@@ -151,6 +151,8 @@ def build_sip_for_range(
     top_k: int,
     score_floor: float,
     mode: str,
+    external_premarket_root: str,
+    output_root: str | None,
 ):
     """
     Computes and saves SIP membership for a given date range and universe.
@@ -166,6 +168,7 @@ def build_sip_for_range(
         score_floor=score_floor,
         mode=mode,
         enable_gold_fallback=True,  # Ensure it can run without external files
+        external_premarket_root=external_premarket_root,
     )
     selector = HMMSIPUniverseSelector(cfg=sip_config)
 
@@ -269,7 +272,11 @@ def build_sip_for_range(
             membership_df = pd.DataFrame(membership_records)
 
             # Save the membership data for the day
-            save_sip_membership(df=membership_df, gold_root=gold_root)
+            save_sip_membership(
+                df=membership_df,
+                gold_root=gold_root,
+                output_root=output_root,
+            )
             logger.info(f"Successfully saved SIP membership for {date_str}.")
 
         except Exception as e:
@@ -339,6 +346,23 @@ def main():
         default="legacy",
         help="SIP selector mode. Currently only 'legacy' is supported.",
     )
+    parser.add_argument(
+        "--external-premarket-root",
+        type=str,
+        help=(
+            "Directory containing daily pre-market shortlists. "
+            "Defaults to <gold_root>/intraday_ml/sip_universe_pre, which is expected to host "
+            "the Russell 2000 USD 5-50 universe shortlists."
+        ),
+    )
+    parser.add_argument(
+        "--output-root",
+        type=str,
+        help=(
+            "Optional directory to store the generated sip_membership dataset. "
+            "Defaults to <gold_root>/intraday_ml/sip_membership."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -349,6 +373,14 @@ def main():
         universe_list_file=args.universe_list_file,
         use_gold_universe=args.use_gold_universe,
     )
+    external_premarket_root = args.external_premarket_root
+    if not external_premarket_root:
+        external_premarket_root = str(Path(args.gold_root) / "intraday_ml" / "sip_universe_pre")
+
+    output_root = args.output_root
+    if output_root:
+        output_root = str(Path(output_root).expanduser())
+
     build_sip_for_range(
         start_date=args.start_date,
         end_date=args.end_date,
@@ -357,6 +389,8 @@ def main():
         top_k=args.top_k,
         score_floor=args.score_floor,
         mode=args.mode,
+        external_premarket_root=external_premarket_root,
+        output_root=output_root,
     )
     logger.info("SIP membership pre-computation job finished.")
 

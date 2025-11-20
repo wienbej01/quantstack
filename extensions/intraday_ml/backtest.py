@@ -168,6 +168,7 @@ def _load_and_merge_config(cfg: dict[str, Any], config_path: str | None) -> dict
             "flat_eod_time": "15:59:59",
             "no_overnight_positions": True,
             "eod_buffer_minutes": 5,
+            "slippage_bps": 3.0,
         },
     }
 
@@ -218,7 +219,8 @@ def _apply_intraday_constraints(
 
     # Apply next bar execution
     if not orders.empty and constraints["next_bar_execution"]:
-        orders = _shift_to_next_bar(orders, bars)
+        slippage_bps = constraints.get("slippage_bps", 3.0)
+        orders = _shift_to_next_bar(orders, bars, slippage_bps=slippage_bps)
 
     # Apply EOD flat constraint
     if not orders.empty and constraints["no_overnight_positions"]:
@@ -246,35 +248,56 @@ def _to_ns_timestamp(value: Any) -> int:
     return int(ts.value)
 
 
-def _shift_to_next_bar(orders: pd.DataFrame, bars: pd.DataFrame) -> pd.DataFrame:
-    """Shift order execution to next bar after signal."""
-    # Build next bar mapping
+def _shift_to_next_bar(
+    orders: pd.DataFrame,
+    bars: pd.DataFrame,
+    *,
+    slippage_bps: float = 3.0,
+) -> pd.DataFrame:
+    """Shift order execution to the next bar and apply simple slippage."""
     bars_sorted = bars.sort_values(["symbol", "ts"]).copy()
     bars_sorted["ts_ns"] = bars_sorted["ts"].apply(_to_ns_timestamp)
     next_bar = {}
+    next_open = {}
 
     for symbol, group in bars_sorted.groupby("symbol"):
         timestamps = group["ts_ns"].values
+        opens = group.get("open")
         for i in range(len(timestamps) - 1):
-            next_bar[(symbol, timestamps[i])] = timestamps[i + 1]
+            next_key = (symbol, timestamps[i])
+            next_ts = timestamps[i + 1]
+            next_bar[next_key] = next_ts
+            if opens is not None:
+                next_open[(symbol, next_ts)] = float(group["open"].iloc[i + 1])
 
-    # Apply next bar execution
     shifted_orders = []
+    slip = float(slippage_bps) / 10000.0
     for _, order in orders.iterrows():
         original_ts_ns = _to_ns_timestamp(order["ts"])
         key = (order["symbol"], original_ts_ns)
-        if key in next_bar:
-            shifted_order = order.copy()
-            next_ts = next_bar[key]
-            signal_ts = order.get("signal_ts", original_ts_ns)
-            shifted_order["signal_ts"] = signal_ts
-            shifted_order["signal_timestamp"] = pd.to_datetime(signal_ts, unit="ns", utc=True)
-            shifted_order["original_signal_ts"] = original_ts_ns
-            shifted_order["execution_ts"] = next_ts
-            shifted_order["execution_timestamp"] = pd.to_datetime(next_ts, unit="ns", utc=True)
-            shifted_order["ts"] = next_ts
-            shifted_order["timestamp"] = shifted_order["execution_timestamp"]
-            shifted_orders.append(shifted_order)
+        if key not in next_bar:
+            continue
+        next_ts = next_bar[key]
+        open_price = next_open.get((order["symbol"], next_ts))
+        if open_price is None:
+            continue
+        shifted_order = order.copy()
+        signal_ts = order.get("signal_ts", original_ts_ns)
+        shifted_order["signal_ts"] = signal_ts
+        shifted_order["signal_timestamp"] = pd.to_datetime(signal_ts, unit="ns", utc=True)
+        shifted_order["original_signal_ts"] = original_ts_ns
+        shifted_order["execution_ts"] = next_ts
+        shifted_order["execution_timestamp"] = pd.to_datetime(next_ts, unit="ns", utc=True)
+        shifted_order["ts"] = next_ts
+        shifted_order["timestamp"] = shifted_order["execution_timestamp"]
+        if order.get("side", "").lower() == "short":
+            fill_price = open_price * (1.0 - slip)
+        else:
+            fill_price = open_price * (1.0 + slip)
+        shifted_order["fill_price"] = fill_price
+        shifted_order["execution_price"] = fill_price
+        shifted_order["slippage_bps"] = slippage_bps
+        shifted_orders.append(shifted_order)
 
     return pd.DataFrame(shifted_orders) if shifted_orders else pd.DataFrame()
 

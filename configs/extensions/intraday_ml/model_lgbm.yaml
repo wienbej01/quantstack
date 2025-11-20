@@ -48,7 +48,7 @@ class_weights:
 
 loss_tuning:
   focal_loss:
-    enabled: true
+    enabled: false
     gamma: 1.4
     alpha:
       -1: 1.0
@@ -59,13 +59,13 @@ loss_tuning:
 training:
   early_stopping_rounds: 75
   eval_metric: "multi_logloss"
-  validation_split: 0.25
-  shuffle: true
-  stratify_by_class: true
+  validation_split: 0.2
+  shuffle: false
+  stratify_by_class: false
   abstention_guard:
     max_trade_density: 0.45
     min_abstention_rate: 0.55
-    fail_on_worse_than_baseline: true
+    fail_on_worse_than_baseline: false
   topk_objective:
     enabled: true
     bars_per_day: 39

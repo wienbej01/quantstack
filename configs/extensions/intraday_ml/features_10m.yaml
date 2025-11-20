@@ -2,7 +2,7 @@
 families:
   returns_trend:
     enabled: true
-    windows: [1, 2, 3] # 10m, 20m, 30m returns
+    windows: [1, 2, 3, 6, 12] # 10m, 20m, 30m returns
     include_log: false
 
   volatility_ranges:
@@ -18,7 +18,7 @@ families:
     relative_volume_windows: [6]
 
   vwap_distance:
-    enabled: false
+    enabled: true
 
   time_seasonality:
     enabled: true
@@ -28,13 +28,13 @@ families:
     cyclical_encoding: true
 
   cross_section:
-    enabled: false
+    enabled: true
 
   price_momentum:
     enabled: true
-    roc_windows: [1, 2, 3]
-    rsi_windows: [6]
-    ma_windows: [3, 6]
+    roc_windows: [1, 2, 3, 6, 12]
+    rsi_windows: [6, 12]
+    ma_windows: [3, 6, 12]
 
   microstructure:
     enabled: false

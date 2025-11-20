@@ -7,7 +7,7 @@ evaluation metrics for prominent moves prediction.
 import math
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Sequence
 
 import lightgbm as lgb
 import numpy as np
@@ -20,6 +20,47 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 from sklearn.model_selection import StratifiedKFold, train_test_split
+
+
+CANONICAL_LABEL_ORDER = (-1, 0, 1)
+
+
+def resolve_class_positions(
+    model_classes: Sequence[int] | Sequence[str],
+    canonical_order: tuple[int, ...] = CANONICAL_LABEL_ORDER,
+) -> dict[int, int]:
+    """
+    Return index positions for canonical labels based on the fitted model classes.
+
+    Raises:
+        ValueError: If the fitted classes do not match the canonical set.
+    """
+    parsed_classes = [int(cls) for cls in model_classes]
+    if set(parsed_classes) != set(canonical_order):
+        raise ValueError(
+            f"Model classes {parsed_classes} do not match canonical order {canonical_order}"
+        )
+
+    return {label: parsed_classes.index(label) for label in canonical_order}
+
+
+def compute_frequency_baseline_logloss(y_true: Sequence[int] | pd.Series, classes: Sequence[int]) -> float:
+    """
+    Compute log-loss for a baseline predictor that returns class frequencies.
+    """
+    y_arr = np.asarray(y_true)
+    n_samples = len(y_arr)
+    if n_samples == 0:
+        return 0.0
+
+    classes_arr = np.asarray([int(cls) for cls in classes])
+    freq = np.array([(y_arr == c).mean() for c in classes_arr], dtype=float)
+    eps = 1e-15
+    freq = np.clip(freq, eps, 1.0)
+    freq = freq / freq.sum()
+    proba_baseline = np.tile(freq, (n_samples, 1))
+
+    return log_loss(y_arr, proba_baseline, labels=classes_arr)
 
 
 @dataclass
@@ -161,6 +202,9 @@ class LightGBMTrainer:
         """Split data into training and validation sets."""
         val_split = self.training_params.get("validation_split", 0.2)
         stratify = self.training_params.get("stratify_by_class", True)
+
+        if val_split <= 0 or len(y) < 2:
+            return X, X.copy(), y, y.copy()
 
         if stratify and len(y.unique()) > 1:
             X_train, X_val, y_train, y_val = train_test_split(
@@ -399,23 +443,22 @@ class LightGBMTrainer:
         accuracy = accuracy_score(y_val, y_pred)
         precision, recall, f1, _ = precision_recall_fscore_support(y_val, y_pred, average="macro")
         classes = [int(cls) for cls in model.classes_]
-        class_positions = {int(cls): idx for idx, cls in enumerate(classes)}
+        class_positions = resolve_class_positions(classes)
 
         brier_score = brier_score_loss(y_val, y_proba, labels=classes)
         brier_score_calibrated = brier_score_loss(y_val, y_proba_calibrated, labels=classes)
         logloss_val = log_loss(y_val, y_proba, labels=classes)
         logloss_calibrated = log_loss(y_val, y_proba_calibrated, labels=classes)
 
-        # Baseline frequency log-loss on the exact validation labels
-        # Build a constant-probability matrix using y_val class frequencies
         val_counts = y_val.value_counts().to_dict()
-        total_val = float(len(y_val)) if len(y_val) else 1.0
-        freq_vector = np.array([float(val_counts.get(cls, 0.0)) / total_val for cls in classes], dtype=float)
-        if not np.isfinite(freq_vector).all() or np.isclose(freq_vector.sum(), 0.0):
-            # Fallback to uniform if something degenerate happens
-            freq_vector = np.ones(len(classes), dtype=float) / max(len(classes), 1)
-        baseline_proba = np.tile(freq_vector, (len(y_val), 1)) if len(y_val) else np.empty((0, len(classes)))
-        baseline_logloss = log_loss(y_val, baseline_proba, labels=classes)
+        baseline_log_loss = compute_frequency_baseline_logloss(y_val, classes)
+        calibration_enabled = bool(self.calibration_config.get("enabled", True))
+        active_log_loss = logloss_calibrated if calibration_enabled else logloss_val
+        baseline_tolerance = max(
+            0.0, float(self.training_guard.get("baseline_tolerance", 1e-3))
+        )
+        baseline_delta = active_log_loss - baseline_log_loss
+        worse_than_baseline = active_log_loss > (baseline_log_loss + baseline_tolerance)
 
         # Class-specific metrics
         precision_per_class, recall_per_class, f1_per_class, _ = precision_recall_fscore_support(
@@ -436,13 +479,17 @@ class LightGBMTrainer:
             "brier_improvement": brier_score - brier_score_calibrated,
             "log_loss": logloss_val,
             "log_loss_calibrated": logloss_calibrated,
-            "baseline_log_loss": baseline_logloss,
+            "baseline_log_loss": baseline_log_loss,
+            "active_log_loss": active_log_loss,
+            "baseline_delta": float(baseline_delta),
+            "baseline_tolerance": baseline_tolerance,
             "class_distribution_val": {int(k): int(v) for k, v in val_counts.items()},
             "classes": classes,
             "class_order_map": {int(lbl): int(idx) for lbl, idx in class_positions.items()},
             "sanity": {
-                "loss_vs_baseline": float(baseline_logloss - logloss_val),
-                "worse_than_baseline": bool(logloss_val > baseline_logloss + 1e-9),
+                "loss_vs_baseline": float(baseline_log_loss - active_log_loss),
+                "worse_than_baseline": worse_than_baseline,
+                "baseline_tolerance": baseline_tolerance,
             },
             "trade_density": trade_density,
             "abstention_rate": float(max(0.0, 1.0 - trade_density)),

@@ -118,7 +118,11 @@ class DatasetManifestBuilder:
 
         # Build universe
         universe = self.universe_adapter.build_universe(
-            gold_root=self.gold_root, symbols=candidate_symbols, dates=all_dates
+            gold_root=self.gold_root,
+            symbols=candidate_symbols,
+            dates=all_dates,
+            date_ranges=date_ranges,
+            collect_diagnostics=True,
         )
         universe_hash = self._compute_universe_hash(universe)
 
@@ -156,6 +160,10 @@ class DatasetManifestBuilder:
             self._save_manifest(manifest, output_path)
 
         return manifest
+
+    def get_last_universe_report(self) -> dict[str, dict] | None:
+        """Expose the latest universe diagnostics collected during manifest build."""
+        return self.universe_adapter.get_last_screening_report()
 
     def _generate_date_ranges(self) -> dict[str, dict[str, str]]:
         """Generate Train/Val/OOS date ranges from config."""

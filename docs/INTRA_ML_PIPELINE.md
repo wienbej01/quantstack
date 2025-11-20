@@ -92,6 +92,46 @@ The pipeline produces a set of artifacts in the directory specified in the maste
 - `policy_config.json`: A JSON file with the policy configuration.
 - `phaseA_status.json`: Summary of the run, including manifest/training/deployment symbol lists and effective train/validation/OOS ranges. This replaces the legacy BAC-only status stub.
 
+## SIP Preparation Workflow
+
+To run Phase A with the SIP-filtered USD 5–50 universe you must first build the universe YAML and then pre-compute the SIP membership for the covered dates. Follow these steps before every full (`phaseA_sip_full.yaml` or similar) command:
+
+1. **Generate the USD 5–50 universe YAML.** This script inspects the gold store, enforces median price/dollar-v volume requirements, and writes a config that Phase A can consume. Run it from the repo root:
+
+   ```bash
+   python scripts/build_intraday_universe_sip_5_50.py \
+     --output configs/extensions/intraday_ml/ \
+     --min-price 5.0 \
+     --max-price 50.0 \
+     --min-dollar-vol 10000000
+   ```
+
+   The script creates `configs/extensions/intraday/ml/universe_intraday_sip_5_50.yaml` (or overwrites it if it already exists). You can add `--sip-symbols /path/to/list.txt` to restrict to top symbols from another source.
+
+2. **Compute SIP membership.** The membership CLI writes daily parquet partitions under `/home/jacobw/quantstack/run/sip_membership`. Invoke it with the same universe produced above so SIP membership aligns with the target cohort:
+
+   ```bash
+   python -m extensions.intraday_ml.cli_build_sip_membership \
+     --start-date 2023-10-02 \
+     --end-date 2024-05-31 \
+     --universe-config configs/extensions/intraday_ml/universe_intraday_sip_5_50.yaml \
+     --gold-root /home/jacobw/gcs-mount/gold \
+     --top-k 50 \
+     --external-premarket-root /home/jacobw/gcs-mount/gold/intraday_ml/sip_universe_pre \
+     --output-root /home/jacobw/quantstack/run/sip_membership \
+     --mode legacy
+   ```
+
+   The `--external-premarket-root` flag points the SIP selector at the Russell 2000 USD 5–50 premarket shortlists; it defaults to the same `/home/jacobw/gcs-mount/gold/intraday_ml/sip_universe_pre` directory when omitted. `--output-root` controls where the membership parquet partitions are written (Phase A defaults to `/home/jacobw/quantstack/run/sip_membership`). Adjust `--top-k` (default 50) and `--mode` (`legacy` today) to match the pipeline’s crown (the Phase A config uses `sip_only` down-stream when filtering symbols). This step must run whenever the universe or gold window changes; the generated membership file is referenced directly by `phaseA_sip_full.yaml`.
+
+3. **Run Phase A.** With the universe and membership in place, execute the pipeline as usual:
+
+   ```bash
+   python run_phaseA_pipeline.py --config configs/extensions/intraday_ml/phaseA_sip_full.yaml
+   ```
+
+   The master config references both the new universe file and the membership directory, so rerunning the script with any updated universe/membership simply picks up the latest files. Failure to generate the membership file will raise `RuntimeError: No deployment symbols available after applying SIP filtering`.
+
 ## Reproducibility
 
 The pipeline is designed to be reproducible. The artifacts directory contains all the information needed to reproduce an experiment, including the configuration files, the model, and the data.

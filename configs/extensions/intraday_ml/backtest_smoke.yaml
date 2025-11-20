@@ -1,0 +1,13 @@
+intraday_constraints:
+  session_timezone: "America/New_York"
+  next_bar_execution: true
+  flat_eod_time: "15:59:59"
+  no_overnight_positions: true
+  eod_buffer_minutes: 5
+  slippage_bps: 3.0
+costs:
+  bps: 0.0005
+  per_share: 0.0025
+  commission_min: 0.25
+initial_cash: 1000000
+risk_free_rate: 0.02

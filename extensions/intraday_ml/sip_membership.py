@@ -47,7 +47,12 @@ def get_sip_membership_base_path(gold_root: str | Path) -> Path:
     return root_path / "intraday_ml" / "sip_membership"
 
 
-def save_sip_membership(df: pd.DataFrame, gold_root: str | Path) -> None:
+def save_sip_membership(
+    df: pd.DataFrame,
+    gold_root: str | Path,
+    *,
+    output_root: str | Path | None = None,
+) -> None:
     """
     Persists SIP membership data as a partitioned Parquet dataset.
 
@@ -74,7 +79,7 @@ def save_sip_membership(df: pd.DataFrame, gold_root: str | Path) -> None:
     df_to_save["symbol"] = df_to_save["symbol"].astype(str)
     df_to_save["is_sip"] = df_to_save["is_sip"].astype(bool)
 
-    base_path = get_sip_membership_base_path(gold_root)
+    base_path = Path(output_root) if output_root else get_sip_membership_base_path(gold_root)
     logger.info(f"Saving SIP membership to {base_path}")
     base_path.mkdir(parents=True, exist_ok=True)
 
@@ -82,7 +87,14 @@ def save_sip_membership(df: pd.DataFrame, gold_root: str | Path) -> None:
     for partition in df_to_save["trade_date"].unique():
         partition_path = base_path / f"trade_date={partition}"
         if partition_path.exists():
-            shutil.rmtree(partition_path)
+            try:
+                shutil.rmtree(partition_path)
+            except PermissionError as exc:
+                logger.warning(
+                    "Unable to remove existing partition %s due to %s; attempting overwrite via pyarrow.",
+                    partition_path,
+                    exc,
+                )
 
     try:
         df_to_save.to_parquet(
@@ -142,6 +154,11 @@ def load_sip_membership_for_dates(
 
         df = pd.read_parquet(base_path, filters=filters, engine="pyarrow")
 
+        if mode == "sip_only":
+            df = df[df["is_sip"]]
+        elif mode == "no_sip":
+            df = df[~df["is_sip"]]
+
         if df.empty:
             logger.warning(
                 f"No SIP membership data found for mode '{mode}' in date range "
@@ -197,6 +214,7 @@ def get_phase_symbols_with_sip(
         return list(candidate_symbols)
 
     mode = sip_config.get("mode", "sip_only")
+    raw_max_symbols = sip_config.get("max_symbols")
     membership_path = sip_config.get("membership_path")
     if not membership_path:
         raise ValueError("sip_filter.membership_path must be configured when SIP is enabled.")
@@ -223,7 +241,41 @@ def get_phase_symbols_with_sip(
 
     candidate_set = {str(symbol).upper() for symbol in candidate_symbols}
     sip_symbols = {str(symbol).upper() for symbol in sip_df["symbol"].unique().tolist()}
-    filtered_symbols = sorted(candidate_set & sip_symbols) if candidate_set else sorted(sip_symbols)
+    sip_candidates = (
+        sorted(candidate_set & sip_symbols) if candidate_set else sorted(sip_symbols)
+    )
+    candidate_count = len(sip_candidates)
+
+    max_symbols: int | None = None
+    if raw_max_symbols is not None:
+        try:
+            parsed_max = int(raw_max_symbols)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("sip_filter.max_symbols must be an integer if provided.") from exc
+        max_symbols = parsed_max if parsed_max > 0 else None
+
+    if max_symbols is not None:
+        symbol_counts = (
+            sip_df["symbol"]
+            .str.upper()
+            .value_counts()
+            .loc[lambda s: s.index.isin(sip_candidates)]
+        )
+        ranked_symbols = symbol_counts.index.tolist()
+        filtered_symbols = ranked_symbols[:max_symbols]
+        logger.info(
+            "SIP membership: applying cap max_symbols=%d; kept %d of %d SIP symbols",
+            max_symbols,
+            len(filtered_symbols),
+            len(symbol_counts),
+        )
+    else:
+        filtered_symbols = sip_candidates
+        logger.info(
+            "SIP membership: no max_symbols cap applied; returning %d of %d SIP symbols",
+            len(filtered_symbols),
+            candidate_count,
+        )
 
     _emit(
         "Filtered symbol list for phase "

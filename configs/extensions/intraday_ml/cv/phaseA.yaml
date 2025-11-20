@@ -22,7 +22,7 @@ metrics:
 
 trading_evaluation:
   enabled: true
-  horizon_minutes: 30
+  horizon_minutes: 60
   transaction_cost_bps: 12
   context_columns: ["open", "high", "low", "close"]
   policies:

@@ -91,4 +91,89 @@ Document any evaluator runs (command lines plus headline metrics) in the sprint 
      tests/extensions/intraday_ml/test_risk_levels.py
    ```
 
-   These cover the ATR level helper, the ≥1.5 R gate, and the enriched rejection logging.
+  These cover the ATR level helper, the ≥1.5 R gate, and the enriched rejection logging.
+
+## SIP & Universe Prep Checklist
+
+The SIP universe and membership must be refreshed before each full Phase A run to keep the filters aligned with the USD 5–50 universe:
+
+1. **Build the SIP universe YAML** (creates `configs/extensions/intraday_ml/universe_intraday_sip_5_50.yaml`):
+
+   ```bash
+   python scripts/build_intraday_universe_sip_5_50.py \
+     --output configs/extensions/intraday_ml/ \
+     --min-price 5.0 \
+     --max-price 50.0 \
+     --min-dollar-vol 10000000
+   ```
+
+2. **Generate SIP membership** for the run window (writes into `/home/jacobw/quantstack/run/sip_membership`):
+
+   ```bash
+   python -m extensions.intraday_ml.cli_build_sip_membership \
+     --start-date 2023-10-02 \
+     --end-date 2024-05-31 \
+     --universe-config configs/extensions/intraday_ml/universe_intraday_sip_5_50.yaml \
+     --gold-root /home/jacobw/gcs-mount/gold \
+     --top-k 60 \
+     --external-premarket-root /home/jacobw/gcs-mount/gold/intraday_ml/sip_universe_pre \
+     --output-root /home/jacobw/quantstack/run/sip_membership \
+     --mode legacy
+   ```
+
+3. **Run Phase A** (`phaseA_sip_full.yaml` points at both the universe and membership path):
+
+   ```bash
+   python run_phaseA_pipeline.py --config configs/extensions/intraday_ml/phaseA_sip_full.yaml
+   ```
+
+Follow this sequence every time you update the price/dollar-volume filters or SIP universe; the Phase A config will otherwise fail with `RuntimeError: No deployment symbols available after applying SIP filtering.` The membership CLI already respects the same top‑k/mode settings as the decision policy, so keeping the files in sync ensures deterministic experiments.
+
+## 6. Big-Move OOS Scoring & Policy Sweep
+
+### Train the sidecar models
+
+Before scoring, train (or refresh) the Stage 1 probability and Stage 2 direction models so their artefacts live under deterministic folders that the scorer can reference:
+
+```bash
+python -m extensions.intraday_ml_models.train_bigmove_stage1 \
+  --dataset-config configs/extensions/intraday_ml/phaseA_sip_full.yaml \
+  --targets-config configs/extensions/intraday_ml/targets_bigmove.yaml \
+  --model-config configs/extensions/intraday_ml/model_bigmove_stage1.yaml \
+  --output-root artefacts/extensions/intraday_ml/bigmove_stage1
+
+python -m extensions.intraday_ml_models.train_bigmove_stage2_dir \
+  --dataset-config configs/extensions/intraday_ml/phaseA_sip_full.yaml \
+  --targets-config configs/extensions/intraday_ml/targets_bigmove.yaml \
+  --model-config configs/extensions/intraday_ml/model_bigmove_stage2_dir.yaml \
+  --output-root artefacts/extensions/intraday_ml/bigmove_stage2_dir
+```
+
+Each script writes `model.pkl`, `features.json`, and `train_meta.json` so you can wire them into scoring/config management. Adjust `--split` or `--label-buffer-days` only when experimenting with alternative cohorts.
+
+After training or pulling the latest stage models, run the standalone scorer to project them onto the frozen Phase A SIP features and merge them with the baseline signals:
+
+```bash
+python -m extensions.intraday_ml.experiments.score_bigmove_oos \
+  --features artefacts/extensions/intraday_ml/phaseA_full_sip/oos_features.parquet \
+  --baseline-signals artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions.parquet \
+  --models-config configs/extensions/intraday_ml/bigmove_models_config.yaml \
+  --expected-r-floor 1.0 \
+  --output-signals artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions_bigmove.parquet
+```
+
+All arguments are spelled out so there is zero ambiguity about which artefacts are used; the CLI defaults already point to the same locations but it is safer to pass them explicitly. Point `--models-config` at the JSON/YAML manifest describing the stage‑1/2 artefacts (the CLI can also auto-discover under `artefacts/extensions/intraday_ml` if you omit it). The command writes `prob_bigmove`, `prob_bigmove_long/short`, and (if available) `expected_r_bigmove` into `oos_predictions_bigmove.parquet` without touching the legacy predictions file.
+
+With the enriched signals in place, run the policy sweep in big-move mode (defaults shown below can be overridden as needed):
+
+```bash
+python -m extensions.intraday_ml.experiments.policy_sweep \
+  --policy-config configs/extensions/intraday_ml/policy_config_bigmove.json \
+  --grid configs/extensions/intraday_ml/policy_sweep_grid.yaml \
+  --backtest-config configs/extensions/intraday_ml/backtest_smoke.yaml \
+  --output artefacts/extensions/intraday_ml/policy_sweeps/bigmove_frontier.csv
+```
+
+`policy_sweep.py` now points at `artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions_bigmove.parquet` by default, so the adapter sees the exact columns the big-move policy expects.
+
+All four CLIs above emit `[heartbeat]` log entries every 60 seconds via `HeartbeatLogger`, so you can confirm they are progressing even during long-running Phase A jobs.

@@ -1,0 +1,106 @@
+{
+  "prob_threshold_long": 0.62,
+  "prob_threshold_short": 0.62,
+  "score_margin": 0.06,
+  "min_directional_gap": 0.055,
+  "min_conviction_score": 0.015,
+  "cooldown_minutes": 18,
+  "min_time": "09:40:00",
+  "max_time": "15:50:00",
+  "max_hold_minutes": 60,
+  "gap_exit_delay_minutes": 18,
+  "session_timezone": "America/New_York",
+  "order_qty": 1,
+  "policy_mode": "baseline",
+  "max_entries_per_day": 5,
+  "max_open_positions_global": 3,
+  "max_trades_per_symbol_per_day": 1,
+  "max_trades_per_bar_global": 2,
+  "max_daily_loss_R": -3.0,
+  "trade_risk_R": 1.0,
+  "target_trades_min": 3,
+  "target_trades_max": 5,
+  "lifecycle": {
+    "early_loss_cut_r": 0.5,
+    "early_loss_cut_minutes": 20,
+    "dead_trade_exit_minutes": 30,
+    "dead_trade_pnl_band_r": 0.2,
+    "max_hold_minutes_flat_or_loser": 60,
+    "max_hold_minutes_in_the_money": 240,
+    "trail_activation_r": 1.5,
+    "trail_stop_r": 0.75
+  },
+  "risk": {
+    "atr_feature": "f__vol__atr_6",
+    "stop_atr_multiple": 1.0,
+    "tp_r_multiple": 2.0,
+    "min_stop_pct": 0.002,
+    "max_stop_pct": 0.045,
+    "min_expected_r": 1.5
+  },
+  "bigmove_policy": {
+    "probability_threshold": 0.5,
+    "prob_column": "prob_bigmove",
+    "long_prob_column": "prob_bigmove_long",
+    "short_prob_column": "prob_bigmove_short",
+    "expected_r_column": "expected_r_bigmove",
+    "min_expected_r": 1.5
+  },
+  "calibration": {
+    "stats_filename": "policy_calibration.json",
+    "enabled": true,
+    "min_samples": 150,
+    "prob_long_percentile": 0.85,
+    "prob_short_percentile": 0.85,
+    "gap_percentile": 0.7,
+    "conviction_percentile": 0.8,
+    "expected_r_percentile": 0.4,
+    "score_margin_percentile": 0.75,
+    "floors": {
+      "min_directional_gap": 0.04,
+      "score_margin": 0.04,
+      "min_expected_r": 1.5
+    },
+    "ceilings": {
+      "min_expected_r": 4.0
+    }
+  },
+  "tod_profiles": {
+    "OPEN": {
+      "start_time": "09:40",
+      "end_time": "10:10",
+      "prob_threshold_long": 0.7,
+      "prob_threshold_short": 0.75,
+      "min_directional_gap_long": 0.08,
+      "min_directional_gap_short": 0.1,
+      "min_conviction_long": 0.02,
+      "min_conviction_short": 0.03,
+      "min_expected_r_long": 1.8,
+      "min_expected_r_short": 2.0
+    },
+    "MID": {
+      "start_time": "10:10",
+      "end_time": "14:30",
+      "prob_threshold_long": 0.65,
+      "prob_threshold_short": 0.7,
+      "min_directional_gap_long": 0.06,
+      "min_directional_gap_short": 0.08,
+      "min_conviction_long": 0.015,
+      "min_conviction_short": 0.025,
+      "min_expected_r_long": 1.6,
+      "min_expected_r_short": 1.9
+    },
+    "LATE": {
+      "start_time": "14:30",
+      "end_time": "15:50",
+      "prob_threshold_long": 0.62,
+      "prob_threshold_short": 0.68,
+      "min_directional_gap_long": 0.055,
+      "min_directional_gap_short": 0.075,
+      "min_conviction_long": 0.015,
+      "min_conviction_short": 0.025,
+      "min_expected_r_long": 1.5,
+      "min_expected_r_short": 1.8
+    }
+  }
+}

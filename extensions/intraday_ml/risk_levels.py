@@ -26,7 +26,7 @@ def compute_risk_levels(
     side: str,
     config: dict[str, Any],
 ) -> RiskLevels | None:
-    """Compute ATR/support-derived stops and targets for a policy signal."""
+    """Compute ATR-derived stops and targets for a policy signal."""
     if side not in {"long", "short"}:
         raise ValueError(f"Unsupported side '{side}' for risk level computation.")
 
@@ -40,51 +40,14 @@ def compute_risk_levels(
     if atr is None or atr <= 0:
         return None
 
-    max_atr_multiple = float(cfg.get("max_atr_multiple", 1.25))
-    buffer_mult = float(cfg.get("support_buffer_atr", 0.1))
-    allow_missing_support = bool(cfg.get("allow_missing_support", True))
+    stop_atr_multiple = float(cfg.get("stop_atr_multiple", cfg.get("max_atr_multiple", 1.0)))
+    tp_r_multiple = float(cfg.get("tp_r_multiple", cfg.get("target_r_multiple", 1.5)))
     min_stop_pct = float(cfg.get("min_stop_pct", 0.0005))
     max_stop_pct = float(cfg.get("max_stop_pct", 0.05))
-    target_r_multiple = float(cfg.get("target_r_multiple", 1.5))
 
-    stop_distance_abs: float | None = None
-    reference_level: float | None = None
-    atr_cap = atr * max(max_atr_multiple, 1e-6)
-    buffer_abs = buffer_mult * atr
-
-    if side == "long":
-        level = _get_numeric(row, cfg.get("support_feature_long", "low"))
-        if level is not None:
-            reference_level = level
-            stop_price_candidate = level - buffer_abs
-            if stop_price_candidate >= price:
-                return None
-            candidate_distance = price - stop_price_candidate
-            if candidate_distance <= 0 or candidate_distance > atr_cap + 1e-9:
-                return None
-            stop_distance_abs = candidate_distance
-        elif not allow_missing_support:
-            return None
-    else:
-        level = _get_numeric(row, cfg.get("resistance_feature_short", "high"))
-        if level is not None:
-            reference_level = level
-            stop_price_candidate = level + buffer_abs
-            if stop_price_candidate <= price:
-                return None
-            candidate_distance = stop_price_candidate - price
-            if candidate_distance <= 0 or candidate_distance > atr_cap + 1e-9:
-                return None
-            stop_distance_abs = candidate_distance
-        elif not allow_missing_support:
-            return None
-
-    if stop_distance_abs is None:
-        stop_distance_abs = atr_cap
-
+    stop_distance_abs = stop_atr_multiple * atr
     stop_distance_abs = max(stop_distance_abs, price * min_stop_pct)
     stop_distance_abs = min(stop_distance_abs, price * max_stop_pct)
-    stop_distance_abs = min(stop_distance_abs, atr_cap)
     if stop_distance_abs <= 0:
         return None
 
@@ -94,19 +57,18 @@ def compute_risk_levels(
     else:
         stop_price = price + stop_distance_abs
 
-    target_distance_abs = stop_distance_abs * max(target_r_multiple, 1.0)
+    target_distance_abs = stop_distance_abs * max(tp_r_multiple, 1.0)
     take_profit_pct = target_distance_abs / price
     take_price = price + target_distance_abs if side == "long" else price - target_distance_abs
 
-    expected_r = take_profit_pct / stop_pct if stop_pct > 0 else math.nan
-    expected_r_value = float(expected_r) if math.isfinite(expected_r) else None
+    expected_r_value = float(tp_r_multiple) if math.isfinite(tp_r_multiple) else None
 
     metadata = {
         "risk_stop_price": float(stop_price),
         "risk_take_profit_price": float(take_price),
         "risk_distance": float(stop_distance_abs),
         "risk_target_distance": float(target_distance_abs),
-        "risk_reference_level": float(reference_level) if reference_level is not None else None,
+        "risk_reference_level": None,
         "risk_atr": float(atr),
         "risk_atr_multiple_stop": float(stop_distance_abs / atr) if atr > 0 else None,
         "expected_r": expected_r_value,

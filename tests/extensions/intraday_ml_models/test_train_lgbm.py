@@ -1,12 +1,16 @@
 """Tests for LightGBMTrainer."""
 
+import math
 import unittest
 
 import numpy as np
 import pandas as pd
 import yaml
 
-from extensions.intraday_ml_models.train_lgbm import LightGBMTrainer
+from extensions.intraday_ml_models.train_lgbm import (
+    LightGBMTrainer,
+    compute_frequency_baseline_logloss,
+)
 
 
 class TestLightGBMTrainer(unittest.TestCase):
@@ -18,7 +22,7 @@ class TestLightGBMTrainer(unittest.TestCase):
                 "f__feature2": np.random.rand(100),
             }
         )
-        self.labels = pd.Series(np.random.randint(0, 3, 100), name="label")
+        self.labels = pd.Series(np.random.randint(0, 3, 100) - 1, name="label")
 
     def test_trainer_with_loose_config(self):
         """Test that the trainer can be configured with the loose config."""
@@ -88,6 +92,59 @@ class TestLightGBMTrainer(unittest.TestCase):
         topk = result.metrics.get("topk_metrics")
         self.assertIsInstance(topk, dict)
         self.assertIn("estimated_days", topk)
+
+    def test_frequency_baseline_logloss_matches_manual(self):
+        """The helper should mirror the manual log-loss computation over class frequencies."""
+        y_true = pd.Series([-1, -1, 0, 1], name="label")
+        classes = (-1, 0, 1)
+        expected = (
+            -math.log(0.5)
+            - math.log(0.5)
+            - math.log(0.25)
+            - math.log(0.25)
+        ) / 4
+
+        result = compute_frequency_baseline_logloss(y_true, classes)
+        self.assertAlmostEqual(result, expected, places=6)
+
+    def test_baseline_tolerance_prevents_false_positive_warning(self):
+        """Ensure the tolerance guard keeps the sanity flag false when the delta is small."""
+        config = {
+            "lgbm_params": {},
+            "training": {"abstention_guard": {"baseline_tolerance": 1e-2}},
+            "calibration": {"enabled": True},
+        }
+        trainer = LightGBMTrainer(config)
+
+        probabilities = np.array(
+            [
+                [0.50, 0.25, 0.25],
+                [0.49, 0.25, 0.26],
+                [0.50, 0.24, 0.26],
+                [0.49, 0.24, 0.27],
+            ],
+            dtype=float,
+        )
+
+        class StubModel:
+            classes_ = np.array([-1, 0, 1])
+            feature_importances_ = np.array([0.5, 0.5])
+
+            def predict(self, _: pd.DataFrame) -> np.ndarray:
+                return np.array([-1, -1, 0, 1])
+
+            def predict_proba(self, _: pd.DataFrame) -> np.ndarray:
+                return probabilities
+
+        class StubCalibrated:
+            def predict_proba(self, _: pd.DataFrame) -> np.ndarray:
+                return probabilities
+
+        X_val = pd.DataFrame({"f__one": [0, 0, 0, 0], "f__two": [0, 0, 0, 0]})
+        y_val = pd.Series([-1, -1, 0, 1], name="label")
+
+        metrics = trainer._evaluate_model(StubModel(), StubCalibrated(), X_val, y_val)
+        self.assertFalse(metrics["sanity"]["worse_than_baseline"])
 
 
 if __name__ == "__main__":

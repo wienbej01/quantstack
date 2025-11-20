@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from qx_features.core_basics import atr_m
 
-from .utils.time_utils import DEFAULT_MARKET_TZ
+from ..utils.time_utils import DEFAULT_MARKET_TZ
 
 
 @dataclass

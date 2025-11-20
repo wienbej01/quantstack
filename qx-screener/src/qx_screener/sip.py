@@ -21,7 +21,7 @@ class ScreenerConfig:
     min_relative_volume: float = 1.0
     min_price: float = 10.0
     max_price: float = 1000.0
-    min_dollar_volume: float = 1_000_000  # $1M daily minimum
+    min_dollar_volume: float = 1_000_000  # $1M average daily dollar volume minimum
     lookback_days: int = 20
     volume_window: int = 30
     exclude_symbols: list[str] = None
@@ -71,8 +71,13 @@ class SipScreener:
         # Calculate relative volume
         bars_with_rvol = self._add_relative_volume(bars)
 
+        avg_daily_dollar_volume = self._compute_avg_daily_dollar_volume(bars_with_rvol)
+
         # Get latest data per symbol
         latest_data = self._get_latest_per_symbol(bars_with_rvol)
+        latest_data = latest_data.join(
+            avg_daily_dollar_volume.rename("avg_daily_dollar_volume"), on="symbol"
+        )
 
         # Apply filters
         filtered_data = self._apply_filters(latest_data)
@@ -109,6 +114,23 @@ class SipScreener:
         latest_per_symbol = bars_sorted.groupby("symbol").head(1)
         return latest_per_symbol
 
+    def _compute_avg_daily_dollar_volume(self, bars: pd.DataFrame) -> pd.Series:
+        """Compute average daily dollar volume per symbol over the lookback window."""
+        if bars.empty:
+            return pd.Series(dtype=float)
+
+        bars = bars.copy()
+        bars["trade_date"] = pd.to_datetime(bars["ts"]).dt.normalize()
+        bars["minute_dollar_volume"] = bars["close"] * bars["volume"]
+
+        daily_dv = (
+            bars.groupby(["symbol", "trade_date"])["minute_dollar_volume"]
+            .sum()
+            .rename("daily_dollar_volume")
+        )
+        avg_daily_dv = daily_dv.groupby("symbol").mean()
+        return avg_daily_dv
+
     def _apply_filters(self, data: pd.DataFrame) -> pd.DataFrame:
         """Apply screening filters."""
         filtered = data.copy()
@@ -122,9 +144,10 @@ class SipScreener:
         # Relative volume filter
         filtered = filtered[filtered["relative_volume"] >= self.config.min_relative_volume]
 
-        # Dollar volume filter (close * volume)
+        # Dollar volume filters
         filtered["dollar_volume"] = filtered["close"] * filtered["volume"]
-        filtered = filtered[filtered["dollar_volume"] >= self.config.min_dollar_volume]
+        filtered["avg_daily_dollar_volume"] = filtered["avg_daily_dollar_volume"].fillna(0.0)
+        filtered = filtered[filtered["avg_daily_dollar_volume"] >= self.config.min_dollar_volume]
 
         # Exclude specific symbols
         if self.config.exclude_symbols:

@@ -29,7 +29,7 @@ sip_filter:
   mode: "sip_only"
   # This path should point to where the SIP membership data is stored.
   # For the smoke test, this would be the output of the cli_build_sip_membership command.
-  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+  membership_path: "/home/jacobw/quantstack/run/sip_membership"
 
 includes:
   universe: 'configs/extensions/intraday_ml/universe_smoke.yaml'
@@ -47,4 +47,3 @@ policy:
   cooldown_minutes: 20
   min_time: "09:40:00"
   max_time: "15:50:00"
-

@@ -7,7 +7,7 @@ data:
 sip_filter:
   enabled: true
   mode: "sip_only"
-  membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+  membership_path: "/home/jacobw/quantstack/run/sip_membership"
 
 
 includes:

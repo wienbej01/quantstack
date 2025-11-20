@@ -14,7 +14,7 @@ from typing import Any
 import pandas as pd
 import yaml
 
-from . import (
+from extensions.intraday_ml import (
     intraday_ml_apply_features,
     intraday_ml_get_backtest_hash,
     intraday_ml_get_data_hash,

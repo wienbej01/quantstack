@@ -6,6 +6,8 @@ Executes all 6 steps for BAC single-ticker pilot test
 
 import argparse
 import json
+import logging
+import math
 import re
 import sys
 from collections.abc import Sequence
@@ -34,6 +36,9 @@ from extensions.intraday_ml.reporting import (
 from extensions.intraday_ml.sip_membership import get_phase_symbols_with_sip
 
 _SYMBOL_TOKEN = re.compile(r"^[A-Z0-9.\-]{1,6}$")
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _normalize_symbol_list(symbols: Sequence[str] | None) -> list[str]:
@@ -109,6 +114,29 @@ def _summarize_feature_coverage(
             )
 
     return coverage_path
+
+
+def _load_policy_config(policy_section: dict[str, Any]) -> dict[str, Any]:
+    """Merge the base policy config with any overrides from the master config."""
+
+    base_path = Path(
+        policy_section.get(
+            "policy_base_config", "configs/extensions/intraday_ml/policy_config.json"
+        )
+    )
+    if base_path.exists():
+        with open(base_path) as f:
+            base_config = json.load(f)
+    else:
+        base_config = {}
+
+    overrides = {
+        key: value
+        for key, value in policy_section.items()
+        if value is not None and key != "policy_base_config"
+    }
+    base_config.update(overrides)
+    return base_config
 
 
 def _print_trade_readiness_summary(
@@ -253,6 +281,170 @@ def _apply_label_guard(
     return filtered, report_path, insufficient
 
 
+def _evaluate_manifest_guard(
+    universe_report: dict[str, dict],
+    guard_cfg: dict[str, Any],
+) -> tuple[dict[str, list[str]], set[str], set[str]]:
+    """Evaluate manifest coverage guard thresholds and return diagnostics."""
+
+    tolerance = float(guard_cfg.get("coverage_tolerance", 0.0) or 0.0)
+    tolerance = max(0.0, min(1.0, tolerance))
+
+    min_total_days = int(guard_cfg.get("min_total_days", 0))
+    min_train_days = int(guard_cfg.get("min_train_days", 0))
+    min_oos_days = int(guard_cfg.get("min_oos_days", 0))
+    drop_from_training = bool(guard_cfg.get("drop_from_training", True))
+    drop_from_deployment = bool(guard_cfg.get("drop_from_deployment", True))
+
+    total_days_values = [
+        int(entry.get("coverage", {}).get("total_days", 0) or 0)
+        for entry in universe_report.values()
+    ]
+    train_days_values = [
+        int(entry.get("coverage", {}).get("train_days", 0) or 0)
+        for entry in universe_report.values()
+    ]
+    oos_days_values = [
+        int(entry.get("coverage", {}).get("oos_days", 0) or 0)
+        for entry in universe_report.values()
+    ]
+
+    max_total_days = max(total_days_values, default=0)
+    max_train_days = max(train_days_values, default=0)
+    max_oos_days = max(oos_days_values, default=0)
+
+    def _resolve_threshold(base: int, maximum: int) -> int:
+        if not maximum:
+            return base
+        if tolerance > 0:
+            tol_required = math.ceil(maximum * (1.0 - tolerance))
+            return max(base, tol_required)
+        return base
+
+    total_threshold = _resolve_threshold(min_total_days, max_total_days)
+    train_threshold = _resolve_threshold(min_train_days, max_train_days)
+    oos_threshold = _resolve_threshold(min_oos_days, max_oos_days)
+
+    manifest_guard_reasons: dict[str, list[str]] = {}
+    training_drops: set[str] = set()
+    deployment_drops: set[str] = set()
+
+    for symbol, entry in universe_report.items():
+        sym_key = str(symbol).upper()
+        coverage = entry.get("coverage", {})
+        total_days = int(coverage.get("total_days", 0) or 0)
+        train_days = int(coverage.get("train_days", 0) or 0)
+        oos_days = int(coverage.get("oos_days", 0) or 0)
+
+        reasons: list[str] = []
+        if total_threshold and total_days < total_threshold:
+            reasons.append("insufficient_total_days")
+        if train_threshold and train_days < train_threshold:
+            reasons.append("insufficient_train_days")
+        if oos_threshold and oos_days < oos_threshold:
+            reasons.append("insufficient_oos_days")
+
+        if not reasons:
+            continue
+
+        manifest_guard_reasons[sym_key] = reasons
+
+        training_reasons = {"insufficient_total_days", "insufficient_train_days"}
+        deployment_reasons = {"insufficient_total_days", "insufficient_oos_days"}
+        if drop_from_training and any(reason in training_reasons for reason in reasons):
+            training_drops.add(sym_key)
+        if drop_from_deployment and any(reason in deployment_reasons for reason in reasons):
+            deployment_drops.add(sym_key)
+
+    return manifest_guard_reasons, training_drops, deployment_drops
+
+
+def _build_manifest_report(
+    *,
+    context: dict[str, Any],
+    val_symbols: list[str],
+    candidate_symbols: list[str],
+    label_guard_dropped_set: set[str],
+    label_guard_reasons: dict[str, list[str]],
+) -> dict[str, Any]:
+    """Construct manifest report combining diagnostics, guard status, and phases."""
+
+    guard_drop_list = context.get("manifest_guard_drop_list", [])
+    guard_drop_set = set(guard_drop_list)
+    phase_sets = context.get("phase_symbols_requested", {})
+    universe_report = context.get("universe_report", {}) or {}
+    guard_reasons = context.get("manifest_guard_reasons", {})
+
+    summary = {
+        "candidate_symbols": context.get("candidate_symbol_count", 0),
+        "post_sip_train": context.get("post_sip_train_count", 0),
+        "post_sip_oos": context.get("post_sip_oos_count", 0),
+        "manifest_symbols": context.get("manifest_symbols_count", 0),
+        "post_manifest_train": context.get("post_manifest_train_count", 0),
+        "post_manifest_oos": context.get("post_manifest_oos_count", 0),
+        "dropped_by_manifest_guard": guard_drop_list,
+        "dropped_by_label_guard": sorted(label_guard_dropped_set),
+    }
+
+    all_symbols: set[str] = set()
+    all_symbols.update(str(sym).upper() for sym in candidate_symbols)
+    all_symbols.update(context.get("manifest_symbol_set", set()))
+    all_symbols.update(sym.upper() for sym in val_symbols)
+    all_symbols.update(
+        sym.upper()
+        for sym in context.get("training_symbols_after_guard", [])
+    )
+    all_symbols.update(
+        sym.upper()
+        for sym in context.get("deployment_symbols_pre_label_guard", [])
+    )
+    all_symbols.update(guard_reasons.keys())
+    all_symbols.update(universe_report.keys())
+    all_symbols.update(label_guard_dropped_set)
+    for phase_symbols in phase_sets.values():
+        all_symbols.update(phase_symbols)
+
+    symbols_report: dict[str, dict[str, Any]] = {}
+    for symbol in sorted(all_symbols):
+        diag = universe_report.get(symbol, {}) or {}
+        coverage = diag.get("coverage") or {}
+        symbols_report[symbol] = {
+            "phases_requested": [
+                phase
+                for phase in ("train", "val", "oos")
+                if symbol in phase_sets.get(phase, set())
+            ],
+            "coverage": {
+                "total_days": int(coverage.get("total_days", 0) or 0),
+                "train_days": int(coverage.get("train_days", 0) or 0),
+                "val_days": int(coverage.get("val_days", 0) or 0),
+                "oos_days": int(coverage.get("oos_days", 0) or 0),
+            },
+            "avg_daily_dollar_volume": _to_float(diag.get("avg_daily_dollar_volume")),
+            "latest_close": _to_float(diag.get("latest_close")),
+            "relative_volume": _to_float(diag.get("relative_volume")),
+            "selected_in_universe": bool(diag.get("selected")),
+            "screener_reasons": list(diag.get("reasons") or []),
+            "manifest_guard_reasons": list(guard_reasons.get(symbol, [])),
+            "dropped_by_manifest_guard": symbol in guard_drop_set,
+            "dropped_by_label_guard": symbol in label_guard_dropped_set,
+            "label_guard_reasons": list(label_guard_reasons.get(symbol, [])),
+        }
+
+    return {"summary": summary, "symbols": symbols_report}
+
+
+def _to_float(value: Any) -> float | None:
+    """Safely convert values to floats for reporting."""
+
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
 def main():
     """Run complete Phase A pipeline."""
     parser = argparse.ArgumentParser(description="Run complete Phase A pipeline.")
@@ -308,8 +500,10 @@ def main():
 
         policy_section = master_config.get("policy", {})
         label_guard_cfg = master_config.get("label_guard", {})
-        session_timezone = policy_section.get("session_timezone", "America/New_York")
-        policy_calibration_cfg = dict(policy_section.get("calibration", {}))
+        manifest_guard_cfg = master_config.get("manifest_guard", {})
+        policy_config = _load_policy_config(policy_section)
+        session_timezone = policy_config.get("session_timezone", "America/New_York")
+        policy_calibration_cfg = dict(policy_config.get("calibration", {}))
         calibration_stats_path: Path | None = None
 
         # Data loader config
@@ -337,6 +531,7 @@ def main():
         candidate_symbols = _normalize_symbol_list(configs["universe"].get("symbols", ["BAC"]))
         if not candidate_symbols:
             raise RuntimeError("Universe configuration produced zero candidate symbols.")
+        candidate_symbol_count = len(candidate_symbols)
 
         training_symbols_cfg = master_config.get("training_symbols")
         deployment_symbols_cfg = master_config.get("deployment_symbols")
@@ -385,9 +580,19 @@ def main():
                 if base_list:
                     resolved_phase_symbols[phase_name] = base_list
 
-        training_symbols = resolved_phase_symbols.get("train", [])
-        deployment_symbols = resolved_phase_symbols.get("oos", [])
-        val_symbols = resolved_phase_symbols.get("val", [])
+        phase_symbols_post_sip = {
+            phase: resolved_phase_symbols.get(phase, [])
+            for phase in ("train", "val", "oos")
+        }
+        training_symbols_post_sip = phase_symbols_post_sip["train"].copy()
+        deployment_symbols_post_sip = phase_symbols_post_sip["oos"].copy()
+        training_symbols = training_symbols_post_sip.copy()
+        deployment_symbols = deployment_symbols_post_sip.copy()
+        val_symbols = phase_symbols_post_sip["val"]
+        phase_symbols_post_sip_sets = {
+            phase: {symbol.upper() for symbol in symbols}
+            for phase, symbols in phase_symbols_post_sip.items()
+        }
 
         if not training_symbols:
             raise RuntimeError(
@@ -433,21 +638,64 @@ def main():
         missing_training = sorted(set(training_symbols) - set(available_symbols))
         missing_deployment = sorted(set(deployment_symbols) - set(available_symbols))
         if missing_training:
-            raise RuntimeError(
-                "Training symbols missing from manifest: "
+            print(
+                "   Warning: Dropping training symbols absent from manifest: "
                 + ", ".join(missing_training)
-                + ". Check universe configuration."
             )
+            training_symbols = [s for s in training_symbols if s in available_symbols]
         if missing_deployment:
-            raise RuntimeError(
-                "Deployment symbols missing from manifest: "
+            print(
+                "   Warning: Dropping deployment symbols absent from manifest: "
                 + ", ".join(missing_deployment)
-                + ". Check universe configuration."
             )
+            deployment_symbols = [s for s in deployment_symbols if s in available_symbols]
 
         _log_symbol_summary("Final training symbols", training_symbols)
         if "oos" in configs["splits"]:
             _log_symbol_summary("Final deployment symbols", deployment_symbols)
+
+        manifest_guard_enabled = bool(manifest_guard_cfg.get("enabled", False))
+        manifest_report_filename = manifest_guard_cfg.get(
+            "report_filename", "manifest_report.json"
+        )
+        universe_report = builder.get_last_universe_report() or {}
+        manifest_guard_reasons = {}
+        training_guard_drops: set[str] = set()
+        deployment_guard_drops: set[str] = set()
+        if manifest_guard_enabled and universe_report:
+            (
+                manifest_guard_reasons,
+                training_guard_drops,
+                deployment_guard_drops,
+            ) = _evaluate_manifest_guard(universe_report, manifest_guard_cfg)
+
+        if training_guard_drops:
+            training_symbols = [sym for sym in training_symbols if sym not in training_guard_drops]
+        if deployment_guard_drops:
+            deployment_symbols = [
+                sym for sym in deployment_symbols if sym not in deployment_guard_drops
+            ]
+
+        manifest_guard_drop_list = sorted({*training_guard_drops, *deployment_guard_drops})
+        manifest_symbol_set = {str(symbol).upper() for symbol in manifest.symbols}
+
+        manifest_report_context = {
+            "candidate_symbol_count": candidate_symbol_count,
+            "post_sip_train_count": len(training_symbols_post_sip),
+            "post_sip_oos_count": len(deployment_symbols_post_sip),
+            "manifest_symbols_count": len(manifest.symbols),
+            "post_manifest_train_count": len(training_symbols),
+            "post_manifest_oos_count": len(deployment_symbols),
+            "universe_report": universe_report,
+            "manifest_guard_reasons": manifest_guard_reasons,
+            "manifest_guard_drop_list": manifest_guard_drop_list,
+            "manifest_guard_enabled": manifest_guard_enabled,
+            "phase_symbols_requested": phase_symbols_post_sip_sets,
+            "manifest_symbol_set": manifest_symbol_set,
+            "training_symbols_after_guard": training_symbols.copy(),
+            "deployment_symbols_pre_label_guard": deployment_symbols.copy(),
+            "manifest_report_filename": manifest_report_filename,
+        }
 
         # Step 2: Data Preparation (Features + Labels using sliding window)
         print("\n🔧 Step 2: Data preparation with aligned features and labels...")
@@ -467,13 +715,16 @@ def main():
         # Create training dataset using the new sliding window approach
         training_data_path = artifact_dir / "training_data.parquet"
 
+        train_loader_config = dict(data_loader_config)
+        train_loader_config["dataset_kind"] = "train"
+
         training_data = create_training_dataset(
             symbols=training_symbols,
             start_date=start_date.strftime("%Y-%m-%d"),
             end_date=extended_end_date.strftime("%Y-%m-%d"),
             features_config=configs["features"],
             targets_config=configs["targets"],
-            data_loader_config=data_loader_config,
+            data_loader_config=train_loader_config,
             include_ohlcv=True,
         )
 
@@ -519,6 +770,42 @@ def main():
                 )
             deployment_symbols = deployment_symbols_filtered
             resolved_phase_symbols["oos"] = deployment_symbols_filtered
+
+        label_guard_dropped_set = {sym.upper() for sym in dropped_symbols}
+        label_guard_reasons: dict[str, list[str]] = {}
+        if label_guard_report_path and label_guard_report_path.exists():
+            with open(label_guard_report_path) as f:
+                raw_report = json.load(f)
+            for sym, entry in raw_report.items():
+                reasons = entry.get("reasons") or []
+                label_guard_reasons[str(sym).upper()] = reasons
+
+        manifest_report_path = artifact_dir / manifest_report_context["manifest_report_filename"]
+        manifest_report = _build_manifest_report(
+            context=manifest_report_context,
+            val_symbols=val_symbols,
+            candidate_symbols=candidate_symbols,
+            label_guard_dropped_set=label_guard_dropped_set,
+            label_guard_reasons=label_guard_reasons,
+        )
+        with open(manifest_report_path, "w") as f:
+            json.dump(manifest_report, f, indent=2, sort_keys=True)
+
+        summary = manifest_report["summary"]
+        logger.info(
+            "Manifest summary: %d candidate, %d post-SIP train, %d manifest, "
+            "%d train post-guard, %d deploy post-guard",
+            summary["candidate_symbols"],
+            summary["post_sip_train"],
+            summary["manifest_symbols"],
+            summary["post_manifest_train"],
+            summary["post_manifest_oos"],
+        )
+        if summary["dropped_by_manifest_guard"]:
+            logger.warning(
+                "Symbols dropped by manifest_guard: %s",
+                ", ".join(summary["dropped_by_manifest_guard"]),
+            )
 
         # Step 3: Train LightGBM Model
         print("\n🔧 Step 3: Training LightGBM model...")
@@ -568,22 +855,31 @@ def main():
             m = result.metrics or {}
             ll = m.get("log_loss")
             bll = m.get("baseline_log_loss")
+            active_ll = m.get("active_log_loss", ll)
+            baseline_delta = m.get("baseline_delta", 0.0)
+            baseline_tol = m.get("baseline_tolerance", 1e-3)
             bri = m.get("brier_improvement")
-            worse_than_baseline = (m.get("sanity", {}) or {}).get("worse_than_baseline")
             trade_density = m.get("trade_density")
+            worse_than_baseline = (m.get("sanity", {}) or {}).get("worse_than_baseline")
             if ll is not None and bll is not None:
                 msg1 = (
                     f"   Metrics: log_loss={ll:.6f} | baseline_log_loss={bll:.6f}"
+                    f" | active_log_loss={active_ll:.6f}"
                 )
                 msg2 = (
                     f"   brier_improvement={bri:.6f} | trade_density={trade_density:.4f}"
+                    f" | baseline_delta={baseline_delta:.6f} | baseline_tol={baseline_tol:.6f}"
                 )
                 print(msg1)
                 print(msg2)
                 if bool(worse_than_baseline):
-                    print(
-                        "⚠️ Detected log_loss worse than frequency baseline. "
-                        "Check class mapping and label alignment."
+                    logger.warning(
+                        "PhaseA log-loss worse than frequency baseline: active=%.6f "
+                        "baseline=%.6f (Δ=%.6f, tol=%.6f)",
+                        active_ll,
+                        bll,
+                        baseline_delta,
+                        baseline_tol,
                     )
         except Exception:
             # Do not fail the pipeline on metrics printing
@@ -635,13 +931,16 @@ def main():
         oos_start_date = datetime.strptime(oos_dates["start"], "%Y-%m-%d")
         oos_end_date = datetime.strptime(oos_dates["end"], "%Y-%m-%d")
 
+        oos_loader_config = dict(data_loader_config)
+        oos_loader_config["dataset_kind"] = "oos"
+
         oos_data = create_training_dataset(
             symbols=deployment_symbols,
             start_date=oos_start_date.strftime("%Y-%m-%d"),
             end_date=oos_end_date.strftime("%Y-%m-%d"),
             features_config=configs["features"],
             targets_config=configs["targets"],
-            data_loader_config=data_loader_config,
+            data_loader_config=oos_loader_config,
             include_ohlcv=True,
         )
 
@@ -712,46 +1011,17 @@ def main():
             IntradayMLDecisionPolicy,
         )
 
-        # Define policy config
-        policy_config = {
-            "prob_threshold_long": policy_section.get("prob_threshold_long", 0.55),
-            "prob_threshold_short": policy_section.get("prob_threshold_short", 0.55),
-            "cooldown_minutes": policy_section.get("cooldown_minutes", 30),
-            "min_time": policy_section.get("min_time", "09:45:00"),
-            "max_time": policy_section.get("max_time", "15:45:00"),
-            "stop_loss_pct": policy_section.get("stop_loss_pct", 0.01),
-            "take_profit_pct": policy_section.get("take_profit_pct", 0.015),
-            "order_qty": policy_section.get("order_qty", 1),
-            "exit_threshold_long": policy_section.get(
-                "exit_threshold_long", policy_section.get("prob_threshold_long", 0.55)
-            ),
-            "exit_threshold_short": policy_section.get(
-                "exit_threshold_short", policy_section.get("prob_threshold_short", 0.55)
-            ),
-            "max_hold_minutes": policy_section.get("max_hold_minutes", 60),
-            "score_margin": policy_section.get("score_margin", 0.05),
-            "min_directional_gap": policy_section.get("min_directional_gap", 0.05),
-            "min_conviction_score": policy_section.get("min_conviction_score", 0.0),
-            "max_entries_per_day": policy_section.get("max_entries_per_day"),
-            "gap_exit_delay_minutes": policy_section.get("gap_exit_delay_minutes"),
-            "session_timezone": session_timezone,
-            "target_trades_min": policy_section.get("target_trades_min", 3),
-            "target_trades_max": policy_section.get("target_trades_max", 5),
-        }
+        calibration_cfg_for_policy = dict(policy_config.get("calibration", {}))
+        stats_filename = calibration_cfg_for_policy.pop("stats_filename", None)
+        if calibration_stats_path:
+            calibration_cfg_for_policy["stats_path"] = str(calibration_stats_path)
+        elif stats_filename:
+            calibration_cfg_for_policy["stats_path"] = str(artifact_dir / stats_filename)
+        if calibration_cfg_for_policy and calibration_cfg_for_policy.get("enabled", True):
+            policy_config["calibration"] = calibration_cfg_for_policy
+        else:
+            policy_config.pop("calibration", None)
 
-        if "risk" in policy_section:
-            policy_config["risk"] = policy_section["risk"]
-
-        if policy_calibration_cfg:
-            calibration_cfg_for_policy = dict(policy_calibration_cfg)
-            stats_filename = calibration_cfg_for_policy.pop("stats_filename", None)
-            if calibration_stats_path:
-                calibration_cfg_for_policy["stats_path"] = str(calibration_stats_path)
-            elif stats_filename:
-                calibration_cfg_for_policy["stats_path"] = str(artifact_dir / stats_filename)
-            if calibration_cfg_for_policy.get("enabled", True):
-                policy_config["calibration"] = calibration_cfg_for_policy
-        # Remove keys with None to keep config tidy
         policy_config = {k: v for k, v in policy_config.items() if v is not None}
 
         policy = IntradayMLDecisionPolicy(policy_config)

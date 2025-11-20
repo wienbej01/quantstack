@@ -25,6 +25,7 @@ Performance Notes:
 - Suitable for datasets with 100K+ timestamps
 """
 
+import math
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from typing import Any
@@ -75,6 +76,8 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
         raise ValueError(f"Loaded data is missing required columns: {missing}")
 
     loader_options = data_loader_config or {}
+    oversampling_config = loader_options.get("oversampling", {})
+    dataset_kind = loader_options.get("dataset_kind", "train")
     market_timezone = loader_options.get("market_timezone", DEFAULT_MARKET_TZ)
     assume_naive_as_market = loader_options.get("assume_naive_as_market", True)
     timestamps = normalize_timestamp_series(
@@ -129,6 +132,9 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
 
         symbol_dataset = pd.concat([symbol_dataset, features.reset_index(drop=True)], axis=1)
         symbol_dataset["label"] = labels.to_numpy(dtype=int, copy=False)
+        symbol_dataset = _apply_directional_oversampling(
+            symbol_dataset, oversampling_config, dataset_kind
+        )
 
         symbol_frames.append(symbol_dataset)
 
@@ -150,6 +156,56 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
     remaining_columns = [col for col in result.columns if col not in ordered_columns]
 
     return result[ordered_columns + remaining_columns]
+
+
+def _apply_directional_oversampling(
+    dataset: pd.DataFrame,
+    config: dict[str, Any],
+    dataset_kind: str,
+) -> pd.DataFrame:
+    """Duplicate directional observations to counter extreme imbalance."""
+    if not config or not config.get("enabled", False):
+        return dataset
+
+    apply_to = config.get("apply_to", ["train"])
+    if isinstance(apply_to, str):
+        apply_to = [apply_to]
+    normalized_apply_to = {scope.lower() for scope in apply_to}
+    if "all" not in normalized_apply_to and dataset_kind.lower() not in normalized_apply_to:
+        return dataset
+
+    label_column = config.get("label_column", "label")
+    if label_column not in dataset.columns:
+        return dataset
+
+    directional_labels = config.get("directional_labels", (-1, 1))
+    mask = dataset[label_column].isin(directional_labels)
+    directional = dataset[mask]
+    if directional.empty:
+        return dataset
+
+    target_fraction = float(config.get("target_fraction", 0.05))
+    max_multiplier = max(1, int(config.get("max_multiplier", 6)))
+    random_state = config.get("random_state", 42)
+
+    total_count = len(dataset)
+    desired_directional = max(len(directional), int(round(total_count * target_fraction)))
+    if desired_directional <= len(directional):
+        return dataset
+
+    needed = desired_directional - len(directional)
+    copies = min(max_multiplier, max(1, math.ceil(needed / len(directional))))
+    replicated = pd.concat([directional] * copies, ignore_index=True)
+    sample_size = min(len(replicated), needed)
+    replace = sample_size > len(replicated)
+    oversampled = replicated.sample(
+        n=sample_size,
+        replace=replace,
+        random_state=random_state,
+    )
+
+    augmented = pd.concat([dataset, oversampled], ignore_index=True)
+    return augmented.sample(frac=1.0, random_state=random_state).reset_index(drop=True)
 
 
 def _build_date_list(start_date: str, end_date: str) -> list[str]:

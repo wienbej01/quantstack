@@ -154,3 +154,48 @@ def test_get_phase_symbols_with_sip_empty_result(
 
     result = get_phase_symbols_with_sip(splits_config, sip_config, candidate_symbols, "train")
     assert result == []
+
+
+def test_get_phase_symbols_with_max_symbols(sample_sip_data: pd.DataFrame, mock_gold_root: Path):
+    """Ensure max_symbols truncates the ranked SIP list."""
+    # Duplicate rows to bias counts toward AAPL/GOOG
+    extended = pd.concat([sample_sip_data, sample_sip_data], ignore_index=True)
+    save_sip_membership(extended, mock_gold_root)
+
+    candidate_symbols = ["AAPL", "MSFT", "GOOG", "TSLA"]
+    splits_config = {"train": {"start": "2023-01-02", "end": "2023-01-04"}}
+    sip_config = {
+        "enabled": True,
+        "mode": "sip_only",
+        "membership_path": str(get_sip_membership_base_path(mock_gold_root)),
+        "max_symbols": 1,
+    }
+
+    limited = get_phase_symbols_with_sip(splits_config, sip_config, candidate_symbols, "train")
+    assert limited == ["AAPL"]
+
+
+def test_get_phase_symbols_with_unlimited_max(sample_sip_data: pd.DataFrame, mock_gold_root: Path):
+    """Verify that omitting or nullifying max_symbols returns the full filtered set."""
+    save_sip_membership(sample_sip_data, mock_gold_root)
+
+    candidate_symbols = ["AAPL", "MSFT", "GOOG", "TSLA"]
+    splits_config = {"train": {"start": "2023-01-02", "end": "2023-01-04"}}
+    base_sip_config = {
+        "enabled": True,
+        "mode": "sip_only",
+        "membership_path": str(get_sip_membership_base_path(mock_gold_root)),
+    }
+
+    unlimited = get_phase_symbols_with_sip(
+        splits_config, base_sip_config, candidate_symbols, "train"
+    )
+    assert set(unlimited) == {"AAPL", "GOOG"}
+    assert len(unlimited) == 2
+
+    base_sip_config["max_symbols"] = 0
+    unlimited_zero = get_phase_symbols_with_sip(
+        splits_config, base_sip_config, candidate_symbols, "train"
+    )
+    assert set(unlimited_zero) == {"AAPL", "GOOG"}
+    assert len(unlimited_zero) == 2

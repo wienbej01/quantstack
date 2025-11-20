@@ -5,15 +5,15 @@ label_type: "triclass_atr_threshold"
 
 # Larger horizons favour moves that persist beyond quick scalps.
 horizons:
-  - 45
-  - 75
+  - 30
+  - 60
   - 120
 
 # ATR multipliers operate on ATR expressed as a return (% of price) so moves
 # align with ≥1.5R payoffs once paired with risk_reward parameters below.
-atr_multiplier: 1.35
-atr_multiplier_long: 1.42
-atr_multiplier_short: 1.55
+atr_multiplier: 1.10
+atr_multiplier_long: 1.15
+atr_multiplier_short: 1.20
 
 # Slightly longer ATR to stabilise volatility estimates.
 atr_window: 21
@@ -32,11 +32,11 @@ volatility_scaling:
 directional_balance:
   enabled: true
   target_ratio: 1.0
-  tolerance: 0.15
+  tolerance: 0.25
   max_iterations: 10
-  adjust_step: 0.08
+  adjust_step: 0.06
   growth_factor: 0.65
-  min_directional: 25
+  min_directional: 10
   multiplier_bounds:
     min: 0.01
     max: 0.13
@@ -53,11 +53,11 @@ session_constraints:
   min_minutes_after_open: 10   # avoid opening auction noise
   max_minutes_before_close: 15 # ensure ample time for exits
 
-min_realized_return_pct: 0.015
+min_realized_return_pct: 0.0
 
 min_observations_per_horizon: 8
 max_lookback_bars: 180
-require_min_atr: 0.015
+require_min_atr: 0.005
 exclude_flat_periods: true
 include_metadata: true
 validate_no_peek: true
@@ -71,3 +71,22 @@ risk_reward:
   atr_return_bounds:
     min: 0.0005
     max: 0.08
+
+big_move:
+  enabled: true
+  label_name: "y_bigmove"
+  direction_label_name: "y_bigmove_direction"
+  forward_return_column: "fwd_return_bigmove"
+  atr_column: "f__vol__atr_6"
+  price_column: "close"
+  bar_minutes: 10
+  forward_minutes: 60        # evaluate ~60 minutes into the future
+  forward_minutes_alt: 120   # optional secondary horizon for experimentation
+  atr_multiple: 1.5
+  min_return_floor_pct: 0.0075
+  atr_is_return_pct: true
+  realized_r_label: "realized_r_bigmove"
+  realized_r_floor: -5.0
+  realized_r_cap: 5.0
+  metadata:
+    description: "ATR big-move labels (>= max(K*ATR, floor)) for Sprint 3"

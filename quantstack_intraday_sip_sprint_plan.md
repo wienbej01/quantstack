@@ -289,7 +289,7 @@ Do **not** automatically run this command in the sprint; it is for the human use
    sip_filter:
      enabled: false            # default / legacy behavior
      mode: "sip_only"          # "sip_only" | "no_sip" | "all"
-     membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+    membership_path: "/home/jacobw/quantstack/run/sip_membership"
    ```
 
 3. Create at least:
@@ -301,7 +301,7 @@ Do **not** automatically run this command in the sprint; it is for the human use
      sip_filter:
        enabled: true
        mode: "sip_only"
-       membership_path: "/home/jacobw/gcs-mount/gold/intraday_ml/sip_membership"
+      membership_path: "/home/jacobw/quantstack/run/sip_membership"
      ```
 
 Do not hardcode machine‑specific paths in the code; read them from config.
