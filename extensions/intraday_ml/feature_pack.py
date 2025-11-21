@@ -41,6 +41,7 @@ class IntradayMLFeaturePack:
         df: pd.DataFrame,
         ts_cut: pd.Timestamp,
         validate_time_discipline: bool = True,
+        market_context: pd.DataFrame | None = None,
     ) -> pd.DataFrame:
         """Compute all enabled features respecting time discipline.
 
@@ -48,6 +49,8 @@ class IntradayMLFeaturePack:
             df: DataFrame with required OHLCV columns, sorted by [symbol, ts]
             ts_cut: Cut timestamp - features must only use data ≤ ts_cut
             validate_time_discipline: Whether to validate no forward look
+            market_context: Optional DataFrame with market data (SPY, VIX, etc.)
+                          indexed by timestamp, for regime features.
 
         Returns:
             DataFrame with computed features, same index as input
@@ -114,6 +117,32 @@ class IntradayMLFeaturePack:
             features.append(conviction_features)
             total_features += len(conviction_features.columns)
 
+        # Market Relative Strength
+        if (
+            self.families.get("market_relative_strength", {}).get("enabled", False)
+            and market_context is not None
+        ):
+            rel_str_features = self._compute_market_relative_strength(
+                df_filtered, market_context
+            )
+            features.append(rel_str_features)
+            total_features += len(rel_str_features.columns)
+
+        # Market Regime
+        if (
+            self.families.get("market_regime", {}).get("enabled", False)
+            and market_context is not None
+        ):
+            regime_features = self._compute_market_regime(df_filtered, market_context)
+            features.append(regime_features)
+            total_features += len(regime_features.columns)
+
+        # Price/Volume Proxy (VPA)
+        if self.families.get("price_volume_proxy", {}).get("enabled", False):
+            vpa_features = self._compute_price_volume_proxy(df_filtered)
+            features.append(vpa_features)
+            total_features += len(vpa_features.columns)
+
         # Combine all features
         if features:
             all_features = pd.concat(features, axis=1)
@@ -139,6 +168,125 @@ class IntradayMLFeaturePack:
             raise ValueError(
                 f"Input data contains timestamps after ts_cut: {df['ts'].max()} > {ts_cut}"
             )
+
+    def _compute_market_relative_strength(
+        self, df: pd.DataFrame, market_context: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Compute relative strength against market benchmark (SPY)."""
+        # Align market data to symbol timestamps
+        # We use merge_asof with direction='backward' to ensure no lookahead
+        # However, since both are expected to be aligned by minute, simple join works
+        # if indexes match. But df has 'ts' column, market_context has 'ts' index.
+
+        # Optimized: Filter market context to relevant range first
+        min_ts = df["ts"].min()
+        max_ts = df["ts"].max()
+        relevant_market = market_context[
+            (market_context.index >= min_ts) & (market_context.index <= max_ts)
+        ]
+
+        # Merge on timestamp
+        merged = pd.merge_asof(
+            df.sort_values("ts"),
+            relevant_market.sort_index(),
+            left_on="ts",
+            right_index=True,
+            direction="backward",
+        )
+        # Ensure we respect the original df index
+        merged.index = df.index
+
+        features = []
+
+        # Relative Strength 15m
+        if "SPY_close" in merged.columns:
+            spy_ret_15m = merged["SPY_close"].pct_change(15)
+            sym_ret_15m = merged["close"].pct_change(15)
+            rel_str = sym_ret_15m - spy_ret_15m
+            features.append(rel_str.rename("f__mkt__rel_str_15m"))
+
+            # Beta-Adjusted RS
+            # Rolling Beta: Cov(Sym, SPY) / Var(SPY)
+            sym_ret_1m = merged["close"].pct_change()
+            spy_ret_1m = merged["SPY_close"].pct_change()
+
+            rolling_cov = sym_ret_1m.rolling(60).cov(spy_ret_1m)
+            rolling_var = spy_ret_1m.rolling(60).var()
+            beta = rolling_cov / (rolling_var + 1e-8)
+
+            beta_adj_rs = sym_ret_1m - (beta * spy_ret_1m)
+            features.append(beta_adj_rs.rename("f__mkt__beta_adj_rs_60m"))
+
+        return pd.concat(features, axis=1) if features else pd.DataFrame(index=df.index)
+
+    def _compute_market_regime(
+        self, df: pd.DataFrame, market_context: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Compute market regime features (VIX, SPY Trends)."""
+        min_ts = df["ts"].min()
+        max_ts = df["ts"].max()
+        relevant_market = market_context[
+            (market_context.index >= min_ts) & (market_context.index <= max_ts)
+        ]
+
+        merged = pd.merge_asof(
+            df.sort_values("ts"),
+            relevant_market.sort_index(),
+            left_on="ts",
+            right_index=True,
+            direction="backward",
+        )
+        merged.index = df.index
+
+        features = []
+
+        # VIX Level & Change
+        if "VIX_close" in merged.columns:
+            features.append(merged["VIX_close"].rename("f__regime__vix_level"))
+            vix_roc = merged["VIX_close"].pct_change(60)
+            features.append(vix_roc.rename("f__regime__vix_roc_60m"))
+
+        # SPY Distance from VWAP
+        # We approximate VWAP if not in market_context, but ideally market_context has it.
+        # If not, we calculate simple distance from MA as proxy if VWAP missing
+        if "SPY_close" in merged.columns:
+            spy_ma_60 = merged["SPY_close"].rolling(60).mean()
+            spy_dist = (merged["SPY_close"] - spy_ma_60) / spy_ma_60
+            features.append(spy_dist.rename("f__regime__spy_dist_ma60"))
+
+        return pd.concat(features, axis=1) if features else pd.DataFrame(index=df.index)
+
+    def _compute_price_volume_proxy(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Compute proxies for order flow using Price/Volume Analysis (VPA)."""
+        features = []
+        
+        # 1. Ease of Movement (Inverse Effort)
+        # (High - Low) / (Volume + epsilon)
+        # Normalized by price to make it comparable across assets? 
+        # Actually, let's stick to the sprint spec: (High - Low) / Volume
+        # We normalize by Price to make it percentage range per volume unit
+        price_range_pct = (df["high"] - df["low"]) / df["close"]
+        # Log volume to compress scale
+        log_vol = np.log1p(df["volume"])
+        ease_of_movement = price_range_pct / (log_vol + 1e-8)
+        features.append(ease_of_movement.rename("f__vpa__ease_of_movement"))
+
+        # 2. NR7 (Narrowest Range of last 7)
+        price_range = df["high"] - df["low"]
+        min_prev_6 = price_range.rolling(7).min() # window 7 includes current
+        # But we want to check if current is narrower than previous 6
+        # Shift rolling min of 6
+        prev_6_min = price_range.shift(1).rolling(6).min()
+        nr7 = (price_range < prev_6_min).astype(int)
+        features.append(nr7.rename("f__vpa__nr7"))
+
+        # 3. Buying Pressure (Close Location)
+        # (Close - Low) / (High - Low)
+        range_len = df["high"] - df["low"]
+        close_loc = (df["close"] - df["low"]) / (range_len + 1e-8)
+        features.append(close_loc.rename("f__vpa__close_loc"))
+
+        return pd.concat(features, axis=1) if features else pd.DataFrame(index=df.index)
 
     def _compute_returns_trend(self, df: pd.DataFrame) -> pd.DataFrame:
         """Compute returns and trend features."""

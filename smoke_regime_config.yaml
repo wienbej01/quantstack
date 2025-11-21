@@ -1,0 +1,15 @@
+artifacts: artefacts/extensions/intraday_ml/smoke_regime
+data:
+  root: /tmp/mock_gold
+includes:
+  cuts: configs/extensions/intraday_ml/cuts_10m.yaml
+  cv: configs/extensions/intraday_ml/cv/phaseA.yaml
+  features: configs/extensions/intraday_ml/features_regime.yaml
+  model: configs/extensions/intraday_ml/model_lgbm_loose.yaml
+  splits: configs/extensions/intraday_ml/splits_pilot.yaml
+  targets: configs/extensions/intraday_ml/targets_loose.yaml
+  universe: configs/extensions/intraday_ml/universe_single.yaml
+policy:
+  max_entries_per_day: 5
+  policy_base_config: configs/extensions/intraday_ml/policy_regime.json
+run_cv: false

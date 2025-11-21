@@ -103,6 +103,16 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
     feature_pack = IntradayMLFeaturePack(features_config)
     labeler = IntradayMLLabeler(targets_config)
 
+    # Load market context for regime features
+    # Import here to avoid circular dependency with market_context.py importing from data_prep
+    from .market_context import load_market_context
+
+    market_context = load_market_context(
+        start_date=start_date,
+        end_date=end_date,
+        data_loader_config=data_loader_config,
+    )
+
     symbol_frames: list[pd.DataFrame] = []
 
     for symbol, symbol_frame in window.groupby("symbol", sort=False):
@@ -115,6 +125,7 @@ def create_training_dataset(  # noqa: PLR0913 - public API requires this signatu
             df=symbol_sorted,
             ts_cut=symbol_sorted["ts"].iloc[-1],
             validate_time_discipline=True,
+            market_context=market_context,
         ).reindex(symbol_sorted.index)
 
         labels = labeler.compute_label_series(symbol_sorted)

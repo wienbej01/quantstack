@@ -1,0 +1,66 @@
+# 10-minute feature configuration with Regime and VPA
+families:
+  returns_trend:
+    enabled: true
+    windows: [1, 2, 3, 6, 12] # 10m, 20m, 30m returns
+    include_log: false
+
+  volatility_ranges:
+    enabled: true
+    atr_windows: [3, 6]
+    volatility_windows: [3, 6]
+    range_ratios: [1.0]
+
+  volume_flow:
+    enabled: true
+    volume_windows: [3, 6]
+    vwap_windows: [3, 6]
+    relative_volume_windows: [6]
+
+  vwap_distance:
+    enabled: true
+
+  time_seasonality:
+    enabled: true
+    include_hour: true
+    include_minute: true
+    include_day_of_week: true
+    cyclical_encoding: true
+
+  cross_section:
+    enabled: true
+
+  price_momentum:
+    enabled: true
+    roc_windows: [1, 2, 3, 6, 12]
+    rsi_windows: [6, 12]
+    ma_windows: [3, 6, 12]
+
+  microstructure:
+    enabled: false
+
+  conviction_signals:
+    enabled: true
+    windows: [3, 6, 12]
+    
+  market_relative_strength:
+    enabled: true
+    
+  market_regime:
+    enabled: true
+    
+  price_volume_proxy:
+    enabled: true
+
+max_total_features: 180
+warmup_multiplier: 3.0
+leakage_check: true
+
+min_non_null_ratio: 0.9
+max_feature_correlation: 0.95
+outlier_detection: true
+outlier_threshold: 5.0
+
+include_feature_metadata: true
+validate_schema: true
+cache_features: false

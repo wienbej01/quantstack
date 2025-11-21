@@ -223,6 +223,18 @@ class IntradayMLDecisionPolicy:
             self.bigmove_adapter = BigMovePolicyAdapter(config.get("bigmove_policy"))
         self._rejection_reason_counts: Counter[str] = Counter()
 
+        # Regime & Sector Config
+        self.regime_config = config.get("regime", {})
+        self.max_vix = float(self.regime_config.get("max_vix", 100.0))
+        
+        self.sector_config = config.get("sector_limits", {})
+        self.sector_map = self.sector_config.get("map", {})
+        self.max_per_sector = int(self.sector_config.get("max_per_sector", 999))
+        self.active_sector_counts: dict[str, int] = {}
+
+        # Add regime features to required columns
+        self.required_feature_columns.add("f__regime__vix_level")
+
     def process_signals(self, signals: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Processes a DataFrame of signals to generate orders and rejection logs.
@@ -268,6 +280,12 @@ class IntradayMLDecisionPolicy:
                 prob_neutral = float(row.get("prob_neutral", 0.0))
                 directional_gap = abs(prob_long - prob_short)
                 conviction_score = directional_gap * max(prob_long, prob_short)
+
+                # Regime Gates
+                if not self._check_regime_gates(
+                    row, rejections, dt_utc, symbol, prob_long, prob_short, directional_gap
+                ):
+                    continue
 
                 thresholds = self._get_thresholds(symbol)
                 exit_threshold_long = thresholds["exit_threshold_long"]
@@ -408,6 +426,12 @@ class IntradayMLDecisionPolicy:
                 strategy_name = "exit"
                 strategy_detail = exit_reason or "exit"
                 self.position_state.pop(symbol, None)
+                
+                # Update Sector Counts on Exit
+                sector = self.sector_map.get(symbol, "Unknown")
+                if self.active_sector_counts.get(sector, 0) > 0:
+                    self.active_sector_counts[sector] -= 1
+
                 stop_loss_pct_dynamic = position.get("entry_stop_pct")
                 take_profit_pct_dynamic = position.get("entry_take_profit_pct")
 
@@ -436,10 +460,43 @@ class IntradayMLDecisionPolicy:
             )
 
         return self._finalize_orders(orders), self._finalize_rejections(rejections)
+    
+    def _check_regime_gates(
+        self,
+        row: pd.Series,
+        rejections: list[dict[str, object]],
+        dt_utc: pd.Timestamp,
+        symbol: str,
+        prob_long: float,
+        prob_short: float,
+        directional_gap: float,
+    ) -> bool:
+        """Check global market regime gates (VIX, etc.)."""
+        vix = row.get("f__regime__vix_level")
+        if vix is not None:
+            try:
+                vix_val = float(vix)
+                if vix_val > self.max_vix:
+                    self._append_rejection_record(
+                        rejections,
+                        dt_utc,
+                        symbol,
+                        "regime_high_vix",
+                        prob_long=prob_long,
+                        prob_short=prob_short,
+                        directional_gap=directional_gap,
+                        reason_key=REJECT_REASON_OTHER,
+                        context={"vix": vix_val}
+                    )
+                    return False
+            except (ValueError, TypeError):
+                pass
+        return True
 
     def get_required_feature_columns(self) -> set[str]:
         """Return the set of feature columns required by enabled strategy checks."""
         return set(self.required_feature_columns)
+
 
     def _finalize_orders(self, orders: list[dict[str, object]]) -> pd.DataFrame:
         orders_df = pd.DataFrame(orders)
@@ -616,6 +673,17 @@ class IntradayMLDecisionPolicy:
                     reason_key=REJECT_REASON_BAR_CAP,
                 )
                 continue
+            
+            # Sector Limit Check
+            sector = self.sector_map.get(candidate.symbol, "Unknown")
+            if self.active_sector_counts.get(sector, 0) >= self.max_per_sector:
+                 self._append_candidate_rejection(
+                    rejections,
+                    candidate,
+                    "max_sector_exposure",
+                    reason_key=REJECT_REASON_BAR_CAP,
+                )
+                 continue
 
             metadata = dict(candidate.risk_metadata)
             if candidate.profile_name:
@@ -650,6 +718,10 @@ class IntradayMLDecisionPolicy:
                 "entry_expected_r": candidate.entry_expected_r,
             }
             self.last_trade_ts[candidate.symbol] = candidate.dt_utc
+            
+            # Update sector count
+            self.active_sector_counts[sector] = self.active_sector_counts.get(sector, 0) + 1
+            
         return entries_this_bar
 
     def _sync_trading_day(self, trading_day: date) -> None:
@@ -663,6 +735,7 @@ class IntradayMLDecisionPolicy:
             for key, value in self.entries_per_day.items()
             if key[1].date() == trading_day
         }
+        self.active_sector_counts = {}
 
     def _evaluate_position_exit(
         self,
