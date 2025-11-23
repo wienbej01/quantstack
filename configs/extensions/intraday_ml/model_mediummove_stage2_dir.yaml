@@ -1,0 +1,23 @@
+# LightGBM config for Stage 2 medium-move direction classifier.
+
+seed: 44
+
+lgbm_params:
+  learning_rate: 0.055
+  n_estimators: 520
+  num_leaves: 64
+  max_depth: -1
+  min_child_samples: 35
+  subsample: 0.9
+  subsample_freq: 1
+  colsample_bytree: 0.9
+  reg_alpha: 0.12
+  reg_lambda: 0.28
+  min_split_gain: 0.0
+  verbose: -1
+
+training:
+  n_folds: 4
+  seed: 44
+  decision_threshold: 0.5
+  class_weight: balanced
