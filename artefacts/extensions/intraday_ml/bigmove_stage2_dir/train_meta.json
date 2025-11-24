@@ -199,6 +199,6 @@
     "model": "configs/extensions/intraday_ml/model_bigmove_stage2_dir.yaml",
     "targets": "configs/extensions/intraday_ml/targets_bigmove.yaml"
   },
-  "generated_at": "2025-11-20T10:31:47.351363",
+  "generated_at": "2025-11-21T06:00:36.218425",
   "decision_threshold": 0.5
 }
