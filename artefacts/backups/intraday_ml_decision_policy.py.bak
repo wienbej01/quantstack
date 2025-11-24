@@ -14,7 +14,6 @@ import math
 import pandas as pd
 
 from extensions.intraday_ml.policy.bigmove_policy_adapter import BigMovePolicyAdapter
-from extensions.intraday_ml.policy.mediummove_policy_adapter import MediumMovePolicyAdapter
 from extensions.intraday_ml.policy.rejection_reasons import (
     REJECT_REASON_BAR_CAP,
     REJECT_REASON_BIGMOVE_PROB,
@@ -56,7 +55,6 @@ class EntryCandidate:
     strategy_detail: str | None
     profile_name: str | None
     prob_bigmove: float | None = None
-    prob_mediummove: float | None = None
 
 
 class IntradayMLDecisionPolicy:
@@ -221,12 +219,21 @@ class IntradayMLDecisionPolicy:
 
         self.policy_mode = str(config.get("policy_mode", "baseline")).lower()
         self.bigmove_adapter: BigMovePolicyAdapter | None = None
-        self.mediummove_adapter: MediumMovePolicyAdapter | None = None
         if self.policy_mode == "bigmove":
             self.bigmove_adapter = BigMovePolicyAdapter(config.get("bigmove_policy"))
-        elif self.policy_mode == "mediummove":
-            self.mediummove_adapter = MediumMovePolicyAdapter(config.get("mediummove_policy"))
         self._rejection_reason_counts: Counter[str] = Counter()
+
+        # Regime & Sector Config
+        self.regime_config = config.get("regime", {})
+        self.max_vix = float(self.regime_config.get("max_vix", 100.0))
+        
+        self.sector_config = config.get("sector_limits", {})
+        self.sector_map = self.sector_config.get("map", {})
+        self.max_per_sector = int(self.sector_config.get("max_per_sector", 999))
+        self.active_sector_counts: dict[str, int] = {}
+
+        # Add regime features to required columns
+        self.required_feature_columns.add("f__regime__vix_level")
 
     def process_signals(self, signals: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
@@ -271,12 +278,14 @@ class IntradayMLDecisionPolicy:
                 prob_long = float(row.get("prob_long", 0.0))
                 prob_short = float(row.get("prob_short", 0.0))
                 prob_neutral = float(row.get("prob_neutral", 0.0))
-                if self.bigmove_adapter is not None or self.mediummove_adapter is not None:
-                    # In big/medium-move modes the adapter already encodes conviction into prob_long/prob_short.
-                    # Neutral dominance would otherwise block almost all entries, so ignore neutral mass.
-                    prob_neutral = 0.0
                 directional_gap = abs(prob_long - prob_short)
                 conviction_score = directional_gap * max(prob_long, prob_short)
+
+                # Regime Gates
+                if not self._check_regime_gates(
+                    row, rejections, dt_utc, symbol, prob_long, prob_short, directional_gap
+                ):
+                    continue
 
                 thresholds = self._get_thresholds(symbol)
                 exit_threshold_long = thresholds["exit_threshold_long"]
@@ -417,6 +426,12 @@ class IntradayMLDecisionPolicy:
                 strategy_name = "exit"
                 strategy_detail = exit_reason or "exit"
                 self.position_state.pop(symbol, None)
+                
+                # Update Sector Counts on Exit
+                sector = self.sector_map.get(symbol, "Unknown")
+                if self.active_sector_counts.get(sector, 0) > 0:
+                    self.active_sector_counts[sector] -= 1
+
                 stop_loss_pct_dynamic = position.get("entry_stop_pct")
                 take_profit_pct_dynamic = position.get("entry_take_profit_pct")
 
@@ -445,10 +460,43 @@ class IntradayMLDecisionPolicy:
             )
 
         return self._finalize_orders(orders), self._finalize_rejections(rejections)
+    
+    def _check_regime_gates(
+        self,
+        row: pd.Series,
+        rejections: list[dict[str, object]],
+        dt_utc: pd.Timestamp,
+        symbol: str,
+        prob_long: float,
+        prob_short: float,
+        directional_gap: float,
+    ) -> bool:
+        """Check global market regime gates (VIX, etc.)."""
+        vix = row.get("f__regime__vix_level")
+        if vix is not None:
+            try:
+                vix_val = float(vix)
+                if vix_val > self.max_vix:
+                    self._append_rejection_record(
+                        rejections,
+                        dt_utc,
+                        symbol,
+                        "regime_high_vix",
+                        prob_long=prob_long,
+                        prob_short=prob_short,
+                        directional_gap=directional_gap,
+                        reason_key=REJECT_REASON_OTHER,
+                        context={"vix": vix_val}
+                    )
+                    return False
+            except (ValueError, TypeError):
+                pass
+        return True
 
     def get_required_feature_columns(self) -> set[str]:
         """Return the set of feature columns required by enabled strategy checks."""
         return set(self.required_feature_columns)
+
 
     def _finalize_orders(self, orders: list[dict[str, object]]) -> pd.DataFrame:
         orders_df = pd.DataFrame(orders)
@@ -625,6 +673,17 @@ class IntradayMLDecisionPolicy:
                     reason_key=REJECT_REASON_BAR_CAP,
                 )
                 continue
+            
+            # Sector Limit Check
+            sector = self.sector_map.get(candidate.symbol, "Unknown")
+            if self.active_sector_counts.get(sector, 0) >= self.max_per_sector:
+                 self._append_candidate_rejection(
+                    rejections,
+                    candidate,
+                    "max_sector_exposure",
+                    reason_key=REJECT_REASON_BAR_CAP,
+                )
+                 continue
 
             metadata = dict(candidate.risk_metadata)
             if candidate.profile_name:
@@ -659,6 +718,10 @@ class IntradayMLDecisionPolicy:
                 "entry_expected_r": candidate.entry_expected_r,
             }
             self.last_trade_ts[candidate.symbol] = candidate.dt_utc
+            
+            # Update sector count
+            self.active_sector_counts[sector] = self.active_sector_counts.get(sector, 0) + 1
+            
         return entries_this_bar
 
     def _sync_trading_day(self, trading_day: date) -> None:
@@ -672,6 +735,7 @@ class IntradayMLDecisionPolicy:
             for key, value in self.entries_per_day.items()
             if key[1].date() == trading_day
         }
+        self.active_sector_counts = {}
 
     def _evaluate_position_exit(
         self,
@@ -807,7 +871,6 @@ class IntradayMLDecisionPolicy:
                 return None
 
         bigmove_prob = self._clean_float(row.get("prob_bigmove"))
-        mediummove_prob = self._clean_float(row.get("prob_mediummove"))
         if self.bigmove_adapter is not None:
             bigmove_allowed = bool(row.get("_bigmove_allowed", False))
             if not bigmove_allowed:
@@ -830,35 +893,6 @@ class IntradayMLDecisionPolicy:
                     dt_utc,
                     symbol,
                     "bigmove_signal_missing",
-                    prob_long=prob_long,
-                    prob_short=prob_short,
-                    directional_gap=directional_gap,
-                    reason_key=REJECT_REASON_BIGMOVE_PROB,
-                )
-                return None
-
-        if self.mediummove_adapter is not None:
-            mediummove_allowed = bool(row.get("_mediummove_allowed", False))
-            if not mediummove_allowed:
-                self._append_rejection_record(
-                    rejections,
-                    dt_utc,
-                    symbol,
-                    "mediummove_prob_below_threshold",
-                    prob_long=prob_long,
-                    prob_short=prob_short,
-                    directional_gap=directional_gap,
-                    expected_r=self._clean_float(row.get("_mediummove_expected_r")),
-                    prob_mediummove=mediummove_prob,
-                    reason_key=REJECT_REASON_BIGMOVE_PROB,
-                )
-                return None
-            if mediummove_prob is None:
-                self._append_rejection_record(
-                    rejections,
-                    dt_utc,
-                    symbol,
-                    "mediummove_signal_missing",
                     prob_long=prob_long,
                     prob_short=prob_short,
                     directional_gap=directional_gap,
@@ -971,12 +1005,6 @@ class IntradayMLDecisionPolicy:
                 base_value = expected_r_value if expected_r_value is not None else 0.0
                 expected_r_value = max(base_value, bigmove_expected_r)
                 risk_metadata["bigmove_expected_r"] = bigmove_expected_r
-        if self.mediummove_adapter is not None:
-            mediummove_expected_r = self._clean_float(row.get("_mediummove_expected_r"))
-            if mediummove_expected_r is not None:
-                base_value = expected_r_value if expected_r_value is not None else 0.0
-                expected_r_value = max(base_value, mediummove_expected_r)
-                risk_metadata["mediummove_expected_r"] = mediummove_expected_r
         if (
             expected_r_value is None
             or not math.isfinite(expected_r_value)
@@ -1042,7 +1070,6 @@ class IntradayMLDecisionPolicy:
             strategy_detail=strategy_detail,
             profile_name=profile_name,
             prob_bigmove=bigmove_prob,
-            prob_mediummove=mediummove_prob,
         )
 
     @staticmethod
@@ -1119,8 +1146,6 @@ class IntradayMLDecisionPolicy:
         prepared = signals.copy()
         if self.bigmove_adapter is not None:
             prepared = self.bigmove_adapter.transform(prepared)
-        elif self.mediummove_adapter is not None:
-            prepared = self.mediummove_adapter.transform(prepared)
 
         def _normalize(value: object) -> pd.Timestamp:
             if isinstance(value, pd.Timestamp):

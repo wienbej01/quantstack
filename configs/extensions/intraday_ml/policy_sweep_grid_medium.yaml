@@ -1,0 +1,19 @@
+mediummove_policy.probability_threshold:
+  - 0.01
+  - 0.02
+  - 0.05
+prob_threshold_long:
+  - 0.4
+  - 0.5
+  - 0.6
+score_margin:
+  - 0.0
+  - 0.01
+  - 0.02
+min_directional_gap:
+  - 0.01
+  - 0.02
+  - 0.03
+max_open_positions_global:
+  - 2
+  - 3

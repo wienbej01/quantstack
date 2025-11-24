@@ -1,0 +1,120 @@
+{
+  "prob_threshold_long": 0.55,
+  "prob_threshold_short": 0.55,
+  "score_margin": 0.02,
+  "min_directional_gap": 0.02,
+  "min_conviction_score": 0.005,
+  "cooldown_minutes": 15,
+  "min_time": "09:35:00",
+  "max_time": "15:50:00",
+  "tod_filter_enabled": true,
+  "time_filter": {
+    "min_time": "09:35:00",
+    "max_time": "15:50:00",
+    "timezone": "America/New_York"
+  },
+  "max_hold_minutes": 240,
+  "gap_exit_delay_minutes": 30,
+  "session_timezone": "America/New_York",
+  "order_qty": 1,
+  "policy_mode": "mediummove",
+  "max_entries_per_day": 6,
+  "max_open_positions_global": 3,
+  "max_trades_per_symbol_per_day": 2,
+  "max_trades_per_bar_global": 3,
+  "max_daily_loss_R": -4.0,
+  "trade_risk_R": 1.0,
+  "target_trades_min": 3,
+  "target_trades_max": 5,
+  "mediummove_policy": {
+    "mode": "probability",
+    "probability_threshold": 0.02,
+    "quantile_threshold": 0.98,
+    "prob_column": "prob_mediummove",
+    "long_prob_column": "prob_mediummove_long",
+    "short_prob_column": "prob_mediummove_short",
+    "expected_r_column": "expected_r_mediummove",
+    "min_expected_r": 1.5
+  },
+  "lifecycle": {
+    "early_loss_cut_r": 0.5,
+    "early_loss_cut_minutes": 40,
+    "dead_trade_exit_minutes": 120,
+    "dead_trade_pnl_band_r": 0.25,
+    "max_hold_minutes_flat_or_loser": 150,
+    "max_hold_minutes_in_the_money": 240,
+    "trail_activation_r": 1.5,
+    "trail_stop_r": 0.75
+  },
+  "risk": {
+    "atr_feature": "f__vol__atr_6",
+    "stop_atr_multiple": 1.0,
+    "tp_r_multiple": 1.8,
+    "min_stop_pct": 0.0025,
+    "max_stop_pct": 0.05,
+    "min_expected_r": 1.5
+  },
+  "calibration": {
+    "stats_filename": "policy_calibration_mediummove.json",
+    "enabled": true,
+    "min_samples": 150,
+    "prob_long_percentile": 0.7,
+    "prob_short_percentile": 0.7,
+    "gap_percentile": 0.7,
+    "conviction_percentile": 0.7,
+    "expected_r_percentile": 0.4,
+    "score_margin_percentile": 0.7,
+    "floors": {
+      "prob_threshold_long": 0.2,
+      "prob_threshold_short": 0.2,
+      "min_directional_gap": 0.01,
+      "score_margin": 0.0,
+      "min_expected_r": 1.5
+    },
+    "ceilings": {
+      "prob_threshold_long": 0.9,
+      "prob_threshold_short": 0.9,
+      "min_directional_gap": 0.2,
+      "score_margin": 0.1,
+      "min_expected_r": 3.0
+    }
+  },
+  "tod_profiles": {
+    "OPEN": {
+      "start_time": "09:40",
+      "end_time": "10:30",
+      "prob_threshold_long": 0.6,
+      "prob_threshold_short": 0.6,
+      "min_directional_gap_long": 0.025,
+      "min_directional_gap_short": 0.03,
+      "min_conviction_long": 0.007,
+      "min_conviction_short": 0.009,
+      "min_expected_r_long": 1.6,
+      "min_expected_r_short": 1.8
+    },
+    "MID": {
+      "start_time": "10:30",
+      "end_time": "14:30",
+      "prob_threshold_long": 0.55,
+      "prob_threshold_short": 0.55,
+      "min_directional_gap_long": 0.02,
+      "min_directional_gap_short": 0.022,
+      "min_conviction_long": 0.005,
+      "min_conviction_short": 0.007,
+      "min_expected_r_long": 1.5,
+      "min_expected_r_short": 1.7
+    },
+    "LATE": {
+      "start_time": "14:30",
+      "end_time": "15:50",
+      "prob_threshold_long": 0.52,
+      "prob_threshold_short": 0.55,
+      "min_directional_gap_long": 0.018,
+      "min_directional_gap_short": 0.02,
+      "min_conviction_long": 0.005,
+      "min_conviction_short": 0.006,
+      "min_expected_r_long": 1.5,
+      "min_expected_r_short": 1.6
+    }
+  }
+}

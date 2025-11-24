@@ -1,0 +1,23 @@
+# LightGBM config for Stage 1 medium-move probability model.
+
+seed: 43
+
+lgbm_params:
+  learning_rate: 0.05
+  n_estimators: 720
+  num_leaves: 80
+  max_depth: -1
+  min_child_samples: 40
+  subsample: 0.9
+  subsample_freq: 1
+  colsample_bytree: 0.9
+  reg_alpha: 0.1
+  reg_lambda: 0.35
+  min_split_gain: 0.0
+  verbose: -1
+
+training:
+  n_folds: 5
+  seed: 43
+  decision_threshold: 0.5
+  class_weight: balanced

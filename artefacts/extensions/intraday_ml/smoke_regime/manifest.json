@@ -1,0 +1,107 @@
+{
+  "created_at": "2025-11-21T05:31:47.602277Z",
+  "gold_root": "/home/jacobw/gcs-mount/gold",
+  "symbols": [],
+  "date_ranges": {
+    "train": {
+      "start": "2024-01-01",
+      "end": "2024-12-30"
+    },
+    "val": {},
+    "test": {
+      "start": "2025-01-01",
+      "end": "2025-03-30"
+    },
+    "oos": {
+      "start": "2025-04-01",
+      "end": "2025-06-30"
+    }
+  },
+  "data_hash": "4117e84aa737220c2387ac237017d96abcc84e2fb52a41ec6ee081a6f29b049b",
+  "config_hash": "dc484a96be4ada9ade67982f3daaa11fae98f80c3866c09b76eeb864ef37d9a6b5562f2e918192972ea0965fe700026e0528ae031c5a7cea79194b81f1b42bb1",
+  "universe_hash": "72f9ade09456d643d72e04a10754562a7e282b136e7a33c9bef314ff80300b245f6c6e77f3cea51c139a494be5a59339a4715f637e2ab37b8c04d8b13cf28475",
+  "universe_config": {
+    "symbols": [
+      "AAPL"
+    ]
+  },
+  "cuts_config": {
+    "timezone": "America/New_York",
+    "market_open": "09:30:00",
+    "market_close": "16:00:00",
+    "decision_cuts": [
+      "09:40:00",
+      "09:50:00",
+      "10:00:00",
+      "10:10:00",
+      "10:20:00",
+      "10:30:00",
+      "10:40:00",
+      "10:50:00",
+      "11:00:00",
+      "11:10:00",
+      "11:20:00",
+      "11:30:00",
+      "11:40:00",
+      "11:50:00",
+      "12:00:00",
+      "12:10:00",
+      "12:20:00",
+      "12:30:00",
+      "12:40:00",
+      "12:50:00",
+      "13:00:00",
+      "13:10:00",
+      "13:20:00",
+      "13:30:00",
+      "13:40:00",
+      "13:50:00",
+      "14:00:00",
+      "14:10:00",
+      "14:20:00",
+      "14:30:00",
+      "14:40:00",
+      "14:50:00",
+      "15:00:00",
+      "15:10:00",
+      "15:20:00",
+      "15:30:00",
+      "15:40:00",
+      "15:50:00"
+    ],
+    "execution_delay_bars": 1,
+    "force_flat_eod_time": "15:59:59",
+    "no_entry_first_minutes": 10,
+    "no_entry_last_minutes": 10,
+    "min_seconds_between_cuts": 600,
+    "max_cuts_per_day": 39
+  },
+  "splits_config": {
+    "train": {
+      "start": "2024-01-01",
+      "end": "2024-12-30"
+    },
+    "test": {
+      "start": "2025-01-01",
+      "end": "2025-03-30"
+    },
+    "oos": {
+      "start": "2025-04-01",
+      "end": "2025-06-30"
+    }
+  },
+  "total_symbols": 0,
+  "total_days": 545,
+  "universe_stats": {
+    "total_symbols_screened": 0,
+    "eligible_symbols": 0,
+    "price_range": [
+      NaN,
+      NaN
+    ],
+    "avg_dollar_volume": NaN,
+    "avg_relative_volume": NaN
+  },
+  "features_hash": null,
+  "version": "1.0"
+}
