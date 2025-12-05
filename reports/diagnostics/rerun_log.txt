@@ -1,0 +1,93 @@
+=== Fixing Intraday ML System Bugs ===
+
+1. Checking Sharpe calculation fix...
+   ✅ Sharpe fix applied
+2. Checking sweep grid...
+   ✅ New sweep grid created
+# Corrected policy sweep grid for bigmove strategy
+# Tests higher thresholds suitable for 3-5 trades/day budget
+
+bigmove_policy.probability_threshold:
+  - 0.65
+  - 0.70
+  - 0.75
+  - 0.80
+
+prob_threshold_long:
+  - 0.60
+  - 0.65
+  - 0.70
+  - 0.75
+
+prob_threshold_short:
+  - 0.60
+  - 0.65
+  - 0.70
+  - 0.75
+
+score_margin:
+  - 0.00
+  - 0.01
+  - 0.02
+
+max_open_positions_global:
+  - 2
+  - 3
+  - 5
+
+3. Running corrected policy sweep...
+   This will test 4x4x3x3 = 144 configurations
+   Estimated time: ~5 minutes
+
+2025-12-04 14:03:16,078 | INFO | [heartbeat] started (policy_sweep)
+2025-12-04 14:03:16,079 | INFO | Loading signals from artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions_bigmove.parquet
+2025-12-04 14:03:16,105 | INFO | Loading bars from artefacts/extensions/intraday_ml/phaseA_full_sip/oos_features.parquet
+2025-12-04 14:03:16,147 | INFO | Running sweep 1/576 with overrides={'bigmove_policy.probability_threshold': 0.65, 'prob_threshold_long': 0.6, 'prob_threshold_short': 0.6, 'score_margin': 0.0, 'max_open_positions_global': 2}
+[TRACE] Position usb quantity=1 after fill ml_order_1714588800000000000_0000 side=BUY fill_qty=1
+[TRACE] Position bac quantity=1 after fill ml_order_1714590000000000000_0003 side=BUY fill_qty=1
+[TRACE] Position nem quantity=1 after fill ml_order_1714590000000000000_0002 side=BUY fill_qty=1
+[TRACE] Position intc quantity=1 after fill ml_order_1714591200000000000_0005 side=BUY fill_qty=1
+[TRACE] Position eqt quantity=-1 after fill ml_order_1714592400000000000_0007 side=SELL fill_qty=1
+[TRACE] Position aes quantity=1 after fill ml_order_1715023800000000000_0010 side=BUY fill_qty=1
+[TRACE] Position pfe quantity=1 after fill ml_order_1715109600000000000_0012 side=BUY fill_qty=1
+[TRACE] Position eqt quantity=1 after fill ml_order_1715194800000000000_0015 side=BUY fill_qty=1
+[TRACE] Position nem quantity=1 after fill ml_order_1715194800000000000_0014 side=BUY fill_qty=1
+[TRACE] Position pltr quantity=1 after fill ml_order_1715197800000000000_0017 side=BUY fill_qty=1
+[TRACE] Position f quantity=1 after fill ml_order_1715799600000000000_0020 side=BUY fill_qty=1
+[TRACE] Position aes quantity=1 after fill ml_order_1715801400000000000_0021 side=BUY fill_qty=1
+[TRACE] Position key quantity=1 after fill ml_order_1715802600000000000_0023 side=BUY fill_qty=1
+[TRACE] Position csco quantity=1 after fill ml_order_1715888400000000000_0026 side=BUY fill_qty=1
+[TRACE] Position dvn quantity=1 after fill ml_order_1716404400000000000_0029 side=BUY fill_qty=1
+[TRACE] Position pfe quantity=1 after fill ml_order_1716404400000000000_0028 side=BUY fill_qty=1
+[TRACE] Position luv quantity=1 after fill ml_order_1716406200000000000_0031 side=BUY fill_qty=1
+[TRACE] Position eqt quantity=1 after fill ml_order_1716407400000000000_0034 side=BUY fill_qty=1
+[TRACE] Position luv quantity=1 after fill ml_order_1716492000000000000_0036 side=BUY fill_qty=1
+[TRACE] Position intc quantity=1 after fill ml_order_1717009800000000000_0038 side=BUY fill_qty=1
+[TRACE] Position t quantity=1 after fill ml_order_1717097400000000000_0041 side=BUY fill_qty=1
+[TRACE] Position vz quantity=1 after fill ml_order_1717097400000000000_0040 side=BUY fill_qty=1
+[TRACE] Position f quantity=1 after fill ml_order_1717183200000000000_0044 side=BUY fill_qty=1
+[TRACE] Position t quantity=1 after fill ml_order_1717184400000000000_0045 side=BUY fill_qty=1
+2025-12-04 14:03:38,333 | INFO | [heartbeat] stopped (policy_sweep)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/jacobw/quantstack/extensions/intraday_ml/experiments/policy_sweep.py", line 256, in <module>
+    main()
+  File "/home/jacobw/quantstack/extensions/intraday_ml/experiments/policy_sweep.py", line 188, in main
+    results = sweep_policy_configs(
+              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobw/quantstack/extensions/intraday_ml/experiments/policy_sweep.py", line 61, in sweep_policy_configs
+    artifacts = intraday_ml_run_backtest(bars, orders, cfg=backtest_cfg)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobw/quantstack/extensions/intraday_ml/backtest.py", line 88, in intraday_ml_run_backtest
+    result = engine.run(processed_bars, strategy)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobw/quantstack/qx-backtest/src/qx_backtest/engine.py", line 354, in run
+    return self._generate_results()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobw/quantstack/qx-backtest/src/qx_backtest/engine.py", line 589, in _generate_results
+    result.calculate_performance_metrics()
+  File "/home/jacobw/quantstack/qx-backtest/src/qx_backtest/engine.py", line 144, in calculate_performance_metrics
+    if median_delta < pd.Timedelta(days=1):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: '<' not supported between instances of 'numpy.float64' and 'Timedelta'

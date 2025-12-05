@@ -1,0 +1,30 @@
+# Corrected policy sweep grid for bigmove strategy
+# Tests higher thresholds suitable for 3-5 trades/day budget
+
+bigmove_policy.probability_threshold:
+  - 0.65
+  - 0.70
+  - 0.75
+  - 0.80
+
+prob_threshold_long:
+  - 0.60
+  - 0.65
+  - 0.70
+  - 0.75
+
+prob_threshold_short:
+  - 0.60
+  - 0.65
+  - 0.70
+  - 0.75
+
+score_margin:
+  - 0.00
+  - 0.01
+  - 0.02
+
+max_open_positions_global:
+  - 2
+  - 3
+  - 5

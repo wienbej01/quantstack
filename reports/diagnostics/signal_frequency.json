@@ -1,0 +1,87 @@
+{
+  "total_samples": 18018,
+  "date_range": {
+    "start": "2024-05-01",
+    "end": "2024-05-31",
+    "trading_days": 22
+  },
+  "threshold_analysis": [
+    {
+      "threshold": 0.5,
+      "total_signals": 4910,
+      "avg_signals_per_day": 223.1818181818182,
+      "median_signals_per_day": 209.0,
+      "max_signals_per_day": 419,
+      "min_signals_per_day": 169,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.55,
+      "total_signals": 4278,
+      "avg_signals_per_day": 194.45454545454547,
+      "median_signals_per_day": 183.0,
+      "max_signals_per_day": 368,
+      "min_signals_per_day": 150,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.6,
+      "total_signals": 3677,
+      "avg_signals_per_day": 167.13636363636363,
+      "median_signals_per_day": 160.5,
+      "max_signals_per_day": 302,
+      "min_signals_per_day": 127,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.65,
+      "total_signals": 3138,
+      "avg_signals_per_day": 142.63636363636363,
+      "median_signals_per_day": 137.5,
+      "max_signals_per_day": 254,
+      "min_signals_per_day": 112,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.7,
+      "total_signals": 2693,
+      "avg_signals_per_day": 122.4090909090909,
+      "median_signals_per_day": 117.0,
+      "max_signals_per_day": 216,
+      "min_signals_per_day": 93,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.75,
+      "total_signals": 2233,
+      "avg_signals_per_day": 101.5,
+      "median_signals_per_day": 95.5,
+      "max_signals_per_day": 184,
+      "min_signals_per_day": 63,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    },
+    {
+      "threshold": 0.8,
+      "total_signals": 1654,
+      "avg_signals_per_day": 75.18181818181819,
+      "median_signals_per_day": 67.0,
+      "max_signals_per_day": 157,
+      "min_signals_per_day": 36,
+      "days_with_signals": 22,
+      "days_with_5plus": 22,
+      "days_with_10plus": 22
+    }
+  ]
+}

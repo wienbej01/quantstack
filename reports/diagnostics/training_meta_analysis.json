@@ -1,0 +1,43 @@
+{
+  "stage": "stage1_probability",
+  "training_samples": 508830,
+  "feature_count": 68,
+  "class_imbalance": {
+    "negative_samples": 436510,
+    "positive_samples": 72320,
+    "imbalance_ratio": 6.04,
+    "positive_rate": 0.14212998447418587
+  },
+  "performance": {
+    "roc_auc": 0.8850029404718196,
+    "precision": 0.4032104456805289,
+    "recall": 0.8078816371681415,
+    "f1": 0.5379381462282826,
+    "accuracy": 0.8027435489259674
+  },
+  "cv_performance": {
+    "roc_auc_mean": 0.8336066738402531,
+    "roc_auc_std": 0.0018134756869429905,
+    "precision_mean": 0.3647378706593062,
+    "recall_mean": 0.7120990044247788,
+    "f1_mean": 0.4823907903479065
+  },
+  "confusion_matrix": {
+    "tn": 350034,
+    "fp": 86476,
+    "fn": 13894,
+    "tp": 58426
+  },
+  "dataset_info": {
+    "config": "configs/extensions/intraday_ml/phaseA_sip_full.yaml",
+    "split": "train",
+    "start_date": "2023-10-02",
+    "end_date": "2024-04-15",
+    "symbols": 97
+  },
+  "derived_metrics": {
+    "false_positive_rate": 0.198107718036242,
+    "false_negative_rate": 0.1921183628318584,
+    "true_negative_rate": 0.801892281963758
+  }
+}

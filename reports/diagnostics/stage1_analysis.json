@@ -1,0 +1,153 @@
+{
+  "model_type": "LGBMClassifier",
+  "n_features": 68,
+  "n_estimators": 640,
+  "top_20_features": [
+    {
+      "feature": "f__vwap__value_3",
+      "importance": 1503
+    },
+    {
+      "feature": "f__vol__atr_6",
+      "importance": 1378
+    },
+    {
+      "feature": "f__vol__rolling_std_6",
+      "importance": 1281
+    },
+    {
+      "feature": "f__vwap__value_6",
+      "importance": 1202
+    },
+    {
+      "feature": "f__vwap__dist_30",
+      "importance": 1081
+    },
+    {
+      "feature": "f__vol__sum_6",
+      "importance": 1050
+    },
+    {
+      "feature": "f__vol__atr_3",
+      "importance": 1048
+    },
+    {
+      "feature": "f__range__ratio_1.0",
+      "importance": 1007
+    },
+    {
+      "feature": "f__vol__sum_3",
+      "importance": 977
+    },
+    {
+      "feature": "f__vol__rel_6",
+      "importance": 943
+    },
+    {
+      "feature": "f__conv__adl_strength_12",
+      "importance": 902
+    },
+    {
+      "feature": "f__conv__wick_skew_12",
+      "importance": 881
+    },
+    {
+      "feature": "f__vwap__z_30_60",
+      "importance": 846
+    },
+    {
+      "feature": "f__conv__obv_mom_12",
+      "importance": 828
+    },
+    {
+      "feature": "f__conv__body_strength_12",
+      "importance": 809
+    },
+    {
+      "feature": "f__conv__wick_skew_6",
+      "importance": 804
+    },
+    {
+      "feature": "f__vol__rolling_std_3",
+      "importance": 745
+    },
+    {
+      "feature": "f__vwap__z_20_60",
+      "importance": 709
+    },
+    {
+      "feature": "f__vwap__dist_20",
+      "importance": 703
+    },
+    {
+      "feature": "f__conv__wick_skew_3",
+      "importance": 683
+    }
+  ],
+  "feature_families": {
+    "vwap": 18,
+    "vol": 7,
+    "range": 1,
+    "conv": 21,
+    "time": 6,
+    "mom": 7,
+    "ma": 3,
+    "ret": 5
+  },
+  "top_features_by_family": {
+    "vwap": [
+      "f__vwap__value_3",
+      "f__vwap__value_6",
+      "f__vwap__dist_30",
+      "f__vwap__z_30_60",
+      "f__vwap__z_20_60"
+    ],
+    "vol": [
+      "f__vol__atr_6",
+      "f__vol__rolling_std_6",
+      "f__vol__sum_6",
+      "f__vol__atr_3",
+      "f__vol__sum_3"
+    ],
+    "range": [
+      "f__range__ratio_1.0"
+    ],
+    "conv": [
+      "f__conv__adl_strength_12",
+      "f__conv__wick_skew_12",
+      "f__conv__obv_mom_12",
+      "f__conv__body_strength_12",
+      "f__conv__wick_skew_6"
+    ],
+    "time": [
+      "f__time__hour_sin",
+      "f__time__dow_sin",
+      "f__time__hour_cos",
+      "f__time__dow_cos",
+      "f__time__minute_cos"
+    ],
+    "mom": [
+      "f__mom__rsi_12",
+      "f__mom__roc_12",
+      "f__mom__rsi_6",
+      "f__mom__roc_1",
+      "f__mom__roc_6"
+    ],
+    "ma": [
+      "f__ma__ratio_3",
+      "f__ma__ratio_12",
+      "f__ma__ratio_6"
+    ],
+    "ret": [
+      "f__ret__simple_12",
+      "f__ret__simple_1",
+      "f__ret__simple_2",
+      "f__ret__simple_3",
+      "f__ret__simple_6"
+    ]
+  },
+  "importance_concentration": {
+    "top_10_pct": 0.28447420634920634,
+    "top_20_pct": 0.4806547619047619
+  }
+}

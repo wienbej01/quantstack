@@ -54,4 +54,4 @@ outlier_threshold: 5.0
 
 include_feature_metadata: true
 validate_schema: true
-cache_features: false
+cache_features: true

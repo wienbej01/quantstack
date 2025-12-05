@@ -84,7 +84,7 @@ big_move:
   forward_minutes_alt: 120   # optional secondary horizon for experimentation
   atr_multiple: 1.5
   min_return_floor_pct: 0.0075
-  atr_is_return_pct: true
+  atr_is_return_pct: false
   realized_r_label: "realized_r_bigmove"
   realized_r_floor: -5.0
   realized_r_cap: 5.0

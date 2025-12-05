@@ -131,20 +131,47 @@ class BacktestResult:
         # Basic return metrics
         self.total_return = (equity_series.iloc[-1] / equity_series.iloc[0]) - 1
 
-        # Annualized metrics (assuming daily data)
+        # Detect if data is intraday by checking datetime column
+        is_intraday = False
         trading_days = len(equity_series)
+        
+        if 'datetime' in self.equity_curve.columns:
+            dt_series = pd.to_datetime(self.equity_curve['datetime'])
+            time_deltas = dt_series.diff().dropna()
+            if len(time_deltas) > 0:
+                median_delta = time_deltas.median()
+                if median_delta < pd.Timedelta(days=1):
+                    is_intraday = True
+                    trading_days = dt_series.dt.normalize().nunique()
+        
+        # Annualized metrics
         years = trading_days / 252.0
         if years > 0:
             self.annualized_return = (equity_series.iloc[-1] / equity_series.iloc[0]) ** (
                 1 / years
             ) - 1
+        else:
+            self.annualized_return = 0.0
+        
+        # Risk metrics - use daily returns for intraday data
+        if is_intraday and 'datetime' in self.equity_curve.columns:
+            equity_with_dt = self.equity_curve[['datetime', 'total_equity']].copy()
+            equity_with_dt['datetime'] = pd.to_datetime(equity_with_dt['datetime'])
+            equity_with_dt = equity_with_dt.set_index('datetime')
+            daily_equity = equity_with_dt['total_equity'].resample('D').last().dropna()
+            if len(daily_equity) > 1:
+                daily_returns = daily_equity.pct_change().dropna()
+                self.volatility = daily_returns.std() * (252**0.5) if len(daily_returns) > 0 else 0.0
+            else:
+                self.volatility = 0.0
+        else:
+            self.volatility = returns.std() * (252**0.5) if len(returns) > 0 else 0.0
 
-        # Risk metrics
-        self.volatility = returns.std() * (252**0.5)  # Annualized volatility
-
-        if self.volatility > 0:
-            excess_return = self.annualized_return - 0.02  # Assuming 2% risk-free rate
+        if self.volatility > 0 and self.annualized_return != 0:
+            excess_return = self.annualized_return - 0.02
             self.sharpe_ratio = excess_return / self.volatility
+        else:
+            self.sharpe_ratio = 0.0
 
         # Drawdown metrics
         cumulative_returns = equity_series / equity_series.iloc[0]

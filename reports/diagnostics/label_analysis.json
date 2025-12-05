@@ -1,0 +1,27 @@
+{
+  "total_samples": 508830,
+  "bigmove_count": 72320,
+  "no_bigmove_count": 436510,
+  "bigmove_rate": 0.1421,
+  "imbalance_ratio": 6.04,
+  "dataset_info": {
+    "config": "configs/extensions/intraday_ml/phaseA_sip_full.yaml",
+    "split": "train",
+    "start_date": "2023-10-02",
+    "end_date": "2024-04-15",
+    "symbols": 97
+  },
+  "model_predictions": {
+    "true_negatives": 350034,
+    "false_positives": 86476,
+    "false_negatives": 13894,
+    "true_positives": 58426,
+    "predicted_positive_rate": 0.28477487569522236
+  },
+  "key_insights": {
+    "samples_per_day": 5245.670103092783,
+    "bigmoves_per_day": 745.5670103092783,
+    "model_recall": 0.8078816371681415,
+    "model_precision": 0.4032104456805289
+  }
+}

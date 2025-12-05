@@ -1,0 +1,90 @@
+# Medium-Move Target Configuration
+# Focus on medium-magnitude directional moves (120-240 min, ~0.8x ATR).
+
+label_type: "triclass_atr_threshold"
+
+# Longer horizons for medium moves.
+horizons:
+  - 120
+  - 240
+
+# ATR multipliers for ~0.8x ATR moves.
+atr_multiplier: 0.80
+atr_multiplier_long: 0.80
+atr_multiplier_short: 0.80
+
+# Slightly longer ATR to stabilise volatility estimates.
+atr_window: 21
+atr_period_minutes: 1
+
+volatility_scaling:
+  enabled: true
+  target_move_pct: 0.012
+  price_quantile: 0.6
+  atr_quantile: 0.85
+  mix: 0.6
+  multiplier_bounds:
+    min: 0.01
+    max: 0.12
+
+directional_balance:
+  enabled: true
+  target_ratio: 1.0
+  tolerance: 0.25
+  max_iterations: 10
+  adjust_step: 0.06
+  growth_factor: 0.65
+  min_directional: 10
+  multiplier_bounds:
+    min: 0.01
+    max: 0.13
+
+first_hit_logic:
+  enabled: true
+  stop_at_hit: true
+  min_bars_required: 2
+
+session_constraints:
+  timezone: "America/New_York"
+  session_open: "09:30"
+  session_close: "16:00"
+  min_minutes_after_open: 10   # avoid opening auction noise
+  max_minutes_before_close: 15 # ensure ample time for exits
+
+min_realized_return_pct: 0.0
+
+min_observations_per_horizon: 8
+max_lookback_bars: 180
+require_min_atr: 0.005
+exclude_flat_periods: true
+include_metadata: true
+validate_no_peek: true
+
+risk_reward:
+  enabled: true
+  min_r_multiple: 1.5
+  stop_atr_multiplier_long: 0.85
+  stop_atr_multiplier_short: 0.95
+  target_buffer: 0.0005
+  atr_return_bounds:
+    min: 0.0005
+    max: 0.08
+
+big_move:
+  enabled: true
+  label_name: "y_mediummove"
+  direction_label_name: "y_mediummove_direction"
+  forward_return_column: "fwd_return_mediummove"
+  atr_column: "f__vol__atr_6"
+  price_column: "close"
+  bar_minutes: 10
+  forward_minutes: 120       # evaluate ~120 minutes into the future
+  forward_minutes_alt: 240   # optional secondary horizon
+  atr_multiple: 0.8
+  min_return_floor_pct: 0.005 # Reduced floor for medium moves
+  atr_is_return_pct: true
+  realized_r_label: "realized_r_mediummove"
+  realized_r_floor: -5.0
+  realized_r_cap: 5.0
+  metadata:
+    description: "ATR medium-move labels (>= max(0.8*ATR, floor))"

@@ -1,0 +1,61 @@
+{
+  "prob_threshold_long": 0.6,
+  "prob_threshold_short": 0.6,
+  "score_margin": 0.0,
+  "min_directional_gap": 0.0,
+  "min_conviction_score": 0.0,
+  "cooldown_minutes": 0,
+  "min_time": "09:35:00",
+  "max_time": "15:50:00",
+  "tod_filter_enabled": false,
+  "time_filter": {
+    "min_time": "09:35:00",
+    "max_time": "15:50:00",
+    "timezone": "America/New_York"
+  },
+  "max_hold_minutes": 60,
+  "gap_exit_delay_minutes": 15,
+  "session_timezone": "America/New_York",
+  "order_qty": 1,
+  "policy_mode": "bigmove",
+  "max_entries_per_day": 10,
+  "max_open_positions_global": 3,
+  "max_trades_per_symbol_per_day": 2,
+  "max_trades_per_bar_global": 5,
+  "max_daily_loss_R": -10.0,
+  "trade_risk_R": 1.0,
+  "target_trades_min": 3,
+  "target_trades_max": 10,
+  "bigmove_policy": {
+    "mode": "probability",
+    "probability_threshold": 0.5,
+    "quantile_threshold": 0.999,
+    "prob_column": "prob_bigmove",
+    "long_prob_column": "prob_bigmove_long",
+    "short_prob_column": "prob_bigmove_short",
+    "expected_r_column": "expected_r_bigmove",
+    "min_expected_r": 0.5
+  },
+  "lifecycle": {
+    "early_loss_cut_r": -999.0,
+    "early_loss_cut_minutes": 999,
+    "dead_trade_exit_minutes": 999,
+    "dead_trade_pnl_band_r": 0.0,
+    "max_hold_minutes_flat_or_loser": 60,
+    "max_hold_minutes_in_the_money": 60,
+    "trail_activation_r": 999.0,
+    "trail_stop_r": 0.0
+  },
+  "risk": {
+    "atr_feature": "f__vol__atr_6",
+    "stop_atr_multiple": 1.0,
+    "tp_r_multiple": 2.0,
+    "min_stop_pct": 0.002,
+    "max_stop_pct": 0.045,
+    "min_expected_r": 0.5
+  },
+  "calibration": {
+    "enabled": false
+  },
+  "tod_profiles": {}
+}
