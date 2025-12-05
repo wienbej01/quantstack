@@ -20,4 +20,11 @@ training:
   n_folds: 5
   seed: 37
   decision_threshold: 0.5
-  class_weight: balanced
+
+# Class weighting to handle imbalance (86% neutral, 7% long, 6% short)
+class_weights:
+  auto_balance:
+    enabled: true
+    blend_factor: 0.7
+    floor: 0.1
+    cap: 10.0

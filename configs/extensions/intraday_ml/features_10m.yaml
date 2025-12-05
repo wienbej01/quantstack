@@ -1,21 +1,21 @@
-# 10-minute feature configuration
+# 10-minute feature configuration - Enhanced for intraday prediction
 families:
   returns_trend:
     enabled: true
-    windows: [1, 2, 3, 6, 12] # 10m, 20m, 30m returns
+    windows: [1, 2, 3, 6, 12, 18] # Extended to 3 hours
     include_log: false
 
   volatility_ranges:
     enabled: true
-    atr_windows: [3, 6]
-    volatility_windows: [3, 6]
-    range_ratios: [1.0]
+    atr_windows: [3, 6, 12, 18]  # Extended windows
+    volatility_windows: [3, 6, 12]
+    range_ratios: [1.0, 2.0]  # Added 2.0 for wider context
 
   volume_flow:
     enabled: true
-    volume_windows: [3, 6]
-    vwap_windows: [3, 6]
-    relative_volume_windows: [6]
+    volume_windows: [3, 6, 12, 18]  # Extended windows
+    vwap_windows: [3, 6, 12]
+    relative_volume_windows: [6, 12]  # Added 12
 
   vwap_distance:
     enabled: true
@@ -32,16 +32,48 @@ families:
 
   price_momentum:
     enabled: true
-    roc_windows: [1, 2, 3, 6, 12]
-    rsi_windows: [6, 12]
-    ma_windows: [3, 6, 12]
+    roc_windows: [1, 2, 3, 6, 12, 18]  # Extended
+    rsi_windows: [6, 12, 18]  # Added 18
+    ma_windows: [3, 6, 12, 18]  # Extended
 
   microstructure:
-    enabled: false
+    enabled: false  # No L2 data available
 
   conviction_signals:
     enabled: true
-    windows: [3, 6, 12]
+    windows: [3, 6, 12, 18]  # Extended
+
+  # NEW: Multi-timeframe context (using resampled OHLCV)
+  multi_timeframe:
+    enabled: true
+    timeframes: [30, 60]  # 30-min and 60-min bars from 10-min data
+    features:
+      - returns
+      - volume_ratio
+      - vwap_distance
+      - atr_ratio
+      - trend_strength
+
+  # NEW: Price levels and ranges
+  price_levels:
+    enabled: true
+    lookback_bars: [39, 78]  # ~6.5 hours, ~13 hours (session + prev day)
+    features:
+      - distance_to_high
+      - distance_to_low
+      - distance_to_open
+      - range_position
+      - breakout_strength
+
+  # NEW: Intraday patterns
+  intraday_patterns:
+    enabled: true
+    features:
+      - opening_range_position  # Position relative to first 30min
+      - session_high_low_distance
+      - time_since_high
+      - time_since_low
+      - volume_profile_position
 
 max_total_features: 100
 warmup_multiplier: 3.0

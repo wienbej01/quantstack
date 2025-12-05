@@ -20,4 +20,11 @@ training:
   n_folds: 4
   seed: 41
   decision_threshold: 0.5
-  class_weight: balanced
+
+# Class weighting for directional prediction
+class_weights:
+  auto_balance:
+    enabled: true
+    blend_factor: 0.7
+    floor: 0.1
+    cap: 10.0

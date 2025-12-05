@@ -3,11 +3,11 @@
 
 label_type: "triclass_atr_threshold"
 
-# Larger horizons favour moves that persist beyond quick scalps.
+# Shorter horizons for better predictability with OHLCV features
 horizons:
+  - 15
   - 30
-  - 60
-  - 120
+  - 45
 
 # ATR multipliers operate on ATR expressed as a return (% of price) so moves
 # align with ≥1.5R payoffs once paired with risk_reward parameters below.
@@ -80,8 +80,8 @@ big_move:
   atr_column: "f__vol__atr_6"
   price_column: "close"
   bar_minutes: 10
-  forward_minutes: 60        # evaluate ~60 minutes into the future
-  forward_minutes_alt: 120   # optional secondary horizon for experimentation
+  forward_minutes: 30        # evaluate ~30 minutes into the future (shortened from 60)
+  forward_minutes_alt: 45    # optional secondary horizon (shortened from 120)
   atr_multiple: 1.5
   min_return_floor_pct: 0.0075
   atr_is_return_pct: false
