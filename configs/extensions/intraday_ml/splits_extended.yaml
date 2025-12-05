@@ -1,0 +1,13 @@
+# Extended splits: 12 months train, 1 month val, 2 months OOS
+
+train:
+  start: "2023-06-01"
+  end:   "2024-05-31"  # 12 months
+
+val:
+  start: "2024-06-01"
+  end:   "2024-06-30"  # 1 month
+
+oos:
+  start: "2024-07-01"
+  end:   "2024-08-31"  # 2 months

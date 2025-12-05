@@ -1,0 +1,124 @@
+# Enhanced feature set with momentum, trend, and directional indicators
+
+# Base OHLCV features
+- name: "ohlcv_base"
+  features:
+    - open
+    - high
+    - low
+    - close
+    - volume
+
+# Momentum indicators (NEW)
+- name: "momentum"
+  features:
+    - f__momentum__roc_3
+    - f__momentum__roc_6
+    - f__momentum__roc_12
+    - f__momentum__rsi_6
+    - f__momentum__rsi_12
+    - f__momentum__stoch_k_6
+    - f__momentum__stoch_d_6
+    - f__momentum__williams_r_6
+    - f__momentum__cci_12
+
+# Trend indicators (NEW)
+- name: "trend"
+  features:
+    - f__trend__ema_3
+    - f__trend__ema_6
+    - f__trend__ema_12
+    - f__trend__ema_cross_3_6
+    - f__trend__ema_cross_6_12
+    - f__trend__price_vs_ema_3
+    - f__trend__price_vs_ema_6
+    - f__trend__price_vs_ema_12
+    - f__trend__adx_12
+    - f__trend__di_plus_12
+    - f__trend__di_minus_12
+
+# Volume analysis (ENHANCED)
+- name: "volume"
+  features:
+    - f__vol__sum_3
+    - f__vol__sum_6
+    - f__vol__sum_12
+    - f__vol__sum_18
+    - f__vol__rel_3
+    - f__vol__rel_6
+    - f__vol__rel_12
+    - f__vol__rolling_std_3
+    - f__vol__rolling_std_6
+    - f__vol__rolling_std_12
+    - f__vol__atr_3
+    - f__vol__atr_6
+    - f__vol__atr_12
+    - f__vol__atr_18
+    - f__vol__obv_6
+    - f__vol__obv_12
+    - f__vol__vwap_volume_ratio_3
+    - f__vol__vwap_volume_ratio_6
+
+# VWAP analysis (EXISTING)
+- name: "vwap"
+  features:
+    - f__vwap__value_3
+    - f__vwap__value_6
+    - f__vwap__z_5_20
+    - f__vwap__z_5_30
+    - f__vwap__z_5_60
+    - f__vwap__z_10_20
+    - f__vwap__z_10_30
+    - f__vwap__z_10_60
+    - f__vwap__z_20_20
+    - f__vwap__z_20_30
+    - f__vwap__z_30_30
+    - f__vwap__z_30_60
+
+# Price patterns (ENHANCED)
+- name: "patterns"
+  features:
+    - f__range__ratio_1.0
+    - f__range__ratio_3
+    - f__range__ratio_6
+    - f__conv__body_strength_3
+    - f__conv__body_strength_6
+    - f__conv__body_strength_12
+    - f__conv__wick_skew_3
+    - f__conv__wick_skew_6
+    - f__conv__wick_skew_12
+    - f__conv__range_pos_3
+    - f__conv__range_pos_6
+    - f__conv__range_pos_12
+    - f__conv__gap_3
+    - f__conv__gap_6
+
+# Time features (EXISTING)
+- name: "time"
+  features:
+    - f__time__hour_sin
+    - f__time__hour_cos
+    - f__time__minute_sin
+    - f__time__minute_cos
+    - f__time__session_progress
+
+# Multi-timeframe context (NEW)
+- name: "multi_timeframe"
+  features:
+    - f__mtf__30m_trend
+    - f__mtf__30m_momentum
+    - f__mtf__30m_volume_ratio
+    - f__mtf__60m_trend
+    - f__mtf__60m_momentum
+    - f__mtf__60m_volume_ratio
+
+# Directional bias (NEW)
+- name: "directional"
+  features:
+    - f__dir__bullish_candles_3
+    - f__dir__bearish_candles_3
+    - f__dir__higher_highs_3
+    - f__dir__lower_lows_3
+    - f__dir__support_distance
+    - f__dir__resistance_distance
+    - f__dir__pivot_distance
