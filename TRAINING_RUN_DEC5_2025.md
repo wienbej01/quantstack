@@ -1,7 +1,74 @@
 # Training Run - December 5, 2025
-**Started:** 19:32 SGT  
+**Started:** 19:33 SGT  
+**Updated:** 20:59 SGT  
 **Branch:** `feature/migrate-to-backtrader`  
-**Commit:** `3702822` - "feat: add feature performance logging and training monitor"
+**Commit:** `bebadb3` - "feat: add Stage 2 automation and validation pipeline"
+
+---
+
+## Status: AUTOMATED PIPELINE RUNNING
+
+### Current State (20:59 SGT)
+- ✅ Stage 1 training: **Running** (86 minutes elapsed)
+- ⏳ Stage 2 auto-starter: **Waiting** for Stage 1 completion
+- ✅ Automation: **Active** - Stage 2 will start automatically
+
+### Monitoring
+```bash
+# Live dashboard (refreshes every 30s)
+watch -n 30 /home/jacobw/quantstack/scripts/training_dashboard.sh
+
+# Check logs
+tail -f /tmp/stage1_training_full.log
+tail -f /tmp/stage2_training_full.log
+```
+
+---
+
+## Automated Pipeline (NEW)
+
+### Stage 2 Auto-Starter ✅
+**Script:** `scripts/wait_and_run_stage2.sh`  
+**Status:** Running in background  
+**Function:** Monitors for Stage 1 completion, automatically starts Stage 2
+
+**How it works:**
+1. Checks for `metadata.json` every 30 seconds
+2. When found, displays Stage 1 results
+3. Automatically launches Stage 2 training
+4. No manual intervention required
+
+### Training Dashboard ✅
+**Script:** `scripts/training_dashboard.sh`  
+**Usage:** `watch -n 30 scripts/training_dashboard.sh`
+
+**Displays:**
+- Running processes (Stage 1, Stage 2, auto-starter)
+- File creation status
+- Training metrics (accuracy, ROC AUC, feature correlations)
+- Recent log activity
+
+### Validation Pipeline ✅
+**Script:** `scripts/validate_training_results.sh`  
+**Run after training:** Validates both stages completed successfully
+
+**Performs:**
+1. Checks both models trained
+2. Displays feature performance
+3. Generates OOS predictions
+4. Analyzes prediction distribution
+5. Runs backtest
+6. Reports success criteria
+
+### Prediction Analysis ✅
+**Script:** `scripts/analyze_predictions.py`  
+**Usage:** `python scripts/analyze_predictions.py`
+
+**Analyzes:**
+- Prediction distribution (neutral/long/short %)
+- Accuracy per class
+- Probability statistics
+- Confidence levels
 
 ---
 
@@ -301,14 +368,55 @@ forward_minutes: 20
 
 ---
 
+## Quick Reference
+
+### Check Training Status
+```bash
+# Dashboard (recommended)
+watch -n 30 scripts/training_dashboard.sh
+
+# Or manual check
+ps aux | grep train_bigmove
+python scripts/monitor_training.py
+```
+
+### After Training Completes
+```bash
+# Validate everything
+scripts/validate_training_results.sh
+
+# Or step-by-step:
+python scripts/monitor_training.py                    # Check metrics
+python scripts/analyze_predictions.py                 # Check distribution
+python scripts/run_backtest_1m.py                     # Run backtest
+```
+
+### If Training Fails
+```bash
+# Check logs
+tail -100 /tmp/stage1_training_full.log
+tail -100 /tmp/stage2_training_full.log
+
+# Restart manually
+scripts/run_stage1_training.sh
+scripts/run_stage2_training.sh
+
+# Or full pipeline
+scripts/run_full_training_pipeline.sh
+```
+
+---
+
 ## Timeline
 
 - **15:17 SGT** - Started implementation
 - **15:23 SGT** - Feature logging implemented
 - **15:32 SGT** - Training started (first attempt, merge error)
 - **19:32 SGT** - Training restarted with deduplication fix
-- **~22:00 SGT** - Stage 1 expected completion (estimate)
-- **~00:00 SGT** - Stage 2 expected completion (estimate)
+- **20:59 SGT** - Stage 2 automation implemented and activated
+- **~22:30 SGT** - Stage 1 expected completion (estimate)
+- **~23:30 SGT** - Stage 2 expected completion (estimate)
+- **~00:00 SGT** - Full validation expected (estimate)
 
 ---
 
