@@ -1,0 +1,213 @@
+{
+  "available": true,
+  "statistics": {
+    "max_importance": 695.0,
+    "mean_importance": 331.7647058823529,
+    "median_importance": 326.5,
+    "zero_importance_count": 0,
+    "total_features": 68
+  },
+  "top_features": [
+    {
+      "feature": "f__conv__wick_skew_12",
+      "importance": 695
+    },
+    {
+      "feature": "f__vol__rel_6",
+      "importance": 610
+    },
+    {
+      "feature": "f__conv__wick_skew_6",
+      "importance": 609
+    },
+    {
+      "feature": "f__vwap__value_3",
+      "importance": 569
+    },
+    {
+      "feature": "f__conv__body_strength_12",
+      "importance": 557
+    },
+    {
+      "feature": "f__vol__sum_6",
+      "importance": 528
+    },
+    {
+      "feature": "f__vwap__z_30_60",
+      "importance": 515
+    },
+    {
+      "feature": "f__vol__rolling_std_6",
+      "importance": 511
+    },
+    {
+      "feature": "f__vwap__z_30_30",
+      "importance": 499
+    },
+    {
+      "feature": "f__vol__rolling_std_3",
+      "importance": 495
+    },
+    {
+      "feature": "f__vwap__dist_30",
+      "importance": 491
+    },
+    {
+      "feature": "f__vol__atr_6",
+      "importance": 485
+    },
+    {
+      "feature": "f__conv__wick_skew_3",
+      "importance": 473
+    },
+    {
+      "feature": "f__range__ratio_1.0",
+      "importance": 468
+    },
+    {
+      "feature": "f__conv__obv_mom_6",
+      "importance": 460
+    },
+    {
+      "feature": "f__conv__adl_strength_12",
+      "importance": 448
+    },
+    {
+      "feature": "f__conv__obv_mom_12",
+      "importance": 434
+    },
+    {
+      "feature": "f__conv__body_strength_6",
+      "importance": 426
+    },
+    {
+      "feature": "f__vol__sum_3",
+      "importance": 426
+    },
+    {
+      "feature": "f__conv__adl_strength_3",
+      "importance": 420
+    },
+    {
+      "feature": "f__vol__atr_3",
+      "importance": 414
+    },
+    {
+      "feature": "f__vwap__z_10_60",
+      "importance": 411
+    },
+    {
+      "feature": "f__vwap__z_20_60",
+      "importance": 392
+    },
+    {
+      "feature": "f__vwap__z_5_60",
+      "importance": 379
+    },
+    {
+      "feature": "f__conv__body_strength_3",
+      "importance": 376
+    },
+    {
+      "feature": "f__vwap__z_30_20",
+      "importance": 373
+    },
+    {
+      "feature": "f__conv__range_pos_12",
+      "importance": 368
+    },
+    {
+      "feature": "f__conv__adl_strength_6",
+      "importance": 361
+    },
+    {
+      "feature": "f__conv__range_pos_3",
+      "importance": 356
+    },
+    {
+      "feature": "f__vwap__z_10_20",
+      "importance": 341
+    },
+    {
+      "feature": "f__conv__range_pos_6",
+      "importance": 341
+    },
+    {
+      "feature": "f__mom__roc_12",
+      "importance": 337
+    },
+    {
+      "feature": "f__mom__rsi_6",
+      "importance": 335
+    },
+    {
+      "feature": "f__vwap__z_20_30",
+      "importance": 327
+    },
+    {
+      "feature": "f__vwap__z_20_20",
+      "importance": 326
+    },
+    {
+      "feature": "f__conv__mom_vol_12",
+      "importance": 323
+    },
+    {
+      "feature": "f__mom__rsi_12",
+      "importance": 316
+    },
+    {
+      "feature": "f__vwap__z_5_20",
+      "importance": 314
+    },
+    {
+      "feature": "f__time__dow_sin",
+      "importance": 309
+    },
+    {
+      "feature": "f__conv__obv_mom_3",
+      "importance": 306
+    },
+    {
+      "feature": "f__vwap__z_10_30",
+      "importance": 306
+    },
+    {
+      "feature": "f__mom__roc_1",
+      "importance": 301
+    },
+    {
+      "feature": "f__conv__mom_vol_3",
+      "importance": 286
+    },
+    {
+      "feature": "f__vwap__z_5_30",
+      "importance": 283
+    },
+    {
+      "feature": "f__vwap__dist_20",
+      "importance": 282
+    },
+    {
+      "feature": "f__conv__mom_vol_6",
+      "importance": 276
+    },
+    {
+      "feature": "f__conv__zscore_12",
+      "importance": 274
+    },
+    {
+      "feature": "f__conv__zscore_3",
+      "importance": 269
+    },
+    {
+      "feature": "f__vwap__value_6",
+      "importance": 268
+    },
+    {
+      "feature": "f__mom__roc_2",
+      "importance": 260
+    }
+  ],
+  "zero_importance_features": []
+}

@@ -1,0 +1,121 @@
+{
+  "correlation_stats": {
+    "max_abs_correlation": 0.07521644411431058,
+    "mean_abs_correlation": 0.03561986329370481,
+    "median_abs_correlation": 0.03755791757175943,
+    "features_above_0.10": 0,
+    "features_above_0.05": 19,
+    "zero_variance_features": 0
+  },
+  "importance_stats": {
+    "max_importance": 695.0,
+    "mean_importance": 331.7647058823529,
+    "median_importance": 326.5,
+    "zero_importance_count": 0,
+    "total_features": 68
+  },
+  "top_10_by_correlation": [
+    {
+      "feature": "f__vwap__z_10_20",
+      "pearson": 0.07521644411431058,
+      "spearman": 0.07842428607512562,
+      "abs_pearson": 0.07521644411431058
+    },
+    {
+      "feature": "f__vwap__z_10_60",
+      "pearson": 0.0715918552516398,
+      "spearman": 0.06956156489257129,
+      "abs_pearson": 0.0715918552516398
+    },
+    {
+      "feature": "f__vwap__z_5_20",
+      "pearson": 0.07108479253085424,
+      "spearman": 0.07821288541472685,
+      "abs_pearson": 0.07108479253085424
+    },
+    {
+      "feature": "f__vwap__z_5_30",
+      "pearson": 0.0693601418601207,
+      "spearman": 0.07949286981160064,
+      "abs_pearson": 0.0693601418601207
+    },
+    {
+      "feature": "f__vwap__z_5_60",
+      "pearson": 0.06779671493594638,
+      "spearman": 0.07355606585132134,
+      "abs_pearson": 0.06779671493594638
+    },
+    {
+      "feature": "f__vwap__z_10_30",
+      "pearson": 0.0669372302999059,
+      "spearman": 0.06910547165852803,
+      "abs_pearson": 0.0669372302999059
+    },
+    {
+      "feature": "f__conv__range_pos_6",
+      "pearson": 0.06526697181498857,
+      "spearman": 0.055597391716731594,
+      "abs_pearson": 0.06526697181498857
+    },
+    {
+      "feature": "f__vwap__z_20_20",
+      "pearson": 0.06323133406681154,
+      "spearman": 0.06315637847264112,
+      "abs_pearson": 0.06323133406681154
+    },
+    {
+      "feature": "f__conv__body_strength_3",
+      "pearson": 0.06187911156274053,
+      "spearman": 0.05610445383862946,
+      "abs_pearson": 0.06187911156274053
+    },
+    {
+      "feature": "f__conv__range_pos_3",
+      "pearson": 0.0603327022935876,
+      "spearman": 0.053696470862030776,
+      "abs_pearson": 0.0603327022935876
+    }
+  ],
+  "top_10_by_importance": [
+    {
+      "feature": "f__conv__wick_skew_12",
+      "importance": 695
+    },
+    {
+      "feature": "f__vol__rel_6",
+      "importance": 610
+    },
+    {
+      "feature": "f__conv__wick_skew_6",
+      "importance": 609
+    },
+    {
+      "feature": "f__vwap__value_3",
+      "importance": 569
+    },
+    {
+      "feature": "f__conv__body_strength_12",
+      "importance": 557
+    },
+    {
+      "feature": "f__vol__sum_6",
+      "importance": 528
+    },
+    {
+      "feature": "f__vwap__z_30_60",
+      "importance": 515
+    },
+    {
+      "feature": "f__vol__rolling_std_6",
+      "importance": 511
+    },
+    {
+      "feature": "f__vwap__z_30_30",
+      "importance": 499
+    },
+    {
+      "feature": "f__vol__rolling_std_3",
+      "importance": 495
+    }
+  ]
+}

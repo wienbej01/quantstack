@@ -1,0 +1,844 @@
+{
+  "statistics": {
+    "max_abs_correlation": 0.07521644411431058,
+    "mean_abs_correlation": 0.03561986329370481,
+    "median_abs_correlation": 0.03755791757175943,
+    "features_above_0.10": 0,
+    "features_above_0.05": 19,
+    "zero_variance_features": 0
+  },
+  "top_features": [
+    {
+      "feature": "f__vwap__z_10_20",
+      "pearson": 0.07521644411431058,
+      "spearman": 0.07842428607512562,
+      "abs_pearson": 0.07521644411431058
+    },
+    {
+      "feature": "f__vwap__z_10_60",
+      "pearson": 0.0715918552516398,
+      "spearman": 0.06956156489257129,
+      "abs_pearson": 0.0715918552516398
+    },
+    {
+      "feature": "f__vwap__z_5_20",
+      "pearson": 0.07108479253085424,
+      "spearman": 0.07821288541472685,
+      "abs_pearson": 0.07108479253085424
+    },
+    {
+      "feature": "f__vwap__z_5_30",
+      "pearson": 0.0693601418601207,
+      "spearman": 0.07949286981160064,
+      "abs_pearson": 0.0693601418601207
+    },
+    {
+      "feature": "f__vwap__z_5_60",
+      "pearson": 0.06779671493594638,
+      "spearman": 0.07355606585132134,
+      "abs_pearson": 0.06779671493594638
+    },
+    {
+      "feature": "f__vwap__z_10_30",
+      "pearson": 0.0669372302999059,
+      "spearman": 0.06910547165852803,
+      "abs_pearson": 0.0669372302999059
+    },
+    {
+      "feature": "f__conv__range_pos_6",
+      "pearson": 0.06526697181498857,
+      "spearman": 0.055597391716731594,
+      "abs_pearson": 0.06526697181498857
+    },
+    {
+      "feature": "f__vwap__z_20_20",
+      "pearson": 0.06323133406681154,
+      "spearman": 0.06315637847264112,
+      "abs_pearson": 0.06323133406681154
+    },
+    {
+      "feature": "f__conv__body_strength_3",
+      "pearson": 0.06187911156274053,
+      "spearman": 0.05610445383862946,
+      "abs_pearson": 0.06187911156274053
+    },
+    {
+      "feature": "f__conv__range_pos_3",
+      "pearson": 0.0603327022935876,
+      "spearman": 0.053696470862030776,
+      "abs_pearson": 0.0603327022935876
+    },
+    {
+      "feature": "f__ret__simple_3",
+      "pearson": 0.057120963001065304,
+      "spearman": 0.05944392019965251,
+      "abs_pearson": 0.057120963001065304
+    },
+    {
+      "feature": "f__mom__roc_3",
+      "pearson": 0.057120963001065284,
+      "spearman": 0.05944392019965251,
+      "abs_pearson": 0.057120963001065284
+    },
+    {
+      "feature": "f__vwap__dist_5",
+      "pearson": 0.05646508014725043,
+      "spearman": 0.0649635089247507,
+      "abs_pearson": 0.05646508014725043
+    },
+    {
+      "feature": "f__conv__range_pos_12",
+      "pearson": 0.053834282546063976,
+      "spearman": 0.03799850060622323,
+      "abs_pearson": 0.053834282546063976
+    },
+    {
+      "feature": "f__conv__adl_strength_3",
+      "pearson": 0.053824838971391155,
+      "spearman": 0.05177264981990835,
+      "abs_pearson": 0.053824838971391155
+    },
+    {
+      "feature": "f__vwap__z_20_30",
+      "pearson": 0.05335362330863263,
+      "spearman": 0.049346039133064415,
+      "abs_pearson": 0.05335362330863263
+    },
+    {
+      "feature": "f__vwap__z_30_20",
+      "pearson": 0.05313206441650578,
+      "spearman": 0.051331246426977443,
+      "abs_pearson": 0.05313206441650578
+    },
+    {
+      "feature": "f__vwap__dist_10",
+      "pearson": 0.05271384698423881,
+      "spearman": 0.05055789678739534,
+      "abs_pearson": 0.05271384698423881
+    },
+    {
+      "feature": "f__vwap__z_20_60",
+      "pearson": 0.050820929357728674,
+      "spearman": 0.04315291742618341,
+      "abs_pearson": 0.050820929357728674
+    },
+    {
+      "feature": "f__ret__simple_2",
+      "pearson": 0.04857832309880229,
+      "spearman": 0.055398030371965244,
+      "abs_pearson": 0.04857832309880229
+    },
+    {
+      "feature": "f__mom__roc_2",
+      "pearson": 0.04857832309880228,
+      "spearman": 0.055398030371965244,
+      "abs_pearson": 0.04857832309880228
+    },
+    {
+      "feature": "f__mom__roc_6",
+      "pearson": 0.04846614203801978,
+      "spearman": 0.0474658459826201,
+      "abs_pearson": 0.04846614203801978
+    },
+    {
+      "feature": "f__ret__simple_6",
+      "pearson": 0.04846614203801976,
+      "spearman": 0.0474658459826201,
+      "abs_pearson": 0.04846614203801976
+    },
+    {
+      "feature": "f__conv__zscore_3",
+      "pearson": 0.04760834715540104,
+      "spearman": 0.04572046977887134,
+      "abs_pearson": 0.04760834715540104
+    },
+    {
+      "feature": "f__conv__obv_mom_3",
+      "pearson": 0.04753967965729923,
+      "spearman": 0.04520740576647458,
+      "abs_pearson": 0.04753967965729923
+    },
+    {
+      "feature": "f__conv__mom_vol_3",
+      "pearson": 0.047117237646062675,
+      "spearman": 0.05243894661100529,
+      "abs_pearson": 0.047117237646062675
+    },
+    {
+      "feature": "f__conv__zscore_6",
+      "pearson": 0.04709290525511329,
+      "spearman": 0.047460557130838105,
+      "abs_pearson": 0.04709290525511329
+    },
+    {
+      "feature": "f__time__hour_cos",
+      "pearson": 0.04513014339365063,
+      "spearman": 0.037778091464969445,
+      "abs_pearson": 0.04513014339365063
+    },
+    {
+      "feature": "f__conv__zscore_12",
+      "pearson": 0.04259513227330082,
+      "spearman": 0.04179293110967851,
+      "abs_pearson": 0.04259513227330082
+    },
+    {
+      "feature": "f__mom__rsi_6",
+      "pearson": 0.042420591455949036,
+      "spearman": 0.039914629874915064,
+      "abs_pearson": 0.042420591455949036
+    },
+    {
+      "feature": "f__conv__adl_strength_6",
+      "pearson": 0.04117568954063393,
+      "spearman": 0.03841437026302236,
+      "abs_pearson": 0.04117568954063393
+    },
+    {
+      "feature": "f__conv__wick_skew_12",
+      "pearson": 0.040252478635950634,
+      "spearman": 0.04033249863839758,
+      "abs_pearson": 0.040252478635950634
+    },
+    {
+      "feature": "f__conv__body_strength_6",
+      "pearson": 0.039335532238156744,
+      "spearman": 0.03459375915895033,
+      "abs_pearson": 0.039335532238156744
+    },
+    {
+      "feature": "f__vwap__z_30_30",
+      "pearson": 0.0378736333557904,
+      "spearman": 0.03371021303187481,
+      "abs_pearson": 0.0378736333557904
+    },
+    {
+      "feature": "f__vol__rel_6",
+      "pearson": 0.03724220178772846,
+      "spearman": 0.034744055664222194,
+      "abs_pearson": 0.03724220178772846
+    },
+    {
+      "feature": "f__conv__obv_mom_6",
+      "pearson": 0.036601766036843945,
+      "spearman": 0.034319683640201194,
+      "abs_pearson": 0.036601766036843945
+    },
+    {
+      "feature": "f__vwap__z_30_60",
+      "pearson": 0.03564672384677541,
+      "spearman": 0.025666896929829593,
+      "abs_pearson": 0.03564672384677541
+    },
+    {
+      "feature": "f__range__ratio_1.0",
+      "pearson": 0.03461151456277191,
+      "spearman": 0.04444421742646228,
+      "abs_pearson": 0.03461151456277191
+    },
+    {
+      "feature": "f__conv__mom_vol_6",
+      "pearson": 0.033244597158704606,
+      "spearman": 0.037310841667259266,
+      "abs_pearson": 0.033244597158704606
+    },
+    {
+      "feature": "f__time__dow_sin",
+      "pearson": 0.03237785662319498,
+      "spearman": 0.044236596397039654,
+      "abs_pearson": 0.03237785662319498
+    },
+    {
+      "feature": "f__mom__roc_1",
+      "pearson": 0.03114137016224976,
+      "spearman": 0.04110350806895064,
+      "abs_pearson": 0.03114137016224976
+    },
+    {
+      "feature": "f__ret__simple_1",
+      "pearson": 0.03114137016224975,
+      "spearman": 0.04110350806895064,
+      "abs_pearson": 0.03114137016224975
+    },
+    {
+      "feature": "f__conv__adl_strength_12",
+      "pearson": 0.029330529289661317,
+      "spearman": 0.02616773048698937,
+      "abs_pearson": 0.029330529289661317
+    },
+    {
+      "feature": "f__time__hour_sin",
+      "pearson": -0.02783558658879621,
+      "spearman": -0.036464022253283324,
+      "abs_pearson": 0.02783558658879621
+    },
+    {
+      "feature": "f__vwap__dist_20",
+      "pearson": 0.02198064806122615,
+      "spearman": 0.02008799041443856,
+      "abs_pearson": 0.02198064806122615
+    },
+    {
+      "feature": "f__ma__ratio_6",
+      "pearson": 0.021363898470285834,
+      "spearman": 0.058548158256934046,
+      "abs_pearson": 0.021363898470285834
+    },
+    {
+      "feature": "f__ma__ratio_12",
+      "pearson": 0.02093540183280425,
+      "spearman": 0.04185418917911465,
+      "abs_pearson": 0.02093540183280425
+    },
+    {
+      "feature": "f__ret__simple_12",
+      "pearson": 0.020615140717447383,
+      "spearman": 0.00798930873639301,
+      "abs_pearson": 0.020615140717447383
+    },
+    {
+      "feature": "f__mom__roc_12",
+      "pearson": 0.020615140717447376,
+      "spearman": 0.00798930873639301,
+      "abs_pearson": 0.020615140717447376
+    },
+    {
+      "feature": "f__vol__sum_3",
+      "pearson": 0.015023537777960606,
+      "spearman": 0.014670725319460757,
+      "abs_pearson": 0.015023537777960606
+    }
+  ],
+  "bottom_features": [
+    {
+      "feature": "f__mom__roc_12",
+      "pearson": 0.020615140717447376,
+      "spearman": 0.00798930873639301,
+      "abs_pearson": 0.020615140717447376
+    },
+    {
+      "feature": "f__vol__sum_3",
+      "pearson": 0.015023537777960606,
+      "spearman": 0.014670725319460757,
+      "abs_pearson": 0.015023537777960606
+    },
+    {
+      "feature": "f__vol__rolling_std_6",
+      "pearson": 0.01473012742930005,
+      "spearman": 0.020729553228670518,
+      "abs_pearson": 0.01473012742930005
+    },
+    {
+      "feature": "f__conv__wick_skew_3",
+      "pearson": 0.014093052787978346,
+      "spearman": 0.01335224305888937,
+      "abs_pearson": 0.014093052787978346
+    },
+    {
+      "feature": "f__vol__rolling_std_3",
+      "pearson": 0.012804721138707934,
+      "spearman": 0.023133896946660012,
+      "abs_pearson": 0.012804721138707934
+    },
+    {
+      "feature": "f__vol__sum_6",
+      "pearson": 0.012598910021348815,
+      "spearman": 0.0077990643394850664,
+      "abs_pearson": 0.012598910021348815
+    },
+    {
+      "feature": "f__conv__mom_vol_12",
+      "pearson": 0.01254094404952821,
+      "spearman": 0.002613188852682365,
+      "abs_pearson": 0.01254094404952821
+    },
+    {
+      "feature": "f__conv__wick_skew_6",
+      "pearson": 0.010753271503800704,
+      "spearman": 0.010155054470400673,
+      "abs_pearson": 0.010753271503800704
+    },
+    {
+      "feature": "f__time__minute_sin",
+      "pearson": 0.010392894626692573,
+      "spearman": 0.010898516561540145,
+      "abs_pearson": 0.010392894626692573
+    },
+    {
+      "feature": "f__conv__obv_mom_12",
+      "pearson": 0.009252682961210384,
+      "spearman": 0.007082507274884989,
+      "abs_pearson": 0.009252682961210384
+    },
+    {
+      "feature": "f__mom__rsi_12",
+      "pearson": 0.008240279085779472,
+      "spearman": 0.0038249229010609456,
+      "abs_pearson": 0.008240279085779472
+    },
+    {
+      "feature": "f__conv__body_strength_12",
+      "pearson": 0.0062522691181693575,
+      "spearman": -0.0002772477765419031,
+      "abs_pearson": 0.0062522691181693575
+    },
+    {
+      "feature": "f__time__minute_cos",
+      "pearson": -0.006064697613790505,
+      "spearman": -0.0056422384468742,
+      "abs_pearson": 0.006064697613790505
+    },
+    {
+      "feature": "f__vwap__value_6",
+      "pearson": -0.0051428640065233604,
+      "spearman": -0.010770099803703404,
+      "abs_pearson": 0.0051428640065233604
+    },
+    {
+      "feature": "f__vwap__value_3",
+      "pearson": -0.0049175036372980895,
+      "spearman": -0.010497225409198424,
+      "abs_pearson": 0.0049175036372980895
+    },
+    {
+      "feature": "f__ma__ratio_3",
+      "pearson": 0.004697639118868869,
+      "spearman": 0.05401111261765898,
+      "abs_pearson": 0.004697639118868869
+    },
+    {
+      "feature": "f__vwap__dist_30",
+      "pearson": 0.0033962195493240327,
+      "spearman": -0.0011320899540873492,
+      "abs_pearson": 0.0033962195493240327
+    },
+    {
+      "feature": "f__time__dow_cos",
+      "pearson": 0.0026288548073587835,
+      "spearman": -0.0028351530917925683,
+      "abs_pearson": 0.0026288548073587835
+    },
+    {
+      "feature": "f__vol__atr_6",
+      "pearson": 0.0003685357686296503,
+      "spearman": 0.006919029712234004,
+      "abs_pearson": 0.0003685357686296503
+    },
+    {
+      "feature": "f__vol__atr_3",
+      "pearson": 0.0002537616056693029,
+      "spearman": 0.01349612340350469,
+      "abs_pearson": 0.0002537616056693029
+    }
+  ],
+  "all_correlations": [
+    {
+      "feature": "f__vwap__z_10_20",
+      "pearson": 0.07521644411431058,
+      "spearman": 0.07842428607512562,
+      "abs_pearson": 0.07521644411431058
+    },
+    {
+      "feature": "f__vwap__z_10_60",
+      "pearson": 0.0715918552516398,
+      "spearman": 0.06956156489257129,
+      "abs_pearson": 0.0715918552516398
+    },
+    {
+      "feature": "f__vwap__z_5_20",
+      "pearson": 0.07108479253085424,
+      "spearman": 0.07821288541472685,
+      "abs_pearson": 0.07108479253085424
+    },
+    {
+      "feature": "f__vwap__z_5_30",
+      "pearson": 0.0693601418601207,
+      "spearman": 0.07949286981160064,
+      "abs_pearson": 0.0693601418601207
+    },
+    {
+      "feature": "f__vwap__z_5_60",
+      "pearson": 0.06779671493594638,
+      "spearman": 0.07355606585132134,
+      "abs_pearson": 0.06779671493594638
+    },
+    {
+      "feature": "f__vwap__z_10_30",
+      "pearson": 0.0669372302999059,
+      "spearman": 0.06910547165852803,
+      "abs_pearson": 0.0669372302999059
+    },
+    {
+      "feature": "f__conv__range_pos_6",
+      "pearson": 0.06526697181498857,
+      "spearman": 0.055597391716731594,
+      "abs_pearson": 0.06526697181498857
+    },
+    {
+      "feature": "f__vwap__z_20_20",
+      "pearson": 0.06323133406681154,
+      "spearman": 0.06315637847264112,
+      "abs_pearson": 0.06323133406681154
+    },
+    {
+      "feature": "f__conv__body_strength_3",
+      "pearson": 0.06187911156274053,
+      "spearman": 0.05610445383862946,
+      "abs_pearson": 0.06187911156274053
+    },
+    {
+      "feature": "f__conv__range_pos_3",
+      "pearson": 0.0603327022935876,
+      "spearman": 0.053696470862030776,
+      "abs_pearson": 0.0603327022935876
+    },
+    {
+      "feature": "f__ret__simple_3",
+      "pearson": 0.057120963001065304,
+      "spearman": 0.05944392019965251,
+      "abs_pearson": 0.057120963001065304
+    },
+    {
+      "feature": "f__mom__roc_3",
+      "pearson": 0.057120963001065284,
+      "spearman": 0.05944392019965251,
+      "abs_pearson": 0.057120963001065284
+    },
+    {
+      "feature": "f__vwap__dist_5",
+      "pearson": 0.05646508014725043,
+      "spearman": 0.0649635089247507,
+      "abs_pearson": 0.05646508014725043
+    },
+    {
+      "feature": "f__conv__range_pos_12",
+      "pearson": 0.053834282546063976,
+      "spearman": 0.03799850060622323,
+      "abs_pearson": 0.053834282546063976
+    },
+    {
+      "feature": "f__conv__adl_strength_3",
+      "pearson": 0.053824838971391155,
+      "spearman": 0.05177264981990835,
+      "abs_pearson": 0.053824838971391155
+    },
+    {
+      "feature": "f__vwap__z_20_30",
+      "pearson": 0.05335362330863263,
+      "spearman": 0.049346039133064415,
+      "abs_pearson": 0.05335362330863263
+    },
+    {
+      "feature": "f__vwap__z_30_20",
+      "pearson": 0.05313206441650578,
+      "spearman": 0.051331246426977443,
+      "abs_pearson": 0.05313206441650578
+    },
+    {
+      "feature": "f__vwap__dist_10",
+      "pearson": 0.05271384698423881,
+      "spearman": 0.05055789678739534,
+      "abs_pearson": 0.05271384698423881
+    },
+    {
+      "feature": "f__vwap__z_20_60",
+      "pearson": 0.050820929357728674,
+      "spearman": 0.04315291742618341,
+      "abs_pearson": 0.050820929357728674
+    },
+    {
+      "feature": "f__ret__simple_2",
+      "pearson": 0.04857832309880229,
+      "spearman": 0.055398030371965244,
+      "abs_pearson": 0.04857832309880229
+    },
+    {
+      "feature": "f__mom__roc_2",
+      "pearson": 0.04857832309880228,
+      "spearman": 0.055398030371965244,
+      "abs_pearson": 0.04857832309880228
+    },
+    {
+      "feature": "f__mom__roc_6",
+      "pearson": 0.04846614203801978,
+      "spearman": 0.0474658459826201,
+      "abs_pearson": 0.04846614203801978
+    },
+    {
+      "feature": "f__ret__simple_6",
+      "pearson": 0.04846614203801976,
+      "spearman": 0.0474658459826201,
+      "abs_pearson": 0.04846614203801976
+    },
+    {
+      "feature": "f__conv__zscore_3",
+      "pearson": 0.04760834715540104,
+      "spearman": 0.04572046977887134,
+      "abs_pearson": 0.04760834715540104
+    },
+    {
+      "feature": "f__conv__obv_mom_3",
+      "pearson": 0.04753967965729923,
+      "spearman": 0.04520740576647458,
+      "abs_pearson": 0.04753967965729923
+    },
+    {
+      "feature": "f__conv__mom_vol_3",
+      "pearson": 0.047117237646062675,
+      "spearman": 0.05243894661100529,
+      "abs_pearson": 0.047117237646062675
+    },
+    {
+      "feature": "f__conv__zscore_6",
+      "pearson": 0.04709290525511329,
+      "spearman": 0.047460557130838105,
+      "abs_pearson": 0.04709290525511329
+    },
+    {
+      "feature": "f__time__hour_cos",
+      "pearson": 0.04513014339365063,
+      "spearman": 0.037778091464969445,
+      "abs_pearson": 0.04513014339365063
+    },
+    {
+      "feature": "f__conv__zscore_12",
+      "pearson": 0.04259513227330082,
+      "spearman": 0.04179293110967851,
+      "abs_pearson": 0.04259513227330082
+    },
+    {
+      "feature": "f__mom__rsi_6",
+      "pearson": 0.042420591455949036,
+      "spearman": 0.039914629874915064,
+      "abs_pearson": 0.042420591455949036
+    },
+    {
+      "feature": "f__conv__adl_strength_6",
+      "pearson": 0.04117568954063393,
+      "spearman": 0.03841437026302236,
+      "abs_pearson": 0.04117568954063393
+    },
+    {
+      "feature": "f__conv__wick_skew_12",
+      "pearson": 0.040252478635950634,
+      "spearman": 0.04033249863839758,
+      "abs_pearson": 0.040252478635950634
+    },
+    {
+      "feature": "f__conv__body_strength_6",
+      "pearson": 0.039335532238156744,
+      "spearman": 0.03459375915895033,
+      "abs_pearson": 0.039335532238156744
+    },
+    {
+      "feature": "f__vwap__z_30_30",
+      "pearson": 0.0378736333557904,
+      "spearman": 0.03371021303187481,
+      "abs_pearson": 0.0378736333557904
+    },
+    {
+      "feature": "f__vol__rel_6",
+      "pearson": 0.03724220178772846,
+      "spearman": 0.034744055664222194,
+      "abs_pearson": 0.03724220178772846
+    },
+    {
+      "feature": "f__conv__obv_mom_6",
+      "pearson": 0.036601766036843945,
+      "spearman": 0.034319683640201194,
+      "abs_pearson": 0.036601766036843945
+    },
+    {
+      "feature": "f__vwap__z_30_60",
+      "pearson": 0.03564672384677541,
+      "spearman": 0.025666896929829593,
+      "abs_pearson": 0.03564672384677541
+    },
+    {
+      "feature": "f__range__ratio_1.0",
+      "pearson": 0.03461151456277191,
+      "spearman": 0.04444421742646228,
+      "abs_pearson": 0.03461151456277191
+    },
+    {
+      "feature": "f__conv__mom_vol_6",
+      "pearson": 0.033244597158704606,
+      "spearman": 0.037310841667259266,
+      "abs_pearson": 0.033244597158704606
+    },
+    {
+      "feature": "f__time__dow_sin",
+      "pearson": 0.03237785662319498,
+      "spearman": 0.044236596397039654,
+      "abs_pearson": 0.03237785662319498
+    },
+    {
+      "feature": "f__mom__roc_1",
+      "pearson": 0.03114137016224976,
+      "spearman": 0.04110350806895064,
+      "abs_pearson": 0.03114137016224976
+    },
+    {
+      "feature": "f__ret__simple_1",
+      "pearson": 0.03114137016224975,
+      "spearman": 0.04110350806895064,
+      "abs_pearson": 0.03114137016224975
+    },
+    {
+      "feature": "f__conv__adl_strength_12",
+      "pearson": 0.029330529289661317,
+      "spearman": 0.02616773048698937,
+      "abs_pearson": 0.029330529289661317
+    },
+    {
+      "feature": "f__time__hour_sin",
+      "pearson": -0.02783558658879621,
+      "spearman": -0.036464022253283324,
+      "abs_pearson": 0.02783558658879621
+    },
+    {
+      "feature": "f__vwap__dist_20",
+      "pearson": 0.02198064806122615,
+      "spearman": 0.02008799041443856,
+      "abs_pearson": 0.02198064806122615
+    },
+    {
+      "feature": "f__ma__ratio_6",
+      "pearson": 0.021363898470285834,
+      "spearman": 0.058548158256934046,
+      "abs_pearson": 0.021363898470285834
+    },
+    {
+      "feature": "f__ma__ratio_12",
+      "pearson": 0.02093540183280425,
+      "spearman": 0.04185418917911465,
+      "abs_pearson": 0.02093540183280425
+    },
+    {
+      "feature": "f__ret__simple_12",
+      "pearson": 0.020615140717447383,
+      "spearman": 0.00798930873639301,
+      "abs_pearson": 0.020615140717447383
+    },
+    {
+      "feature": "f__mom__roc_12",
+      "pearson": 0.020615140717447376,
+      "spearman": 0.00798930873639301,
+      "abs_pearson": 0.020615140717447376
+    },
+    {
+      "feature": "f__vol__sum_3",
+      "pearson": 0.015023537777960606,
+      "spearman": 0.014670725319460757,
+      "abs_pearson": 0.015023537777960606
+    },
+    {
+      "feature": "f__vol__rolling_std_6",
+      "pearson": 0.01473012742930005,
+      "spearman": 0.020729553228670518,
+      "abs_pearson": 0.01473012742930005
+    },
+    {
+      "feature": "f__conv__wick_skew_3",
+      "pearson": 0.014093052787978346,
+      "spearman": 0.01335224305888937,
+      "abs_pearson": 0.014093052787978346
+    },
+    {
+      "feature": "f__vol__rolling_std_3",
+      "pearson": 0.012804721138707934,
+      "spearman": 0.023133896946660012,
+      "abs_pearson": 0.012804721138707934
+    },
+    {
+      "feature": "f__vol__sum_6",
+      "pearson": 0.012598910021348815,
+      "spearman": 0.0077990643394850664,
+      "abs_pearson": 0.012598910021348815
+    },
+    {
+      "feature": "f__conv__mom_vol_12",
+      "pearson": 0.01254094404952821,
+      "spearman": 0.002613188852682365,
+      "abs_pearson": 0.01254094404952821
+    },
+    {
+      "feature": "f__conv__wick_skew_6",
+      "pearson": 0.010753271503800704,
+      "spearman": 0.010155054470400673,
+      "abs_pearson": 0.010753271503800704
+    },
+    {
+      "feature": "f__time__minute_sin",
+      "pearson": 0.010392894626692573,
+      "spearman": 0.010898516561540145,
+      "abs_pearson": 0.010392894626692573
+    },
+    {
+      "feature": "f__conv__obv_mom_12",
+      "pearson": 0.009252682961210384,
+      "spearman": 0.007082507274884989,
+      "abs_pearson": 0.009252682961210384
+    },
+    {
+      "feature": "f__mom__rsi_12",
+      "pearson": 0.008240279085779472,
+      "spearman": 0.0038249229010609456,
+      "abs_pearson": 0.008240279085779472
+    },
+    {
+      "feature": "f__conv__body_strength_12",
+      "pearson": 0.0062522691181693575,
+      "spearman": -0.0002772477765419031,
+      "abs_pearson": 0.0062522691181693575
+    },
+    {
+      "feature": "f__time__minute_cos",
+      "pearson": -0.006064697613790505,
+      "spearman": -0.0056422384468742,
+      "abs_pearson": 0.006064697613790505
+    },
+    {
+      "feature": "f__vwap__value_6",
+      "pearson": -0.0051428640065233604,
+      "spearman": -0.010770099803703404,
+      "abs_pearson": 0.0051428640065233604
+    },
+    {
+      "feature": "f__vwap__value_3",
+      "pearson": -0.0049175036372980895,
+      "spearman": -0.010497225409198424,
+      "abs_pearson": 0.0049175036372980895
+    },
+    {
+      "feature": "f__ma__ratio_3",
+      "pearson": 0.004697639118868869,
+      "spearman": 0.05401111261765898,
+      "abs_pearson": 0.004697639118868869
+    },
+    {
+      "feature": "f__vwap__dist_30",
+      "pearson": 0.0033962195493240327,
+      "spearman": -0.0011320899540873492,
+      "abs_pearson": 0.0033962195493240327
+    },
+    {
+      "feature": "f__time__dow_cos",
+      "pearson": 0.0026288548073587835,
+      "spearman": -0.0028351530917925683,
+      "abs_pearson": 0.0026288548073587835
+    },
+    {
+      "feature": "f__vol__atr_6",
+      "pearson": 0.0003685357686296503,
+      "spearman": 0.006919029712234004,
+      "abs_pearson": 0.0003685357686296503
+    },
+    {
+      "feature": "f__vol__atr_3",
+      "pearson": 0.0002537616056693029,
+      "spearman": 0.01349612340350469,
+      "abs_pearson": 0.0002537616056693029
+    }
+  ]
+}
