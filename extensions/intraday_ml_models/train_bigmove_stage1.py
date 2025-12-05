@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import logging
 import pandas as pd
 
 from extensions.intraday_ml.utils.heartbeat import HeartbeatLogger
@@ -24,7 +24,7 @@ from .bigmove_training_utils import (
     select_feature_columns,
     train_binary_model,
 )
-
+from .feature_performance import log_feature_performance
 
 DEFAULT_DATASET_CONFIG = Path("configs/extensions/intraday_ml/phaseA_sip_full.yaml")
 DEFAULT_TARGETS_CONFIG = Path("configs/extensions/intraday_ml/targets_bigmove.yaml")
@@ -34,7 +34,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Train Stage 1 big-move probability model")
+    parser = argparse.ArgumentParser(
+        description="Train Stage 1 big-move probability model"
+    )
     parser.add_argument(
         "--dataset-config",
         type=Path,
@@ -78,7 +80,16 @@ def build_training_settings(config: dict[str, Any]) -> TrainingSettings:
     seed = int(training_cfg.get("seed", config.get("seed", 17)))
     n_folds = int(training_cfg.get("n_folds", 5))
     threshold = float(training_cfg.get("decision_threshold", 0.5))
-    class_weight = training_cfg.get("class_weight")
+
+    # Handle both class_weight and class_weights (plural)
+    class_weight = config.get("class_weights") or training_cfg.get("class_weight")
+
+    # If class_weights has auto_balance config, convert to "balanced"
+    if isinstance(class_weight, dict) and "auto_balance" in class_weight:
+        auto_cfg = class_weight["auto_balance"]
+        if auto_cfg.get("enabled", False):
+            class_weight = "balanced"
+
     return TrainingSettings(
         seed=seed,
         n_folds=max(2, n_folds),
@@ -89,7 +100,9 @@ def build_training_settings(config: dict[str, Any]) -> TrainingSettings:
 
 def main() -> None:
     args = parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s"
+    )
     with HeartbeatLogger("bigmove_stage1_training", interval_seconds=60):
         LOGGER.info("Loading master/targets/model configs ...")
         master_config, includes = load_master_and_includes(args.dataset_config)
@@ -135,9 +148,20 @@ def main() -> None:
             settings=settings,
         )
 
+        LOGGER.info("Analyzing feature performance...")
+        feature_perf = log_feature_performance(
+            features=features,
+            labels=labels,
+            model=model,
+            feature_columns=feature_columns,
+            output_dir=args.output_root,
+        )
+
         features_hash, targets_hash = compute_hashes(features, labels)
 
-        class_distribution = {int(k): int(v) for k, v in labels.value_counts().to_dict().items()}
+        class_distribution = {
+            int(k): int(v) for k, v in labels.value_counts().to_dict().items()
+        }
         metadata = {
             "stage": "stage1_probability",
             "target_name": target_col,
@@ -146,6 +170,7 @@ def main() -> None:
             "class_distribution": class_distribution,
             "metrics": metrics,
             "cv_metrics": cv_result,
+            "feature_performance": feature_perf,
             "features_hash": features_hash,
             "targets_hash": targets_hash,
             "dataset": {
@@ -170,7 +195,9 @@ def main() -> None:
         )
 
     LOGGER.info(
-        "Stage 1 training complete: samples=%d positive_rate=%.4f", len(labels), metrics["positive_rate"]
+        "Stage 1 training complete: samples=%d positive_rate=%.4f",
+        len(labels),
+        metrics["positive_rate"],
     )
     LOGGER.info("Model path: %s", args.output_root / "model.pkl")
 

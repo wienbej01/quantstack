@@ -8,11 +8,7 @@ python -m extensions.intraday_ml_models.train_bigmove_stage1 \
  --output-root artefacts/extensions/intraday_ml/bigmove_stage1
 
  # 2. Train Stage 2 Model (Direction of Move)
-python -m extensions.intraday_ml_models.train_bigmove_stage2_dir \
---dataset-config configs/extensions/intraday_ml/phaseA_sip_full.yaml \
---targets-config configs/extensions/intraday_ml/targets_bigmove.yaml \
---model-config configs/extensions/intraday_ml/model_bigmove_stage2_dir.yaml \
---output-root artefacts/extensions/intraday_ml/bigmove_stage2_dir
+
 
 # 3. Generate Out-of-Sample Scores
 python -m extensions.intraday_ml.experiments.score_bigmove_oos \
