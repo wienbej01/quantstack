@@ -35,6 +35,15 @@ class MLStrategyDetailed(bt.Strategy):
         if current_dt.tzinfo is None:
             current_dt = current_dt.replace(tzinfo=pd.Timestamp('now', tz='UTC').tzinfo)
         
+        # Force close all positions at 15:55 ET
+        current_et = current_dt.tz_convert('America/New_York')
+        if current_et.time() >= pd.Timestamp('15:55').time():
+            for data in self.datas:
+                position = self.getposition(data)
+                if position.size != 0:
+                    self.close(data)
+            return
+        
         dt_key = current_dt.floor('1min')
         
         if dt_key not in self.orders_by_ts:
