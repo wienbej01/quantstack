@@ -1,57 +1,34 @@
 # Quick Start - Resume v4 Implementation
 
-**Last Updated**: 2025-12-06 14:02 SGT
+**Last Updated**: 2025-12-06 16:37 SGT
 
 ---
 
-## Current Status: Feature Store Building
+## Current Status: Ready for Training Data Generation
 
-**Process**: Parallel feature store build (1,108 symbols)  
-**Started**: 13:56 SGT  
-**ETA**: 17:00 SGT (~3 hours remaining)
+**Completed**:
+- ✅ Feature Store (11,133 rows, 507 symbols, May 2024)
+- ✅ SIP Selection (34 rows, 13 symbols, avg 2/day)
 
----
-
-## Check Status
-
-```bash
-# Is feature store complete?
-ls -lh run/daily_features/features.parquet
-
-# Monitor progress
-tail -f /tmp/build_features_parallel.log
-
-# Check if running
-ps aux | grep "build_daily_feature_store_parallel" | grep python
-```
+**Next**: Generate training data for selected stocks
 
 ---
 
-## Next Steps (When Feature Store Completes)
+## Next Step: Training Data Generation (30-60 min)
 
-### 1. SIP Selection (< 1 min)
 ```bash
-python scripts/generate_smb_sip_from_features_no_pm.py
-```
-
-**Validate**:
-```bash
-python -c "
-import pandas as pd
-df = pd.read_parquet('run/sip_membership_smb_1month/sip_membership.parquet')
-print(f'Rows: {len(df)}, Symbols: {df[\"symbol\"].nunique()}, Avg/day: {len(df)/df[\"date\"].nunique():.1f}')
-"
-```
-**Expected**: 400-500 rows, 100-200 symbols, 15-25 avg/day
-
----
-
-### 2. Training Data (30-60 min)
-```bash
+cd /home/jacobw/quantstack
 python scripts/generate_training_data_subset.py
 ```
 
+**Monitor**:
+```bash
+tail -f /tmp/training_gen.log  # if logging to file
+```
+
 ---
+
+## Remaining Steps
 
 ### 3. Train Models (15 min)
 ```bash
