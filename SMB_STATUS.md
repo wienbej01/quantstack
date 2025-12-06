@@ -1,8 +1,17 @@
 # SMB Implementation Status
 
-**Date**: 2025-12-06 11:07 SGT  
+**Date**: 2025-12-06 14:02 SGT  
 **Session**: Session 2 (Continuation)  
-**Status**: ⏳ In Progress - Option 2 (100-Symbol Subset Test)
+**Status**: ⏳ In Progress - Feature Store Build Running
+
+---
+
+## Quick Links
+
+- **Technical Overview**: `SYSTEM_OVERVIEW.md` - Complete system architecture and trading strategy
+- **Project Management**: `PROJECT_STATUS.md` - Step-by-step workflow and troubleshooting
+- **Original Plan**: `NEXT_SESSION_PLAN.md` - Initial implementation plan
+- **Implementation Details**: `SMB_IMPLEMENTATION_SUMMARY.md` - Detailed discoveries
 
 ---
 
@@ -81,4 +90,8 @@
 
 ---
 
-**Current Action**: Monitoring training data generation (started 11:03 SGT, ETA 11:33-12:03 SGT)
+**Current Actions**:
+1. Training data generation for 100 symbols (started 11:03 SGT) - RUNNING
+2. Parallel feature store build for 1,108 symbols (started 13:56 SGT) - RUNNING
+
+**Key Discovery**: Gold data has NO premarket bars - SMB filters modified to use gap + ATR + ADV only (no PM RVOL)
