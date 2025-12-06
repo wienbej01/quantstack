@@ -38,29 +38,34 @@ ps aux | grep "build_daily_feature_store_parallel" | grep python
 
 ---
 
-## Current State (2025-12-06 16:37 SGT)
+## Current State (2025-12-06 16:48 SGT)
 
 ### Completed
 1. ✅ **Feature Store Build** (Phase 1)
-   - Completed: 16:35 SGT
-   - Output: `run/daily_features/features.parquet`
-   - Stats: 11,133 rows, 507 symbols, 22 dates (May 2024)
-   
 2. ✅ **SIP Selection** (Phase 2)
-   - Completed: 16:37 SGT
-   - Output: `run/sip_membership_smb_1month/sip_membership.parquet`
-   - Stats: 34 rows, 13 symbols, avg 2 stocks/day
-   - Top symbols: SMCI (9 days), MU (6 days), AMD (4 days)
+3. ✅ **Training Data Generation** (Phase 3)
+   - Output: `artefacts/extensions/intraday_ml/v4_sip_smb/training_data.parquet`
+   - Stats: 111,060 rows, 13 symbols, May 2024
+   - Labels: 55,734 LONG, 53,698 SHORT, 1,628 NEUTRAL
+   
+4. ✅ **Model Training** (Phase 4)
+   - Output: `models/v4_sip_smb_long.txt`, `models/v4_sip_smb_short.txt`
+   - LONG AUC: 0.5142 (⚠️ LOW - needs better features)
+   - SHORT AUC: 0.5158 (⚠️ LOW - needs better features)
+   - **Note**: Simple features only (returns, range, volume ratio)
 
 ### Next Steps
-3. ⏸️ **Training Data Generation** (Phase 3) - READY TO RUN
-4. ⏸️ **Model Training** (Phase 4)
-5. ⏸️ **Prediction Generation** (Phase 5)
+5. ⏸️ **Prediction Generation** (Phase 5) - READY TO RUN
 6. ⏸️ **Backtesting** (Phase 6)
 7. ⏸️ **Performance Comparison** (Phase 7)
 
+### Known Issues
+- ⚠️ Model AUC is low (0.51) - simple features not predictive
+- ⚠️ Need proper feature engineering (existing `create_training_dataset` doesn't generate features)
+- ⚠️ For production, need to fix feature generation pipeline
+
 ### Active Processes
-None - Ready for Phase 3
+None - Ready for Phase 5 (with caveat about model quality)
 
 ---
 

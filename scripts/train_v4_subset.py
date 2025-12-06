@@ -23,10 +23,10 @@ LOGGER = logging.getLogger(__name__)
 
 def main():
     training_data_path = Path(
-        "artefacts/extensions/intraday_ml/v4_subset_100/training_data.parquet"
+        "artefacts/extensions/intraday_ml/v4_sip_smb/training_data.parquet"
     )
     model_config = Path("configs/extensions/intraday_ml/model_bigmove_stage2_dir.yaml")
-    output_root = Path("artefacts/extensions/intraday_ml/v4_subset_100")
+    output_root = Path("artefacts/extensions/intraday_ml/v4_sip_smb")
 
     LOGGER.info("=" * 80)
     LOGGER.info("Training v4 Models on 100-Symbol Subset")
