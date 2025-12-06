@@ -38,36 +38,45 @@ ps aux | grep "build_daily_feature_store_parallel" | grep python
 
 ---
 
-## Current State (2025-12-06 17:14 SGT)
+## Current State (2025-12-06 17:16 SGT)
 
-### Completed
+### Completed - ALL PHASES ✅
 1. ✅ **Feature Store Build** (Phase 1)
 2. ✅ **SIP Selection** (Phase 2)
-3. ✅ **Training Data Generation** (Phase 3) - FIXED
-   - Output: `artefacts/extensions/intraday_ml/v4_sip_smb_simple/training_data.parquet`
-   - Stats: 110,670 rows, 13 symbols, May 2024
-   - Labels: 1,704 LONG (1.5%), 1,194 SHORT (1.1%), 107,772 NEUTRAL (97.4%)
-   - **Fixed**: Replaced broken ATR-based balancing with simple ±2% threshold
+3. ✅ **Training Data Generation** (Phase 3)
+4. ✅ **Model Training** (Phase 4)
+5. ✅ **Prediction Generation** (Phase 5)
+   - 35 signals (9 LONG, 26 SHORT)
+   - 1.6 signals/day
+   - Threshold: 0.50
    
-4. ✅ **Model Training** (Phase 4) - FIXED
-   - Output: `models/v4_sip_smb_simple_long.txt`, `models/v4_sip_smb_simple_short.txt`
-   - LONG AUC: 0.7018 (✅ GOOD - was 0.51)
-   - SHORT AUC: 0.7855 (✅ GOOD - was 0.52)
-   - Simple features: returns, range, volume ratio
+6. ✅ **Backtesting** (Phase 6)
+   - Win rate: 100% (⚠️ OVERFITTED - trained and tested on same data)
+   - Avg P&L: 2.70%
+   - Total P&L: 94.46%
+   - **Caveat**: No train/val/OOS split due to small dataset (1 month only)
 
-### Next Steps
-5. ⏸️ **Prediction Generation** (Phase 5) - READY TO RUN
-6. ⏸️ **Backtesting** (Phase 6)
-7. ⏸️ **Performance Comparison** (Phase 7)
+### Assessment
+✅ **Workflow validated** - Complete pipeline works end-to-end
+❌ **Performance metrics unreliable** - Overfitting on training data
+❌ **Dataset too small** - 13 symbols × 22 days insufficient for ML
+✅ **Label generation fixed** - Simple ±2% threshold works correctly
+✅ **Model quality improved** - AUC 0.70-0.79 (was 0.51)
 
-### Key Discovery
-- ⚠️ Original labeler had `directional_balance` enabled, forcing 50/50 LONG/SHORT split
-- ⚠️ This labeled 99% of bars as tradeable (wrong!)
-- ✅ Fixed with simple ±2% threshold → 2.6% labeled (realistic)
-- ✅ Model quality improved significantly (AUC 0.51 → 0.70-0.79)
+### Next Steps for Production
+1. Expand feature store to 3-6 months (Jan-Jun 2024)
+2. Use all 507 symbols (not just 13 SIP members)
+3. Split: 60% train, 20% validation, 20% OOS
+4. Retrain models on larger dataset
+5. Test on true OOS data
+6. Compare v3 vs v4 on same OOS period
 
-### Active Processes
-None - Ready for Phase 5
+### Key Learnings
+- ✅ SIP selection works (dynamic daily lists)
+- ✅ Feature store approach is fast (seconds vs hours)
+- ✅ Simple labeling (±2%) better than ATR-based balancing
+- ⚠️ Need 100+ symbols and 3+ months for reliable ML
+- ⚠️ Current results are proof-of-concept only
 
 ---
 
