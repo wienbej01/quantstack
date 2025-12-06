@@ -38,34 +38,36 @@ ps aux | grep "build_daily_feature_store_parallel" | grep python
 
 ---
 
-## Current State (2025-12-06 16:48 SGT)
+## Current State (2025-12-06 17:14 SGT)
 
 ### Completed
 1. ✅ **Feature Store Build** (Phase 1)
 2. ✅ **SIP Selection** (Phase 2)
-3. ✅ **Training Data Generation** (Phase 3)
-   - Output: `artefacts/extensions/intraday_ml/v4_sip_smb/training_data.parquet`
-   - Stats: 111,060 rows, 13 symbols, May 2024
-   - Labels: 55,734 LONG, 53,698 SHORT, 1,628 NEUTRAL
+3. ✅ **Training Data Generation** (Phase 3) - FIXED
+   - Output: `artefacts/extensions/intraday_ml/v4_sip_smb_simple/training_data.parquet`
+   - Stats: 110,670 rows, 13 symbols, May 2024
+   - Labels: 1,704 LONG (1.5%), 1,194 SHORT (1.1%), 107,772 NEUTRAL (97.4%)
+   - **Fixed**: Replaced broken ATR-based balancing with simple ±2% threshold
    
-4. ✅ **Model Training** (Phase 4)
-   - Output: `models/v4_sip_smb_long.txt`, `models/v4_sip_smb_short.txt`
-   - LONG AUC: 0.5142 (⚠️ LOW - needs better features)
-   - SHORT AUC: 0.5158 (⚠️ LOW - needs better features)
-   - **Note**: Simple features only (returns, range, volume ratio)
+4. ✅ **Model Training** (Phase 4) - FIXED
+   - Output: `models/v4_sip_smb_simple_long.txt`, `models/v4_sip_smb_simple_short.txt`
+   - LONG AUC: 0.7018 (✅ GOOD - was 0.51)
+   - SHORT AUC: 0.7855 (✅ GOOD - was 0.52)
+   - Simple features: returns, range, volume ratio
 
 ### Next Steps
 5. ⏸️ **Prediction Generation** (Phase 5) - READY TO RUN
 6. ⏸️ **Backtesting** (Phase 6)
 7. ⏸️ **Performance Comparison** (Phase 7)
 
-### Known Issues
-- ⚠️ Model AUC is low (0.51) - simple features not predictive
-- ⚠️ Need proper feature engineering (existing `create_training_dataset` doesn't generate features)
-- ⚠️ For production, need to fix feature generation pipeline
+### Key Discovery
+- ⚠️ Original labeler had `directional_balance` enabled, forcing 50/50 LONG/SHORT split
+- ⚠️ This labeled 99% of bars as tradeable (wrong!)
+- ✅ Fixed with simple ±2% threshold → 2.6% labeled (realistic)
+- ✅ Model quality improved significantly (AUC 0.51 → 0.70-0.79)
 
 ### Active Processes
-None - Ready for Phase 5 (with caveat about model quality)
+None - Ready for Phase 5
 
 ---
 

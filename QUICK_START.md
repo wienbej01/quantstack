@@ -1,45 +1,26 @@
 # Quick Start - Resume v4 Implementation
 
-**Last Updated**: 2025-12-06 16:37 SGT
+**Last Updated**: 2025-12-06 17:14 SGT
 
 ---
 
-## Current Status: Ready for Training Data Generation
+## Current Status: Ready for Prediction Generation
 
 **Completed**:
 - ✅ Feature Store (11,133 rows, 507 symbols, May 2024)
 - ✅ SIP Selection (34 rows, 13 symbols, avg 2/day)
+- ✅ Training Data (110,670 rows, 1.5% LONG, 1.1% SHORT, 97.4% NEUTRAL)
+- ✅ Models Trained (LONG AUC: 0.70, SHORT AUC: 0.79)
 
-**Next**: Generate training data for selected stocks
+**Next**: Generate predictions with prob ≥ 0.75 threshold
 
 ---
 
-## Next Step: Training Data Generation (30-60 min)
+## Next Step: Prediction Generation (10 min)
 
 ```bash
 cd /home/jacobw/quantstack
-python scripts/generate_training_data_subset.py
-```
-
-**Monitor**:
-```bash
-tail -f /tmp/training_gen.log  # if logging to file
-```
-
----
-
-## Remaining Steps
-
-### 3. Train Models (15 min)
-```bash
-python scripts/train_v4_subset.py
-```
-
----
-
-### 4. Generate Predictions (10 min)
-```bash
-python scripts/generate_v4_predictions.py
+python scripts/generate_v4_predictions_simple.py
 ```
 
 ---
