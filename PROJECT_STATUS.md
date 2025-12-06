@@ -38,45 +38,39 @@ ps aux | grep "build_daily_feature_store_parallel" | grep python
 
 ---
 
-## Current State (2025-12-06 17:16 SGT)
+## Current State (2025-12-06 17:18 SGT)
 
-### Completed - ALL PHASES ✅
-1. ✅ **Feature Store Build** (Phase 1)
-2. ✅ **SIP Selection** (Phase 2)
-3. ✅ **Training Data Generation** (Phase 3)
-4. ✅ **Model Training** (Phase 4)
-5. ✅ **Prediction Generation** (Phase 5)
-   - 35 signals (9 LONG, 26 SHORT)
-   - 1.6 signals/day
-   - Threshold: 0.50
-   
-6. ✅ **Backtesting** (Phase 6)
-   - Win rate: 100% (⚠️ OVERFITTED - trained and tested on same data)
-   - Avg P&L: 2.70%
-   - Total P&L: 94.46%
-   - **Caveat**: No train/val/OOS split due to small dataset (1 month only)
+### In Progress - 3-Month Expansion
+**Feature Store Build (3 months: Mar-May 2024)**
+- Started: 17:18 SGT
+- Symbols: 1,108
+- Workers: 8 parallel
+- Features: Checkpointing every 50 symbols
+- Heartbeat: Every 60 seconds
+- ETA: ~3-4 hours
+- Log: `/tmp/build_features_3months.log`
 
-### Assessment
-✅ **Workflow validated** - Complete pipeline works end-to-end
-❌ **Performance metrics unreliable** - Overfitting on training data
-❌ **Dataset too small** - 13 symbols × 22 days insufficient for ML
-✅ **Label generation fixed** - Simple ±2% threshold works correctly
-✅ **Model quality improved** - AUC 0.70-0.79 (was 0.51)
+### Completed - 1-Month Proof of Concept ✅
+1. ✅ Feature Store (May 2024)
+2. ✅ SIP Selection (34 rows, 13 symbols)
+3. ✅ Training Data (110,670 rows, 2.6% labeled)
+4. ✅ Model Training (AUC 0.70-0.79)
+5. ✅ Predictions (35 signals)
+6. ✅ Backtest (100% win rate - overfitted)
 
-### Next Steps for Production
-1. Expand feature store to 3-6 months (Jan-Jun 2024)
-2. Use all 507 symbols (not just 13 SIP members)
-3. Split: 60% train, 20% validation, 20% OOS
-4. Retrain models on larger dataset
-5. Test on true OOS data
-6. Compare v3 vs v4 on same OOS period
+### Next Steps (After 3-Month Feature Store)
+1. Generate SIP membership for 3 months
+2. Generate training data (split: 60% train, 20% val, 20% OOS)
+3. Retrain models on larger dataset
+4. Generate predictions on OOS data
+5. Backtest on true OOS period
+6. Compare v3 vs v4 performance
 
-### Key Learnings
-- ✅ SIP selection works (dynamic daily lists)
-- ✅ Feature store approach is fast (seconds vs hours)
-- ✅ Simple labeling (±2%) better than ATR-based balancing
-- ⚠️ Need 100+ symbols and 3+ months for reliable ML
-- ⚠️ Current results are proof-of-concept only
+### Improvements in 3-Month Build
+- ✅ Checkpointing every 50 symbols (prevents data loss)
+- ✅ Heartbeat logging every 60 seconds (detects silent failures)
+- ✅ Resume capability (can restart from checkpoint)
+- ✅ Batch saving (intermediate results preserved)
 
 ---
 
