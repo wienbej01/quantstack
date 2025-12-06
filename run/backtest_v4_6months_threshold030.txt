@@ -1,0 +1,9 @@
+v4 6-Month OOS Backtest - Threshold 0.30
+================================================================================
+
+Period: May-Jun 2024
+Signals: 54
+Win rate: 42.6%
+Avg P&L: -0.16%
+Total P&L: -8.49%
+Signals/day: 1.3
