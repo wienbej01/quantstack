@@ -1,0 +1,8 @@
+v4 3-Month OOS Backtest Results
+================================================================================
+
+Period: May 2024 (OOS)
+Signals: 4
+Win rate: 25.0%
+Avg P&L: -1.03%
+Total P&L: -4.12%
