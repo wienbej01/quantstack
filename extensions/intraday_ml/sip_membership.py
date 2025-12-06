@@ -12,8 +12,8 @@ in `legacy` mode. This module is only responsible for the I/O layer.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable, Sequence
 import shutil
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any, Literal
 

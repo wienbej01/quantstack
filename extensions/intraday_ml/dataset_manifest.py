@@ -13,7 +13,6 @@ from typing import Any
 
 import dateutil.relativedelta
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe
 
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict
-
 REJECT_REASON_BIGMOVE_PROB = "bigmove_prob"
 REJECT_REASON_PROB_LONG = "probability"
 REJECT_REASON_SCORE_MARGIN = "score_margin"
@@ -13,7 +11,7 @@ REJECT_REASON_RISK_BUDGET = "risk_budget"
 REJECT_REASON_BAR_CAP = "capacity"
 REJECT_REASON_OTHER = "other"
 
-REJECTION_REASON_TO_COLUMN: Dict[str, str] = {
+REJECTION_REASON_TO_COLUMN: dict[str, str] = {
     REJECT_REASON_BIGMOVE_PROB: "reject_bigmove_prob",
     REJECT_REASON_PROB_LONG: "reject_probability",
     REJECT_REASON_SCORE_MARGIN: "reject_score_margin",

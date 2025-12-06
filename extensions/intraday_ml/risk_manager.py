@@ -1,7 +1,6 @@
 """Dynamic position sizing and risk management."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 import pandas as pd
 

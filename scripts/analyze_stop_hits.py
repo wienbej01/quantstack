@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Analyze why stops are being hit immediately on every trade."""
 
-import pandas as pd
-import numpy as np
 from pathlib import Path
+
+import pandas as pd
+
 
 def load_matched_trades():
     """Load the matched trades from previous analysis."""
@@ -35,20 +36,20 @@ def analyze_stop_patterns(matched_trades, fills):
     
     # Get stop distances from fills
     if 'stop_dist_ps' in fills.columns:
-        print(f"\n--- Stop Distance Stats ---")
+        print("\n--- Stop Distance Stats ---")
         print(f"Avg Stop Distance: ${fills['stop_dist_ps'].mean():.3f}")
         print(f"Median Stop Distance: ${fills['stop_dist_ps'].median():.3f}")
         print(f"Min Stop Distance: ${fills['stop_dist_ps'].min():.3f}")
         print(f"Max Stop Distance: ${fills['stop_dist_ps'].max():.3f}")
     
     # Analyze move sizes vs stop distances
-    print(f"\n--- Move Analysis ---")
+    print("\n--- Move Analysis ---")
     matched_trades['abs_move'] = abs(matched_trades['exit_price'] - matched_trades['entry_price'])
     print(f"Avg Absolute Move: ${matched_trades['abs_move'].mean():.3f}")
     print(f"Median Absolute Move: ${matched_trades['abs_move'].median():.3f}")
     
     # Sample trades
-    print(f"\n--- Sample Losing Trades (First 10) ---")
+    print("\n--- Sample Losing Trades (First 10) ---")
     losers = matched_trades[matched_trades['pnl'] < 0].head(10)
     
     for idx, trade in losers.iterrows():
@@ -70,14 +71,14 @@ def analyze_stop_patterns(matched_trades, fills):
             print(f"  Move/Stop Ratio: {trade['abs_move']/stop_dist:.2f}x")
     
     # Duration analysis
-    print(f"\n--- Duration Analysis ---")
+    print("\n--- Duration Analysis ---")
     print(f"Trades < 10 min: {(matched_trades['duration_minutes'] < 10).sum()}")
     print(f"Trades 10-20 min: {((matched_trades['duration_minutes'] >= 10) & (matched_trades['duration_minutes'] < 20)).sum()}")
     print(f"Trades 20-30 min: {((matched_trades['duration_minutes'] >= 20) & (matched_trades['duration_minutes'] < 30)).sum()}")
     print(f"Trades > 30 min: {(matched_trades['duration_minutes'] >= 30).sum()}")
     
     # PnL distribution
-    print(f"\n--- PnL Distribution ---")
+    print("\n--- PnL Distribution ---")
     print(f"PnL < -$1.00: {(matched_trades['pnl'] < -1.0).sum()}")
     print(f"PnL -$1.00 to -$0.50: {((matched_trades['pnl'] >= -1.0) & (matched_trades['pnl'] < -0.5)).sum()}")
     print(f"PnL -$0.50 to $0.00: {((matched_trades['pnl'] >= -0.5) & (matched_trades['pnl'] < 0)).sum()}")

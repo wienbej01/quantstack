@@ -30,7 +30,7 @@ class HeartbeatLogger:
         while not self._stop.wait(self.interval):
             logger.info("[heartbeat] %s still running...", self.label)
 
-    def __enter__(self) -> "HeartbeatLogger":
+    def __enter__(self) -> HeartbeatLogger:
         self.start()
         return self
 

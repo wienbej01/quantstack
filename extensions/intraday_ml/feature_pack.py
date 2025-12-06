@@ -9,7 +9,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from qx_core.utils import utc_ns_to_datetime
 from qx_features.core_basics import atr_m, vwap_m
 

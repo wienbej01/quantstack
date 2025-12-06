@@ -24,7 +24,7 @@ class BigMovePolicyAdapterConfig:
     min_expected_r: float = 1.0
 
     @classmethod
-    def from_dict(cls, raw: dict[str, Any] | None) -> "BigMovePolicyAdapterConfig":
+    def from_dict(cls, raw: dict[str, Any] | None) -> BigMovePolicyAdapterConfig:
         data = raw or {}
         return cls(
             mode=str(data.get("mode", cls.mode)).lower(),

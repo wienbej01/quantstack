@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import argparse
 import logging
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 import pandas as pd
 import yaml
 from qx_data.gold_loader import load_bars
-
 
 # Default file name used whenever --output points to a directory
 DEFAULT_OUTPUT_FILENAME = "universe_intraday_sip_5_50.yaml"

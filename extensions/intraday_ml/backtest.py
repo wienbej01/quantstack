@@ -13,7 +13,6 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import yaml
-
 from qx_core.hashers import hash_dataframe
 
 
@@ -620,7 +619,7 @@ def _extract_metrics_from_result(result: Any, artifacts: dict[str, Any] = None) 
     metrics = {}
 
     # Include any metrics dict provided by the engine result first
-    if hasattr(result, "metrics") and isinstance(getattr(result, "metrics"), dict):
+    if hasattr(result, "metrics") and isinstance(result.metrics, dict):
         metrics.update(result.metrics)
 
     # Extract performance metrics from BacktestResult (excluding trade counts)

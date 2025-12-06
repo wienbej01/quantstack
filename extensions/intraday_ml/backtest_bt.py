@@ -1,8 +1,9 @@
 """Backtrader integration for intraday ML strategy."""
 
+from typing import Any
+
 import backtrader as bt
 import pandas as pd
-from typing import Any
 
 
 class MLStrategy(bt.Strategy):

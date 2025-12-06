@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import time
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 
 @dataclass(frozen=True)

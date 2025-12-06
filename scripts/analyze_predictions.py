@@ -4,7 +4,6 @@
 import argparse
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 
@@ -87,7 +86,7 @@ def analyze_predictions(predictions_path: Path) -> None:
         
         # Confidence analysis
         preds["max_prob"] = preds[prob_cols].max(axis=1)
-        print(f"\n  Prediction Confidence:")
+        print("\n  Prediction Confidence:")
         print(f"    Mean max probability: {preds['max_prob'].mean():.4f}")
         print(f"    High confidence (>0.7): {(preds['max_prob'] > 0.7).sum():,} ({100*(preds['max_prob'] > 0.7).mean():.2f}%)")
         print(f"    Low confidence (<0.5):  {(preds['max_prob'] < 0.5).sum():,} ({100*(preds['max_prob'] < 0.5).mean():.2f}%)")

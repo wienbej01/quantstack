@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 project_root = Path(__file__).parent.parent

@@ -1,9 +1,9 @@
 """Analyze Stage 1 model performance and feature importance."""
 import json
-import joblib
 from pathlib import Path
+
+import joblib
 import pandas as pd
-import numpy as np
 
 
 def analyze_stage1_model(model_path: Path, output_path: Path):

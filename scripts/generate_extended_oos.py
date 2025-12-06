@@ -1,13 +1,15 @@
 """Generate predictions for validation + OOS period (April 16 - May 31)."""
 import sys
 from pathlib import Path
-import pandas as pd
+
 import joblib
+import pandas as pd
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from extensions.intraday_ml.data_prep import load_split_data
+
 
 def main():
     print("=== Generating Extended OOS Predictions ===\n")

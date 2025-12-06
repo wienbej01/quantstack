@@ -143,13 +143,13 @@ def main():
     LOGGER.info(f"Total PnL: ${actual_trades['pnl_net'].sum():.2f}")
     LOGGER.info(f"Win Rate: {(actual_trades['pnl_net'] > 0).mean() * 100:.1f}%")
     
-    LOGGER.info(f"\nLONG:")
+    LOGGER.info("\nLONG:")
     LOGGER.info(f"  Trades: {len(long_actual)}")
     LOGGER.info(f"  PnL: ${long_actual['pnl_net'].sum():.2f}")
     LOGGER.info(f"  Win Rate: {(long_actual['pnl_net'] > 0).mean() * 100:.1f}%")
     LOGGER.info(f"  Target Rate: {(long_actual['exit_reason'] == 'TARGET').mean() * 100:.1f}%")
     
-    LOGGER.info(f"\nSHORT:")
+    LOGGER.info("\nSHORT:")
     LOGGER.info(f"  Trades: {len(short_actual)}")
     LOGGER.info(f"  PnL: ${short_actual['pnl_net'].sum():.2f}")
     LOGGER.info(f"  Win Rate: {(short_actual['pnl_net'] > 0).mean() * 100:.1f}%")
@@ -175,12 +175,12 @@ def main():
         LOGGER.info(f"Threshold: {thresh:.2f}")
         LOGGER.info(f"{'='*80}")
         
-        LOGGER.info(f"\nV2 (Time-Based):")
+        LOGGER.info("\nV2 (Time-Based):")
         LOGGER.info(f"  Trades: {v2_result['trades']} (LONG: {v2_result['long_trades']}, SHORT: {v2_result['short_trades']})")
         LOGGER.info(f"  Expected PnL: ${v2_result['pnl']:.2f}")
         LOGGER.info(f"  Expected Win Rate: {v2_result['win_rate']*100:.1f}%")
         
-        LOGGER.info(f"\nV3 (Price Action):")
+        LOGGER.info("\nV3 (Price Action):")
         LOGGER.info(f"  Trades: {v3_result['trades']} (LONG: {v3_result['long_trades']}, SHORT: {v3_result['short_trades']})")
         LOGGER.info(f"  Expected PnL: ${v3_result['pnl']:.2f}")
         LOGGER.info(f"  Expected Win Rate: {v3_result['win_rate']*100:.1f}%")
@@ -204,17 +204,17 @@ def main():
     
     best_v3 = max(results_comparison, key=lambda x: x['v3_pnl'])
     
-    LOGGER.info(f"\nBest V3 Configuration:")
+    LOGGER.info("\nBest V3 Configuration:")
     LOGGER.info(f"  Threshold: {best_v3['threshold']:.2f}")
     LOGGER.info(f"  Trades: {best_v3['v3_trades']}")
     LOGGER.info(f"  Expected PnL: ${best_v3['v3_pnl']:.2f}")
     LOGGER.info(f"  Improvement over V2: ${best_v3['improvement']:.2f}")
     
-    LOGGER.info(f"\nWith 10x Position Sizing:")
+    LOGGER.info("\nWith 10x Position Sizing:")
     LOGGER.info(f"  Expected PnL: ${best_v3['v3_pnl'] * 10:.2f}")
     LOGGER.info(f"  Monthly Return: {best_v3['v3_pnl'] * 10 / 1000000 * 100:.3f}%")
     
-    LOGGER.info(f"\nWith 100x Position Sizing:")
+    LOGGER.info("\nWith 100x Position Sizing:")
     LOGGER.info(f"  Expected PnL: ${best_v3['v3_pnl'] * 100:.2f}")
     LOGGER.info(f"  Monthly Return: {best_v3['v3_pnl'] * 100 / 1000000 * 100:.2f}%")
     

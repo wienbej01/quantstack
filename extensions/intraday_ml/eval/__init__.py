@@ -1,6 +1,6 @@
 """Evaluation utilities for the intraday ML pipeline."""
 
-from .dataset_instrumentation import DatasetInstrumentor, DatasetInstrumentationResult
+from .dataset_instrumentation import DatasetInstrumentationResult, DatasetInstrumentor
 from .eval_trading_performance import (
     SelectionPolicy,
     TradingEvaluationResult,

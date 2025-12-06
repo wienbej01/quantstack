@@ -1,7 +1,6 @@
 """Analyze training metadata and cross-validation results."""
 import json
 from pathlib import Path
-import pandas as pd
 
 
 def analyze_training_meta(meta_path: Path, output_path: Path):
@@ -65,12 +64,12 @@ def analyze_training_meta(meta_path: Path, output_path: Path):
     print(f"\n  Model: {report['stage']}")
     print(f"  Samples: {report['training_samples']:,} ({report['class_imbalance']['positive_rate']:.2%} positive)")
     print(f"  Imbalance ratio: {report['class_imbalance']['imbalance_ratio']:.1f}:1")
-    print(f"\n  Performance:")
+    print("\n  Performance:")
     print(f"    ROC-AUC: {report['performance']['roc_auc']:.4f}")
     print(f"    Precision: {report['performance']['precision']:.4f}")
     print(f"    Recall: {report['performance']['recall']:.4f}")
     print(f"    F1: {report['performance']['f1']:.4f}")
-    print(f"\n  CV Performance (5-fold):")
+    print("\n  CV Performance (5-fold):")
     print(f"    ROC-AUC: {report['cv_performance']['roc_auc_mean']:.4f} ± {report['cv_performance']['roc_auc_std']:.4f}")
 
 

@@ -1,8 +1,9 @@
 """Backtrader with OHLC-based stop/target monitoring for 10-minute bars."""
 
+from typing import Any
+
 import backtrader as bt
 import pandas as pd
-from typing import Any
 
 
 class MLStrategyOHLC(bt.Strategy):
@@ -83,17 +84,16 @@ class MLStrategyOHLC(bt.Strategy):
                     should_exit = True
                     exit_price = pos_info['target_price']
                     exit_reason = 'TARGET'
-            else:  # SHORT
-                # Check if high breached stop
-                if bar_high >= pos_info['stop_price']:
-                    should_exit = True
-                    exit_price = pos_info['stop_price']
-                    exit_reason = 'STOP'
-                # Check if low breached target
-                elif bar_low <= pos_info['target_price']:
-                    should_exit = True
-                    exit_price = pos_info['target_price']
-                    exit_reason = 'TARGET'
+            # Check if high breached stop
+            elif bar_high >= pos_info['stop_price']:
+                should_exit = True
+                exit_price = pos_info['stop_price']
+                exit_reason = 'STOP'
+            # Check if low breached target
+            elif bar_low <= pos_info['target_price']:
+                should_exit = True
+                exit_price = pos_info['target_price']
+                exit_reason = 'TARGET'
             
             if should_exit:
                 self.close(data)

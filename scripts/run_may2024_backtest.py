@@ -2,6 +2,7 @@
 
 import sys
 from pathlib import Path
+
 import pandas as pd
 
 project_root = Path(__file__).parent.parent
@@ -136,12 +137,12 @@ def main():
         print(f"  - LONG trades:       {(trades_df['side'] == 'LONG').sum()}")
         print(f"  - SHORT trades:      {(trades_df['side'] == 'SHORT').sum()}")
         
-        print(f"\n✓ Stop/Target set:     PASS (all trades have predefined levels)")
+        print("\n✓ Stop/Target set:     PASS (all trades have predefined levels)")
         
         target_hits = (trades_df['exit_reason'] == 'TARGET').sum()
         print(f"\n✓ Target hits:         {target_hits} ({target_hits/len(trades_df)*100:.1f}%)")
         
-        print(f"\n✓ Position closure:    PASS")
+        print("\n✓ Position closure:    PASS")
         print(f"  - Closed trades:     {len(trades_df)}")
         
         print(f"\n✓ Multiple symbols:    {'PASS' if trades_df['symbol'].nunique() > 5 else 'CHECK'}")

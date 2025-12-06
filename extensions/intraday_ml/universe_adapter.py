@@ -5,7 +5,6 @@ Provides configuration-driven universe building for ML pipeline.
 """
 
 import pandas as pd
-
 from qx_data.gold_loader import load_bars
 from qx_screener.sip import ScreenerConfig, SipScreener
 

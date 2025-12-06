@@ -1,11 +1,11 @@
 """Sequential policy sweep with robust error handling and logging."""
-import sys
-import logging
 import json
+import logging
+from datetime import datetime
 from pathlib import Path
+
 import pandas as pd
 import yaml
-from datetime import datetime
 
 # Setup logging
 logging.basicConfig(
@@ -19,17 +19,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import after logging setup
-from extensions.intraday_ml.experiments.policy_sweep import (
-    expand_parameter_grid,
-    apply_overrides,
-    _prepare_signals_for_policy_mode,
-    _ensure_required_columns,
-    _count_trading_days,
-)
 from extensions.intraday_ml.backtest import intraday_ml_run_backtest
+from extensions.intraday_ml.diagnostics.trade_analyzer import TradeAnalyzer
+from extensions.intraday_ml.experiments.policy_sweep import (
+    _count_trading_days,
+    _ensure_required_columns,
+    _prepare_signals_for_policy_mode,
+    apply_overrides,
+    expand_parameter_grid,
+)
 from extensions.intraday_ml.policy.rejection_reasons import REJECTION_REASON_TO_COLUMN
 from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
-from extensions.intraday_ml.diagnostics.trade_analyzer import TradeAnalyzer
 
 
 def run_single_config(
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     
     if (df['entries'] > 0).any():
         success_df = df[df['entries'] > 0]
-        logger.info(f"\nPerformance:")
+        logger.info("\nPerformance:")
         logger.info(f"  Unique win rates: {success_df['metric_win_rate'].nunique()}")
         logger.info(f"  Unique trade counts: {success_df['metric_total_trades'].nunique()}")
         logger.info(f"  Win rate range: {success_df['metric_win_rate'].min():.1%} to {success_df['metric_win_rate'].max():.1%}")

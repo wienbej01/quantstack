@@ -1,9 +1,10 @@
 """Backtrader strategy for 1-minute execution with proper EOD close."""
 
+from datetime import time
+from typing import Any
+
 import backtrader as bt
 import pandas as pd
-from typing import Any
-from datetime import time
 
 
 class MLStrategy1m(bt.Strategy):
@@ -68,13 +69,12 @@ class MLStrategy1m(bt.Strategy):
                 elif current_price >= pos_info['target_price']:
                     self.close(data)
                     pos_info['exit_reason'] = 'TARGET'
-            else:  # SHORT
-                if current_price >= pos_info['stop_price']:
-                    self.close(data)
-                    pos_info['exit_reason'] = 'STOP'
-                elif current_price <= pos_info['target_price']:
-                    self.close(data)
-                    pos_info['exit_reason'] = 'TARGET'
+            elif current_price >= pos_info['stop_price']:
+                self.close(data)
+                pos_info['exit_reason'] = 'STOP'
+            elif current_price <= pos_info['target_price']:
+                self.close(data)
+                pos_info['exit_reason'] = 'TARGET'
         
         # Process new orders
         dt_key = current_dt_utc.floor('1min')

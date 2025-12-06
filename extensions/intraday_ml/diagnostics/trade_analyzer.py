@@ -1,10 +1,11 @@
 """Quantitative analyst for detailed trade analysis."""
-import pandas as pd
-import numpy as np
-from pathlib import Path
-from typing import Any
 import json
 import logging
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 

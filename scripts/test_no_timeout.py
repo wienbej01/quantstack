@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
 """Test policy with timeouts disabled to validate hypothesis."""
 
-import sys
 import json
+import sys
 from pathlib import Path
+
 import pandas as pd
 
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from extensions.intraday_ml.backtest import intraday_ml_run_backtest
-from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
 from extensions.intraday_ml.experiments.policy_sweep import (
-    _prepare_signals_for_policy_mode,
     _ensure_required_columns,
+    _prepare_signals_for_policy_mode,
 )
+from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
+
 
 def load_data():
     """Load signals and bars."""
@@ -134,7 +136,7 @@ def run_test():
         # Sample winners
         winners = matched[matched['pnl'] > 0]
         if len(winners) > 0:
-            print(f"\n--- Sample Winners (First 5) ---")
+            print("\n--- Sample Winners (First 5) ---")
             for idx, trade in winners.head(5).iterrows():
                 print(f"{trade['symbol']} {trade['side']}: ${trade['entry_price']:.2f} → ${trade['exit_price']:.2f} | PnL: ${trade['pnl']:.2f} | {trade['duration_minutes']:.0f} min")
         

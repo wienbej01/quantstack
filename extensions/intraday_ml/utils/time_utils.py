@@ -6,7 +6,8 @@ and returns consistently localized datetimes for downstream processing.
 
 from __future__ import annotations
 
-from typing import Iterable, Literal
+from collections.abc import Iterable
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 import numpy as np

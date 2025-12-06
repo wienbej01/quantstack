@@ -1,9 +1,10 @@
 """Run backtest on 1-minute execution data with 10m decision signals."""
 
+import datetime
 import sys
 from pathlib import Path
+
 import pandas as pd
-import datetime
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))

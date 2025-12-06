@@ -8,16 +8,16 @@ class sparsity before running expensive training/backtesting jobs.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any
 
 import pandas as pd
 
 from extensions.intraday_ml.data_prep import create_training_dataset
 from extensions.intraday_ml.sip_membership import get_phase_symbols_with_sip
-
 
 DatasetBuilder = Callable[..., pd.DataFrame]
 

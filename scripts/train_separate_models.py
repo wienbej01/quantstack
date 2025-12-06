@@ -8,7 +8,6 @@ import pandas as pd
 
 from extensions.intraday_ml_models.bigmove_training_utils import (
     TrainingSettings,
-    attach_bigmove_labels,
     compute_hashes,
     load_yaml,
     prepare_feature_matrix,

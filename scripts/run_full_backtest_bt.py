@@ -53,7 +53,7 @@ def main():
     print("\n" + "="*70)
     print("FINAL RESULTS")
     print("="*70)
-    print(f"\nPortfolio Performance:")
+    print("\nPortfolio Performance:")
     print(f"  Initial Cash:    ${results['initial_cash']:,.2f}")
     print(f"  Final Value:     ${results['final_value']:,.2f}")
     print(f"  Total PnL:       ${results['pnl']:,.2f}")
@@ -67,7 +67,7 @@ def main():
     if dd is not None:
         print(f"  Max Drawdown:    {dd:.2f}%")
     
-    print(f"\nTrading Statistics:")
+    print("\nTrading Statistics:")
     print(f"  Total Trades:    {results.get('total_trades', 0)}")
     print(f"  Win Rate:        {results.get('win_rate', 0.0):.1f}%")
     

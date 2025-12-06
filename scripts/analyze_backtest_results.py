@@ -2,7 +2,6 @@
 """Analyze backtest results in detail."""
 
 import pandas as pd
-import numpy as np
 
 # Load trade report
 trades = pd.read_csv("artefacts/extensions/intraday_ml/trade_report_may2024_1m.csv")
@@ -128,7 +127,7 @@ if total_resolved > 0:
     target_rate = 100 * target_hits / total_resolved
     print("Target Hit Rate (excluding EOD):")
     print(f"  Target hits: {target_hits} / {total_resolved} = {target_rate:.1f}%")
-    print(f"  Expected (random walk): 38.5%")
+    print("  Expected (random walk): 38.5%")
     print(f"  Improvement: {target_rate - 38.5:+.1f} percentage points")
     print()
 

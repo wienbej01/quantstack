@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable
 
 import pandas as pd
-
 from qx_data.gold_loader import load_bars
 
 logger = logging.getLogger(__name__)

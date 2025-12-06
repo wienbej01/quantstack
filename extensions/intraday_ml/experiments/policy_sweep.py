@@ -7,16 +7,17 @@ import copy
 import itertools
 import json
 import logging
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import pandas as pd
 import yaml
 
 from extensions.intraday_ml.backtest import intraday_ml_run_backtest
 from extensions.intraday_ml.policy.rejection_reasons import REJECTION_REASON_TO_COLUMN
-from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
 from extensions.intraday_ml.utils.heartbeat import HeartbeatLogger
+from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
 
 DEFAULT_SIGNALS_PATH = (
     "artefacts/extensions/intraday_ml/phaseA_full_sip/oos_predictions_bigmove.parquet"
@@ -108,7 +109,7 @@ def expand_parameter_grid(grid: dict[str, Any]) -> list[dict[str, Any]]:
 
     combinations = []
     for combo in itertools.product(*(values for _, values in items)):
-        overrides = {key: value for (key, _), value in zip(items, combo)}
+        overrides = {key: value for (key, _), value in zip(items, combo, strict=False)}
         combinations.append(overrides)
     return combinations
 

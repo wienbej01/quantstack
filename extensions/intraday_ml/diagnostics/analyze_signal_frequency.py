@@ -1,8 +1,8 @@
 """Analyze signal frequency at different probability thresholds."""
 import json
 from pathlib import Path
+
 import pandas as pd
-import numpy as np
 
 
 def analyze_signal_frequency(predictions_path: Path, output_path: Path):
@@ -64,7 +64,7 @@ def analyze_signal_frequency(predictions_path: Path, output_path: Path):
     
     print(f"✓ Signal frequency analysis saved to {output_path}")
     print(f"  Date range: {report['date_range']['start']} to {report['date_range']['end']}")
-    print(f"\n  Signals per day by threshold:")
+    print("\n  Signals per day by threshold:")
     for r in results:
         print(f"    {r['threshold']:.2f}: {r['avg_signals_per_day']:.1f} avg, {r['median_signals_per_day']:.0f} median")
 

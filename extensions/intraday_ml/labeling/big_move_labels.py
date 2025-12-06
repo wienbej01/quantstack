@@ -39,7 +39,7 @@ class BigMoveLabelConfig:
     atr_is_return_pct: bool = True
 
     @classmethod
-    def from_targets_config(cls, targets_cfg: dict[str, Any]) -> "BigMoveLabelConfig":
+    def from_targets_config(cls, targets_cfg: dict[str, Any]) -> BigMoveLabelConfig:
         """Build config from the shared targets YAML dictionary."""
         cfg = (targets_cfg or {}).get("big_move", {}) or {}
         return cls(

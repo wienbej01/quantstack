@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate OOS predictions using trained models."""
 
+import json
 import logging
 from pathlib import Path
 
 import joblib
-import json
 import pandas as pd
 
 logging.basicConfig(level=logging.INFO)

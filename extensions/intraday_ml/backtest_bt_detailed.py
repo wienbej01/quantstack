@@ -1,9 +1,9 @@
 """Backtrader integration with detailed trade logging."""
 
+from typing import Any
+
 import backtrader as bt
 import pandas as pd
-from typing import Any
-from datetime import datetime
 
 
 class MLStrategyDetailed(bt.Strategy):
@@ -149,13 +149,12 @@ class MLStrategyDetailed(bt.Strategy):
                     exit_reason = 'TARGET'
                 else:
                     exit_reason = 'OTHER'
-            else:  # SHORT
-                if exit_price >= entry['stop_price'] * 0.998:
-                    exit_reason = 'STOP'
-                elif exit_price <= entry['target_price'] * 1.002:
-                    exit_reason = 'TARGET'
-                else:
-                    exit_reason = 'OTHER'
+            elif exit_price >= entry['stop_price'] * 0.998:
+                exit_reason = 'STOP'
+            elif exit_price <= entry['target_price'] * 1.002:
+                exit_reason = 'TARGET'
+            else:
+                exit_reason = 'OTHER'
             
             # Log trade
             self.trade_log.append({

@@ -5,7 +5,6 @@ import json
 from typing import Any
 
 import pandas as pd
-
 from qx_core.hashers import hash_dataframe, hash_sip_map
 
 

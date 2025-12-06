@@ -1,9 +1,9 @@
 """Debug script to test sweep components individually."""
-import sys
-import logging
-from pathlib import Path
-import pandas as pd
 import json
+import logging
+import sys
+
+import pandas as pd
 
 # Setup logging
 logging.basicConfig(
@@ -34,7 +34,7 @@ def test_policy_config():
     try:
         with open("configs/extensions/intraday_ml/policy_config_bigmove_simple.json") as f:
             config = json.load(f)
-        logger.info(f"✓ Policy config loaded")
+        logger.info("✓ Policy config loaded")
         logger.info(f"  bigmove_policy.probability_threshold: {config.get('bigmove_policy', {}).get('probability_threshold')}")
         logger.info(f"  prob_threshold_long: {config.get('prob_threshold_long')}")
         logger.info(f"  tod_filter_enabled: {config.get('tod_filter_enabled')}")
@@ -47,7 +47,9 @@ def test_policy_creation(config):
     """Test policy instantiation."""
     logger.info("\n=== Testing Policy Creation ===")
     try:
-        from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
+        from extensions.intraday_ml_policies.intraday_ml_decision_policy import (
+            IntradayMLDecisionPolicy,
+        )
         policy = IntradayMLDecisionPolicy(config)
         logger.info(f"✓ Policy created: {type(policy).__name__}")
         return policy
@@ -84,7 +86,7 @@ def test_signal_processing(policy, signals, bars):
                         logger.info(f"    Added {col} from bars")
         
         orders, rejections = policy.process_signals(sample_signals)
-        logger.info(f"✓ Signal processing complete")
+        logger.info("✓ Signal processing complete")
         logger.info(f"  Orders: {len(orders)}")
         logger.info(f"  Rejections: {len(rejections)}")
         
@@ -114,7 +116,7 @@ def test_backtest(bars, orders):
         logger.info(f"Running backtest with {len(orders)} orders")
         artifacts = intraday_ml_run_backtest(bars, orders, cfg={})
         
-        logger.info(f"✓ Backtest complete")
+        logger.info("✓ Backtest complete")
         logger.info(f"  Artifacts keys: {artifacts.keys()}")
         
         trades = artifacts.get('trades')
@@ -147,7 +149,7 @@ def main():
         logger.info("\n=== All Tests Passed ===")
         return True
     except Exception as e:
-        logger.error(f"\n=== Tests Failed ===")
+        logger.error("\n=== Tests Failed ===")
         logger.error(f"Error: {e}")
         return False
 
