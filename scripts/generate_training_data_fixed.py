@@ -16,7 +16,7 @@ def heartbeat_monitor(interval=60):
     """Log heartbeat every N seconds."""
     while True:
         time.sleep(interval)
-        LOGGER.info(f"[HEARTBEAT] Process still running...")
+        LOGGER.info("[HEARTBEAT] Process still running...")
 
 
 def main():

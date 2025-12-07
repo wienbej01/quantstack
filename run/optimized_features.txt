@@ -1,0 +1,14 @@
+is_last_30min
+sma_200
+time_to_close
+obv_ema_10
+liquidity_grab_high
+volatility_30
+liquidity_grab_low
+range_pct
+volatility_5
+volume_momentum_50
+bb_width_10
+bb_width_20
+volume_std_50
+atr_7

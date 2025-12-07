@@ -1,0 +1,9 @@
+v4 6-Month ICT Features OOS Backtest
+================================================================================
+
+Features: 30 (16 base + 10 ICT + 4 volume-price)
+Signals: 712
+Win rate: 55.2%
+Avg P&L: 0.50%
+Total P&L: 358.49%
+Signals/day: 17.0

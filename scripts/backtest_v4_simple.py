@@ -74,7 +74,7 @@ def main():
     with open(output_file, "w") as f:
         f.write("v4 Simple Backtest Results\n")
         f.write("=" * 80 + "\n\n")
-        f.write(f"Period: May 2024\n")
+        f.write("Period: May 2024\n")
         f.write(f"Signals: {len(signals)}\n")
         f.write(f"Win rate: {win_rate*100:.1f}%\n")
         f.write(f"Avg P&L: {signals['pnl'].mean()*100:.2f}%\n")

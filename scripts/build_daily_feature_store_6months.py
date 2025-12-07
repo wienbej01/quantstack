@@ -141,7 +141,7 @@ def main():
                 LOGGER.info(f"Progress: {i}/{len(remaining_symbols)} symbols processed")
             
             if i % checkpoint_interval == 0:
-                LOGGER.info(f"[CHECKPOINT] Saving intermediate results...")
+                LOGGER.info("[CHECKPOINT] Saving intermediate results...")
                 if all_features:
                     checkpoint_data = pd.concat(all_features, ignore_index=True)
                     checkpoint_data.to_parquet(

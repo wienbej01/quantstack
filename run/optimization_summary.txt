@@ -1,0 +1,12 @@
+FEATURE OPTIMIZATION SUMMARY
+================================================================================
+
+Total features analyzed: 209
+Redundant pairs (>0.9 corr): 615
+Optimal feature set size: 15 (AUC=0.9953)
+Diminishing returns at: 20 features (AUC=0.9951)
+Optimized set (redundancy removed): 14 features (AUC=0.9999)
+
+RECOMMENDATION:
+Use 14 features with redundancy removed
+Expected AUC: 0.9999

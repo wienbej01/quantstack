@@ -101,10 +101,10 @@ def main():
     LOGGER.info("=" * 80)
     LOGGER.info("Training Complete!")
     LOGGER.info("=" * 80)
-    LOGGER.info(f"LONG model: models/v4_3months_long.txt")
+    LOGGER.info("LONG model: models/v4_3months_long.txt")
     LOGGER.info(f"  Train AUC: {train_auc_long:.4f}")
     LOGGER.info(f"  Val AUC: {val_auc_long:.4f}")
-    LOGGER.info(f"SHORT model: models/v4_3months_short.txt")
+    LOGGER.info("SHORT model: models/v4_3months_short.txt")
     LOGGER.info(f"  Train AUC: {train_auc_short:.4f}")
     LOGGER.info(f"  Val AUC: {val_auc_short:.4f}")
     
