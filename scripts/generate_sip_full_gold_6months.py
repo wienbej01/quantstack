@@ -15,7 +15,10 @@ def load_gold_universe():
     """Load full gold universe from config."""
     with open("configs/extensions/intraday_ml/universe_gold_full.yaml") as f:
         config = yaml.safe_load(f)
-    return config["symbols"]
+    symbols = config.get("symbols", [])
+    if not symbols:
+        raise ValueError("No symbols found in universe config")
+    return symbols
 
 
 def calculate_daily_features(

@@ -2,6 +2,42 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
+## Latest: Rolling Training System (2025-12-07)
+
+**Intraday ML trading system with 6-month rolling training windows**
+
+- **Universe**: 505 symbols (full gold universe)
+- **Features**: 30 ICT + VPA features (FVG, displacement, order blocks, VWAP, pressure ratio)
+- **Performance**: 66.4% win rate, +1,554% P&L (6-month baseline)
+- **Rolling**: 20 OOS months (2024-02 to 2025-09), monthly retraining
+- **Expected**: 60-65% win rate, +4,000-5,000% P&L over 20 months
+
+See [ROLLING_TRAINING_STRATEGY.md](ROLLING_TRAINING_STRATEGY.md) for details.
+
+### Quick Start: Rolling Training
+
+```bash
+# Run full pipeline (4-6 hours)
+./scripts/run_rolling_pipeline.sh
+
+# Or run steps individually:
+python scripts/build_daily_features_rolling.py      # Step 1: Daily features
+python scripts/generate_sip_rolling.py              # Step 2: SIP selection
+python scripts/build_intraday_features_rolling.py   # Step 3: Intraday features
+python scripts/rolling_train_and_backtest.py        # Step 4: Rolling training
+python scripts/analyze_rolling_results.py           # Step 5: Analysis
+
+# View results
+cat run/rolling_results/metrics.csv
+cat run/rolling_results/analysis_report.txt
+```
+
+**Documentation**:
+- [Rolling Training Strategy](ROLLING_TRAINING_STRATEGY.md) - Overview and rationale
+- [Technical Documentation](docs/ROLLING_TRAINING_TECHNICAL.md) - Detailed specifications
+- [Implementation Status](ROLLING_IMPLEMENTATION_STATUS.md) - Current status
+- [Session Summary](SESSION_2025_12_07_SUMMARY.md) - Development log
+
 ## Features
 
 ### Daily HMM_SIP Universe Selection
