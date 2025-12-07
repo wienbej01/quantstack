@@ -3,6 +3,24 @@
 **Date**: 2025-12-07  
 **Status**: Scripts created, pipeline running
 
+## CRITICAL: Universe Coverage
+
+**The system scans ALL 1,108 symbols in gold universe EVERY DAY.**
+
+- ✅ **NOT** using pre-filtered 510-symbol list
+- ✅ Daily SIP selection from full 1,108-symbol universe
+- ✅ Different stocks selected each day based on catalysts
+- ✅ No look-ahead bias (each day uses only that day's data)
+
+### Daily Selection Process
+
+1. **Pre-Market**: Scan 1,108 symbols, calculate gap/ATR/ADV
+2. **Filter**: gap ≥2%, ATR ≥$0.70, ADV ≥1M
+3. **Score**: `|gap| × ATR × (ADV / 1M)`
+4. **Select**: Top 50 stocks for that day
+5. **Intraday**: Load 30-day lookback from gold for these 50 stocks
+6. **Trade**: Generate ML signals only for selected stocks
+
 ## Implementation Complete ✅
 
 ### Scripts Created

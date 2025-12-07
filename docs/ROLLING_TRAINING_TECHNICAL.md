@@ -4,6 +4,70 @@
 
 This document provides detailed technical specifications for the rolling training system implemented for intraday ML-based trading.
 
+## CRITICAL: Daily SIP Selection Architecture
+
+### Universe Scanning
+
+**The system scans the ENTIRE gold universe (1,108 symbols) EVERY DAY.**
+
+```
+Daily Pre-Market (Before 9:30 AM):
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Scan ALL 1,108 symbols in gold universe                  │
+│    - Load previous day's close                               │
+│    - Load today's open (pre-market or 9:30 open)            │
+│    - Calculate 14-day ATR, 20-day ADV                       │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 2. Apply SIP Filters                                         │
+│    - gap_pct = (open - prior_close) / prior_close          │
+│    - Filter: |gap_pct| ≥ 2%                                │
+│    - Filter: atr14 ≥ $0.70                                  │
+│    - Filter: adv20 ≥ 1,000,000 shares                       │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 3. Score and Rank                                            │
+│    - score = |gap_pct| × atr14 × (adv20 / 1M)              │
+│    - Sort by score descending                                │
+│    - Select top 50 stocks                                    │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│ 4. Daily SIP List (50 stocks)                               │
+│    - These are the "Stocks In Play" for TODAY               │
+│    - Different list tomorrow based on tomorrow's data        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Differences from Fixed Universe
+
+| Aspect | Fixed Universe | Daily SIP (Our Approach) |
+|--------|----------------|--------------------------|
+| **Universe Size** | 510 pre-filtered | 1,108 full gold universe |
+| **Selection Frequency** | Once per period | Every single day |
+| **Selection Criteria** | Static (price range) | Dynamic (gap, ATR, volume) |
+| **Stocks Monitored** | Same 510 always | Top 50 per day (varies) |
+| **Look-Ahead Bias** | Possible | None (uses only that day's data) |
+| **Production Realism** | Low | High (mimics real trading) |
+
+### Data Flow
+
+```
+Gold Universe (1,108 symbols)
+    ↓
+Daily Features (ALL symbols, ALL days)
+    ↓
+SIP Selection (50 symbols per day)
+    ↓
+Intraday Features (ONLY SIP symbols, with 30-day lookback from gold)
+    ↓
+Training/Val/OOS (uses historically selected symbols)
+```
+
+**IMPORTANT**: After SIP selection, we go BACK to gold data to load 30-day lookback for calculating intraday indicators. This ensures proper feature engineering with historical context.
+
 ## System Architecture
 
 ```

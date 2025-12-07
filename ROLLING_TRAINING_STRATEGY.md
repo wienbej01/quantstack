@@ -4,6 +4,51 @@
 
 **Objective**: Implement walk-forward analysis with rolling 6-month training windows to adapt to changing market regimes.
 
+## CRITICAL: Daily SIP Selection
+
+**The SIP filter is applied DAILY to the ENTIRE universe (1,108 symbols), not per training period.**
+
+### Daily Selection Process
+
+1. **Every Day** (including train/val/OOS):
+   - Scan ALL 1,108 symbols in gold universe
+   - Calculate daily features: gap_pct, atr14, adv20
+   - Apply filters: gap ≥2%, ATR ≥$0.70, ADV ≥1M
+   - Score: `|gap| × ATR × (ADV / 1M)`
+   - Select top 50 stocks for that day
+
+2. **Result**: 
+   - Different stocks selected each day based on daily catalysts
+   - NOT a fixed list per training period
+   - Adapts to daily market conditions
+
+3. **Training/Val/OOS**:
+   - All periods use the same daily SIP selection
+   - Models train on historically selected stocks
+   - Backtest uses stocks that were selected on each OOS day
+
+### Example
+
+**2024-01-15** (Training day):
+- Scan 1,108 symbols → 50 selected (e.g., TSLA, NVDA, COIN...)
+- Train model on these 50 stocks' intraday bars
+
+**2024-01-16** (Training day):
+- Scan 1,108 symbols → 50 selected (e.g., AMD, SMCI, PLTR...)
+- Different stocks based on that day's gaps/volatility
+
+**2024-02-15** (OOS day):
+- Scan 1,108 symbols → 50 selected
+- Generate predictions only for these 50 stocks
+- NOT the same 50 from training period
+
+### Why This Matters
+
+1. **Universe Coverage**: 1,108 symbols scanned daily (not 510 pre-filtered)
+2. **Catalyst-Driven**: Selects stocks with actual catalysts each day
+3. **No Look-Ahead Bias**: OOS days use only that day's data for selection
+4. **Realistic**: Mimics production where you scan universe pre-market daily
+
 ## Window Configuration
 
 | Component | Duration | Purpose |

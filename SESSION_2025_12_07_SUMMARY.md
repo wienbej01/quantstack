@@ -1,15 +1,31 @@
 # Session Summary: 2025-12-07
 
 ## Objective
-Expand from 23-symbol limited dataset to full 505-symbol gold universe with proper SIP-based stock selection and intraday feature engineering.
+Expand from 23-symbol limited dataset to full 1,108-symbol gold universe with proper SIP-based stock selection and intraday feature engineering.
+
+## CRITICAL: Daily SIP Selection
+
+**The system scans ALL 1,108 symbols EVERY DAY to select stocks in play.**
+
+- **NOT** a fixed 510-symbol pre-filtered list
+- **Daily selection** from full gold universe based on catalysts
+- **Different stocks** selected each day (gap, ATR, volume driven)
+- **No look-ahead bias** (each day uses only that day's data)
+
+### Why This Matters
+
+1. **Coverage**: 1,108 symbols vs 510 pre-filtered (2.2x more)
+2. **Catalyst-Driven**: Selects stocks with actual daily catalysts
+3. **Realistic**: Mimics production (scan universe pre-market daily)
+4. **Adaptive**: Captures different market leaders each day
 
 ## Key Accomplishments
 
 ### 1. Full Gold Universe Feature Store ✅
-- **Built**: Daily features for 505 symbols (vs 23 before)
-- **Period**: 6 months (2024-01 to 2024-06)
-- **Output**: 62,397 rows (4.7x improvement)
-- **File**: `run/daily_features_full_gold_6months/features.parquet`
+- **Built**: Daily features for 1,108 symbols (vs 23 before)
+- **Period**: 6 months (2024-01 to 2024-06) initially, now 27 months (2023-07 to 2025-09)
+- **Output**: ~750K rows (1,108 symbols × 680 days)
+- **File**: `run/daily_features_rolling/features.parquet`
 
 ### 2. SIP Selection System ✅
 - **Method**: SMB-inspired catalyst filters (gap ≥2%, ATR ≥$0.70, ADV ≥1M)
