@@ -686,6 +686,38 @@ r_multiple = (entry_price - exit_price) / stop_distance  # SHORT
 
 **Solution:** Detect intraday, resample to daily, count unique dates
 
+### 8.9 CRITICAL: Rolling Intraday Features Label Leakage (Dec 8 2025)
+
+**Issue:** In `scripts/build_intraday_features_rolling.py` the 5-bar forward
+return and exit timestamp were computed before filtering to the target date.
+Last bars of each day could peek into the next day. All rolling-pipeline
+results produced before rebuilding features on/after Dec 8 2025 09:34 are
+invalid.
+
+**Impact:** Inflated hit rates/P&L, trades not guaranteed EOD-flat, labels use
+future-day data.
+
+**Code Fix (done):** Filter to the target date first, then compute
+`future_close`/`exit_timestamp`, and drop rows without a same-day exit (see
+`scripts/build_intraday_features_rolling.py`).
+
+**Actions Required (pending):**
+1. Rebuild intraday features from scratch:
+   `python scripts/build_intraday_features_rolling.py`
+   (logs: `/tmp/build_intraday_rolling.log`, output:
+   `run/intraday_features_rolling/features.parquet`).
+2. Rerun rolling pipeline end-to-end with rebuilt features:
+   ```
+   python scripts/generate_sip_rolling.py
+   python scripts/build_intraday_features_rolling.py  # ensure rebuilt
+   python scripts/rolling_train_and_backtest.py
+   python scripts/analyze_rolling_results.py
+   ```
+3. Inspect generated trade report at
+   `run/rolling_results/trades.csv` (added in the backtest).
+
+**Status:** Rebuild/backtest interrupted (PID 1695267 stopped); rerun needed.
+
 ---
 
 ## 9. Performance Baseline

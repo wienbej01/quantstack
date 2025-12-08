@@ -1,3 +1,37 @@
+# Rolling Intraday Pipeline Status (Dec 8, 2025)
+
+**Critical**: Previous rolling results are invalid due to intraday feature label
+leakage (5-bar lookahead crossed days). Code is fixed; data must be rebuilt and
+pipeline rerun.
+
+## To Resume Later
+1) Rebuild intraday features (fixed leakage, same-day exits only):
+   ```bash
+   nohup python scripts/build_intraday_features_rolling.py \
+     > /tmp/build_intraday_rolling.log 2>&1 &
+   ```
+   - Output: `run/intraday_features_rolling/features.parquet`
+   - Log: `/tmp/build_intraday_rolling.log`
+2) Run full rolling pipeline with new features:
+   ```bash
+   python scripts/generate_sip_rolling.py
+   python scripts/build_intraday_features_rolling.py   # ensure rebuilt
+   python scripts/rolling_train_and_backtest.py
+   python scripts/analyze_rolling_results.py
+   ```
+   - Metrics: `run/rolling_results/metrics.csv`
+   - Trades (new): `run/rolling_results/trades.csv` with entry/exit, size, P&L
+3) Review trade report for April 2025 (post-fix) to confirm no cross-day exits.
+
+## Notes
+- The rebuild started (PID 1695267) after the fix but was interrupted; rerun
+  from step 1.
+- Position sizing in backtest: 1% of equity / (1.5% assumed stop), shares
+  floored; 5-bar exits only; no EOD flatten yet.
+- Spread/fee currently set to 0.0 in `trades.csv`; add cost model if needed.
+
+---
+
 # Project Status - SMB Universe Expansion
 
 **Date**: 2025-12-06 14:02 SGT  
