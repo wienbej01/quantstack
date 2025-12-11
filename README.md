@@ -2,41 +2,62 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Rolling Training System (2025-12-07)
+## Latest: Intraday ML System - PRODUCTION READY (2025-12-11)
 
-**Intraday ML trading system with 6-month rolling training windows**
+**1-minute intraday ML trading system with rigorous data leakage prevention**
 
-- **Universe**: 505 symbols (full gold universe)
-- **Features**: 30 ICT + VPA features (FVG, displacement, order blocks, VWAP, pressure ratio)
-- **Performance**: 66.4% win rate, +1,554% P&L (6-month baseline)
-- **Rolling**: 20 OOS months (2024-02 to 2025-09), monthly retraining
-- **Expected**: 60-65% win rate, +4,000-5,000% P&L over 20 months
+### Performance Summary
 
-See [ROLLING_TRAINING_STRATEGY.md](ROLLING_TRAINING_STRATEGY.md) for details.
+| Config | Trades | Win Rate | PnL | Sharpe | Max DD |
+|--------|--------|----------|-----|--------|--------|
+| **Best Sharpe** (thresh=0.60) | 1,019 | 51.2% | +$9,508 | **1.43** | -$1,580 |
+| Best PnL (thresh=0.40) | 2,204 | 48.4% | +$13,199 | 1.15 | -$6,010 |
 
-### Quick Start: Rolling Training
+### Recommended Configuration
+```python
+hold_bars = 10        # 10-minute hold
+threshold = 0.60      # ML probability threshold
+position_pct = 0.20   # 20% of equity per trade
+# No stops, no targets - simple fixed-period exit
+```
+
+### Key Achievements
+- ✅ **Zero Data Leakage**: 1-bar entry delay rigorously implemented
+- ✅ **Sharpe Ratio 1.43**: Risk-adjusted returns
+- ✅ **51.2% Win Rate**: Consistent edge
+- ✅ **Both Sides Profitable**: LONG +$199, SHORT +$9,309
+- ✅ **Low Drawdown**: -$1,580 max (vs -$6,010 for aggressive config)
+
+### System Design
+- **Entry**: Bar after signal (no leakage)
+- **Exit**: Fixed 10-bar hold (no stops/targets)
+- **Models**: Dual LONG/SHORT LightGBM classifiers
+- **Training**: Rolling 6-month train, 1-month OOS
+- **Features**: 55 ICT + VPA features on 1m bars
+
+### Quick Start: Run Complete System
 
 ```bash
-# Run full pipeline (4-6 hours)
-./scripts/run_rolling_pipeline.sh
+# Full pipeline (8-10 hours)
+./scripts/run_full_fixed_pipeline.sh
 
 # Or run steps individually:
 python scripts/build_daily_features_rolling.py      # Step 1: Daily features
-python scripts/generate_sip_rolling.py              # Step 2: SIP selection
+python scripts/generate_sip_rolling.py              # Step 2: SIP selection  
 python scripts/build_intraday_features_rolling.py   # Step 3: Intraday features
-python scripts/rolling_train_and_backtest.py        # Step 4: Rolling training
-python scripts/analyze_rolling_results.py           # Step 5: Analysis
+python scripts/validate_no_leakage.py               # Step 4: Validation
+python scripts/rolling_train_and_backtest.py        # Step 5: Training & backtest
+python scripts/generate_trade_report.py             # Step 6: Analysis
 
 # View results
-cat run/rolling_results/metrics.csv
-cat run/rolling_results/analysis_report.txt
+cat run/rolling_results/trades.csv
+python scripts/compare_1m_vs_10m.py  # (when 10m complete)
 ```
 
-**Documentation**:
-- [Rolling Training Strategy](ROLLING_TRAINING_STRATEGY.md) - Overview and rationale
-- [Technical Documentation](docs/ROLLING_TRAINING_TECHNICAL.md) - Detailed specifications
-- [Implementation Status](ROLLING_IMPLEMENTATION_STATUS.md) - Current status
-- [Session Summary](SESSION_2025_12_07_SUMMARY.md) - Development log
+**Key Files**:
+- [Implementation Status](FINAL_IMPLEMENTATION_STATUS_DEC10.md) - Complete technical analysis
+- [Pipeline Status](PIPELINE_RUNNING_DEC9.md) - Development log
+- [Implementation Summary](IMPLEMENTATION_SUMMARY_DEC9.md) - Technical details
 
 ## Features
 

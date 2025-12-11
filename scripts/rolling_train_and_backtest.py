@@ -16,10 +16,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 def get_date_ranges():
     """Generate rolling date ranges."""
     ranges = []
-    # Start: 2024-02 (train 2023-07 to 2023-12, val 2024-01)
+    # Start: 2023-08 (train 2023-01 to 2023-06, val 2023-07)
     # End: 2025-09 (train 2025-02 to 2025-07, val 2025-08)
 
-    start_year, start_month = 2024, 2
+    start_year, start_month = 2023, 8
     end_year, end_month = 2025, 9
 
     current_year, current_month = start_year, start_month
@@ -125,17 +125,55 @@ def train_models(train_df, val_df, feature_cols):
     return model_long, model_short, auc_long, auc_short
 
 
+def find_exit_with_stops(
+    entry_idx,
+    entry_price,
+    stop_loss,
+    take_profit,
+    direction,
+    bars_after_entry,
+    max_bars=390,
+):
+    """Find exit based on stop/target/time on 1m bars."""
+    for i, (idx, bar) in enumerate(bars_after_entry.iterrows()):
+        if i >= max_bars:
+            break
+
+        if direction == 1:  # LONG
+            if bar["low"] <= stop_loss:
+                return stop_loss, bar["timestamp"], "stop_hit"
+            if bar["high"] >= take_profit:
+                return take_profit, bar["timestamp"], "target_hit"
+        else:  # SHORT
+            if bar["high"] >= stop_loss:
+                return stop_loss, bar["timestamp"], "stop_hit"
+            if bar["low"] <= take_profit:
+                return take_profit, bar["timestamp"], "target_hit"
+
+    # Time exit
+    if len(bars_after_entry) > 0:
+        last_bar = (
+            bars_after_entry.iloc[-1]
+            if len(bars_after_entry) > 1
+            else bars_after_entry.iloc[0]
+        )
+        return last_bar["close"], last_bar["timestamp"], "time_exit"
+    return None, None, "no_exit"
+
+
 def backtest(
     model_long,
     model_short,
     test_df,
     feature_cols,
-    threshold=0.30,
+    threshold=0.50,
     equity=10_000.0,
-    risk_fraction=0.01,
-    stop_pct=0.015,
+    risk_fraction=0.005,
+    atr_stop_multiple=2.5,
+    r_target=2.0,
+    max_hold_bars=120,
 ):
-    """Backtest on OOS data with risk-based position sizing."""
+    """Backtest with entry delay, ATR stops, and full trade tracking."""
     X_test = test_df[feature_cols]
 
     test_df["prob_long"] = model_long.predict(X_test)
@@ -146,82 +184,116 @@ def backtest(
     test_df.loc[test_df["prob_short"] >= threshold, "prediction"] = -1
 
     signals = test_df[test_df["prediction"] != 0].copy()
-    signals = signals.sort_values("timestamp")
+    signals = signals.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
     if len(signals) == 0:
         return None
 
     start_equity = equity
-    total_signals = 0
-    long_signals = 0
-    short_signals = 0
-    wins = 0
-    wins_long = 0
-    wins_short = 0
-    pnl_dollars = 0.0
     trades = []
 
-    for _, row in signals.iterrows():
-        price = row["close"]
-        exit_price = row["future_close"]
-        exit_ts = row["exit_timestamp"]
-        if pd.isna(exit_price) or pd.isna(exit_ts):
+    # Group by symbol for efficient bar lookup
+    test_df_sorted = test_df.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
+
+    for idx, signal in signals.iterrows():
+        signal_ts = signal["timestamp"]
+        symbol = signal["symbol"]
+        direction = signal["prediction"]
+        atr = signal.get("atr", signal["close"] * 0.02)  # Fallback to 2% if no ATR
+
+        # Get bars after signal for this symbol
+        symbol_bars = test_df_sorted[
+            (test_df_sorted["symbol"] == symbol)
+            & (test_df_sorted["timestamp"] > signal_ts)
+        ]
+
+        if len(symbol_bars) == 0:
             continue
 
-        sign = row["prediction"]
+        # Entry on NEXT bar after signal
+        entry_bar = symbol_bars.iloc[0]
+        entry_price = entry_bar["close"]
+        entry_ts = entry_bar["timestamp"]
+
+        # Calculate stop and target using ATR
+        stop_distance = atr * atr_stop_multiple
+
+        if direction == 1:  # LONG
+            stop_loss = entry_price - stop_distance
+            take_profit = entry_price + (stop_distance * r_target)
+        else:  # SHORT
+            stop_loss = entry_price + stop_distance
+            take_profit = entry_price - (stop_distance * r_target)
+
+        # Position sizing: 1% equity risk
         per_trade_risk = equity * risk_fraction
-        stop_distance = stop_pct * price
-        shares = int(per_trade_risk // stop_distance)
+        shares = int(per_trade_risk / stop_distance)
+
         if shares <= 0:
             continue
 
-        total_signals += 1
-        if sign == 1:
-            long_signals += 1
-        else:
-            short_signals += 1
+        # Find exit
+        bars_after_entry = symbol_bars.iloc[1:]  # Bars after entry bar
+        exit_price, exit_ts, exit_reason = find_exit_with_stops(
+            idx,
+            entry_price,
+            stop_loss,
+            take_profit,
+            direction,
+            bars_after_entry,
+            max_bars=max_hold_bars,
+        )
 
-        trade_pnl = shares * (exit_price - price) * sign
-        pnl_dollars += trade_pnl
-        equity += trade_pnl
+        if exit_price is None:
+            continue
 
-        if trade_pnl > 0:
-            wins += 1
-            if sign == 1:
-                wins_long += 1
-            else:
-                wins_short += 1
+        # Calculate P&L
+        gross_pnl = shares * (exit_price - entry_price) * direction
+
+        # Costs
+        commission_per_share = 0.0035
+        commission_min = 0.35
+        fee = max(shares * commission_per_share * 2, commission_min * 2)  # Entry + exit
+        spread = shares * entry_price * 0.0005  # 5 bps
+        net_pnl = gross_pnl - fee - spread
+
+        equity += net_pnl
+
+        # R-multiple
+        r_multiple = (exit_price - entry_price) / stop_distance * direction
 
         trades.append(
             {
-                "timestamp_entry": row["timestamp"],
-                "timestamp_exit": exit_ts,
-                "symbol": row["symbol"],
-                "side": "LONG" if sign == 1 else "SHORT",
+                "signal_timestamp": signal_ts,
+                "entry_timestamp": entry_ts,
+                "exit_timestamp": exit_ts,
+                "symbol": symbol,
+                "side": "LONG" if direction == 1 else "SHORT",
                 "shares": shares,
-                "entry_price": price,
+                "entry_price": entry_price,
+                "stop_loss": stop_loss,
+                "take_profit": take_profit,
                 "exit_price": exit_price,
-                "gross_pnl": trade_pnl,
-                "spread": 0.0,
-                "fee": 0.0,
-                "net_pnl": trade_pnl,
+                "exit_reason": exit_reason,
+                "stop_distance": stop_distance,
+                "atr": atr,
+                "gross_pnl": gross_pnl,
+                "fee": fee,
+                "spread": spread,
+                "net_pnl": net_pnl,
+                "r_multiple": r_multiple,
             }
         )
 
-    if total_signals == 0:
+    if len(trades) == 0:
         return None
 
-    total_pnl_pct = pnl_dollars / start_equity
+    wins = sum(1 for t in trades if t["net_pnl"] > 0)
 
     return {
-        "total_signals": total_signals,
-        "long_signals": long_signals,
-        "short_signals": short_signals,
-        "long_win_rate": wins_long / long_signals if long_signals > 0 else 0,
-        "short_win_rate": wins_short / short_signals if short_signals > 0 else 0,
-        "combined_win_rate": wins / total_signals,
-        "total_pnl": total_pnl_pct,
-        "avg_pnl": total_pnl_pct / total_signals,
+        "total_signals": len(trades),
+        "combined_win_rate": wins / len(trades),
+        "total_pnl": (equity - start_equity) / start_equity,
         "equity_start": start_equity,
         "equity_end": equity,
         "trades": trades,
@@ -257,6 +329,7 @@ def main():
         "volume_ratio_20",
         "volatility_5",
         "volatility_20",
+        "atr",
         "time_since_open",
         "time_to_close",
         "price_position",
@@ -307,15 +380,9 @@ def main():
         oos_end = pd.Timestamp(range_info["oos_end"])
 
         # Split data
-        train_df = df_pd[
-            (df_pd["date"] >= train_start) & (df_pd["date"] < train_end)
-        ]
-        val_df = df_pd[
-            (df_pd["date"] >= val_start) & (df_pd["date"] < val_end)
-        ]
-        test_df = df_pd[
-            (df_pd["date"] >= oos_start) & (df_pd["date"] < oos_end)
-        ]
+        train_df = df_pd[(df_pd["date"] >= train_start) & (df_pd["date"] < train_end)]
+        val_df = df_pd[(df_pd["date"] >= val_start) & (df_pd["date"] < val_end)]
+        test_df = df_pd[(df_pd["date"] >= oos_start) & (df_pd["date"] < oos_end)]
 
         logging.info(f"Train: {len(train_df):,} bars")
         logging.info(f"Val: {len(val_df):,} bars")
@@ -350,6 +417,15 @@ def main():
             logging.info(f"Signals: {metrics['total_signals']}")
             logging.info(f"Win Rate: {metrics['combined_win_rate']:.2%}")
             logging.info(f"Total P&L: {metrics['total_pnl']:.2%}")
+
+            # Calculate exit reason breakdown
+            trades_list = metrics.get("trades", [])
+            if trades_list:
+                exit_reasons = {}
+                for t in trades_list:
+                    reason = t.get("exit_reason", "unknown")
+                    exit_reasons[reason] = exit_reasons.get(reason, 0) + 1
+                logging.info(f"Exit reasons: {exit_reasons}")
 
             equity = metrics["equity_end"]
             all_trades.extend(

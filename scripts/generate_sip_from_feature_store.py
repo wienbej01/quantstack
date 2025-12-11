@@ -17,9 +17,11 @@ def main():
     # Load feature store
     feature_path = Path("run/daily_features_full_gold_6months/features.parquet")
     logging.info(f"Loading features from: {feature_path}")
-    
+
     df = pl.read_parquet(feature_path)
-    logging.info(f"Loaded {len(df):,} rows, {df['symbol'].n_unique()} symbols, {df['date'].n_unique()} dates")
+    logging.info(
+        f"Loaded {len(df):,} rows, {df['symbol'].n_unique()} symbols, {df['date'].n_unique()} dates"
+    )
 
     # SMB SIP parameters
     min_gap_pct = 0.02  # 2% gap
@@ -27,33 +29,38 @@ def main():
     min_adv = 1_000_000  # 1M ADV (adjusted for gold universe)
     top_k = 50  # Top 50 per day
 
-    logging.info(f"SIP Filters: gap≥{min_gap_pct:.1%}, ATR≥${min_atr:.2f}, ADV≥{min_adv:,}")
+    logging.info(
+        f"SIP Filters: gap≥{min_gap_pct:.1%}, ATR≥${min_atr:.2f}, ADV≥{min_adv:,}"
+    )
     logging.info(f"Top-k per day: {top_k}")
     logging.info("")
 
     # Calculate gap % (open vs prev_close)
-    df = df.with_columns([
-        (pl.col("gap_pct").abs()).alias("abs_gap_pct")
-    ])
+    df = df.with_columns([(pl.col("gap_pct").abs()).alias("abs_gap_pct")])
 
     # Apply filters
     filtered = df.filter(
-        (pl.col("abs_gap_pct") >= min_gap_pct) &
-        (pl.col("atr14") >= min_atr) &
-        (pl.col("adv20") >= min_adv)
+        (pl.col("abs_gap_pct") >= min_gap_pct)
+        & (pl.col("atr14") >= min_atr)
+        & (pl.col("adv20") >= min_adv)
     )
 
-    logging.info(f"After filters: {len(filtered):,} rows ({len(filtered)/len(df)*100:.1f}%)")
+    logging.info(
+        f"After filters: {len(filtered):,} rows ({len(filtered)/len(df)*100:.1f}%)"
+    )
 
     # Score = |gap| * ATR * (ADV / 1M)
-    filtered = filtered.with_columns([
-        (pl.col("abs_gap_pct") * pl.col("atr14") * (pl.col("adv20") / 1_000_000)).alias("score")
-    ])
+    filtered = filtered.with_columns(
+        [
+            (
+                pl.col("abs_gap_pct") * pl.col("atr14") * (pl.col("adv20") / 1_000_000)
+            ).alias("score")
+        ]
+    )
 
     # Select top-k per day
     sip = (
-        filtered
-        .sort(["date", "score"], descending=[False, True])
+        filtered.sort(["date", "score"], descending=[False, True])
         .group_by("date")
         .head(top_k)
     )
@@ -86,7 +93,12 @@ def main():
     logging.info(f"  Std: {daily_counts['count'].std():.1f}")
 
     # Top symbols
-    top_symbols = sip.group_by("symbol").agg(pl.count().alias("count")).sort("count", descending=True).head(20)
+    top_symbols = (
+        sip.group_by("symbol")
+        .agg(pl.count().alias("count"))
+        .sort("count", descending=True)
+        .head(20)
+    )
     logging.info("")
     logging.info("Top 20 Most Frequent Symbols:")
     for row in top_symbols.iter_rows(named=True):

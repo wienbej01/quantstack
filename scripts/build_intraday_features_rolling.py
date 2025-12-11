@@ -112,6 +112,15 @@ def engineer_features(df, target_date):
     df_pd["volatility_5"] = df_pd["returns"].rolling(5, min_periods=1).std()
     df_pd["volatility_20"] = df_pd["returns"].rolling(20, min_periods=1).std()
 
+    # ATR for stop loss calculation
+    df_pd["prev_close"] = df_pd["close"].shift(1)
+    df_pd["tr1"] = df_pd["high"] - df_pd["low"]
+    df_pd["tr2"] = abs(df_pd["high"] - df_pd["prev_close"])
+    df_pd["tr3"] = abs(df_pd["low"] - df_pd["prev_close"])
+    df_pd["tr"] = df_pd[["tr1", "tr2", "tr3"]].max(axis=1)
+    df_pd["atr"] = df_pd["tr"].rolling(14, min_periods=1).mean()
+    df_pd = df_pd.drop(columns=["prev_close", "tr1", "tr2", "tr3", "tr"])
+
     df_pd["time_since_open"] = (df_pd["timestamp"].dt.hour - 9) * 60 + (
         df_pd["timestamp"].dt.minute - 30
     )
@@ -194,31 +203,79 @@ def engineer_features(df, target_date):
     df_pd["date"] = df_pd["timestamp"].dt.date
     df_pd = df_pd[df_pd["date"] == target_date_obj]
 
-    # Labels and exits: 5-bar horizon within the same day; drop rows without a valid exit
-    df_pd["future_close"] = df_pd["close"].shift(-5)
-    df_pd["exit_timestamp"] = df_pd["timestamp"].shift(-5)
-    df_pd["forward_return"] = (df_pd["future_close"] - df_pd["close"]) / df_pd["close"]
+    # Labels: Use NEXT bar for entry (prevent leakage), then 5-bar exit from entry
+    df_pd["entry_close"] = df_pd["close"].shift(-1)  # Next bar entry
+    df_pd["entry_timestamp"] = df_pd["timestamp"].shift(-1)
+    df_pd["exit_close"] = df_pd["close"].shift(-6)  # 5 bars after entry
+    df_pd["exit_timestamp"] = df_pd["timestamp"].shift(-6)
+
+    # Forward return from entry to exit
+    df_pd["forward_return"] = (df_pd["exit_close"] - df_pd["entry_close"]) / df_pd[
+        "entry_close"
+    ]
     df_pd["label_long"] = (df_pd["forward_return"] > 0.015).astype(int)
     df_pd["label_short"] = (df_pd["forward_return"] < -0.015).astype(int)
-    df_pd = df_pd.dropna(subset=["future_close", "exit_timestamp"])
+
+    # Drop rows without valid same-day entry and exit
+    df_pd = df_pd.dropna(
+        subset=["entry_close", "entry_timestamp", "exit_close", "exit_timestamp"]
+    )
+    df_pd["entry_date"] = df_pd["entry_timestamp"].dt.date
+    df_pd["exit_date"] = df_pd["exit_timestamp"].dt.date
+    df_pd = df_pd[
+        (df_pd["entry_date"] == target_date_obj)
+        & (df_pd["exit_date"] == target_date_obj)
+    ]
+    df_pd = df_pd.drop(columns=["entry_date", "exit_date"])
+
+    # Apply trade filters
+    df_pd = df_pd[df_pd["atr"] >= 0.50]  # Min ATR filter
+
+    # Avoid first 15 min and last 30 min
+    hour = df_pd["timestamp"].dt.hour
+    minute = df_pd["timestamp"].dt.minute
+    df_pd = df_pd[
+        ~((hour == 9) & (minute < 45))  # Skip 9:30-9:45
+        & ~((hour == 15) & (minute >= 30))  # Skip 15:30-16:00
+    ]
 
     return pl.from_pandas(df_pd)
 
 
 def main():
     logging.info("=" * 80)
-    logging.info("BUILDING INTRADAY FEATURES: 2023-07 to 2025-09")
+    logging.info("BUILDING INTRADAY FEATURES: 2023-01 to 2025-09")
     logging.info("=" * 80)
+
+    output_dir = Path("run/intraday_features_rolling")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_file = output_dir / "features_temp.parquet"
 
     sip = load_sip()
     sip_by_date = sip.group_by("date").agg(pl.col("symbol"))
     dates = sorted(sip_by_date["date"].to_list())
 
+    all_features = []
+    processed_dates = set()
+
+    if checkpoint_file.exists():
+        logging.info(f"Resuming from checkpoint: {checkpoint_file}")
+        checkpoint_df = pl.read_parquet(checkpoint_file)
+        all_features.append(checkpoint_df)
+        processed_dates = set(checkpoint_df["date"].unique())
+        logging.info(
+            f"Checkpoint contains {len(checkpoint_df):,} rows across "
+            f"{len(processed_dates)} dates"
+        )
+
     logging.info(f"Processing {len(dates)} dates")
 
-    all_features = []
-
     for i, date in enumerate(dates, 1):
+        if date in processed_dates:
+            if i % 50 == 0:
+                logging.info(f"[{i}/{len(dates)}] {date}: already processed, skipping")
+            continue
+
         symbols = sip_by_date.filter(pl.col("date") == date)["symbol"][0]
         logging.info(f"[{i}/{len(dates)}] {date}: {len(symbols)} symbols")
 
@@ -243,8 +300,6 @@ def main():
 
         if i % 10 == 0 and all_features:
             combined = pl.concat(all_features)
-            output_dir = Path("run/intraday_features_rolling")
-            output_dir.mkdir(parents=True, exist_ok=True)
             combined.write_parquet(output_dir / "features_temp.parquet")
             logging.info(f"  Saved intermediate: {len(combined):,} bars")
 
@@ -253,8 +308,6 @@ def main():
         return
 
     combined = pl.concat(all_features)
-    output_dir = Path("run/intraday_features_rolling")
-    output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "features.parquet"
     combined.write_parquet(output_file)
 
