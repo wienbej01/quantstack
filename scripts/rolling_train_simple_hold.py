@@ -87,10 +87,11 @@ def backtest_simple_hold(
     model_short,
     test_df,
     feature_cols,
-    threshold=0.50,
+    threshold=0.60,
     equity=10_000.0,
-    position_pct=0.10,  # 10% of equity per trade
-    hold_bars=5,
+    position_pct=0.05,  # 5% of equity per position
+    hold_bars=10,
+    max_concurrent=5,  # Max 5 concurrent positions
 ):
     """Simple backtest: entry on bar after signal, hold for N bars, exit at close."""
     X_test = test_df[feature_cols]
@@ -109,10 +110,19 @@ def backtest_simple_hold(
         return None
 
     trades = []
+    open_positions = []  # Track exit timestamps
     test_df_sorted = test_df.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
 
-    for idx, signal in signals.iterrows():
+    for _, signal in signals.iterrows():
         signal_ts = signal["timestamp"]
+
+        # Close expired positions
+        open_positions = [exit_ts for exit_ts in open_positions if exit_ts > signal_ts]
+
+        # Check if we can open new position
+        if len(open_positions) >= max_concurrent:
+            continue
+
         symbol = signal["symbol"]
         direction = signal["prediction"]
 
@@ -139,12 +149,15 @@ def backtest_simple_hold(
         if entry_ts.date() != exit_ts.date():
             continue
 
-        # Position sizing: fixed % of equity
+        # Position sizing: 1% of equity
         position_value = equity * position_pct
         shares = int(position_value / entry_price)
 
         if shares <= 0:
             continue
+
+        # Track open position
+        open_positions.append(exit_ts)
 
         # Calculate P&L
         if direction == 1:  # LONG
