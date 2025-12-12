@@ -2,31 +2,32 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Intraday ML System - PRODUCTION READY (2025-12-11)
+## Latest: Model Inconsistency Analysis (2025-12-12)
 
-**1-minute intraday ML trading system with rigorous data leakage prevention**
+**⚠️ CRITICAL FINDINGS: Current ML system is NOT consistently profitable**
 
-### Performance Summary
+### The Problem
+While showing +$13k total PnL, the system has extreme volatility:
+- Equity swung $10k → $166k → $23k (87% drawdown!)
+- Only 54% of months profitable
+- **2 stocks account for 502% of all profits** (curve fitting)
+- Morning trades: +$66k, Afternoon trades: -$50k
 
-| Config | Trades | Win Rate | PnL | Sharpe | Max DD |
-|--------|--------|----------|-----|--------|--------|
-| **Best Sharpe** (thresh=0.60) | 1,019 | 51.2% | +$9,508 | **1.43** | -$1,580 |
-| Best PnL (thresh=0.40) | 2,204 | 48.4% | +$13,199 | 1.15 | -$6,010 |
+### Root Causes Identified
+1. **Fixed 1.5% label threshold** - varies 4x between high/low vol months
+2. **Raw price features** - drift from $80 → $160, model doesn't generalize  
+3. **No regime detection** - averages across bull/bear markets
+4. **Symbol concentration** - 83% of best month was ONE stock (AMSC)
+5. **Time-of-day ignored** - conflicting patterns morning vs afternoon
+6. **Short validation** - 1 month can't detect overfitting
 
-### Recommended Configuration
-```python
-hold_bars = 10        # 10-minute hold
-threshold = 0.60      # ML probability threshold
-position_pct = 0.20   # 20% of equity per trade
-# No stops, no targets - simple fixed-period exit
-```
-
-### Key Achievements
-- ✅ **Zero Data Leakage**: 1-bar entry delay rigorously implemented
-- ✅ **Sharpe Ratio 1.43**: Risk-adjusted returns
-- ✅ **51.2% Win Rate**: Consistent edge
-- ✅ **Both Sides Profitable**: LONG +$199, SHORT +$9,309
-- ✅ **Low Drawdown**: -$1,580 max (vs -$6,010 for aggressive config)
+### Status: REBUILDING SYSTEM
+Implementing fixes for consistent profitability:
+- ATR-normalized labels
+- Relative features (no raw prices)
+- Time-of-day filtering
+- Diversification constraints
+- Regime awareness
 
 ### System Design
 - **Entry**: Bar after signal (no leakage)
