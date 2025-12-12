@@ -2,63 +2,51 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Model Inconsistency Analysis (2025-12-12)
+## Latest: Fixed ML System Implementation (2025-12-12)
 
-**⚠️ CRITICAL FINDINGS: Current ML system is NOT consistently profitable**
+**✅ CRITICAL FIXES IMPLEMENTED: System rebuilt with timezone normalization and clean features**
 
-### The Problem
-While showing +$13k total PnL, the system has extreme volatility:
-- Equity swung $10k → $166k → $23k (87% drawdown!)
-- Only 54% of months profitable
-- **2 stocks account for 502% of all profits** (curve fitting)
-- Morning trades: +$66k, Afternoon trades: -$50k
+### The Solution
+After comprehensive root cause analysis, all critical issues have been fixed:
+- **Timezone normalization**: All data now in consistent ET timestamps
+- **Raw price removal**: 0 raw price features (was 24)
+- **Time-stratified models**: Separate morning/afternoon models
+- **Clean features**: Only relative/normalized features
 
-### Root Causes Identified
-1. **Fixed 1.5% label threshold** - varies 4x between high/low vol months
-2. **Raw price features** - drift from $80 → $160, model doesn't generalize  
-3. **No regime detection** - averages across bull/bear markets
-4. **Symbol concentration** - 83% of best month was ONE stock (AMSC)
-5. **Time-of-day ignored** - conflicting patterns morning vs afternoon
-6. **Short validation** - 1 month can't detect overfitting
+### Status: SYSTEM REBUILT AND TRAINING
+- ✅ Features: 153,696 rows, 49 clean features, 534 symbols
+- ✅ Data quality: 76% morning data (vs 0.4% before)
+- ✅ Validation: All checks passed
+- 🟡 Training: Time-stratified models in progress
 
-### Status: REBUILDING SYSTEM
-Implementing fixes for consistent profitability:
-- ATR-normalized labels
-- Relative features (no raw prices)
-- Time-of-day filtering
-- Diversification constraints
-- Regime awareness
+### Root Causes Fixed
+1. **CRITICAL - Timezone inconsistency**: Mixed UTC/ET data → Normalized to ET
+2. **HIGH - Raw price drift**: 24 raw features → 0 raw features  
+3. **MEDIUM - ICT implementation**: Enhanced with kill zones, normalized VPA
+4. **MEDIUM - Time stratification**: Single model → Morning/afternoon models
 
-### System Design
-- **Entry**: Bar after signal (no leakage)
-- **Exit**: Fixed 10-bar hold (no stops/targets)
-- **Models**: Dual LONG/SHORT LightGBM classifiers
-- **Training**: Rolling 6-month train, 1-month OOS
-- **Features**: 55 ICT + VPA features on 1m bars
-
-### Quick Start: Run Complete System
+### Quick Start: Run Fixed System
 
 ```bash
-# Full pipeline (8-10 hours)
-./scripts/run_full_fixed_pipeline.sh
+# Run complete fixed pipeline
+python scripts/run_fixed_pipeline.py
 
-# Or run steps individually:
-python scripts/build_daily_features_rolling.py      # Step 1: Daily features
-python scripts/generate_sip_rolling.py              # Step 2: SIP selection  
-python scripts/build_intraday_features_rolling.py   # Step 3: Intraday features
-python scripts/validate_no_leakage.py               # Step 4: Validation
-python scripts/rolling_train_and_backtest.py        # Step 5: Training & backtest
-python scripts/generate_trade_report.py             # Step 6: Analysis
+# Or run individual phases:
+python scripts/build_intraday_features_fixed.py    # Phase 1: Clean features
+python scripts/validate_fixed_features.py          # Validation
+python scripts/rolling_train_fixed.py              # Phase 3: Time-stratified training
+
+# Monitor progress
+python scripts/monitor_fixed_pipeline.py
 
 # View results
-cat run/rolling_results/trades.csv
-python scripts/compare_1m_vs_10m.py  # (when 10m complete)
+cat run/rolling_results_fixed/trades.csv
 ```
 
 **Key Files**:
-- [Implementation Status](FINAL_IMPLEMENTATION_STATUS_DEC10.md) - Complete technical analysis
+- [Root Cause Analysis](ROOT_CAUSE_ANALYSIS_DEC12.md) - Complete technical analysis
+- [Implementation Status](FINAL_IMPLEMENTATION_STATUS_DEC10.md) - Previous system analysis
 - [Pipeline Status](PIPELINE_RUNNING_DEC9.md) - Development log
-- [Implementation Summary](IMPLEMENTATION_SUMMARY_DEC9.md) - Technical details
 
 ## Features
 
