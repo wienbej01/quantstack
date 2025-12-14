@@ -2,22 +2,23 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Fixed ML System Implementation (2025-12-12)
+## Latest: ML System Rebuilt - Position Sizing Fix Needed (2025-12-13)
 
-**✅ CRITICAL FIXES IMPLEMENTED: System rebuilt with timezone normalization and clean features**
+**✅ MODEL PERFORMANCE EXCELLENT: 0.767 AUC (+0.177), 72.1% win rate**  
+**⚠️ POSITION SIZING BUG: Unrealistic PnL values blocking deployment**
 
-### The Solution
-After comprehensive root cause analysis, all critical issues have been fixed:
-- **Timezone normalization**: All data now in consistent ET timestamps
-- **Raw price removal**: 0 raw price features (was 24)
-- **Time-stratified models**: Separate morning/afternoon models
-- **Clean features**: Only relative/normalized features
+### System Status
+- ✅ **Model Quality**: 0.767 AUC, 72.1% win rate on reasonable trades
+- ✅ **Data Quality**: 153,696 rows, 76% morning coverage, 0 raw price drift  
+- ✅ **Architecture**: Time-stratified models, enhanced features, XGBoost+Optuna
+- ⚠️ **Blocker**: Position sizing calculation errors (shares: 100 to 9.9B)
 
-### Status: SYSTEM REBUILT AND TRAINING
-- ✅ Features: 153,696 rows, 49 clean features, 534 symbols
-- ✅ Data quality: 76% morning data (vs 0.4% before)
-- ✅ Validation: All checks passed
-- 🟡 Training: Time-stratified models in progress
+### Next Session: Fix Position Sizing (2-3 hours to complete)
+```bash
+# Debug and fix position sizing
+python scripts/debug_position_sizing.py
+python scripts/validate_fixed_features.py
+```
 
 ### Root Causes Fixed
 1. **CRITICAL - Timezone inconsistency**: Mixed UTC/ET data → Normalized to ET

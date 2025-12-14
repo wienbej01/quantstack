@@ -6,10 +6,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from datetime import datetime, timedelta
-
-import pandas as pd
-import polars as pl
 
 # Import the feature engineering function
 from scripts.build_intraday_features_rolling import (
@@ -94,7 +90,7 @@ def test_single_symbol_day():
     # Check 6: Labels
     long_pct = df_pd["label_long"].mean()
     short_pct = df_pd["label_short"].mean()
-    print(f"✓ Label distribution:")
+    print("✓ Label distribution:")
     print(f"  LONG: {long_pct:.2%}")
     print(f"  SHORT: {short_pct:.2%}")
     print(f"  NEUTRAL: {1 - long_pct - short_pct:.2%}")

@@ -13,7 +13,6 @@ from datetime import datetime
 from pathlib import Path
 
 import lightgbm as lgb
-import numpy as np
 import pandas as pd
 import polars as pl
 from sklearn.metrics import roc_auc_score

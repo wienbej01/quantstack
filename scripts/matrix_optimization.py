@@ -9,7 +9,6 @@ from pathlib import Path
 import lightgbm as lgb
 import pandas as pd
 import polars as pl
-from sklearn.metrics import roc_auc_score
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 

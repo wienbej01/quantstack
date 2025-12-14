@@ -22,7 +22,6 @@ def load_sip():
 
 def load_intraday_bars(symbol, date):
     """Load 1m bars and resample to 10m."""
-    from datetime import timedelta
 
     if isinstance(date, str):
         date_obj = datetime.strptime(date, "%Y-%m-%d").date()
@@ -91,7 +90,7 @@ def load_intraday_bars(symbol, date):
 
         resampled = resampled.reset_index()
         return pl.from_pandas(resampled), df_1m
-    except Exception as e:
+    except Exception:
         return None, None
 
 

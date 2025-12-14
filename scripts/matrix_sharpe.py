@@ -4,7 +4,6 @@
 import logging
 from datetime import datetime
 from itertools import product
-from pathlib import Path
 
 import lightgbm as lgb
 import numpy as np

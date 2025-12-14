@@ -9,7 +9,6 @@ from pathlib import Path
 import lightgbm as lgb
 import pandas as pd
 import polars as pl
-from sklearn.metrics import roc_auc_score
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 
@@ -89,7 +88,7 @@ def backtest_symmetric(
     # Limit signals for speed
     if len(signals) > 5000:
         signals = signals.sample(5000, random_state=42)
-        logging.info(f"    Sampled to 5000 signals")
+        logging.info("    Sampled to 5000 signals")
 
     test_df_sorted = test_df.sort_values(["symbol", "timestamp"]).reset_index(drop=True)
     equity = 10_000.0

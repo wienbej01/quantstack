@@ -60,20 +60,20 @@ def validate():
     df["duration_minutes"] = (
         df["exit_timestamp"] - df["entry_timestamp"]
     ).dt.total_seconds() / 60
-    print(f"\n✓ Duration stats:")
+    print("\n✓ Duration stats:")
     print(f"  Mean: {df['duration_minutes'].mean():.1f} minutes")
     print(f"  Median: {df['duration_minutes'].median():.1f} minutes")
     print(f"  Min: {df['duration_minutes'].min():.1f} minutes")
     print(f"  Max: {df['duration_minutes'].max():.1f} minutes")
 
     # Check 6: Label distribution
-    print(f"\n✓ Label distribution:")
+    print("\n✓ Label distribution:")
     print(f"  LONG: {df['label_long'].sum():,} ({df['label_long'].mean():.2%})")
     print(f"  SHORT: {df['label_short'].sum():,} ({df['label_short'].mean():.2%})")
     print(f"  NEUTRAL: {((df['label_long'] == 0) & (df['label_short'] == 0)).sum():,}")
 
     # Check 7: Feature sanity
-    print(f"\n✓ Feature ranges:")
+    print("\n✓ Feature ranges:")
     print(f"  returns_5: [{df['returns_5'].min():.4f}, {df['returns_5'].max():.4f}]")
     print(
         f"  volatility_5: [{df['volatility_5'].min():.4f}, {df['volatility_5'].max():.4f}]"
