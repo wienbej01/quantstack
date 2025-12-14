@@ -2,23 +2,32 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: ML System Rebuilt - Position Sizing Fix Needed (2025-12-13)
+## Latest: Regime-Aware Strategy (2024-12-14)
 
-**✅ MODEL PERFORMANCE EXCELLENT: 0.767 AUC (+0.177), 72.1% win rate**  
-**⚠️ POSITION SIZING BUG: Unrealistic PnL values blocking deployment**
+**✅ REGIME-AWARE MODEL: +13.0% return, 49.7% win rate**  
+**✅ CROSS-SECTIONAL FEATURES: 11 features outperform 57**
 
 ### System Status
-- ✅ **Model Quality**: 0.767 AUC, 72.1% win rate on reasonable trades
-- ✅ **Data Quality**: 153,696 rows, 76% morning coverage, 0 raw price drift  
-- ✅ **Architecture**: Time-stratified models, enhanced features, XGBoost+Optuna
-- ⚠️ **Blocker**: Position sizing calculation errors (shares: 100 to 9.9B)
+- ✅ **Regime Detection**: Bull/Bear/Sideways + High/Low volatility
+- ✅ **Separate Models**: Per-regime GradientBoosting models
+- ✅ **Feature Set**: 11 cross-sectional features (best performers)
+- ✅ **Position Sizing**: 1% risk with volatility adjustment
 
-### Next Session: Fix Position Sizing (2-3 hours to complete)
+### Quick Start
 ```bash
-# Debug and fix position sizing
-python scripts/debug_position_sizing.py
-python scripts/validate_fixed_features.py
+# Run regime-aware backtest
+python scripts/regime_aware_strategy.py
+
+# Run with cross-sectional features only
+python scripts/roll_forward_test.py
 ```
+
+### Performance Comparison
+| Approach | Return | Win Rate | Max DD |
+|----------|--------|----------|--------|
+| Regime-aware | +13.0% | 49.7% | -19.6% |
+| Cross-sectional only | +8.3% | 50.3% | -12.5% |
+| All 57 features | -21.3% | 48.5% | -52.9% |
 
 ### Root Causes Fixed
 1. **CRITICAL - Timezone inconsistency**: Mixed UTC/ET data → Normalized to ET
