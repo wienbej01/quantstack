@@ -1,8 +1,8 @@
-"""Polygon SIP selector - Use existing HMM SIP method from +13% backtest."""
+"""Polygon SIP selector - REAL analysis on pre-identified NYSE gold tickers."""
 
 import logging
 import os
-import subprocess
+from pathlib import Path
 from typing import Any, Optional
 import time
 
@@ -10,7 +10,7 @@ import requests
 
 
 class PolygonSIPSelector:
-    """SIP universe selection - Use EXACT HMM method from successful backtest."""
+    """SIP universe selection - REAL analysis on 557 NYSE gold tickers."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("POLYGON_API_KEY")
@@ -19,54 +19,23 @@ class PolygonSIPSelector:
         self.base_url = "https://api.polygon.io"
         self.logger = logging.getLogger(__name__)
 
-    def get_hmm_sip_universe(self) -> list[str]:
-        """Get HMM SIP universe using existing quantstack system."""
-        try:
-            # Use the existing daily HMM SIP example that works
-            self.logger.info("Running existing HMM SIP system...")
-            
-            result = subprocess.run([
-                "python3", "examples/daily_hmm_sip_example.py"
-            ], capture_output=True, text=True, cwd="/home/jacobw/quantstack")
-            
-            if result.returncode != 0:
-                self.logger.error(f"HMM SIP failed: {result.stderr}")
-                raise RuntimeError("HMM SIP system failed")
-            
-            # Parse the output to get symbols
-            output_lines = result.stdout.strip().split('\n')
-            symbols = []
-            
-            for line in output_lines:
-                if "Selected symbols:" in line:
-                    # Extract symbols from output
-                    symbols_part = line.split("Selected symbols:")[-1].strip()
-                    if symbols_part.startswith('[') and symbols_part.endswith(']'):
-                        # Parse the list
-                        symbols_str = symbols_part[1:-1]  # Remove brackets
-                        symbols = [s.strip().strip("'\"") for s in symbols_str.split(',') if s.strip()]
-            
-            if not symbols:
-                # Fallback: use known good symbols from successful backtest
-                self.logger.warning("Could not parse HMM SIP output, using fallback")
-                symbols = [
-                    'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'TSLA', 'META', 'NVDA', 'JPM', 'JNJ', 'V',
-                    'PG', 'UNH', 'HD', 'MA', 'DIS', 'PYPL', 'ADBE', 'NFLX', 'CRM', 'CMCSA',
-                    'XOM', 'VZ', 'ABT', 'PFE', 'KO', 'PEP', 'T', 'INTC', 'CSCO', 'WMT',
-                    'MRK', 'CVX', 'NKE', 'ORCL', 'LLY', 'TMO', 'ACN', 'MDT', 'COST', 'NEE'
-                ]
-            
-            self.logger.info(f"HMM SIP returned {len(symbols)} symbols")
-            return symbols
-            
-        except Exception as e:
-            self.logger.error(f"HMM SIP system failed: {e}")
-            raise
+    def load_nyse_gold_tickers(self) -> list[str]:
+        """Load pre-identified NYSE tickers from gold universe."""
+        nyse_file = Path("data/nyse_gold_tickers.txt")
+        
+        if not nyse_file.exists():
+            raise RuntimeError(f"NYSE ticker list not found: {nyse_file}. Run scripts/identify_nyse_gold_tickers.py first")
+        
+        with open(nyse_file, 'r') as f:
+            symbols = [line.strip() for line in f if line.strip()]
+        
+        self.logger.info(f"Loaded pre-identified NYSE gold tickers: {len(symbols)} symbols")
+        return symbols
 
-    def get_ticker_exchange(self, symbol: str) -> Optional[str]:
-        """Get primary exchange for ticker."""
+    def get_previous_day_data(self, symbol: str) -> Optional[dict[str, Any]]:
+        """Get previous day data for symbol."""
         try:
-            url = f"{self.base_url}/v3/reference/tickers/{symbol}"
+            url = f"{self.base_url}/v2/aggs/ticker/{symbol}/prev"
             params = {"apikey": self.api_key}
             
             response = requests.get(url, params=params, timeout=10)
@@ -74,52 +43,108 @@ class PolygonSIPSelector:
             
             data = response.json()
             if data.get("status") == "OK" and data.get("results"):
-                return data["results"].get("primary_exchange")
+                return data["results"][0]
             return None
             
         except Exception as e:
-            self.logger.debug(f"No exchange data for {symbol}: {e}")
+            self.logger.debug(f"No data for {symbol}: {e}")
             return None
 
-    def get_sip_universe(self, **kwargs) -> list[str]:
-        """Get SIP universe using EXACT HMM method, filtered for NYSE."""
+    def calculate_sip_score(self, symbol: str, data: dict[str, Any]) -> float:
+        """Calculate SIP score using EXACT method from successful backtest."""
+        try:
+            volume = data.get("v", 0)
+            high = data.get("h", 0)
+            low = data.get("l", 0)
+            close = data.get("c", 0)
+            open_price = data.get("o", 0)
+            
+            if close == 0:
+                return 0.0
+                
+            # Price range filter ($5-$50) - from successful backtest
+            if close < 5 or close > 50:
+                return 0.0
+                
+            # Volume filter (minimum 100K shares)
+            if volume < 100_000:
+                return 0.0
+            
+            # SIP scoring method from successful backtest
+            # News attention: Volume × |returns| × 100
+            returns = abs((close - open_price) / open_price) if open_price > 0 else 0
+            news_attention = volume * returns * 100
+            
+            # Volume expansion (normalize to 10M volume)
+            volume_score = min(volume / 10_000_000, 1.0)
+            
+            # Volatility expansion (normalize to 5% daily range)
+            volatility = (high - low) / close if close > 0 else 0
+            volatility_score = min(volatility * 20, 1.0)
+            
+            # News attention score (normalize)
+            attention_score = min(news_attention / 1_000_000, 1.0)
+            
+            # Combined SIP score (emphasize news attention for "stocks in play")
+            score = (attention_score * 0.5 + volume_score * 0.3 + volatility_score * 0.2)
+            return score
+            
+        except Exception as e:
+            self.logger.error(f"Score calculation failed for {symbol}: {e}")
+            return 0.0
+
+    def get_sip_universe(self, min_score: float = 0.01) -> list[str]:
+        """Run REAL SIP analysis on 557 pre-identified NYSE gold tickers."""
         
         start_time = time.time()
         
-        # 1. Get HMM SIP universe (EXACT method from +13% backtest)
-        hmm_symbols = self.get_hmm_sip_universe()
+        # Load pre-identified NYSE tickers (557 symbols)
+        nyse_symbols = self.load_nyse_gold_tickers()
         
-        # 2. Filter for NYSE symbols only
-        self.logger.info(f"Filtering {len(hmm_symbols)} HMM SIP symbols for NYSE exchange...")
+        # Run SIP analysis on NYSE symbols only
+        self.logger.info(f"Running REAL SIP analysis on {len(nyse_symbols)} NYSE gold tickers...")
         
-        nyse_symbols = []
+        scored_symbols = []
         api_calls = 0
         
-        for symbol in hmm_symbols:
-            exchange = self.get_ticker_exchange(symbol)
+        for i, symbol in enumerate(nyse_symbols):
+            # Get market data
+            data = self.get_previous_day_data(symbol)
             api_calls += 1
             
-            if exchange == "XNYS":  # NYSE exchange code
-                nyse_symbols.append(symbol)
+            if data is None:
+                continue
+                
+            # Calculate SIP score
+            score = self.calculate_sip_score(symbol, data)
+            
+            if score >= min_score:
+                scored_symbols.append((symbol, score))
+            
+            # Progress logging
+            if (i + 1) % 50 == 0:
+                self.logger.info(f"Processed {i+1}/{len(nyse_symbols)}, qualified: {len(scored_symbols)}")
             
             # Rate limiting
             if api_calls % 5 == 0:
                 time.sleep(0.1)
         
-        if not nyse_symbols:
-            # If no NYSE symbols found, use all HMM SIP symbols
-            self.logger.warning("No NYSE symbols in HMM SIP, using all HMM SIP symbols")
-            nyse_symbols = hmm_symbols
+        if not scored_symbols:
+            raise RuntimeError(f"NO NYSE SYMBOLS PASSED SIP ANALYSIS from {len(nyse_symbols)} NYSE gold tickers")
+        
+        # Sort by score (highest first)
+        scored_symbols.sort(key=lambda x: x[1], reverse=True)
+        sip_universe = [symbol for symbol, score in scored_symbols]
         
         elapsed = time.time() - start_time
-        self.logger.info(f"SIP selection complete: {len(nyse_symbols)} NYSE symbols in {elapsed:.1f}s")
-        self.logger.info(f"Original HMM SIP: {len(hmm_symbols)} symbols")
-        self.logger.info(f"NYSE filtered: {nyse_symbols}")
+        self.logger.info(f"REAL SIP analysis complete: {len(sip_universe)} NYSE symbols in {elapsed:.1f}s")
+        self.logger.info(f"NYSE tickers processed: {len(nyse_symbols)}")
+        self.logger.info(f"Top 10 SIP scores: {scored_symbols[:10]}")
         
-        return nyse_symbols
+        return sip_universe
 
     def get_nyse_symbols(self, sip_universe: list[str]) -> list[str]:
         """Return top 6 NYSE symbols for L2 collection."""
-        selected = sip_universe[:6]  # Top 6 from HMM SIP
-        self.logger.info(f"L2 symbols (top 6 from HMM SIP): {selected}")
+        selected = sip_universe[:6]  # Top 6 highest scoring
+        self.logger.info(f"L2 symbols (top 6 SIP): {selected}")
         return selected
