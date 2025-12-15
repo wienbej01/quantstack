@@ -1,4 +1,4 @@
-.PHONY: bootstrap lint test qa-all install fix check-types format test-daily-hmm smoke-daily-hmm
+.PHONY: bootstrap lint test qa-all install fix check-types format test-daily-hmm smoke-daily-hmm test-l2 install-live live-trade
 
 ML_PATHS = \
 	extensions/intraday_ml/data_prep.py \
@@ -27,3 +27,13 @@ test-daily-hmm:
 smoke-daily-hmm:
 	@echo "Running daily HMM_SIP smoke test..."
 	python -c "from tests.test_daily_hmm_end_to_end import test_daily_hmm_comprehensive_workflow; test_daily_hmm_comprehensive_workflow(); print('✅ Daily HMM_SIP smoke test passed!')"
+
+# Live trading targets
+install-live:
+	pip install -r requirements-live.txt
+
+test-l2:
+	python scripts/test_l2_integration.py
+
+live-trade:
+	python scripts/live_regime_trading.py

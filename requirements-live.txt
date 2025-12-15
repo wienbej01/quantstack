@@ -1,0 +1,6 @@
+# Live trading dependencies
+ib-insync>=0.9.86
+nest-asyncio>=1.5.6
+
+# L2 data processing
+pyarrow>=12.0.0

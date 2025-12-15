@@ -1,0 +1,50 @@
+name: "Live Regime-Aware ML Strategy"
+description: "Live trading with L2 data collection and regime-aware ML"
+
+data:
+  live_mode: true
+  polygon:
+    api_key: ${POLYGON_API_KEY}
+    use_for: ["sip_selection", "basic_features"]
+  
+  l2:
+    enabled: true
+    host: "127.0.0.1"
+    port: 7497  # Paper trading port
+    client_id: 100
+    max_symbols: 3
+    levels: 10
+    rotate_seconds: 300  # 5 minutes
+    output_dir: "./data/live_l2"
+    run_id: "regime_aware_live"
+    windows: ["09:30-16:00"]  # Market hours ET
+
+sip:
+  method: "hmm"
+  config:
+    mode: "daily"
+    top_k: 40
+    score_floor: 0.01
+
+strategy:
+  type: "regime_aware_ml"
+  model_path: "./models/regime_aware"
+  position_size_pct: 0.01
+  risk_per_trade: 0.01
+  
+  # L2 feature integration
+  use_l2_features: true
+  l2_feature_weight: 0.3  # Blend with existing features
+
+risk:
+  max_positions: 10
+  max_daily_loss: 0.05
+  position_timeout_minutes: 240
+
+execution:
+  mode: "paper"  # Start with paper trading
+  broker: "ibkr"
+  
+logging:
+  level: "INFO"
+  file: "./logs/live_trading.log"
