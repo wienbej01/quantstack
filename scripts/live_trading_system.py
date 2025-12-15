@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Live trading system - Trade ALL NYSE SIP symbols with regime-aware model."""
+"""Live trading system - LIVE DATA ONLY."""
 
 import logging
 import os
@@ -19,7 +19,7 @@ from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
 
 
 class LiveTradingSystem:
-    """Live trading system - ALL NYSE SIP symbols + L2 collection."""
+    """Live trading system - LIVE DATA ONLY."""
 
     def __init__(self):
         self.logger = self._setup_logging()
@@ -30,8 +30,8 @@ class LiveTradingSystem:
         self.l2_collector: Optional[QuantstackL2Collector] = None
         
         # State
-        self.sip_universe = []  # ALL NYSE symbols that pass SIP
-        self.l2_symbols = []    # Top 6 for L2 collection
+        self.sip_universe = []
+        self.l2_symbols = []
         self.trading_connected = False
         self.l2_active = False
         
@@ -50,24 +50,23 @@ class LiveTradingSystem:
         return logging.getLogger(__name__)
 
     def load_or_create_daily_universe(self):
-        """Load today's SIP universe or create if missing."""
+        """Load today's SIP universe - LIVE DATA ONLY."""
         date_str = datetime.now().strftime('%Y-%m-%d')
         
         # Try to load existing results
         sip_universe, l2_symbols = load_daily_sip_results(date_str)
         
         if sip_universe is None:
-            self.logger.info("No daily SIP results found, running selection...")
+            self.logger.info("No daily SIP results found, running LIVE analysis...")
             sip_universe, l2_symbols = run_daily_sip_selection()
             
             if sip_universe is None:
-                self.logger.error("Failed to create daily SIP universe")
-                return False
+                raise RuntimeError("LIVE SIP analysis failed")
         
         self.sip_universe = sip_universe
         self.l2_symbols = l2_symbols
         
-        self.logger.info(f"Daily universe loaded: {len(self.sip_universe)} NYSE SIP symbols, {len(self.l2_symbols)} L2 symbols")
+        self.logger.info(f"LIVE universe loaded: {len(self.sip_universe)} NYSE SIP symbols, {len(self.l2_symbols)} L2 symbols")
         return True
 
     def is_market_hours(self) -> bool:
@@ -86,7 +85,7 @@ class LiveTradingSystem:
                 dt_time(15, 0) <= current_time <= dt_time(16, 0))
 
     def start_l2_collection(self):
-        """Start L2 data collection for top NYSE symbols."""
+        """Start L2 data collection."""
         if not self.l2_symbols:
             self.logger.warning("No L2 symbols available")
             return
@@ -97,7 +96,7 @@ class LiveTradingSystem:
             'client_id': 500,
             'levels': 10,
             'max_symbols': len(self.l2_symbols),
-            'rotate_seconds': 300,  # 5-minute rotation
+            'rotate_seconds': 300,
             'output_dir': './data/live_l2',
             'run_id': f"live_{datetime.now().strftime('%Y%m%d')}",
             'windows': '09:30-10:30,15:00-16:00'
@@ -141,11 +140,9 @@ class LiveTradingSystem:
             positions = self.paper_trader.get_positions()
             trades_executed = 0
             
-            # Trade ALL SIP universe symbols (not just top 20)
-            self.logger.info(f"Analyzing {len(self.sip_universe)} NYSE SIP symbols for trades...")
+            self.logger.info(f"Analyzing {len(self.sip_universe)} LIVE NYSE SIP symbols for trades...")
             
             for symbol in self.sip_universe:
-                
                 # Mock market data (replace with real Polygon data)
                 mock_data = {
                     "volatility": 0.25,
@@ -160,40 +157,35 @@ class LiveTradingSystem:
                 
                 current_position = positions.get(symbol, 0)
                 
-                # Trading logic based on +13% regime-aware strategy
-                if prediction > 0.65 and current_position <= 0:  # Strong buy
+                # Trading logic based on regime-aware strategy
+                if prediction > 0.65 and current_position <= 0:
                     success = self.paper_trader.place_order(symbol, "BUY", 100)
                     if success:
                         trades_executed += 1
                         self.logger.info(f"PAPER BUY: {symbol} (score: {prediction:.3f})")
                         
-                elif prediction < 0.35 and current_position >= 0:  # Strong sell
+                elif prediction < 0.35 and current_position >= 0:
                     quantity = max(current_position, 100)
                     success = self.paper_trader.place_order(symbol, "SELL", quantity)
                     if success:
                         trades_executed += 1
                         self.logger.info(f"PAPER SELL: {symbol} (score: {prediction:.3f})")
-                
-                # No limit on trades - trade ALL qualifying symbols
                     
-            self.logger.info(f"Executed {trades_executed} paper trades from {len(self.sip_universe)} NYSE symbols")
+            self.logger.info(f"Executed {trades_executed} paper trades from {len(self.sip_universe)} LIVE NYSE symbols")
                 
         except Exception as e:
             self.logger.error(f"Paper trading failed: {e}")
 
     def run_live_system(self):
-        """Main live trading system loop."""
-        self.logger.info("=== STARTING LIVE TRADING SYSTEM ===")
-        self.logger.info("Trading ALL NYSE SIP symbols + L2 collection on top 6")
+        """Main live trading system loop - LIVE DATA ONLY."""
+        self.logger.info("=== STARTING LIVE TRADING SYSTEM - LIVE DATA ONLY ===")
         
         # Verify prerequisites
         if not os.getenv('POLYGON_API_KEY'):
-            self.logger.error("POLYGON_API_KEY not set")
-            return
+            raise RuntimeError("POLYGON_API_KEY not set")
         
-        # Load daily universe
-        if not self.load_or_create_daily_universe():
-            return
+        # Load daily universe (LIVE DATA ONLY)
+        self.load_or_create_daily_universe()
         
         last_trade_time = 0
         
@@ -223,24 +215,23 @@ class LiveTradingSystem:
                     self.execute_paper_trades()
                     last_trade_time = current_time
                 
-                # Status logging (every 2 minutes)
+                # Status logging
                 if int(current_time) % 120 == 0:
                     market_status = "OPEN" if self.is_market_hours() else "CLOSED"
                     l2_status = "COLLECTING" if self.l2_active else "IDLE"
                     
                     self.logger.info(
                         f"Status: {market_status} | L2: {l2_status} | "
-                        f"NYSE SIP: {len(self.sip_universe)} | L2: {len(self.l2_symbols)}"
+                        f"LIVE NYSE SIP: {len(self.sip_universe)} | L2: {len(self.l2_symbols)}"
                     )
                 
-                time.sleep(5)  # 5-second polling
+                time.sleep(5)
                 
         except KeyboardInterrupt:
             self.logger.info("Shutdown signal received")
         except Exception as e:
             self.logger.error(f"System error: {e}")
         finally:
-            # Cleanup
             if self.l2_active:
                 self.stop_l2_collection()
             if self.trading_connected:

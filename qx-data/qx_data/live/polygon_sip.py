@@ -1,4 +1,4 @@
-"""Polygon SIP selector - REAL analysis on pre-identified NYSE gold tickers."""
+"""Polygon SIP selector - EXACT original HMM SIP methodology."""
 
 import logging
 import os
@@ -6,11 +6,12 @@ from pathlib import Path
 from typing import Any, Optional
 import time
 
+import pandas as pd
 import requests
 
 
 class PolygonSIPSelector:
-    """SIP universe selection - REAL analysis on 557 NYSE gold tickers."""
+    """SIP universe selection - EXACT original HMM SIP methodology."""
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("POLYGON_API_KEY")
@@ -24,12 +25,12 @@ class PolygonSIPSelector:
         nyse_file = Path("data/nyse_gold_tickers.txt")
         
         if not nyse_file.exists():
-            raise RuntimeError(f"NYSE ticker list not found: {nyse_file}. Run scripts/identify_nyse_gold_tickers.py first")
+            raise RuntimeError(f"NYSE ticker list not found: {nyse_file}")
         
         with open(nyse_file, 'r') as f:
             symbols = [line.strip() for line in f if line.strip()]
         
-        self.logger.info(f"Loaded pre-identified NYSE gold tickers: {len(symbols)} symbols")
+        self.logger.info(f"Loaded NYSE gold tickers: {len(symbols)} symbols")
         return symbols
 
     def get_previous_day_data(self, symbol: str) -> Optional[dict[str, Any]]:
@@ -50,101 +51,130 @@ class PolygonSIPSelector:
             self.logger.debug(f"No data for {symbol}: {e}")
             return None
 
-    def calculate_sip_score(self, symbol: str, data: dict[str, Any]) -> float:
-        """Calculate SIP score using EXACT method from successful backtest."""
-        try:
-            volume = data.get("v", 0)
-            high = data.get("h", 0)
-            low = data.get("l", 0)
-            close = data.get("c", 0)
-            open_price = data.get("o", 0)
-            
-            if close == 0:
-                return 0.0
+    def calculate_original_sip_metrics(self, symbols_data: dict) -> list[tuple[str, float]]:
+        """Calculate SIP metrics using EXACT original methodology."""
+        
+        metrics = []
+        
+        for symbol, data in symbols_data.items():
+            try:
+                volume = data.get("v", 0)
+                high = data.get("h", 0)
+                low = data.get("l", 0)
+                close = data.get("c", 0)
+                open_price = data.get("o", 0)
                 
-            # Price range filter ($5-$50) - from successful backtest
-            if close < 5 or close > 50:
-                return 0.0
+                if close == 0 or open_price == 0:
+                    continue
+                    
+                # Price range filter ($5-$50) - EXACT from original
+                if close < 5 or close > 50:
+                    continue
+                    
+                # Volume filter (minimum threshold)
+                if volume < 100_000:
+                    continue
                 
-            # Volume filter (minimum 100K shares)
-            if volume < 100_000:
-                return 0.0
-            
-            # SIP scoring method from successful backtest
-            # News attention: Volume × |returns| × 100
-            returns = abs((close - open_price) / open_price) if open_price > 0 else 0
-            news_attention = volume * returns * 100
-            
-            # Volume expansion (normalize to 10M volume)
-            volume_score = min(volume / 10_000_000, 1.0)
-            
-            # Volatility expansion (normalize to 5% daily range)
-            volatility = (high - low) / close if close > 0 else 0
-            volatility_score = min(volatility * 20, 1.0)
-            
-            # News attention score (normalize)
-            attention_score = min(news_attention / 1_000_000, 1.0)
-            
-            # Combined SIP score (emphasize news attention for "stocks in play")
-            score = (attention_score * 0.5 + volume_score * 0.3 + volatility_score * 0.2)
-            return score
-            
-        except Exception as e:
-            self.logger.error(f"Score calculation failed for {symbol}: {e}")
-            return 0.0
+                # Calculate gap percentage (open vs previous close)
+                gap_pct = abs((open_price - close) / close)
+                
+                # Calculate premarket dollar volume proxy
+                premarket_dv = volume * close
+                
+                metrics.append({
+                    'symbol': symbol,
+                    'gap_abs': gap_pct,
+                    'premarket_dv': premarket_dv,
+                    'volume': volume,
+                    'close': close
+                })
+                
+            except Exception as e:
+                self.logger.error(f"Metrics calculation failed for {symbol}: {e}")
+                continue
+        
+        if not metrics:
+            return []
+        
+        # Convert to DataFrame for cross-sectional analysis
+        df = pd.DataFrame(metrics)
+        
+        # Cross-sectional z-scoring (EXACT original methodology)
+        df['gap_abs_z'] = self._cross_sectional_z(df['gap_abs'])
+        df['premarket_dv_z'] = self._cross_sectional_z(df['premarket_dv'])
+        
+        # Composite score (EXACT original weights)
+        df['score'] = 0.6 * df['premarket_dv_z'] + 0.4 * df['gap_abs_z']
+        
+        # Return as list of tuples
+        return list(zip(df['symbol'], df['score']))
 
-    def get_sip_universe(self, min_score: float = 0.01) -> list[str]:
-        """Run REAL SIP analysis on 557 pre-identified NYSE gold tickers."""
+    def _cross_sectional_z(self, series: pd.Series) -> pd.Series:
+        """Calculate cross-sectional z-scores - EXACT original method."""
+        mean_val = series.mean()
+        std_val = series.std()
+        
+        if std_val == 0:
+            return pd.Series(0.0, index=series.index)
+        
+        return (series - mean_val) / std_val
+
+    def get_sip_universe(self, top_k: int = 40, score_floor: float = 0.0) -> list[str]:
+        """Run EXACT original SIP methodology on NYSE tickers."""
         
         start_time = time.time()
         
-        # Load pre-identified NYSE tickers (557 symbols)
+        # Load NYSE tickers
         nyse_symbols = self.load_nyse_gold_tickers()
         
-        # Run SIP analysis on NYSE symbols only
-        self.logger.info(f"Running REAL SIP analysis on {len(nyse_symbols)} NYSE gold tickers...")
+        # Get market data for all symbols
+        self.logger.info(f"Getting market data for {len(nyse_symbols)} NYSE symbols...")
         
-        scored_symbols = []
+        symbols_data = {}
         api_calls = 0
         
         for i, symbol in enumerate(nyse_symbols):
-            # Get market data
             data = self.get_previous_day_data(symbol)
             api_calls += 1
             
-            if data is None:
-                continue
-                
-            # Calculate SIP score
-            score = self.calculate_sip_score(symbol, data)
-            
-            if score >= min_score:
-                scored_symbols.append((symbol, score))
+            if data:
+                symbols_data[symbol] = data
             
             # Progress logging
             if (i + 1) % 50 == 0:
-                self.logger.info(f"Processed {i+1}/{len(nyse_symbols)}, qualified: {len(scored_symbols)}")
+                self.logger.info(f"Retrieved data for {i+1}/{len(nyse_symbols)}, valid: {len(symbols_data)}")
             
             # Rate limiting
             if api_calls % 5 == 0:
                 time.sleep(0.1)
         
-        if not scored_symbols:
-            raise RuntimeError(f"NO NYSE SYMBOLS PASSED SIP ANALYSIS from {len(nyse_symbols)} NYSE gold tickers")
+        if not symbols_data:
+            raise RuntimeError("No market data retrieved")
         
-        # Sort by score (highest first)
+        # Calculate SIP metrics using EXACT original methodology
+        self.logger.info("Calculating SIP scores using original methodology...")
+        scored_symbols = self.calculate_original_sip_metrics(symbols_data)
+        
+        if not scored_symbols:
+            raise RuntimeError("No symbols passed SIP scoring")
+        
+        # Filter by score floor (EXACT original)
+        if score_floor > 0:
+            scored_symbols = [(s, score) for s, score in scored_symbols if score >= score_floor]
+        
+        # Sort by score and select top K (EXACT original)
         scored_symbols.sort(key=lambda x: x[1], reverse=True)
-        sip_universe = [symbol for symbol, score in scored_symbols]
+        sip_universe = [symbol for symbol, score in scored_symbols[:top_k]]
         
         elapsed = time.time() - start_time
-        self.logger.info(f"REAL SIP analysis complete: {len(sip_universe)} NYSE symbols in {elapsed:.1f}s")
-        self.logger.info(f"NYSE tickers processed: {len(nyse_symbols)}")
-        self.logger.info(f"Top 10 SIP scores: {scored_symbols[:10]}")
+        self.logger.info(f"ORIGINAL SIP methodology complete: {len(sip_universe)} symbols in {elapsed:.1f}s")
+        self.logger.info(f"Total qualified: {len(scored_symbols)} from {len(symbols_data)} with data")
+        self.logger.info(f"Top 10 scores: {scored_symbols[:10]}")
         
         return sip_universe
 
     def get_nyse_symbols(self, sip_universe: list[str]) -> list[str]:
         """Return top 6 NYSE symbols for L2 collection."""
-        selected = sip_universe[:6]  # Top 6 highest scoring
+        selected = sip_universe[:6]
         self.logger.info(f"L2 symbols (top 6 SIP): {selected}")
         return selected
