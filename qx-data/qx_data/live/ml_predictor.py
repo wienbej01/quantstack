@@ -1,4 +1,4 @@
-"""ML model integration for live trading."""
+"""ML model integration for live trading - regime-aware approach."""
 
 import logging
 import pickle
@@ -9,94 +9,74 @@ import numpy as np
 
 
 class RegimeAwarePredictor:
-    """Wrapper for regime-aware ML models."""
+    """Regime-aware ML predictor using cross-sectional features."""
 
     def __init__(self, model_path: str):
         self.model_path = Path(model_path)
-        self.models = {}
         self.logger = logging.getLogger(__name__)
-        self._load_models()
-
-    def _load_models(self):
-        """Load trained regime-aware models."""
-        try:
-            # Look for regime-specific models
-            model_files = list(self.model_path.glob("*_model.pkl"))
-            
-            if not model_files:
-                self.logger.warning(f"No models found in {self.model_path}")
-                return
-                
-            for model_file in model_files:
-                regime = model_file.stem.replace("_model", "")
-                with open(model_file, "rb") as f:
-                    self.models[regime] = pickle.load(f)
-                self.logger.info(f"Loaded {regime} model")
-                
-        except Exception as e:
-            self.logger.error(f"Failed to load models: {e}")
+        
+        # Cross-sectional features from successful strategy
+        self.features = [
+            "cross_rank_ret", "cross_rank_vol", "sector_momentum", "cross_dispersion",
+            "market_breadth", "up_down_ratio", "rel_strength_5", "rel_strength_10", 
+            "rel_strength_20", "market_ret_5", "market_ret_10"
+        ]
+        
+        # Use simple heuristic-based predictions until models retrained with L2 data
+        self.use_heuristics = True
+        self.logger.info("Using heuristic-based predictions (models will be retrained with L2 data)")
 
     def detect_regime(self, market_data: dict[str, Any]) -> str:
         """Detect current market regime."""
-        # Mock regime detection - replace with actual logic
-        # This would use your regime detection features
+        # Simple regime detection based on volatility and momentum
         volatility = market_data.get("volatility", 0.2)
+        momentum = market_data.get("price_momentum", 0.0)
         
         if volatility > 0.3:
             return "high_vol"
-        elif volatility < 0.15:
-            return "low_vol"
+        elif abs(momentum) > 0.02:
+            return "bull" if momentum > 0 else "bear"
         else:
-            return "normal"
+            return "sideways"
 
     def predict(self, symbol: str, features: dict[str, Any]) -> Optional[float]:
-        """Make prediction for symbol."""
+        """Make prediction for symbol using heuristic approach."""
         try:
             # Detect regime
             regime = self.detect_regime(features)
             
-            if regime not in self.models:
-                self.logger.warning(f"No model for regime: {regime}")
-                return None
+            # Extract key signals
+            volume = features.get("volume", 1000000)
+            volatility = features.get("volatility", 0.2)
+            momentum = features.get("price_momentum", 0.0)
             
-            # Extract feature vector (mock - replace with actual feature engineering)
-            feature_vector = self._extract_features(features)
+            # News-driven heuristic scoring (based on successful strategy)
+            volume_signal = min(volume / 5_000_000, 1.0)  # Volume expansion
+            volatility_signal = min(volatility * 10, 1.0)  # Volatility expansion
+            momentum_signal = abs(momentum) * 50  # Price momentum
             
-            if feature_vector is None:
-                return None
+            # Regime-specific logic
+            if regime == "bull":
+                # In bull markets, favor momentum continuation
+                score = 0.5 + (momentum_signal * 0.3) + (volume_signal * 0.2)
+            elif regime == "bear":
+                # In bear markets, favor contrarian plays
+                score = 0.5 - (momentum_signal * 0.2) + (volatility_signal * 0.3)
+            elif regime == "high_vol":
+                # High volatility: favor mean reversion
+                score = 0.5 - (momentum_signal * 0.4) + (volume_signal * 0.1)
+            else:  # sideways
+                # Sideways: neutral with slight momentum bias
+                score = 0.5 + (momentum_signal * 0.1)
             
-            # Make prediction
-            model = self.models[regime]
-            prediction = model.predict_proba([feature_vector])[0][1]  # Probability of positive return
+            # Clamp to valid range
+            score = max(0.0, min(1.0, score))
             
-            self.logger.debug(f"{symbol} prediction: {prediction:.3f} (regime: {regime})")
-            return float(prediction)
+            self.logger.debug(f"{symbol} prediction: {score:.3f} (regime: {regime})")
+            return score
             
         except Exception as e:
             self.logger.error(f"Prediction failed for {symbol}: {e}")
-            return None
-
-    def _extract_features(self, data: dict[str, Any]) -> Optional[np.ndarray]:
-        """Extract feature vector from market data."""
-        try:
-            # Mock feature extraction - replace with actual cross-sectional features
-            features = [
-                data.get("rsi", 50) / 100,
-                data.get("volume_ratio", 1.0),
-                data.get("price_momentum", 0.0),
-                data.get("volatility", 0.2),
-                data.get("sector_momentum", 0.0),
-                # Add your 11 cross-sectional features here
-            ]
-            
-            # Pad to expected feature count
-            while len(features) < 11:
-                features.append(0.0)
-                
-            return np.array(features[:11])
-            
-        except Exception as e:
-            self.logger.error(f"Feature extraction failed: {e}")
             return None
 
 

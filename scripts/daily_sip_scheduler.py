@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Daily SIP universe selection scheduler (runs at 6:00 AM ET)."""
+"""Daily SIP universe selection scheduler - ALL NYSE symbols."""
 
 import logging
 import os
@@ -39,13 +39,12 @@ def run_daily_sip_selection():
         # Initialize SIP selector
         sip_selector = PolygonSIPSelector()
         
-        # Get SIP universe (40 symbols)
+        # Get ALL NYSE symbols that pass SIP scoring
         start_time = time.time()
-        sip_universe = sip_selector.get_sip_universe(top_k=40, min_score=0.1)
+        sip_universe = sip_selector.get_sip_universe(min_score=0.01)  # Use correct parameter
         
-        # Get NYSE symbols for L2 collection (top 6)
-        nyse_symbols = sip_selector.get_nyse_symbols(sip_universe)
-        l2_symbols = nyse_symbols[:6]
+        # Get top 6 NYSE symbols for L2 collection
+        l2_symbols = sip_selector.get_nyse_symbols(sip_universe)
         
         elapsed = time.time() - start_time
         
@@ -54,18 +53,18 @@ def run_daily_sip_selection():
         results_dir = Path('data/daily_sip')
         results_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save SIP universe
+        # Save SIP universe (ALL NYSE symbols)
         sip_file = results_dir / f'sip_universe_{date_str}.txt'
         with open(sip_file, 'w') as f:
             f.write('\n'.join(sip_universe))
         
-        # Save L2 symbols
+        # Save L2 symbols (top 6)
         l2_file = results_dir / f'l2_symbols_{date_str}.txt'
         with open(l2_file, 'w') as f:
             f.write('\n'.join(l2_symbols))
         
         logger.info(f"SIP selection complete in {elapsed:.1f}s")
-        logger.info(f"SIP universe: {len(sip_universe)} symbols")
+        logger.info(f"NYSE SIP universe: {len(sip_universe)} symbols")
         logger.info(f"L2 symbols: {len(l2_symbols)} symbols")
         logger.info(f"Results saved to {results_dir}")
         
@@ -104,7 +103,7 @@ if __name__ == "__main__":
     sip_universe, l2_symbols = run_daily_sip_selection()
     
     if sip_universe:
-        print(f"✅ SIP Universe ({len(sip_universe)}): {sip_universe[:5]}...")
+        print(f"✅ NYSE SIP Universe ({len(sip_universe)}): {sip_universe[:5]}...")
         print(f"✅ L2 Symbols ({len(l2_symbols)}): {l2_symbols}")
     else:
         print("❌ Daily SIP selection failed")

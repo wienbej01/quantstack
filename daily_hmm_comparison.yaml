@@ -1,0 +1,37 @@
+base_config:
+  dates:
+  - '2024-01-03'
+  - '2024-01-04'
+  family: stocks
+  features:
+  - name: core_basics
+    params:
+      atr_window: 14
+      rel_vol_window_m: 30
+      vwap_window_m: 30
+  gold_root: /home/jacobw/gcs-mount
+  policy: vwap_revert
+  policy_params:
+    entry_threshold: 0.02
+    exit_threshold: 0.01
+    max_concurrent_positions: 3
+    max_position_bars: 20
+  sip:
+    config:
+      mode: daily
+      score_floor: 0.01
+      top_k: 4
+    method: hmm
+  symbols:
+  - AAPL
+  - MSFT
+  - GOOGL
+  - AMZN
+  - TSLA
+  - META
+  - NVDA
+  - JPM
+variants:
+- name: daily_conservative
+  policy_params:
+    entry_threshold: 0.025
