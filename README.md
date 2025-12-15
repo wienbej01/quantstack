@@ -2,32 +2,43 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Regime-Aware Strategy (2024-12-14)
+## Latest: Intraday ML Trading System (2024-12-15)
 
-**✅ REGIME-AWARE MODEL: +13.0% return, 49.7% win rate**  
-**✅ CROSS-SECTIONAL FEATURES: 11 features outperform 57**
+**✅ REGIME-AWARE MODEL: +29.3% return (2023-2024), 50.1% win rate**  
+**✅ CROSS-SECTIONAL FEATURES: 11 features outperform 57**  
+**✅ VALIDATED: Roll-forward backtest on 585 days of data**
 
 ### System Status
 - ✅ **Regime Detection**: Bull/Bear/Sideways + High/Low volatility
 - ✅ **Separate Models**: Per-regime GradientBoosting models
 - ✅ **Feature Set**: 11 cross-sectional features (best performers)
 - ✅ **Position Sizing**: 1% risk with volatility adjustment
+- ✅ **Universe**: 493 symbols (58% NYSE, 41% NASDAQ)
 
 ### Quick Start
 ```bash
 # Run regime-aware backtest
 python scripts/regime_aware_strategy.py
 
-# Run with cross-sectional features only
+# Run full roll-forward test
 python scripts/roll_forward_test.py
+
+# Build 500+ features for analysis
+python scripts/build_500_features_v2.py
 ```
 
-### Performance Comparison
-| Approach | Return | Win Rate | Max DD |
-|----------|--------|----------|--------|
-| Regime-aware | +13.0% | 49.7% | -19.6% |
-| Cross-sectional only | +8.3% | 50.3% | -12.5% |
-| All 57 features | -21.3% | 48.5% | -52.9% |
+### Performance Summary (2023-2024)
+| Approach | Return | Win Rate | Max DD | Trades |
+|----------|--------|----------|--------|--------|
+| **Regime-aware (11 features)** | **+29.3%** | 50.1% | -18.2% | 5,689 |
+| Cross-sectional only | +8.3% | 50.3% | -12.5% | 2,684 |
+| All 57 features | -21.3% | 48.5% | -52.9% | 7,598 |
+
+### Year-by-Year Performance
+| Year | Return | Win Rate | Trades |
+|------|--------|----------|--------|
+| 2023 | +6.0% | 49.0% | 2,304 |
+| 2024 | +21.5% | 50.8% | 3,385 |
 
 ### Root Causes Fixed
 1. **CRITICAL - Timezone inconsistency**: Mixed UTC/ET data → Normalized to ET
