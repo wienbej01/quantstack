@@ -1,4 +1,4 @@
-.PHONY: bootstrap lint test qa-all install fix check-types format test-daily-hmm smoke-daily-hmm test-l2 install-live live-trade
+.PHONY: bootstrap lint test qa-all install fix check-types format test-daily-hmm smoke-daily-hmm test-l2 install-live live-trade daily-sip setup-cron start-live
 
 ML_PATHS = \
 	extensions/intraday_ml/data_prep.py \
@@ -30,10 +30,19 @@ smoke-daily-hmm:
 
 # Live trading targets
 install-live:
-	pip install -r requirements-live.txt
+	pip install --break-system-packages -r requirements-live.txt
 
 test-l2:
-	python scripts/test_l2_integration.py
+	python3 scripts/test_l2_integration.py
+
+daily-sip:
+	python3 scripts/daily_sip_scheduler.py
+
+setup-cron:
+	./setup_daily_sip_cron.sh
+
+start-live:
+	./start_live_system.sh
 
 live-trade:
-	python scripts/live_regime_trading.py
+	python3 scripts/live_trading_system.py

@@ -1,0 +1,6 @@
+ACHR
+DBRG
+HAL
+FCX
+SLB
+DOW
