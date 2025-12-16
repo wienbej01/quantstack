@@ -2,43 +2,52 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Intraday ML Trading System (2024-12-15)
+## Latest: Live Intraday ML Trading System (2024-12-16)
 
-**✅ REGIME-AWARE MODEL: +29.3% return (2023-2024), 50.1% win rate**  
-**✅ CROSS-SECTIONAL FEATURES: 11 features outperform 57**  
-**✅ VALIDATED: Roll-forward backtest on 585 days of data**
+**🚀 SYSTEM LIVE: Paper trading on IBKR with regime-aware ML models**  
+**✅ REGIME-AWARE MODEL: +13.0% return (2024), 49.7% win rate**  
+**✅ TRAINED MODELS: 3 regime models on 6 months of data**  
+**✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
 
 ### System Status
-- ✅ **Regime Detection**: Bull/Bear/Sideways + High/Low volatility
-- ✅ **Separate Models**: Per-regime GradientBoosting models
+- ✅ **Live Trading**: Running on IBKR paper account (PID: 1594347)
+- ✅ **Regime Detection**: Bull/Bear/Sideways models trained on 6 months data
 - ✅ **Feature Set**: 11 cross-sectional features (best performers)
-- ✅ **Position Sizing**: 1% risk with volatility adjustment
-- ✅ **Universe**: 493 symbols (58% NYSE, 41% NASDAQ)
+- ✅ **Position Sizing**: 100 shares per trade, confidence-based entry
+- ✅ **Universe**: 40 NYSE symbols via live Polygon SIP filtering
+- ✅ **L2 Collection**: Opening hour (9:30-10:30) + Power hour (15:00-16:00) ET
+- ✅ **Next Market Open**: 9:30 AM ET, system ready for trading
 
 ### Quick Start
 ```bash
+# Check live system status
+tail -f logs/live_trading.log
+
+# Retrain regime-aware models
+python scripts/train_and_save_regime_models.py
+
 # Run regime-aware backtest
 python scripts/regime_aware_strategy.py
 
-# Run full roll-forward test
-python scripts/roll_forward_test.py
+# Regenerate daily SIP universe
+python scripts/daily_sip_scheduler.py
 
-# Build 500+ features for analysis
-python scripts/build_500_features_v2.py
+# Start/restart live system
+./start_live_system.sh
 ```
 
-### Performance Summary (2023-2024)
+### Performance Summary (2024)
 | Approach | Return | Win Rate | Max DD | Trades |
 |----------|--------|----------|--------|--------|
-| **Regime-aware (11 features)** | **+29.3%** | 50.1% | -18.2% | 5,689 |
-| Cross-sectional only | +8.3% | 50.3% | -12.5% | 2,684 |
-| All 57 features | -21.3% | 48.5% | -52.9% | 7,598 |
+| **Regime-aware (11 features)** | **+13.0%** | 49.7% | -19.6% | 5,142 |
+| Validation (30 days) | +1.3% | 50.0% | N/A | 321 |
 
-### Year-by-Year Performance
-| Year | Return | Win Rate | Trades |
-|------|--------|----------|--------|
-| 2023 | +6.0% | 49.0% | 2,304 |
-| 2024 | +21.5% | 50.8% | 3,385 |
+### Model Training Details
+| Regime | Samples | Top Feature | Importance |
+|--------|---------|-------------|------------|
+| Bull | 4,588 | sector_momentum | 0.334 |
+| Bear | 3,303 | sector_momentum | 0.312 |
+| Sideways | 6,100 | sector_momentum | 0.268 |
 
 ### Root Causes Fixed
 1. **CRITICAL - Timezone inconsistency**: Mixed UTC/ET data → Normalized to ET
