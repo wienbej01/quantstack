@@ -12,11 +12,12 @@ import pytz
 
 # Add paths
 sys.path.insert(0, str(Path.home() / "transalpha" / "l2"))
-sys.path.insert(0, "qx-data")
+sys.path.insert(0, "qx-data/qx_data")
+sys.path.insert(0, "scripts")
 
 from daily_sip_scheduler import load_daily_sip_results, run_daily_sip_selection
-from qx_data.live.l2_collector import QuantstackL2Collector
-from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
+from live.l2_collector import QuantstackL2Collector
+from live.ml_predictor import PaperTrader, RegimeAwarePredictor
 
 
 class LiveTradingSystem:
@@ -244,21 +245,29 @@ class LiveTradingSystem:
         # Load daily universe (LIVE DATA ONLY)
         self.load_or_create_daily_universe()
         
+        self.logger.info("🔄 Entering main trading loop...")
+        
         last_trade_time = 0
         last_ibkr_check = 0
         
         try:
+            self.logger.info("🔄 Starting main loop iteration...")
             while True:
+                self.logger.info("Getting current time...")
                 current_time = time.time()
                 et_now = self.get_et_time()
+                self.logger.info(f"Time obtained: {et_now}")
                 
+                self.logger.info("Checking IBKR availability...")
                 # Recheck IBKR every 5 minutes if not available
                 if not self.ibkr_available and (current_time - last_ibkr_check) > 300:
                     self.ibkr_available = self.check_ibkr_connection()
                     last_ibkr_check = current_time
                 
+                self.logger.info("Checking L2 collection time...")
                 # L2 Collection Management
                 should_collect_l2 = self.is_l2_collection_time()
+                self.logger.info(f"Should collect L2: {should_collect_l2}")
                 
                 if should_collect_l2 and not self.l2_active and self.ibkr_available:
                     self.start_l2_collection()
@@ -291,7 +300,9 @@ class LiveTradingSystem:
                         f"SIP: {len(self.sip_universe)} | L2 Symbols: {len(self.l2_symbols)}"
                     )
                 
+                self.logger.info("Sleeping 5 seconds...")
                 time.sleep(5)
+                self.logger.info("Woke up, continuing loop...")
                 
         except KeyboardInterrupt:
             self.logger.info("Shutdown signal received")
