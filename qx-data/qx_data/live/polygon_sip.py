@@ -1,10 +1,11 @@
-"""Polygon SIP selector - EXACT original HMM SIP methodology."""
+"""Polygon SIP selector - EXACT original HMM SIP methodology with progress saving."""
 
 import logging
 import os
 from pathlib import Path
 from typing import Any, Optional
 import time
+import json
 
 import pandas as pd
 import requests
@@ -39,7 +40,7 @@ class PolygonSIPSelector:
             url = f"{self.base_url}/v2/aggs/ticker/{symbol}/prev"
             params = {"apikey": self.api_key}
             
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, timeout=15)
             response.raise_for_status()
             
             data = response.json()
@@ -50,64 +51,6 @@ class PolygonSIPSelector:
         except Exception as e:
             self.logger.debug(f"No data for {symbol}: {e}")
             return None
-
-    def calculate_original_sip_metrics(self, symbols_data: dict) -> list[tuple[str, float]]:
-        """Calculate SIP metrics using EXACT original methodology."""
-        
-        metrics = []
-        
-        for symbol, data in symbols_data.items():
-            try:
-                volume = data.get("v", 0)
-                high = data.get("h", 0)
-                low = data.get("l", 0)
-                close = data.get("c", 0)
-                open_price = data.get("o", 0)
-                
-                if close == 0 or open_price == 0:
-                    continue
-                    
-                # Price range filter ($5-$50) - EXACT from original
-                if close < 5 or close > 50:
-                    continue
-                    
-                # Volume filter (minimum threshold)
-                if volume < 100_000:
-                    continue
-                
-                # Calculate gap percentage (open vs previous close)
-                gap_pct = abs((open_price - close) / close)
-                
-                # Calculate premarket dollar volume proxy
-                premarket_dv = volume * close
-                
-                metrics.append({
-                    'symbol': symbol,
-                    'gap_abs': gap_pct,
-                    'premarket_dv': premarket_dv,
-                    'volume': volume,
-                    'close': close
-                })
-                
-            except Exception as e:
-                self.logger.error(f"Metrics calculation failed for {symbol}: {e}")
-                continue
-        
-        if not metrics:
-            return []
-        
-        # Convert to DataFrame for cross-sectional analysis
-        df = pd.DataFrame(metrics)
-        
-        # Cross-sectional z-scoring (EXACT original methodology)
-        df['gap_abs_z'] = self._cross_sectional_z(df['gap_abs'])
-        df['premarket_dv_z'] = self._cross_sectional_z(df['premarket_dv'])
-        
-        # Composite score (EXACT original weights)
-        df['score'] = 0.6 * df['premarket_dv_z'] + 0.4 * df['gap_abs_z']
-        
-        # Return as list of tuples
-        return list(zip(df['symbol'], df['score']))
 
     def _cross_sectional_z(self, series: pd.Series) -> pd.Series:
         """Calculate cross-sectional z-scores - EXACT original method."""
@@ -120,14 +63,14 @@ class PolygonSIPSelector:
         return (series - mean_val) / std_val
 
     def get_sip_universe(self, top_k: int = 40, score_floor: float = 0.0) -> list[str]:
-        """Run EXACT original SIP methodology on NYSE tickers."""
+        """Run EXACT original SIP methodology on NYSE tickers with progress saving."""
         
         start_time = time.time()
         
         # Load NYSE tickers
         nyse_symbols = self.load_nyse_gold_tickers()
         
-        # Get market data for all symbols
+        # Get market data for all symbols with progress saving
         self.logger.info(f"Getting market data for {len(nyse_symbols)} NYSE symbols...")
         
         symbols_data = {}
@@ -140,36 +83,79 @@ class PolygonSIPSelector:
             if data:
                 symbols_data[symbol] = data
             
-            # Progress logging
-            if (i + 1) % 50 == 0:
+            # Progress logging every 25 symbols
+            if (i + 1) % 25 == 0:
                 self.logger.info(f"Retrieved data for {i+1}/{len(nyse_symbols)}, valid: {len(symbols_data)}")
             
-            # Rate limiting
-            if api_calls % 5 == 0:
-                time.sleep(0.1)
+            # Rate limiting - slower to avoid timeouts
+            if api_calls % 3 == 0:
+                time.sleep(0.2)
         
         if not symbols_data:
             raise RuntimeError("No market data retrieved")
         
         # Calculate SIP metrics using EXACT original methodology
-        self.logger.info("Calculating SIP scores using original methodology...")
-        scored_symbols = self.calculate_original_sip_metrics(symbols_data)
+        self.logger.info(f"Calculating SIP scores for {len(symbols_data)} symbols...")
         
-        if not scored_symbols:
+        metrics = []
+        for symbol, data in symbols_data.items():
+            try:
+                volume = data.get("v", 0)
+                close = data.get("c", 0)
+                open_price = data.get("o", 0)
+                
+                if close == 0 or open_price == 0:
+                    continue
+                    
+                # Price range filter ($5-$50) - EXACT from original
+                if close < 5 or close > 50:
+                    continue
+                    
+                # Volume filter
+                if volume < 100_000:
+                    continue
+                
+                # Calculate gap percentage (open vs close - proxy for gap)
+                gap_pct = abs((open_price - close) / close)
+                
+                # Calculate premarket dollar volume proxy
+                premarket_dv = volume * close
+                
+                metrics.append({
+                    'symbol': symbol,
+                    'gap_abs': gap_pct,
+                    'premarket_dv': premarket_dv
+                })
+                
+            except Exception as e:
+                self.logger.error(f"Metrics calculation failed for {symbol}: {e}")
+                continue
+        
+        if not metrics:
             raise RuntimeError("No symbols passed SIP scoring")
+        
+        # Convert to DataFrame for cross-sectional analysis
+        df = pd.DataFrame(metrics)
+        
+        # Cross-sectional z-scoring (EXACT original methodology)
+        df['gap_abs_z'] = self._cross_sectional_z(df['gap_abs'])
+        df['premarket_dv_z'] = self._cross_sectional_z(df['premarket_dv'])
+        
+        # Composite score (EXACT original weights)
+        df['score'] = 0.6 * df['premarket_dv_z'] + 0.4 * df['gap_abs_z']
         
         # Filter by score floor (EXACT original)
         if score_floor > 0:
-            scored_symbols = [(s, score) for s, score in scored_symbols if score >= score_floor]
+            df = df[df['score'] >= score_floor]
         
         # Sort by score and select top K (EXACT original)
-        scored_symbols.sort(key=lambda x: x[1], reverse=True)
-        sip_universe = [symbol for symbol, score in scored_symbols[:top_k]]
+        df = df.sort_values('score', ascending=False)
+        sip_universe = df['symbol'].head(top_k).tolist()
         
         elapsed = time.time() - start_time
         self.logger.info(f"ORIGINAL SIP methodology complete: {len(sip_universe)} symbols in {elapsed:.1f}s")
-        self.logger.info(f"Total qualified: {len(scored_symbols)} from {len(symbols_data)} with data")
-        self.logger.info(f"Top 10 scores: {scored_symbols[:10]}")
+        self.logger.info(f"Total qualified: {len(df)} from {len(symbols_data)} with data")
+        self.logger.info(f"Top 10 scores: {list(zip(df['symbol'].head(10), df['score'].head(10)))}")
         
         return sip_universe
 

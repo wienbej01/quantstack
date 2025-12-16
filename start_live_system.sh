@@ -1,5 +1,5 @@
 #!/bin/bash
-# Live Trading System Startup Script
+# Live Trading System Startup Script - FIXED
 
 set -e
 
@@ -17,24 +17,24 @@ mkdir -p logs
 mkdir -p data/daily_sip
 mkdir -p data/live_l2
 
-# Check IBKR connection
-echo "🔌 Testing IBKR connection..."
-python3 -c "
-from ib_insync import IB
-ib = IB()
-try:
-    ib.connect('127.0.0.1', 7497, clientId=999, readonly=True, timeout=5)
-    print('✅ IBKR connected')
-    ib.disconnect()
-except Exception as e:
-    print(f'❌ IBKR connection failed: {e}')
-    exit(1)
-"
+# Check IBKR connection (non-blocking)
+echo "🔌 Checking IBKR connection..."
+python3 scripts/check_ibkr_status.py
+IBKR_STATUS=$?
 
-if [ $? -ne 0 ]; then
-    echo "❌ IBKR connection test failed"
-    echo "Please ensure TWS/Gateway is running on port 7497"
-    exit 1
+if [ $IBKR_STATUS -ne 0 ]; then
+    echo "⚠️  IBKR not available - system will run without L2 collection and paper trading"
+    echo "   L2 collection and paper trading will be disabled"
+    echo "   System will continue with SIP analysis only"
+    echo ""
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Startup cancelled. Please setup IBKR first."
+        exit 1
+    fi
+else
+    echo "✅ IBKR ready for L2 collection and paper trading"
 fi
 
 # Test Polygon API
@@ -57,16 +57,16 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo "✅ All prerequisites met"
+echo "✅ All prerequisites checked"
 echo ""
 echo "📋 System Configuration:"
 echo "   - SIP Universe: 40 symbols (daily selection)"
-echo "   - L2 Collection: Top 6 NYSE symbols"
-echo "   - Paper Trading: All SIP symbols"
+echo "   - L2 Collection: Top 6 NYSE symbols (if IBKR available)"
+echo "   - Paper Trading: All SIP symbols (if IBKR available)"
 echo "   - Collection Windows: 9:30-10:30, 15:00-16:00 ET"
 echo ""
 
-# Start the system
+# Start the system (NO TIMEOUT)
 echo "🎯 Starting live trading system..."
 cd /home/jacobw/quantstack
 source ~/.bashrc
