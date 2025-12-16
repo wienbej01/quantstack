@@ -1,104 +1,57 @@
-# Intraday ML System Technical Documentation
+# Intraday ML System – Technical (Canonical)
 
-## Executive Summary
-The Intraday ML System is a high-frequency algorithmic trading platform designed to capture "Big Moves" (significant directional price excursions) in US equities. It leverages a two-stage Gradient Boosting Machine (LightGBM) pipeline to predict volatility breakouts and directionality. The system operates on 10-minute bars, utilizing a universe of "Stocks In Play" (SIP) to maximize signal-to-noise ratio.
+## High-level architecture
+- **Historical data**: 1m OHLCV parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`.
+- **Live SIP selection**: Delayed Polygon prev-bar endpoint, scored by `qx_data.live.polygon_sip.PolygonSIPSelector`; outputs `data/daily_sip/sip_universe_<date>.txt` and `l2_symbols_<date>.txt`.
+- **Live execution**: `scripts/live_trading_system.py` loads the SIP universe, checks IBKR availability, collects L2 (opening + power hour) via `QuantstackL2Collector`, and paper-trades all SIP names through `PaperTrader` (IBKR).
+- **Models**: Regime-aware predictors loaded from `./models/regime_aware/*_model.pkl` via `qx_data.live.ml_predictor.RegimeAwarePredictor`. Predictions feed a simple long/short policy (0.65/0.35 thresholds) in the live loop.
+- **Features**: Engineered by `qx-features` (core_basics, regime_enhanced, VPA). Registry lives in `qx-features/src/qx_features/registry.py`.
 
-## 1. Universe Selection: "Stocks In Play" (SIP)
-The system does not trade the entire market. It filters for high-activity tickers likely to exhibit expanded volatility.
+## Data flows
+1) **Training/backtest** (offline)
+   - Source: gold 1m parquet → feature packs (see `qx-features/src/qx_features/core_basics.py` and `regime_enhanced.py`).
+   - Targets/configs: stored under `configs/` (intraday ML variants).
+   - Models saved to `./models/regime_aware/` and consumed by live predictor.
+2) **Daily SIP (live)**
+   - Script: `scripts/daily_sip_scheduler.py`
+   - Selector: `qx_data.live.polygon_sip.PolygonSIPSelector.get_sip_universe(top_k=40)`
+   - Outputs: `data/daily_sip/sip_universe_<date>.txt`, `data/daily_sip/l2_symbols_<date>.txt`
+3) **Live loop**
+   - Entry: `./start_live_system.sh` → `scripts/live_trading_system.py`
+   - Checks: Polygon key, IBKR reachability (non-blocking), loads/creates SIP files.
+   - L2 windows: 09:30–10:30 ET and 15:00–16:00 ET (NY only, top 6 SIP).
+   - Trading: Paper orders on all SIP symbols when `RegimeAwarePredictor.predict` crosses >0.65 (BUY) or <0.35 (SELL). Logs to `logs/live_trading.log`.
 
-### 1.1 The SIP Filter
-*   **Primary Criteria:**
-    *   **Stocks In Play (SIP):** A pre-computed membership set based on high relative volume, overnight gaps, and news catalysts (HMM-based regime detection).
-    *   **Static Universe:** A subset of ~100 liquid US equities (e.g., BAC, CCL, PLTR, UAL) defined in `universe_intraday_sip_5_50.yaml`.
-*   **Hard Constraints:**
-    *   Price Range: $5.00 - $50.00 (Focus on accessible volatility).
-    *   Min Avg Daily Volume: $10M (Liquidity check).
-    *   Max Universe Size: 600 symbols.
+## Key modules
+- `qx_data/live/polygon_sip.py`: Polygon prev-bar fetch, HMM-style SIP scoring (price $5–50, vol ≥100k, gap/premarket-$ DV z-scores), NYSE filtering when needed.
+- `qx_data/live/ml_predictor.py`: Loads regime models (`*_model.pkl`), extracts feature vector, returns probability for live policy.
+- `qx_data/live/l2_collector.py`: Thin wrapper around `transalpha/l2` `MultiL2Collector` for IBKR Level 2 snapshots.
+- `scripts/daily_sip_scheduler.py`: Batch SIP run + persistence.
+- `scripts/live_trading_system.py`: Main orchestrator (SIP load/generate, IBKR connect, L2 polling, trading loop).
+- `scripts/validate_data_integrations.py`: Sanity checks for gold mount, SIP artifacts, and optional Polygon/IBKR reachability.
 
-## 2. Data Pipeline & Feature Engineering
-The system uses a **leakage-free sliding window** architecture to generate features.
+## Operations and commands
+- **Validate environment**: `python scripts/validate_data_integrations.py --check-polygon --check-ibkr`
+- **Generate SIP**: `python scripts/daily_sip_scheduler.py`
+- **Start live system**: `./start_live_system.sh` (runs `scripts/live_trading_system.py`)
+- **Inspect logs**: `tail -f logs/live_trading.log`
+- **L2 outputs**: `data/live_l2/run_id=live_<yyyymmdd>/`
+- **SIP outputs**: `data/daily_sip/sip_universe_<date>.txt`, `data/daily_sip/l2_symbols_<date>.txt`
 
-### 2.1 Data Granularity
-*   **Input:** 1-minute OHLCV bars from Gold Layer.
-*   **Processing:** Resampled to **10-minute** bars for stability.
-*   **Time Discipline:** Features for timestamp $T$ use only data from $t \le T$. Labels for timestamp $T$ use only data from $t > T$.
+## Safety and constraints
+- No synthetic/mocked data in production paths; use fixtures only in tests.
+- Enforce time ordering: features/labels must not leak future information.
+- IBKR checks are non-blocking: live loop continues SIP-only if IBKR is down.
+- Polygon rate limiting is handled inside the selector; failures surface as errors.
 
-### 2.2 Feature Families (150+ Features)
-The `IntradayMLFeaturePack` generates features across 7 core families:
-1.  **Returns & Trend:** Simple and Log returns over [1, 2, 3, 6, 12] windows (10m to 2h).
-2.  **Volatility (ATR):** Absolute and normalized Average True Range (Windows: 3, 6).
-3.  **Volume Flow:** VWAP, Volume Sums, and Relative Volume (RVOL) normalized by time-of-day.
-4.  **VWAP Distance:** Z-scores of price relative to 5m, 10m, 20m, 30m VWAPs.
-5.  **Price Momentum:** RSI, Rate of Change (ROC), and Moving Average ratios.
-6.  **Microstructure:** Effective spread proxies and volume imbalance estimators.
-7.  **Time Seasonality:** Cyclical encoding (Sin/Cos) of Hour, Minute, and Day-of-Week.
+## Dependencies
+- Python 3.11, `ib_insync` for IBKR, `requests`/`pandas`/`pyarrow` for data handling, `qx-features` for feature packs.
+- External services: Polygon (delayed prev-bar), IBKR Gateway/TWS on `127.0.0.1:7497` (paper).
 
-*Configuration:* `configs/extensions/intraday_ml/features_10m.yaml`
-
-## 3. Target Definition: The "Big Move"
-The system aims to predict anomalous price excursions, defined dynamically relative to the asset's volatility.
-
-### 3.1 Dynamic Threshold Logic
-A "Big Move" occurs if the maximum forward return within the horizon exceeds a dynamic volatility barrier.
-
-$$ \text{Threshold}_t = \max(\text{ATR}_t \times \text{Multiplier}, \text{Floor}) $$ 
-
-*   **Horizon:** 60 minutes (6 bars).
-*   **ATR Input:** `f__vol__atr_6` (absolute dollar volatility).
-*   **Multiplier:** 1.10x ATR.
-*   **Floor:** 0.75% absolute price change (Safety minimum).
-*   **Labeling:**
-    *   `y_bigmove` (Binary): 1 if $|Return_{fwd}| > Threshold$, else 0.
-    *   `y_bigmove_direction` (Ternary): +1 (Long), -1 (Short), 0 (None).
-
-*Correction Note:* Previous configurations incorrectly treated dollar-ATR as percentage-ATR. This was corrected to ensure realistic signal generation.
-
-## 4. Machine Learning Architecture
-The system employs a **Two-Stage Pipeline** to decouple volatility prediction from directional prediction.
-
-### Stage 1: Volatility Classifier (Will it move?)
-*   **Objective:** Predict `P(y_bigmove == 1)`.
-*   **Algorithm:** LightGBM Classifier (Binary).
-*   **Key Params:**
-    *   `learning_rate`: 0.045
-    *   `n_estimators`: 640
-    *   `num_leaves`: 64
-    *   `class_weight`: Balanced (to handle rarity of big moves).
-*   **Input:** Full feature set.
-
-### Stage 2: Directional Classifier (Which way?)
-*   **Objective:** Predict `P(Long)` vs `P(Short)` *conditional* on a big move.
-*   **Algorithm:** LightGBM Classifier (Binary/Multiclass).
-*   **Training Data:** Trained *only* on samples where `y_bigmove == 1` (The "Big Move" subset).
-*   **Input:** Full feature set + Stage 1 probability score.
-
-## 5. Trading Policy & Execution
-The `BigMovePolicy` converts model probabilities into executable orders with strict risk management.
-
-### 5.1 Signal Generation
-A trade is generated if:
-1.  **Stage 1 Score** (`prob_bigmove`) > Threshold (e.g., 0.60).
-2.  **Stage 2 Score** (`prob_long` or `prob_short`) > Directional Threshold (e.g., 0.60).
-3.  **Time of Day:** Signal occurs within allowed windows (e.g., 09:40 - 15:50).
-
-### 5.2 Time-of-Day (TOD) Profiles
-Thresholds adapt dynamically based on market session:
-*   **OPEN (09:40-10:10):** High thresholds (Prob > 0.70) to filter auction noise.
-*   **MID (10:10-14:30):** Moderate thresholds (Prob > 0.65).
-*   **LATE (14:30-15:50):** Loose thresholds (Prob > 0.62) to capture close moves.
-
-### 5.3 Risk Management
-*   **Position Sizing:** 1 share per trade (Fixed for Pilot/Testing).
-*   **Stop Loss:** Dynamic ATR-based.
-    *   Stop Price = Entry $\pm$ (1.0 $\times$ ATR).
-    *   Hard Stop Cap: Max 4.5% loss.
-*   **Take Profit:** 2.0 $\times$ ATR (Risk:Reward = 1:2).
-*   **Timeouts:**
-    *   **Early Cut:** Exit if trade is < 0.5R profit after 20 mins.
-    *   **Dead Trade:** Exit if PnL is flat (< 0.2R) after 30 mins.
-    *   **Max Hold:** 60 minutes hard cap.
-
-## 6. Validation & Backtesting
-*   **OOS Scoring:** Models are scored on Out-of-Sample data (Phase A) to simulate live performance.
-*   **Policy Sweep:** A grid search runs across probability thresholds (0.5 - 0.7) and risk settings to generate an efficient frontier of viable strategies.
-*   **Fairness:** The system enforces "1 trade per symbol per day" and "Max 5 trades per day" to prevent overfitting to a single active ticker.
+## File map (intraday ML)
+- Project mgmt: `quantstack_intraday_execution_plan.md`
+- Technical (this file): `SYSTEM_TECH_DOC_INTRADAY_ML.md`
+- Live scripts: `scripts/daily_sip_scheduler.py`, `scripts/live_trading_system.py`, `start_live_system.sh`
+- SIP/L2 data: `data/daily_sip/`, `data/live_l2/`
+- Models: `./models/regime_aware/`
+- Features: `qx-features/src/qx_features/*`
