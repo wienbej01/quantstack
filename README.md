@@ -4,10 +4,19 @@ A modular, framework-agnostic trading system with configurable universe selectio
 
 ## Latest: Live Intraday ML Trading System (2024-12-16)
 
-**🚀 SYSTEM LIVE: Paper trading on IBKR with regime-aware ML models**  
+**⚠️ CRITICAL ISSUE: System using mock data instead of real IBKR data**  
+**🔧 FIX IN PROGRESS: Upgrading to real-time IBKR streaming + 1-minute trading**  
 **✅ REGIME-AWARE MODEL: +13.0% return (2024), 49.7% win rate**  
 **✅ TRAINED MODELS: 3 regime models on 6 months of data**  
 **✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
+
+### Critical Issue Discovered
+
+The live trading system is currently using **mock/fake data** for trading decisions instead of real IBKR market data. This must be fixed before production use.
+
+**See**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md) for detailed fix plan.
+
+**Status**: Implementation approved, estimated 8-11 hours to completion.
 
 ### System Status
 - ✅ **Live Trading**: Running on IBKR paper account (PID: 1594347)

@@ -1,5 +1,13 @@
 # Quantstack Intraday ML – Project Management (Canonical)
 
+## CRITICAL ISSUE (2025-12-16)
+
+**System is trading on mock data instead of real IBKR market data.**
+
+**Status**: Issue identified, upgrade plan approved  
+**Fix Timeline**: 8-11 hours  
+**See**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md)
+
 ## What the system does today
 - **Historical training**: pulls 1m parquet bars from `/home/jacobw/gcs-mount/gold/stocks/1m/` for any symbol/date range; feature packs live in `qx-features`.
 - **Daily SIP (live)**: `scripts/daily_sip_scheduler.py` fetches delayed Polygon data, applies the SIP scorer (`qx_data.live.polygon_sip.PolygonSIPSelector`), and writes `data/daily_sip/sip_universe_<date>.txt` and `l2_symbols_<date>.txt`.

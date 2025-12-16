@@ -1,5 +1,11 @@
 # Intraday ML System – Technical (Canonical)
 
+## CRITICAL ISSUE (2025-12-16)
+
+**Current Implementation**: System uses mock data for trading decisions  
+**Correct Implementation**: Should use real-time IBKR streaming data  
+**Fix Plan**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md)
+
 ## High-level architecture
 - **Historical data**: 1m OHLCV parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`.
 - **Live SIP selection**: Delayed Polygon prev-bar endpoint, scored by `qx_data.live.polygon_sip.PolygonSIPSelector`; outputs `data/daily_sip/sip_universe_<date>.txt` and `l2_symbols_<date>.txt`.
@@ -8,6 +14,24 @@
 - **Features**: Engineered by `qx-features` (core_basics, regime_enhanced, VPA). Registry lives in `qx-features/src/qx_features/registry.py`.
 
 ## Data flows
+
+### Current (BROKEN)
+```
+Polygon (daily) → SIP universe (40 symbols)
+                ↓
+Mock Data → ML Models → Paper Trades (IBKR)
+```
+
+### Correct Architecture (TO BE IMPLEMENTED)
+```
+Polygon (daily) → SIP universe (40 symbols)
+                ↓
+IBKR Real-time Streaming → Feature Computation → ML Models → Paper Trades
+     ↓
+  L2 Data (opening/power hours)
+```
+
+### Planned Data Flow (1-Minute Trading)
 1) **Training/backtest** (offline)
    - Source: gold 1m parquet → feature packs (see `qx-features/src/qx_features/core_basics.py` and `regime_enhanced.py`).
    - Targets/configs: stored under `configs/` (intraday ML variants).

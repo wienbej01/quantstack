@@ -1,10 +1,40 @@
 # Live Trading System Status
 
-**Last Updated**: 2025-12-16 20:27 SGT (07:27 ET)
+**Last Updated**: 2025-12-16 20:39 SGT (07:39 ET)
 
-## System Status: ✅ RUNNING
+## System Status: ⚠️ RUNNING WITH CRITICAL ISSUE
 
-The live intraday ML trading system is operational and monitoring markets.
+**CRITICAL ISSUE DISCOVERED**: System is trading on **mock data** instead of real IBKR market data.
+
+### Current State
+
+- ✅ **System Running**: PID 1594347, monitoring markets
+- ❌ **Data Source**: Using mock/fake data for trading decisions
+- ❌ **Feature Computation**: Not receiving real prices, volumes, or volatility
+- ✅ **Models Loaded**: 3 regime-aware models (but receiving fake inputs)
+- ✅ **IBKR Connected**: Paper trading account active
+- ⚠️ **Trading Active**: Placing orders based on incorrect data
+
+### Immediate Action Required
+
+**See**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md) for detailed implementation plan.
+
+**Priority**: CRITICAL - Must fix before next market open (9:30 AM ET)
+
+**Issue**: Line 207 in `scripts/live_trading_system.py` uses hardcoded mock data:
+```python
+mock_data = {
+    "volatility": 0.25,
+    "volume": 2000000,
+    "price_momentum": 0.02,
+}
+```
+
+**Impact**:
+- Models cannot respond to real market conditions
+- Trading decisions are based on fake data
+- Cross-sectional features are not computed correctly
+- System performance metrics are invalid
 
 ### Current Configuration
 
