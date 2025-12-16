@@ -101,6 +101,12 @@ ls -la data/production_l2/run_id=prod_*/raw/date=*/
 - Monitor IBKR paper account for trade executions
 - Check logs for ML prediction scores and trade decisions
 
+**Pre-flight Validator**:
+```bash
+# Checks gold mount, SIP artifacts, optional live endpoints
+python scripts/validate_data_integrations.py --check-polygon --check-ibkr
+```
+
 ## 🎯 **15-20 Day Plan**
 
 **Days 1-5**: System validation, data quality checks  

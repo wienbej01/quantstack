@@ -111,6 +111,14 @@ The system uses modular qx-* packages:
 - **qx-report**: Comparative analysis and reporting
 - **qx-cli**: Typer/Rich CLI surface and experiment orchestration
 
+### Data Integration (Gold + Polygon + IBKR)
+- **Historical training**: Reads gold parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`.
+- **Live SIP**: Uses Polygon delayed data to select daily SIP universes and persists to `data/daily_sip/`.
+- **Paper trading**: Executes via IBKR (TWS/Gateway on `127.0.0.1:7497`) using the live SIP list.
+- **L2 capture**: Collects NYSE L2 for opening/power hours from the SIP-filtered list.
+- **Validator**: Run `python scripts/validate_data_integrations.py --check-polygon --check-ibkr` to
+  verify gold mount, SIP artifacts, and live endpoints before market open.
+
 ### VWAP Momentum Strategy
 
 The VWAP Momentum strategy complements the reversion strategy by trading breakouts above and below VWAP:
