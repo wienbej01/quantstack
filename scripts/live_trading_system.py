@@ -17,14 +17,25 @@ from datetime import datetime
 from datetime import time as dt_time
 
 import pytz
-
 from daily_sip_scheduler import load_daily_sip_results, run_daily_sip_selection
+
+from qx_data.live.ibkr_data import IBKRMarketDataManager
 from qx_data.live.l2_collector import QuantstackL2Collector
 from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
-from qx_data.live.ibkr_data import IBKRMarketDataManager
 from qx_data.live.performance_monitor import PerformanceMonitor
 
-logging.basicConfig(level=logging.ERROR, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.ERROR, 
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("logs/live_trading.log"),
+        logging.StreamHandler()
+    ]
+)
+
+# Also log warnings for critical connection/subscription issues
+logging.getLogger("qx_data.live.ibkr_data").setLevel(logging.WARNING)
+logging.getLogger("__main__").setLevel(logging.ERROR)
 
 
 class LiveTradingSystem:
@@ -75,14 +86,13 @@ class LiveTradingSystem:
             ib = IB()
             ib.connect("127.0.0.1", 7497, clientId=999, readonly=True, timeout=3)
             if ib.isConnected():
-                self.logger.info("✅ IBKR connection available")
                 ib.disconnect()
                 return True
             else:
-                self.logger.warning("❌ IBKR connection failed")
+                self.logger.error("CRITICAL: IBKR connection failed - not connected after connect()")
                 return False
         except Exception as e:
-            self.logger.warning(f"❌ IBKR not available: {e}")
+            self.logger.error(f"CRITICAL: IBKR connection exception: {e}", exc_info=True)
             return False
 
     def load_or_create_daily_universe(self):
@@ -162,9 +172,8 @@ class LiveTradingSystem:
             self.l2_collector = QuantstackL2Collector(self.l2_symbols, config)
             self.l2_collector.start_collection()
             self.l2_active = True
-            self.logger.info(f"✅ L2 collection started: {self.l2_symbols}")
         except Exception as e:
-            self.logger.error(f"❌ L2 collection start failed: {e}")
+            self.logger.error(f"CRITICAL: L2 collection start failed: {e}", exc_info=True)
             self.l2_active = False
 
     def stop_l2_collection(self):
@@ -173,9 +182,8 @@ class LiveTradingSystem:
             try:
                 metadata = self.l2_collector.stop_collection()
                 counters = metadata.get("counters", {})
-                self.logger.info(f"L2 collection stopped: {counters}")
             except Exception as e:
-                self.logger.error(f"L2 collection stop failed: {e}")
+                self.logger.error(f"CRITICAL: L2 collection stop failed: {e}", exc_info=True)
             finally:
                 self.l2_collector = None
                 self.l2_active = False
@@ -188,10 +196,10 @@ class LiveTradingSystem:
         if not self.trading_connected:
             try:
                 self.trading_connected = self.paper_trader.connect()
-                if self.trading_connected:
-                    self.logger.info("✅ Paper trading connected")
+                if not self.trading_connected:
+                    self.logger.error("CRITICAL: Paper trading connection failed")
             except Exception as e:
-                self.logger.error(f"❌ Paper trading connection failed: {e}")
+                self.logger.error(f"CRITICAL: Paper trading connection exception: {e}", exc_info=True)
                 self.trading_connected = False
         return self.trading_connected
 
@@ -199,21 +207,21 @@ class LiveTradingSystem:
         """Subscribe to real-time market data for SIP universe."""
         if not self.ibkr_available or not self.sip_universe:
             return False
-        
+
         if not self.data_subscribed:
             try:
                 if not self.ibkr_data.connect():
-                    self.logger.error("❌ Failed to connect IBKRMarketDataManager")
+                    self.logger.error("CRITICAL: Failed to connect IBKRMarketDataManager")
                     return False
                 self.ibkr_data.subscribe_symbols(self.sip_universe)
                 # Check if any subscriptions succeeded
                 if len(self.ibkr_data.subscribed_symbols) == 0:
-                    self.logger.error("❌ No symbols subscribed successfully")
+                    self.logger.error("CRITICAL: No symbols subscribed successfully - all subscriptions failed")
                     return False
                 self.data_subscribed = True
                 return True
             except Exception as e:
-                self.logger.error(f"❌ Market data subscription failed: {e}")
+                self.logger.error(f"CRITICAL: Market data subscription exception: {e}", exc_info=True)
                 self.data_subscribed = False
                 return False
         return True
@@ -221,7 +229,7 @@ class LiveTradingSystem:
     def execute_paper_trades(self):
         """Execute paper trades on ALL NYSE SIP symbols using REAL IBKR data (optimized for 1-min)."""
         self.performance.start_cycle()
-        
+
         if not self.connect_trading():
             self.logger.warning("Paper trading skipped - IBKR not available")
             self.performance.record_skipped_cycle()
@@ -229,7 +237,9 @@ class LiveTradingSystem:
 
         # Ensure market data is subscribed
         sub_result = self.subscribe_market_data()
-        self.logger.error(f"DEBUG: subscribe_market_data returned {sub_result}, data_subscribed={self.data_subscribed}")
+        self.logger.error(
+            f"DEBUG: subscribe_market_data returned {sub_result}, data_subscribed={self.data_subscribed}"
+        )
         if not sub_result:
             self.logger.warning("Paper trading skipped - market data not available")
             self.performance.record_skipped_cycle()
@@ -239,33 +249,43 @@ class LiveTradingSystem:
             positions = self.paper_trader.get_positions()
             trades_executed = 0
 
-            self.logger.error(f"DEBUG: Starting trade execution, subscribed={self.data_subscribed}")
+            self.logger.error(
+                f"DEBUG: Starting trade execution, subscribed={self.data_subscribed}"
+            )
 
             # Phase 1: Fetch real-time data (fast)
             phase_start = time.time()
             all_current_data = self.ibkr_data.get_all_current_data()
-            
-            self.logger.error(f"DEBUG: got {len(all_current_data)} symbols, keys: {list(all_current_data.keys())[:5]}")
-            
+
+            self.logger.error(
+                f"DEBUG: got {len(all_current_data)} symbols, keys: {list(all_current_data.keys())[:5]}"
+            )
+
             if not all_current_data:
                 self.logger.warning("No market data available, skipping cycle")
                 self.performance.record_skipped_cycle()
                 return
-            
+
             # Phase 2: Compute cross-sectional features (optimized)
-            cross_features = self.ibkr_data.compute_cross_sectional_features(all_current_data)
-            
+            cross_features = self.ibkr_data.compute_cross_sectional_features(
+                all_current_data
+            )
+
             # Phase 3: Fetch historical bars in parallel (optimized)
-            all_hist_bars = self.ibkr_data.get_all_historical_bars(self.sip_universe, periods=20)
+            all_hist_bars = self.ibkr_data.get_all_historical_bars(
+                self.sip_universe, periods=20
+            )
             feature_time = time.time() - phase_start
             self.performance.record_phase("features", feature_time)
-            
+
             # Check if we're running out of time
             if self.performance.should_skip_cycle():
-                self.logger.warning(f"Feature computation took {feature_time:.1f}s, skipping predictions")
+                self.logger.warning(
+                    f"Feature computation took {feature_time:.1f}s, skipping predictions"
+                )
                 self.performance.record_skipped_cycle()
                 return
-            
+
             # Compute market-wide statistics for regime detection
             returns = []
             for sym, data in all_current_data.items():
@@ -273,10 +293,14 @@ class LiveTradingSystem:
                 close = data.get("close", 0)
                 if last > 0 and close > 0:
                     returns.append((last - close) / close)
-            
+
             market_ret = sum(returns) / len(returns) if returns else 0
-            market_volatility = (sum((r - market_ret) ** 2 for r in returns) / len(returns)) ** 0.5 if returns else 0.02
-            
+            market_volatility = (
+                (sum((r - market_ret) ** 2 for r in returns) / len(returns)) ** 0.5
+                if returns
+                else 0.02
+            )
+
             market_data = {
                 "market_ret": market_ret,
                 "market_volatility": market_volatility,
@@ -285,22 +309,28 @@ class LiveTradingSystem:
             # Phase 4: ML predictions
             pred_start = time.time()
             predictions = []
-            
+
             for symbol in self.sip_universe:
                 if symbol not in cross_features:
                     continue
-                
+
                 # Get historical bars for lookback features
                 hist_bars = all_hist_bars.get(symbol)
                 if hist_bars is None or len(hist_bars) < 5:
                     continue
-                
+
                 # Compute relative strength features
                 closes = hist_bars["close"].values
-                rel_strength_5 = (closes[-1] - closes[-5]) / closes[-5] if len(closes) >= 5 else 0
-                rel_strength_10 = (closes[-1] - closes[-10]) / closes[-10] if len(closes) >= 10 else 0
-                rel_strength_20 = (closes[-1] - closes[-20]) / closes[-20] if len(closes) >= 20 else 0
-                
+                rel_strength_5 = (
+                    (closes[-1] - closes[-5]) / closes[-5] if len(closes) >= 5 else 0
+                )
+                rel_strength_10 = (
+                    (closes[-1] - closes[-10]) / closes[-10] if len(closes) >= 10 else 0
+                )
+                rel_strength_20 = (
+                    (closes[-1] - closes[-20]) / closes[-20] if len(closes) >= 20 else 0
+                )
+
                 # Combine all features
                 features = {
                     **cross_features[symbol],
@@ -311,16 +341,25 @@ class LiveTradingSystem:
                     "market_ret_5": market_ret,
                     "market_ret_10": market_ret,
                     "cross_dispersion": market_volatility,
-                    "market_breadth": sum(1 for r in returns if r > 0) / len(returns) if returns else 0.5,
-                    "up_down_ratio": (sum(1 for r in returns if r > 0) + 1) / (sum(1 for r in returns if r < 0) + 1) if returns else 1.0,
+                    "market_breadth": (
+                        sum(1 for r in returns if r > 0) / len(returns)
+                        if returns
+                        else 0.5
+                    ),
+                    "up_down_ratio": (
+                        (sum(1 for r in returns if r > 0) + 1)
+                        / (sum(1 for r in returns if r < 0) + 1)
+                        if returns
+                        else 1.0
+                    ),
                     "sector_momentum": 0.0,
                 }
-                
+
                 # Get ML prediction
                 prediction = self.ml_predictor.predict(symbol, features)
                 if prediction is not None:
                     predictions.append((symbol, prediction))
-            
+
             pred_time = time.time() - pred_start
             self.performance.record_phase("predictions", pred_time)
 
@@ -346,19 +385,19 @@ class LiveTradingSystem:
                         self.logger.info(
                             f"PAPER SELL: {symbol} (score: {prediction:.3f})"
                         )
-            
+
             order_time = time.time() - order_start
             self.performance.record_phase("orders", order_time)
-            
+
             cycle_time = self.performance.end_cycle()
-            
+
             self.logger.info(
                 f"Executed {trades_executed} paper trades from {len(self.sip_universe)} symbols "
                 f"(cycle: {cycle_time:.1f}s, features: {feature_time:.1f}s, pred: {pred_time:.1f}s, orders: {order_time:.1f}s)"
             )
 
         except Exception as e:
-            self.logger.error(f"Paper trading failed: {e}")
+            self.logger.error(f"CRITICAL: Paper trading cycle failed: {e}", exc_info=True)
             self.performance.record_skipped_cycle()
 
     def run_live_system(self):
@@ -411,26 +450,25 @@ class LiveTradingSystem:
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            self.logger.error(f"System error: {e}", exc_info=True)
+            self.logger.error(f"CRITICAL: System error in main loop: {e}", exc_info=True)
         finally:
             try:
                 if self.l2_active:
                     self.stop_l2_collection()
             except Exception as e:
-                self.logger.error(f"L2 stop failed: {e}")
-            
+                self.logger.error(f"CRITICAL: L2 stop failed in cleanup: {e}", exc_info=True)
+
             try:
                 if self.trading_connected:
                     self.paper_trader.disconnect()
             except Exception as e:
-                self.logger.error(f"Paper trader disconnect failed: {e}")
-            
+                self.logger.error(f"CRITICAL: Paper trader disconnect failed: {e}", exc_info=True)
+
             try:
                 if self.data_subscribed:
                     self.ibkr_data.disconnect()
             except Exception as e:
-                self.logger.error(f"IBKR disconnect failed: {e}")
-            self.logger.info("Live trading system stopped")
+                self.logger.error(f"CRITICAL: IBKR disconnect failed: {e}", exc_info=True)
 
 
 def main():
