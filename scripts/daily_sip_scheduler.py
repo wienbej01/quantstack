@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """Daily SIP universe selection - EXACT original methodology."""
 
-import logging
-import os
 import sys
-import time
-from datetime import datetime
 from pathlib import Path
 
-# Add paths
-sys.path.insert(0, "qx-data")
+# Add paths FIRST
+repo_root = Path(__file__).parent.parent
+sys.path.insert(0, str(repo_root / "qx-data" / "src"))
+
+import logging
+import os
+import time
+from datetime import datetime
 
 from qx_data.live.polygon_sip import PolygonSIPSelector
 

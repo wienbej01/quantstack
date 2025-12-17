@@ -4,19 +4,45 @@ A modular, framework-agnostic trading system with configurable universe selectio
 
 ## Latest: Live Intraday ML Trading System (2024-12-16)
 
-**⚠️ CRITICAL ISSUE: System using mock data instead of real IBKR data**  
-**🔧 FIX IN PROGRESS: Upgrading to real-time IBKR streaming + 1-minute trading**  
+**✅ PHASE 1 & 2 COMPLETE: Real IBKR data + 1-minute trading implemented**  
+**⏳ TESTING REQUIRED: Run validation before production deployment**  
 **✅ REGIME-AWARE MODEL: +13.0% return (2024), 49.7% win rate**  
 **✅ TRAINED MODELS: 3 regime models on 6 months of data**  
 **✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
 
-### Critical Issue Discovered
+### Phase 1 & 2 Implementation Complete
 
-The live trading system is currently using **mock/fake data** for trading decisions instead of real IBKR market data. This must be fixed before production use.
+The critical mock data issue has been fixed AND system upgraded to 1-minute trading.
 
-**See**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md) for detailed fix plan.
+**Phase 1 Changes:**
+- ✅ Created `IBKRMarketDataManager` for real-time data
+- ✅ Updated ML predictor with 11 cross-sectional features
+- ✅ Removed mock data from live trading system (line 207)
+- ✅ Integrated real-time streaming and historical bars
 
-**Status**: Implementation approved, estimated 8-11 hours to completion.
+**Phase 2 Changes:**
+- ✅ Created `PerformanceMonitor` for cycle timing
+- ✅ Optimized feature computation (parallel + vectorized)
+- ✅ Upgraded trading frequency from 5 minutes to 1 minute
+- ✅ Added performance monitoring and timeout detection
+
+**Test Before Deploy:**
+```bash
+# Test Phase 1 (real data)
+python scripts/test_phase1_real_data.py
+
+# Test Phase 2 (1-minute trading)
+python scripts/test_phase2_1min_trading.py
+```
+
+**Expected Performance:**
+- Trading frequency: Every 1 minute (390 opportunities/day)
+- Cycle latency: 15-20 seconds
+- Skip rate: <5%
+
+**See**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md) for full details.
+
+**Status**: Both phases complete, ready for production testing.
 
 ### System Status
 - ✅ **Live Trading**: Running on IBKR paper account (PID: 1594347)

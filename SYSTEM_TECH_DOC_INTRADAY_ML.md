@@ -1,10 +1,28 @@
 # Intraday ML System – Technical (Canonical)
 
-## CRITICAL ISSUE (2025-12-16)
+## ✅ PHASE 1 COMPLETE (2025-12-16)
 
-**Current Implementation**: System uses mock data for trading decisions  
-**Correct Implementation**: Should use real-time IBKR streaming data  
-**Fix Plan**: [LIVE_TRADING_UPGRADE_PLAN.md](LIVE_TRADING_UPGRADE_PLAN.md)
+**Implementation**: Real-time IBKR streaming data integration complete  
+**Status**: Ready for testing and deployment  
+**Testing**: `python scripts/test_phase1_real_data.py`
+
+### Changes Implemented
+
+1. **IBKRMarketDataManager** (`qx-data/qx_data/live/ibkr_data.py`)
+   - Real-time streaming subscriptions for 40 symbols
+   - Historical 1-minute bars retrieval
+   - Cross-sectional feature computation
+   - Market-wide statistics
+
+2. **RegimeAwarePredictor** (`qx-data/qx_data/live/ml_predictor.py`)
+   - 11 cross-sectional features
+   - Bull/bear/sideways regime detection
+   - Real market data processing
+
+3. **LiveTradingSystem** (`scripts/live_trading_system.py`)
+   - Mock data removed (line 207)
+   - Real IBKR data integration
+   - Feature computation pipeline
 
 ## High-level architecture
 - **Historical data**: 1m OHLCV parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`.
@@ -15,14 +33,7 @@
 
 ## Data flows
 
-### Current (BROKEN)
-```
-Polygon (daily) → SIP universe (40 symbols)
-                ↓
-Mock Data → ML Models → Paper Trades (IBKR)
-```
-
-### Correct Architecture (TO BE IMPLEMENTED)
+### ✅ Current Implementation (Phase 1 Complete)
 ```
 Polygon (daily) → SIP universe (40 symbols)
                 ↓
@@ -31,7 +42,10 @@ IBKR Real-time Streaming → Feature Computation → ML Models → Paper Trades
   L2 Data (opening/power hours)
 ```
 
-### Planned Data Flow (1-Minute Trading)
+### Planned Upgrade (Phase 2)
+- Increase frequency from 5 minutes to 1 minute
+- Optimize feature computation for <10s latency
+- Add performance monitoring
 1) **Training/backtest** (offline)
    - Source: gold 1m parquet → feature packs (see `qx-features/src/qx_features/core_basics.py` and `regime_enhanced.py`).
    - Targets/configs: stored under `configs/` (intraday ML variants).

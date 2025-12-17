@@ -69,5 +69,5 @@ echo ""
 # Start the system (NO TIMEOUT)
 echo "🎯 Starting live trading system..."
 cd /home/jacobw/quantstack
-source ~/.bashrc
-python3 scripts/live_trading_system.py
+source .venv/bin/activate
+python scripts/live_trading_system.py
