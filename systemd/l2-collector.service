@@ -1,0 +1,19 @@
+[Unit]
+Description=L2 Data Collector (Daily Daemon)
+After=network.target
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment=PYTHONPATH=/home/jacobw/quantstack
+ExecStart=/home/jacobw/quantstack/.venv/bin/python qx-l2/scripts/run_collector.py --config qx-l2/configs/maximum_l2.yaml --daemon
+Restart=on-failure
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target
