@@ -19,9 +19,9 @@ from datetime import time as dt_time
 import pytz
 from daily_sip_scheduler import load_daily_sip_results, run_daily_sip_selection
 
-from qx_data.live.ibkr_data import IBKRMarketDataManager
+from qx_data.live.ibkr_data_tagged import create_quantstack_manager
 from qx_data.live.l2_collector import QuantstackL2Collector
-from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
+from qx_data.live.ml_predictor import RegimeAwarePredictor, PaperTrader
 from qx_data.live.performance_monitor import PerformanceMonitor
 
 logging.basicConfig(
@@ -45,9 +45,11 @@ class LiveTradingSystem:
         self.logger = self._setup_logging()
         self.et_tz = pytz.timezone("America/New_York")
 
-        # Components
+        # Components with system tagging
         self.ml_predictor = RegimeAwarePredictor("./models/regime_aware")
         self.paper_trader = PaperTrader()
+        self.ibkr_data = create_quantstack_manager()  # Tagged manager
+        self.performance = PerformanceMonitor()
         self.ibkr_data = IBKRMarketDataManager(client_id=3)
         self.performance = PerformanceMonitor()
         self.l2_collector: QuantstackL2Collector | None = None
@@ -267,14 +269,29 @@ class LiveTradingSystem:
                 return
 
             # Phase 2: Compute cross-sectional features (optimized)
-            cross_features = self.ibkr_data.compute_cross_sectional_features(
-                all_current_data
-            )
+            try:
+                cross_features = self.ibkr_data.compute_cross_sectional_features(
+                    all_current_data
+                )
+            except Exception as e:
+                self.logger.error(f"Cross-sectional features failed: {e}")
+                self.performance.record_skipped_cycle()
+                return
 
-            # Phase 3: Fetch historical bars in parallel (optimized)
-            all_hist_bars = self.ibkr_data.get_all_historical_bars(
-                self.sip_universe, periods=20
-            )
+            # Phase 3: Fetch historical bars with error handling
+            try:
+                all_hist_bars = self.ibkr_data.get_all_historical_bars(
+                    self.sip_universe, duration="1 D"
+                )
+                if not all_hist_bars:
+                    self.logger.warning("No historical data available, skipping cycle")
+                    self.performance.record_skipped_cycle()
+                    return
+            except Exception as e:
+                self.logger.error(f"Historical data fetch failed: {e}")
+                self.performance.record_skipped_cycle()
+                return
+                
             feature_time = time.time() - phase_start
             self.performance.record_phase("features", feature_time)
 

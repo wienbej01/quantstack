@@ -1,0 +1,2 @@
+universe_total,sp500_count,russell2000_count,overlap_count,r2k_only_count,sp500_only_count,has_data_count,missing_completely_count,good_coverage_count,download_needed_count,remove_2025_only_count,coverage_percentage,created_at
+2449,503,1946,0,1946,503,1744,705,1084,1365,660,44.3,2025-12-17T20:04:25.258644

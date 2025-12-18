@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Test implementation - simplified version."""
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Set up paths (src MUST be first for ibkr_data and performance_monitor)
 qx_src = str(Path(__file__).parent.parent / "qx-data" / "src")
 qx_root = str(Path(__file__).parent.parent / "qx-data")
 # Remove any existing qx-data paths
-sys.path = [p for p in sys.path if 'qx-data' not in p]
+sys.path = [p for p in sys.path if "qx-data" not in p]
 # Add in correct order
 sys.path.insert(0, qx_src)
 sys.path.insert(1, qx_root)
@@ -47,6 +47,7 @@ print("\n=== Test 2: Module Imports ===")
 
 try:
     from qx_data.live.ibkr_data import IBKRMarketDataManager
+
     print("✅ IBKRMarketDataManager imported")
 except Exception as e:
     print(f"❌ IBKRMarketDataManager import failed: {e}")
@@ -54,6 +55,7 @@ except Exception as e:
 
 try:
     from qx_data.live.performance_monitor import PerformanceMonitor
+
     print("✅ PerformanceMonitor imported")
 except Exception as e:
     print(f"❌ PerformanceMonitor import failed: {e}")
@@ -61,12 +63,14 @@ except Exception as e:
 
 try:
     from qx_data.live.ml_predictor import RegimeAwarePredictor
+
     print("✅ RegimeAwarePredictor imported")
 except Exception as e:
     # Try alternate path
     try:
         sys.path.insert(0, qx_root)
         from qx_data.live.ml_predictor import RegimeAwarePredictor
+
         print("✅ RegimeAwarePredictor imported (from qx-data root)")
     except Exception as e2:
         print(f"❌ RegimeAwarePredictor import failed: {e2}")
@@ -76,8 +80,14 @@ except Exception as e:
 print("\n=== Test 3: Key Methods ===")
 
 # IBKRMarketDataManager
-methods = ['connect', 'subscribe_symbols', 'get_current_data', 'get_historical_bars', 
-           'get_all_historical_bars', 'compute_cross_sectional_features']
+methods = [
+    "connect",
+    "subscribe_symbols",
+    "get_current_data",
+    "get_historical_bars",
+    "get_all_historical_bars",
+    "compute_cross_sectional_features",
+]
 for method in methods:
     if hasattr(IBKRMarketDataManager, method):
         print(f"✅ IBKRMarketDataManager.{method}")
@@ -85,7 +95,7 @@ for method in methods:
         print(f"❌ IBKRMarketDataManager.{method} missing")
 
 # PerformanceMonitor
-methods = ['start_cycle', 'end_cycle', 'record_phase', 'get_stats', 'should_skip_cycle']
+methods = ["start_cycle", "end_cycle", "record_phase", "get_stats", "should_skip_cycle"]
 for method in methods:
     if hasattr(PerformanceMonitor, method):
         print(f"✅ PerformanceMonitor.{method}")
@@ -99,8 +109,14 @@ live_system_path = Path(__file__).parent / "live_trading_system.py"
 content = live_system_path.read_text()
 
 checks = [
-    ("IBKRMarketDataManager import", "from live.ibkr_data import IBKRMarketDataManager"),
-    ("PerformanceMonitor import", "from live.performance_monitor import PerformanceMonitor"),
+    (
+        "IBKRMarketDataManager import",
+        "from live.ibkr_data import IBKRMarketDataManager",
+    ),
+    (
+        "PerformanceMonitor import",
+        "from live.performance_monitor import PerformanceMonitor",
+    ),
     ("1-minute frequency", "current_time - last_trade_time > 60"),
     ("Performance monitoring", "self.performance"),
     ("No mock data", "mock_data" not in content),
@@ -118,27 +134,28 @@ print("\n=== Test 5: Performance Monitor Functionality ===")
 
 try:
     import time
+
     perf = PerformanceMonitor()
-    
+
     # Test cycle tracking
     perf.start_cycle()
     time.sleep(0.01)
     perf.record_phase("features", 0.005)
     perf.record_phase("predictions", 0.003)
     duration = perf.end_cycle()
-    
+
     if duration > 0:
         print(f"✅ Cycle tracking works ({duration:.3f}s)")
     else:
         print("❌ Cycle tracking failed")
-    
+
     # Test stats
     stats = perf.get_stats()
-    if stats and 'avg_cycle_time' in stats:
+    if stats and "avg_cycle_time" in stats:
         print(f"✅ Statistics generation works")
     else:
         print("❌ Statistics generation failed")
-    
+
     # Test skip detection
     perf.start_cycle()
     should_skip = perf.should_skip_cycle()
@@ -146,7 +163,7 @@ try:
         print("✅ Skip detection works")
     else:
         print("❌ Skip detection false positive")
-    
+
 except Exception as e:
     print(f"❌ Performance monitor test failed: {e}")
 
@@ -155,6 +172,7 @@ print("\n=== Test 6: IBKR Connection Check ===")
 
 try:
     from ib_insync import IB
+
     ib = IB()
     try:
         ib.connect("127.0.0.1", 7497, clientId=999, readonly=True, timeout=3)

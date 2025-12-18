@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Validate Phase 1 & 2 implementation."""
 
-import sys
 import ast
+import sys
 from pathlib import Path
 
 print("=" * 70)
@@ -64,7 +64,9 @@ for check_name, check_str in ibkr_checks:
     print(f"{status} IBKRMarketDataManager: {check_name}")
 
 # Check PerformanceMonitor
-perf_path = Path(__file__).parent.parent / "qx-data/src/qx_data/live/performance_monitor.py"
+perf_path = (
+    Path(__file__).parent.parent / "qx-data/src/qx_data/live/performance_monitor.py"
+)
 perf_content = perf_path.read_text()
 perf_checks = [
     ("PerformanceMonitor class", "class PerformanceMonitor"),
@@ -103,8 +105,14 @@ live_path = Path(__file__).parent.parent / "scripts/live_trading_system.py"
 live_content = live_path.read_text()
 
 live_checks = [
-    ("IBKRMarketDataManager import", "from live.ibkr_data import IBKRMarketDataManager"),
-    ("PerformanceMonitor import", "from live.performance_monitor import PerformanceMonitor"),
+    (
+        "IBKRMarketDataManager import",
+        "from live.ibkr_data import IBKRMarketDataManager",
+    ),
+    (
+        "PerformanceMonitor import",
+        "from live.performance_monitor import PerformanceMonitor",
+    ),
     ("1-minute frequency (60s)", "last_trade_time > 60"),
     ("Performance monitoring", "self.performance"),
     ("get_all_historical_bars call", "get_all_historical_bars"),

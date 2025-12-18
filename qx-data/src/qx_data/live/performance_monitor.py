@@ -1,4 +1,5 @@
 """Performance monitoring for live trading cycles."""
+
 import logging
 import time
 from collections import deque
@@ -39,14 +40,14 @@ class PerformanceMonitor:
         """Mark the end of a cycle and return total duration."""
         if self.current_cycle_start is None:
             return 0.0
-        
+
         duration = time.time() - self.current_cycle_start
         self.cycle_times.append(duration)
         self.current_cycle_start = None
-        
+
         if duration > 60:
             logger.warning(f"Cycle exceeded 60s: {duration:.2f}s")
-        
+
         return duration
 
     def record_skipped_cycle(self):
@@ -58,15 +59,27 @@ class PerformanceMonitor:
         """Get performance statistics."""
         if not self.cycle_times:
             return {}
-        
+
         return {
             "avg_cycle_time": sum(self.cycle_times) / len(self.cycle_times),
             "max_cycle_time": max(self.cycle_times),
             "min_cycle_time": min(self.cycle_times),
-            "avg_feature_time": sum(self.feature_times) / len(self.feature_times) if self.feature_times else 0,
-            "avg_prediction_time": sum(self.prediction_times) / len(self.prediction_times) if self.prediction_times else 0,
-            "avg_order_time": sum(self.order_times) / len(self.order_times) if self.order_times else 0,
-            "skip_rate": self.skipped_cycles / self.total_cycles if self.total_cycles > 0 else 0,
+            "avg_feature_time": (
+                sum(self.feature_times) / len(self.feature_times)
+                if self.feature_times
+                else 0
+            ),
+            "avg_prediction_time": (
+                sum(self.prediction_times) / len(self.prediction_times)
+                if self.prediction_times
+                else 0
+            ),
+            "avg_order_time": (
+                sum(self.order_times) / len(self.order_times) if self.order_times else 0
+            ),
+            "skip_rate": (
+                self.skipped_cycles / self.total_cycles if self.total_cycles > 0 else 0
+            ),
             "total_cycles": self.total_cycles,
             "skipped_cycles": self.skipped_cycles,
         }
@@ -76,7 +89,7 @@ class PerformanceMonitor:
         stats = self.get_stats()
         if not stats:
             return
-        
+
         logger.info(
             f"Performance: avg={stats['avg_cycle_time']:.1f}s, "
             f"max={stats['max_cycle_time']:.1f}s, "
@@ -88,6 +101,6 @@ class PerformanceMonitor:
         """Check if current cycle should be skipped due to timeout."""
         if self.current_cycle_start is None:
             return False
-        
+
         elapsed = time.time() - self.current_cycle_start
         return elapsed > 60

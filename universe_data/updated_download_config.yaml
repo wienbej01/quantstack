@@ -1,0 +1,35 @@
+# Updated Universe Configuration - No Price Filters
+# Generated: 2025-12-17 19:53:50
+
+# Remove price band restrictions - download full R2K + S&P 500
+lookback_years: 4                    # Download from 2021-01
+prefilter_frac_min: 0.0             # No price filter requirement
+month_chunk: "1M"
+concurrency: 8
+
+http:
+  timeout_sec: 30
+  max_retries: 6
+  backoff_base_sec: 1.5
+
+paths:
+  universe_dir: "/home/jacobw/quantstack/universe_data"
+  prefilter_dir: "artefacts/prefilter"
+  checkpoints_dir: "artefacts/checkpoints"
+  bronze_root: "/home/jacobw/gcs-mount/bronze/stocks/1m"
+  silver_root: "/home/jacobw/gcs-mount/silver/stocks/1m"
+  gold_root: "/home/jacobw/gcs-mount/gold/stocks/1m"
+
+calendar: "XNYS"
+price_band: [0.01, 10000.0]         # Effectively no price filter
+
+polygon:
+  api_key_env: "POLYGON_API_KEY"
+
+# Universe settings
+universe:
+  include_sp500: true
+  include_russell2000: true
+  start_date: "2021-01-01"
+  end_date: "2025-12-31"
+  remove_price_filters: true
