@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qx-l2"
+version = "1.0.0"
+description = "Standalone L2 order book data collection module"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "ib-insync>=0.9.86",
+    "pandas>=2.0.0",
+    "pyarrow>=14.0.0",
+    "pytz>=2023.3",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+
+[project.scripts]
+l2-collect = "qx_l2.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/qx_l2"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
