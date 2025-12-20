@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 import yaml
-from data.l2_feed import L2DataFeed, L2Snapshot, MockL2DataFeed
+from data.l2_feed import L2DataFeed, L2Snapshot
 from execution.order_manager import (
     IBKROrderManager,
     OrderRequest,
@@ -23,6 +23,7 @@ from risk.risk_manager import CircuitBreaker, RiskManager
 from scheduler import MarketScheduler
 
 # Import system components
+from signals.context_filter import ContextFeatureComputer, ContextFilter, TradeTier
 from signals.l2_signals import L2SignalGenerator
 from signals.l2_signals import L2Snapshot as SignalSnapshot
 from signals.l2_signals import SignalValidator
@@ -44,29 +45,36 @@ class ScalpingSystem:
 
         # System components
         self.signal_generator = L2SignalGenerator(self.config["strategy"])
-        self.signal_validator = SignalValidator(self.config["strategy"])
+        self.signal_validator = SignalValidator(
+            self.config["strategy"], self.config["risk"]
+        )
         self.risk_manager = RiskManager(self.config["risk"])
         self.circuit_breaker = CircuitBreaker(self.config["risk"]["circuit_breaker"])
         self.order_manager = IBKROrderManager(self.config["ibkr"])
 
-        # Data feed (mock or real based on config)
+        # Context-aware filtering
+        self.context_filter = ContextFilter(self.config["strategy"])
+        self.context_computer = ContextFeatureComputer(lookback=30)
+
+        # Data feed (production only - mock data must not be enabled)
         if self.config["strategy"].get("mock_data", {}).get("enabled", False):
-            logger.warning("USING MOCK DATA - REMOVE BEFORE PAPER TRADING")
-            self.data_feed = MockL2DataFeed(self.config["strategy"]["mock_data"])
-        else:
-            # Load symbols from daily SIP
-            from data.sip_integration import get_scalping_symbols
+            raise RuntimeError("Mock data is enabled - disable before paper trading")
 
-            sip_symbols = get_scalping_symbols(max_symbols=3)
+        # Load symbols from daily SIP
+        from data.sip_integration import get_scalping_symbols
 
-            # Update config with SIP symbols
-            market_data_config = self.config["ibkr"]["market_data"].copy()
-            market_data_config["symbols"] = sip_symbols
+        sip_symbols = get_scalping_symbols(max_symbols=3)
 
-            self.data_feed = L2DataFeed(market_data_config)
+        # Update config with SIP symbols
+        ibkr_config = self.config["ibkr"].copy()
+        ibkr_config = dict(ibkr_config)
+        ibkr_config["market_data"] = ibkr_config.get("market_data", {}).copy()
+        ibkr_config["market_data"]["symbols"] = sip_symbols
+
+        self.data_feed = L2DataFeed(ibkr_config)
 
         # Market scheduler
-        self.scheduler = MarketScheduler(self.config.get("schedule", {}))
+        self.scheduler = MarketScheduler(self.config["strategy"].get("schedule", {}))
 
         # Trade journal and reporting
         self.trade_journal = TradeJournal(data_dir="data")
@@ -77,7 +85,9 @@ class ScalpingSystem:
         self.account_value = self.config["ibkr"]["account"].get(
             "initial_capital", 100000
         )
+        self.risk_manager.account_value = self.account_value
         self.active_positions: dict[str, dict] = {}
+        self.pending_entries: dict[int, dict] = {}
 
         # Performance tracking
         self.trades_today = 0
@@ -193,6 +203,14 @@ class ScalpingSystem:
     def _on_market_data(self, snapshot: L2Snapshot) -> None:
         """Handle incoming market data"""
         try:
+            # Update context computer with snapshot data (builds 1-min bars)
+            self.context_computer.update_from_snapshot(
+                symbol=snapshot.symbol,
+                mid=snapshot.mid,
+                volume=snapshot.bid_size + snapshot.ask_size,  # Proxy for volume
+                timestamp=snapshot.timestamp
+            )
+
             # Convert to signal snapshot format
             signal_snapshot = SignalSnapshot(
                 symbol=snapshot.symbol,
@@ -235,6 +253,31 @@ class ScalpingSystem:
             if signal.signal_type.value == 0:  # No signal
                 return
 
+            # === CONTEXT-AWARE FILTERING ===
+            ctx = self.context_computer.compute(snapshot.symbol)
+            if ctx is not None:
+                ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
+                
+                # Log context for analysis
+                logger.info(
+                    f"Context [{snapshot.symbol}]: tier={ctx_result.tier.name}, "
+                    f"size_mult={ctx_result.size_multiplier:.2f}, "
+                    f"rel_vol={ctx.rel_vol:.2f}, rsi={ctx.rsi_14:.1f}, "
+                    f"boosts={ctx_result.soft_boosts}"
+                )
+                
+                # Hard gate: block trade
+                if ctx_result.tier == TradeTier.BLOCKED:
+                    logger.info(f"Trade BLOCKED by context: {ctx_result.reasons}")
+                    return
+                
+                # Store context result for position sizing
+                self._last_ctx_result = ctx_result
+            else:
+                # No context available yet, use default
+                self._last_ctx_result = None
+                logger.debug(f"No context features for {snapshot.symbol} yet")
+
             # Execute trade
             self._execute_signal(signal, snapshot)
 
@@ -258,6 +301,22 @@ class ScalpingSystem:
                 account_value=self.account_value,
                 price=snapshot.mid,
             )
+
+            # Apply context-based sizing multiplier
+            ctx_result = getattr(self, "_last_ctx_result", None)
+            if ctx_result is not None:
+                original_qty = quantity
+                quantity = int(quantity * ctx_result.size_multiplier)
+                if quantity != original_qty:
+                    logger.info(
+                        f"Context sizing: {original_qty} -> {quantity} "
+                        f"(tier={ctx_result.tier.name}, mult={ctx_result.size_multiplier:.2f})"
+                    )
+
+            # Ensure minimum quantity
+            if quantity < 1:
+                logger.debug(f"Quantity too small after context sizing: {quantity}")
+                return
 
             # Pre-trade risk check
             can_trade, reason = self.risk_manager.check_pre_trade_risk(
@@ -295,6 +354,9 @@ class ScalpingSystem:
                     if self.config["ibkr"]["orders"]["use_ioc_for_scalping"]
                     else "DAY"
                 ),
+                client_order_id=self._build_order_ref(
+                    signal.symbol, "ENTRY", side.value
+                ),
             )
 
             # Place order
@@ -302,18 +364,16 @@ class ScalpingSystem:
 
             if order_id:
                 self.signals_traded += 1
+                tier_info = f" [{ctx_result.tier.name}]" if ctx_result else ""
                 logger.info(
-                    f"Executed signal: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
+                    f"Executed signal{tier_info}: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
                 )
-
-                # Record trade entry in journal
-                self.trade_journal.record_trade_entry(
-                    symbol=signal.symbol,
-                    side=side.value,
-                    quantity=quantity,
-                    entry_price=limit_price,
-                    order_id=order_id,
-                )
+                self.pending_entries[order_id] = {
+                    "symbol": signal.symbol,
+                    "side": side.value,
+                    "quantity": quantity,
+                    "context_tier": ctx_result.tier.name if ctx_result else "UNKNOWN",
+                }
             else:
                 logger.error(f"Failed to place order for {signal.symbol}")
 
@@ -327,29 +387,70 @@ class ScalpingSystem:
             filled_qty = fill.execution.shares
             fill_price = fill.execution.price
             side = fill.execution.side
+            order_id = trade.order.orderId
 
             logger.info(f"Order filled: {symbol} {side} {filled_qty}@{fill_price:.4f}")
 
-            # Add position to risk manager
-            if side == "BOT":  # Bought
-                self.risk_manager.add_position(symbol, filled_qty, fill_price)
+            # Entry fill
+            if order_id in self.pending_entries:
+                pending = self.pending_entries.pop(order_id)
+                entry_side = pending["side"]
+                entry_qty = pending["quantity"]
 
-                # Track position for exit
+                if side == "BOT":  # Bought
+                    self.risk_manager.add_position(symbol, entry_qty, fill_price)
+                    position_side = "LONG"
+                else:
+                    self.risk_manager.add_position(symbol, -entry_qty, fill_price)
+                    position_side = "SHORT"
+
                 self.active_positions[symbol] = {
-                    "quantity": filled_qty,
+                    "quantity": entry_qty,
                     "entry_price": fill_price,
                     "entry_time": time.time(),
-                    "side": "LONG",
+                    "side": position_side,
+                    "entry_order_id": order_id,
+                    "exit_order_id": None,
+                    "exit_reason": None,
                 }
-            else:  # Sold (short)
-                self.risk_manager.add_position(symbol, -filled_qty, fill_price)
 
-                self.active_positions[symbol] = {
-                    "quantity": filled_qty,
-                    "entry_price": fill_price,
-                    "entry_time": time.time(),
-                    "side": "SHORT",
-                }
+                self.trade_journal.record_trade_entry(
+                    symbol=symbol,
+                    side=entry_side,
+                    quantity=entry_qty,
+                    entry_price=fill_price,
+                    order_id=str(order_id),
+                )
+                return
+
+            # Exit fill
+            position = self.active_positions.get(symbol)
+            if position and position.get("exit_order_id") == order_id:
+                entry_price = position["entry_price"]
+                quantity = position["quantity"]
+                if position["side"] == "LONG":
+                    pnl = (fill_price - entry_price) * quantity
+                else:
+                    pnl = (entry_price - fill_price) * quantity
+
+                commission = self._estimate_commission(quantity)
+                self.trade_journal.record_trade_exit(
+                    symbol=symbol,
+                    exit_price=fill_price,
+                    pnl=pnl,
+                    commission=commission,
+                )
+
+                realized_pnl = self.risk_manager.close_position(symbol, fill_price)
+
+                triggered, cb_reason = self.circuit_breaker.check_circuit_breaker(
+                    realized_pnl, self.account_value
+                )
+                if triggered:
+                    logger.critical(f"CIRCUIT BREAKER TRIGGERED: {cb_reason}")
+                    self.is_running = False
+
+                del self.active_positions[symbol]
 
         except Exception as e:
             logger.error(f"Error handling fill: {e}", exc_info=True)
@@ -409,6 +510,8 @@ class ScalpingSystem:
                 return
 
             position = self.active_positions[symbol]
+            if position.get("exit_order_id"):
+                return
 
             # Create exit order
             if position["side"] == "LONG":
@@ -425,44 +528,16 @@ class ScalpingSystem:
                 price=limit_price,
                 order_type=OrderType.IOC,
                 time_in_force="IOC",
+                client_order_id=self._build_order_ref(symbol, "EXIT", side.value),
             )
 
             order_id = self.order_manager.place_order(order_request)
 
             if order_id:
-                # Calculate P&L
-                entry_price = position["entry_price"]
-                quantity = position["quantity"]
-
-                if position["side"] == "LONG":
-                    pnl = (exit_price - entry_price) * quantity
-                else:
-                    pnl = (entry_price - exit_price) * quantity
-
-                # Record trade exit in journal
-                self.trade_journal.record_trade_exit(
-                    symbol=symbol,
-                    exit_price=exit_price,
-                    pnl=pnl,
-                    commission=2.0,  # Estimate $2 commission
-                )
-
-                # Close position in risk manager
-                realized_pnl = self.risk_manager.close_position(symbol, exit_price)
-
-                # Check circuit breaker
-                triggered, cb_reason = self.circuit_breaker.check_circuit_breaker(
-                    realized_pnl
-                )
-                if triggered:
-                    logger.critical(f"CIRCUIT BREAKER TRIGGERED: {cb_reason}")
-                    self.is_running = False
-
-                # Remove from active positions
-                del self.active_positions[symbol]
-
+                position["exit_order_id"] = order_id
+                position["exit_reason"] = reason
                 logger.info(
-                    f"Exited position: {symbol} P&L=${realized_pnl:.2f} - {reason}"
+                    f"Exit order placed: {symbol} {side.value} {position['quantity']}@{limit_price:.4f}"
                 )
             else:
                 logger.error(f"Failed to exit position: {symbol}")
@@ -531,6 +606,18 @@ class ScalpingSystem:
         """Handle shutdown signals"""
         logger.info(f"Received signal {signum}")
         self.is_running = False
+
+    def _build_order_ref(self, symbol: str, intent: str, side: str) -> str:
+        """Build order reference for tagging"""
+        prefix = self.config["ibkr"]["orders"].get("order_ref_prefix", "L2SCALP")
+        return f"{prefix}_{intent}_{side}_{symbol}_{int(time.time()*1000)}"
+
+    def _estimate_commission(self, quantity: int) -> float:
+        """Estimate commission and fees for trade reporting"""
+        orders_cfg = self.config["ibkr"]["orders"]
+        per_share_commission = orders_cfg.get("commission_per_share", 0.0)
+        per_share_fee = orders_cfg.get("fee_per_share", 0.0)
+        return (per_share_commission + per_share_fee) * abs(quantity)
 
 
 def main():

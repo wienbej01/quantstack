@@ -3,18 +3,41 @@
 # Strategy Parameters
 strategy:
   name: "L2_OBI_Momentum_Scalper"
-  version: "1.0"
+  version: "1.1"
   
   # Signal thresholds
-  obi_entry_threshold: 0.3      # OBI level for entry signals
-  obi_extreme_threshold: 0.6    # High conviction threshold
+  obi_entry_threshold: 0.8      # OBI level for entry signals (raised from 0.3)
+  obi_extreme_threshold: 0.9    # High conviction threshold
   min_confidence: 0.3           # Minimum signal confidence
   max_spread_multiple: 2.0      # Max spread vs median
-  
+  confirm_k: 2                  # Regime confirmation window
+  calibration_window_points: 240 # Rolling window for calibration stats
+  min_calibration_points: 60     # Warmup before trading
+
   # Timing parameters
-  default_hold_seconds: 5       # Default hold time
-  max_hold_seconds: 15          # Maximum hold time
+  default_hold_seconds: 300     # 5-minute hold (from analysis)
+  max_hold_seconds: 600         # Maximum hold time
   min_time_between_trades_ms: 1000  # Minimum time between trades
+
+# Context-Aware Filtering (from correlation analysis)
+context_gates:
+  # Hard gates - block trades in unfavorable regimes
+  hard:
+    min_rel_vol: 2.0            # Critical: only trade high volume
+    block_vol_expansion: true   # -1.54 bps when vol expanding
+    block_bb_squeeze: true      # -0.88 bps during consolidation
+    block_vol_contraction: false # Optional: -0.88 bps (may kill trade count)
+  
+  # Soft gates - tier trades by priority/sizing (log until validated)
+  soft:
+    rsi_boost_threshold: 70     # +1.26 bps when RSI > 70
+    use_displacement_boost: true # +0.77 bps on displacement
+    use_counter_momentum: true   # +0.52 bps trading against mom_15
+  
+  # Sizing multipliers by tier
+  sizing:
+    low_tier: 0.5               # 50% size for low-conviction
+    high_tier: 1.0              # 100% size for high-conviction
 
 # Symbol Configuration
 symbols:
@@ -60,3 +83,9 @@ mock_data:
   enabled: false               # SET TO FALSE FOR LIVE TRADING
   update_frequency_hz: 2
   symbols: ["PFE", "HAL", "LUV"]
+
+# Automatic Scheduling
+schedule:
+  auto_start: true             # Automatically start/stop with market hours
+  pre_market_buffer_minutes: 5 # Start 5 minutes before market open
+  post_market_buffer_minutes: 5 # Stop 5 minutes after market close
