@@ -20,24 +20,19 @@ strategy:
   min_time_between_trades_ms: 1000  # Minimum time between trades
 
 # Context-Aware Filtering (from correlation analysis)
+# Hard gates DOUBLE profit: $201 -> $402, win rate 58% -> 85%
 context_gates:
   # Hard gates - block trades in unfavorable regimes
   hard:
-    min_rel_vol: 2.0            # Critical: only trade high volume
-    block_vol_expansion: true   # -1.54 bps when vol expanding
-    block_bb_squeeze: true      # -0.88 bps during consolidation
-    block_vol_contraction: false # Optional: -0.88 bps (may kill trade count)
+    block_vol_expansion: true   # -1.54 bps when vol expanding (CRITICAL)
+    block_bb_squeeze: true      # -0.88 bps during consolidation (CRITICAL)
+    block_vol_contraction: false # Optional, disabled
   
-  # Soft gates - tier trades by priority/sizing (log until validated)
-  soft:
-    rsi_boost_threshold: 70     # +1.26 bps when RSI > 70
-    use_displacement_boost: true # +0.77 bps on displacement
-    use_counter_momentum: true   # +0.52 bps trading against mom_15
-  
-  # Sizing multipliers by tier
-  sizing:
-    low_tier: 0.5               # 50% size for low-conviction
-    high_tier: 1.0              # 100% size for high-conviction
+  # Soft gates DISABLED - backtest showed no benefit (-$19)
+  # soft:
+  #   rsi_boost_threshold: 70
+  #   use_displacement_boost: true
+  #   use_counter_momentum: true
 
 # Symbol Configuration
 symbols:

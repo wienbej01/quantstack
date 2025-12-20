@@ -75,30 +75,15 @@ class ContextFilter:
     
     def evaluate(self, ctx: ContextFeatures, signal_direction: int) -> ContextFilterResult:
         """
-        Evaluate context and return trade tier + sizing.
+        Evaluate context and return trade tier.
         
-        Args:
-            ctx: Context features from 1-min bars
-            signal_direction: 1 for long, -1 for short
-        
-        Returns:
-            ContextFilterResult with tier, size multiplier, and reasons
+        Hard gates only - soft gates disabled based on backtest showing no benefit.
         """
         reasons = []
-        soft_boosts = []
         
-        # === HARD GATES ===
+        # === HARD GATES ONLY ===
         
-        # 1. Volume filter (critical)
-        if ctx.rel_vol < self.min_rel_vol:
-            reasons.append(f"rel_vol={ctx.rel_vol:.2f} < {self.min_rel_vol}")
-            return ContextFilterResult(
-                tier=TradeTier.BLOCKED,
-                size_multiplier=0.0,
-                reasons=reasons
-            )
-        
-        # 2. Volatility expansion (noisy, L2 signals unreliable)
+        # 1. Volatility expansion (noisy, L2 signals unreliable) - CRITICAL
         if self.block_vol_expansion and ctx.vol_expansion:
             reasons.append("vol_expansion=True")
             return ContextFilterResult(
@@ -107,7 +92,7 @@ class ContextFilter:
                 reasons=reasons
             )
         
-        # 3. BB squeeze (consolidation, wait for breakout)
+        # 2. BB squeeze (consolidation, wait for breakout) - CRITICAL
         if self.block_bb_squeeze and ctx.bb_squeeze:
             reasons.append("bb_squeeze=True")
             return ContextFilterResult(
@@ -116,7 +101,7 @@ class ContextFilter:
                 reasons=reasons
             )
         
-        # 4. Volatility contraction (optional)
+        # 3. Volatility contraction (optional, disabled by default)
         if self.block_vol_contraction and ctx.vol_contraction:
             reasons.append("vol_contraction=True")
             return ContextFilterResult(
@@ -125,47 +110,12 @@ class ContextFilter:
                 reasons=reasons
             )
         
-        # === SOFT GATES (for sizing/priority) ===
-        boost_count = 0
-        
-        # 1. RSI > 70 boost (counter-intuitive but profitable for longs)
-        if ctx.rsi_14 > self.rsi_boost_threshold:
-            soft_boosts.append(f"rsi={ctx.rsi_14:.1f}>70")
-            boost_count += 1
-        
-        # 2. Displacement boost
-        if self.use_displacement_boost:
-            if signal_direction > 0 and ctx.displacement_up:
-                soft_boosts.append("displacement_up")
-                boost_count += 1
-            elif signal_direction < 0 and ctx.displacement_down:
-                soft_boosts.append("displacement_down")
-                boost_count += 1
-        
-        # 3. Counter-momentum boost (L2 detecting reversal)
-        if self.use_counter_momentum:
-            is_counter = (signal_direction > 0 and ctx.mom_15 < 0) or \
-                        (signal_direction < 0 and ctx.mom_15 > 0)
-            if is_counter:
-                soft_boosts.append(f"counter_mom={ctx.mom_15:.1f}")
-                boost_count += 1
-        
-        # Determine tier based on boosts
-        if boost_count >= 2:
-            tier = TradeTier.HIGH
-            size_mult = self.high_tier_mult
-        elif boost_count == 1:
-            tier = TradeTier.NORMAL
-            size_mult = 1.0
-        else:
-            tier = TradeTier.LOW
-            size_mult = self.low_tier_mult
-        
+        # All hard gates passed - trade at full size
         return ContextFilterResult(
-            tier=tier,
-            size_multiplier=size_mult,
-            reasons=reasons,
-            soft_boosts=soft_boosts
+            tier=TradeTier.NORMAL,
+            size_multiplier=1.0,
+            reasons=[],
+            soft_boosts=[]
         )
 
 

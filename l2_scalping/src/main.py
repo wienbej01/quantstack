@@ -253,30 +253,24 @@ class ScalpingSystem:
             if signal.signal_type.value == 0:  # No signal
                 return
 
-            # === CONTEXT-AWARE FILTERING ===
+            # === CONTEXT-AWARE HARD GATES ===
             ctx = self.context_computer.compute(snapshot.symbol)
             if ctx is not None:
                 ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
                 
-                # Log context for analysis
-                logger.info(
-                    f"Context [{snapshot.symbol}]: tier={ctx_result.tier.name}, "
-                    f"size_mult={ctx_result.size_multiplier:.2f}, "
-                    f"rel_vol={ctx.rel_vol:.2f}, rsi={ctx.rsi_14:.1f}, "
-                    f"boosts={ctx_result.soft_boosts}"
-                )
-                
                 # Hard gate: block trade
                 if ctx_result.tier == TradeTier.BLOCKED:
-                    logger.info(f"Trade BLOCKED by context: {ctx_result.reasons}")
+                    logger.info(
+                        f"Trade BLOCKED [{snapshot.symbol}]: {ctx_result.reasons} "
+                        f"(vol_exp={ctx.vol_expansion}, bb_sq={ctx.bb_squeeze})"
+                    )
                     return
                 
-                # Store context result for position sizing
-                self._last_ctx_result = ctx_result
-            else:
-                # No context available yet, use default
-                self._last_ctx_result = None
-                logger.debug(f"No context features for {snapshot.symbol} yet")
+                # Log context for monitoring
+                logger.debug(
+                    f"Context OK [{snapshot.symbol}]: rel_vol={ctx.rel_vol:.2f}, "
+                    f"rsi={ctx.rsi_14:.1f}, vol_exp={ctx.vol_expansion}, bb_sq={ctx.bb_squeeze}"
+                )
 
             # Execute trade
             self._execute_signal(signal, snapshot)
@@ -302,20 +296,9 @@ class ScalpingSystem:
                 price=snapshot.mid,
             )
 
-            # Apply context-based sizing multiplier
-            ctx_result = getattr(self, "_last_ctx_result", None)
-            if ctx_result is not None:
-                original_qty = quantity
-                quantity = int(quantity * ctx_result.size_multiplier)
-                if quantity != original_qty:
-                    logger.info(
-                        f"Context sizing: {original_qty} -> {quantity} "
-                        f"(tier={ctx_result.tier.name}, mult={ctx_result.size_multiplier:.2f})"
-                    )
-
             # Ensure minimum quantity
             if quantity < 1:
-                logger.debug(f"Quantity too small after context sizing: {quantity}")
+                logger.debug(f"Quantity too small: {quantity}")
                 return
 
             # Pre-trade risk check
@@ -364,15 +347,13 @@ class ScalpingSystem:
 
             if order_id:
                 self.signals_traded += 1
-                tier_info = f" [{ctx_result.tier.name}]" if ctx_result else ""
                 logger.info(
-                    f"Executed signal{tier_info}: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
+                    f"TRADE: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
                 )
                 self.pending_entries[order_id] = {
                     "symbol": signal.symbol,
                     "side": side.value,
                     "quantity": quantity,
-                    "context_tier": ctx_result.tier.name if ctx_result else "UNKNOWN",
                 }
             else:
                 logger.error(f"Failed to place order for {signal.symbol}")
