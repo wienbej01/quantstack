@@ -5,125 +5,109 @@
 
 ## Executive Summary
 
-Analysis comparing L2-only signals vs L2+Context (OHLCV) features reveals that **pure L2 signals outperform combined strategies** for short-term scalping.
+### Critical Finding: Commission Costs Dominate
 
-### Key Finding: L2-Only is Superior
+With $2 round-trip commission, **no strategy is profitable at $5k-$10k position sizes** for 15-30 second holds.
 
-| Strategy | Mean Return (10s) | Win Rate | Sharpe |
-|----------|-------------------|----------|--------|
-| **l2_extreme_obi** (OBI > 0.5) | **0.76 bps** | 31.5% | 14.60 |
-| l2_high_vol (OBI + volume) | 0.69 bps | 33.3% | 9.43 |
-| l2_obi_depth (OBI + depth) | 0.61 bps | 32.0% | 12.69 |
-| l2_obi_03 (baseline) | 0.55 bps | 31.3% | 17.33 |
-| l2_vwap_mean_rev (L2 + VWAP) | 0.43 bps | 29.5% | 11.26 |
-| l2_mom_vwap (L2 + mom + VWAP) | 0.10 bps | 33.6% | 0.73 |
+| Position Size | Best Strategy Return | Net P&L/Trade | Daily P&L |
+|---------------|---------------------|---------------|-----------|
+| $5,000 | 1.51 bps | **-$1.25** | -$8,968 |
+| $10,000 | 1.51 bps | **-$0.49** | -$3,546 |
+| $15,000 | 1.51 bps | **+$0.26** | +$1,876 |
+| $20,000 | 1.51 bps | **+$1.01** | +$7,297 |
 
-## Analysis Results
+**Break-even position size: ~$13,300**
 
-### 1. Best Performing Strategies
+## Strategy Performance (30s Horizon)
 
-**By Mean Return (10s horizon):**
-1. `l2_extreme_obi`: 0.76 bps - Uses OBI threshold of ±0.5
-2. `l2_high_vol`: 0.69 bps - OBI + relative volume > 1.2
-3. `l2_obi_depth`: 0.61 bps - OBI + depth imbalance confirmation
+| Strategy | Gross Return | Win Rate | Signals/Day |
+|----------|-------------|----------|-------------|
+| extreme_obi_07 (OBI > 0.7) | 1.51 bps | 43.9% | 7,195 |
+| extreme_obi_highvol | 1.47 bps | 47.7% | 3,091 |
+| extreme_obi_depth | 1.45 bps | 39.9% | 4,072 |
+| extreme_obi_06 | 1.32 bps | 43.5% | 11,339 |
+| extreme_obi_trend | 1.19 bps | 45.2% | 9,420 |
 
-**By Win Rate:**
-1. `l2_obi_mom5`: 36.1% - OBI + 5s momentum alignment
-2. `l2_high_vol`: 33.3% - OBI + high volume filter
-3. `l2_obi_depth`: 32.0% - OBI + depth confirmation
+## Context Features as Regime Filters
 
-**By Sharpe Ratio:**
-1. `l2_obi_02`: 18.57 - Lower threshold, more signals
-2. `l2_obi_025`: 18.10 - Balanced threshold
-3. `l2_obi_03`: 17.33 - Current baseline
+Context features should be used for **awareness**, not signal generation:
 
-### 2. Context Features Analysis
+### Trend Alignment
+- **With trend**: Slightly better win rates
+- **Against trend**: Lower win rates but still positive expectancy
+- **Recommendation**: Prefer trading with 15-bar momentum direction
 
-Adding OHLCV context features **reduces performance**:
+### VWAP Position (Support/Resistance)
+- Buy signals below VWAP (support) perform marginally better
+- Sell signals above VWAP (resistance) perform marginally better
+- **Recommendation**: Use as soft filter, not hard requirement
 
-| Feature Added | Impact on Return | Impact on Win Rate |
-|---------------|------------------|-------------------|
-| VWAP distance | -0.12 bps | -1.8% |
-| RSI filter | -0.04 bps | -1.0% |
-| Momentum | -0.16 bps | +4.8% |
-| Combined | -0.45 bps | +2.3% |
+### Volume Regime
+- High volume (>1.5x) signals: 47.7% win rate (best)
+- Normal volume: 43% win rate
+- **Recommendation**: Prefer high-volume periods
 
-**Why Context Hurts Performance:**
-1. **Signal Delay**: 1-minute bars lag behind L2 data
-2. **Over-filtering**: Context filters remove valid L2 signals
-3. **Different Timescales**: VWAP/RSI designed for longer holds
+## Recommendations for Profitability
 
-### 3. Optimal Strategy Recommendations
+### Option 1: Larger Position Sizes
+- **Minimum $15,000 per trade** for profitability
+- $20,000+ recommended for meaningful returns
+- Risk: Larger drawdowns on losing trades
 
-**For Maximum Return:**
-```python
-# Use extreme OBI threshold
-signal = 1 if obi_1 > 0.5 else (-1 if obi_1 < -0.5 else 0)
-```
-- Expected return: 0.76 bps per signal
-- ~35,000 signals per 2 days
-- Best for aggressive scalping
+### Option 2: Reduce Trade Frequency
+- Only take top 10% of signals (OBI > 0.8)
+- Fewer trades = lower total commission
+- May improve signal quality
 
-**For Maximum Sharpe:**
-```python
-# Use moderate OBI threshold
-signal = 1 if obi_1 > 0.2 else (-1 if obi_1 < -0.2 else 0)
-```
-- Expected return: 0.52 bps per signal
-- ~92,000 signals per 2 days
-- Best for consistent performance
+### Option 3: Longer Hold Times
+- Current analysis limited to 30s
+- 60-120s holds may capture larger moves
+- Requires additional analysis
 
-**For Best Win Rate:**
-```python
-# OBI + momentum confirmation
-signal = 1 if (obi_1 > 0.25 and d_mid_5s > 0) else ...
-```
-- Win rate: 36.1%
-- Fewer signals but higher accuracy
+### Option 4: Lower-Cost Execution
+- IBKR Pro: ~$0.35-$1.00 per trade
+- Reduces break-even to ~$5,000 position
+- Most impactful change
 
-### 4. Implementation Recommendations
-
-1. **Keep L2-only signals** for the scalping system
-2. **Increase OBI threshold** from 0.3 to 0.5 for higher returns
-3. **Add depth imbalance** as secondary confirmation
-4. **Remove VWAP/RSI filters** - they hurt performance
-5. **Consider volume filter** only during high-volume periods
-
-### 5. Updated Signal Logic
+## Updated Signal Logic
 
 ```python
-# Recommended signal generation
-def generate_signal(snapshot):
-    # Primary: Extreme OBI
-    if snapshot.obi_1 > 0.5:
-        return BUY
-    elif snapshot.obi_1 < -0.5:
-        return SELL
+def should_trade(snapshot, context):
+    # 1. High conviction L2 signal (OBI > 0.7)
+    if abs(snapshot.obi_1) < 0.7:
+        return False
     
-    # Secondary: OBI + depth confirmation
-    if snapshot.obi_1 > 0.3 and snapshot.depth_imb_k > 0.1:
-        return BUY
-    elif snapshot.obi_1 < -0.3 and snapshot.depth_imb_k < -0.1:
-        return SELL
+    # 2. Context awareness (soft filters)
+    # Prefer trading with trend
+    with_trend = (
+        (snapshot.obi_1 > 0 and context.mom_15 > 0) or
+        (snapshot.obi_1 < 0 and context.mom_15 < 0)
+    )
     
-    return HOLD
+    # Prefer high volume periods
+    high_volume = context.rel_vol > 1.2
+    
+    # 3. Position sizing based on conviction
+    if with_trend and high_volume:
+        position_size = 20000  # High conviction
+    elif with_trend or high_volume:
+        position_size = 15000  # Medium conviction
+    else:
+        position_size = 10000  # Lower conviction (may skip)
+    
+    return position_size >= 15000  # Only trade if profitable
 ```
 
-## Data Summary
+## Key Insights
 
-- **Total L2 Records**: 192,841
-- **Symbols**: 48 NYSE stocks
-- **Date Range**: Dec 17-19, 2025
-- **1-min Bars Downloaded**: ~42,000 from Polygon
-- **Context Coverage**: 100%
+1. **L2 signals have genuine predictive power** (1.5 bps at 30s)
+2. **Commission costs are the primary obstacle** to profitability
+3. **Context features provide marginal improvement** (~0.1-0.2 bps)
+4. **Win rates of 44-48%** are achievable with high-conviction signals
+5. **Position sizing is critical** - need $15k+ for profitability
 
 ## Files Generated
 
-- `analysis/output/analysis_results_*.csv` - Raw comparison data
-- `analysis/output/strategy_comparison.csv` - Strategy metrics
-- `analysis/l2_context_analysis.py` - Main analysis script
-- `analysis/extended_analysis.py` - Multi-strategy comparison
-
-## Conclusion
-
-**L2 microstructure data alone provides superior signal quality for short-term scalping.** Adding 1-minute OHLCV context features introduces lag and over-filtering that degrades performance. The optimal approach is to use extreme OBI thresholds (±0.5) with optional depth imbalance confirmation.
+- `analysis/output/cost_adjusted_analysis.csv` - Full results
+- `analysis/cost_adjusted_analysis.py` - Analysis script
+- `analysis/ANALYSIS_REPORT.md` - This report
