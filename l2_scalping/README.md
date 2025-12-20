@@ -11,16 +11,41 @@ A high-frequency scalping system based on Level-2 order book imbalance signals.
 # 2. Validate system (requires IBKR connection)
 ./run.sh validate
 
-# 3. Start paper trading
+# 3. Start paper trading (manual)
 ./run.sh run
+
+# 4. Install as system service (automatic)
+./run.sh install
+sudo systemctl start l2-scalping
 ```
 
 ## System Overview
 
 - **Strategy**: OBI momentum scalping with 5-15 second holds
-- **Target**: 15-20 bps per trade
-- **Symbols**: PFE (primary), HAL, LUV
+- **Target**: 15-20 bps per trade  
+- **Symbols**: Auto-selected from daily SIP universe (top 3)
 - **Risk**: 10 bps stop loss, 100 bps daily limit
+- **Schedule**: Automatic start/stop with market hours
+
+## System Requirements Met ✅
+
+### 1. Separate IBKR Client IDs
+- **L2 Scalping Orders**: Client ID 10
+- **L2 Scalping Data**: Client ID 11
+- **L2 Collector**: Client ID 521 (existing)
+- **Intraday Stack**: Client ID 1-3 (existing)
+
+### 2. Automatic Timer-Based Operation
+- **Market Hours Detection**: Automatic start/stop with NYSE hours
+- **Schedule Configuration**: 5-minute buffers before/after market
+- **Systemd Service**: `l2-scalping.service` for production deployment
+- **Auto-restart**: Handles disconnections and errors
+
+### 3. SIP Integration
+- **Shared Data Source**: Reads from `/home/jacobw/quantstack/data/daily_sip/`
+- **Same Universe**: Uses identical SIP files as l2-collector
+- **Top 3 Selection**: Automatically selects top 3 symbols from daily HMM ranking
+- **Fallback**: Uses PFE, HAL, LUV if SIP data unavailable
 
 ## Configuration
 
@@ -58,6 +83,9 @@ src/
 │   └── risk_manager.py
 ├── data/            # Market data feed
 │   └── l2_feed.py
+├── reporting/       # Trade journal & reports
+│   ├── trade_journal.py
+│   └── performance_reporter.py
 └── main.py          # Main trading loop
 ```
 
@@ -88,6 +116,36 @@ System logs to `logs/scalping_system.log` with:
 - Order placement and fills
 - Risk metrics and warnings
 - System health checks
+
+### Trade Journal & Reports
+
+**Trade Journal**: All trades recorded to `data/trades_YYYYMMDD.jsonl`
+- Entry/exit prices and times
+- Signal type and strength  
+- P&L and commission
+- Hold duration
+
+**Daily Reports**: Generated automatically at session end
+- Text report: `logs/daily_report_YYYY-MM-DD.txt`
+- JSON summary: `logs/daily_summary_YYYY-MM-DD.json`
+
+**Key Metrics**:
+- Win rate and profit factor
+- Average win/loss amounts
+- Hold time statistics
+- Execution quality
+
+**View Reports**:
+```bash
+# View today's report
+cat logs/daily_report_$(date +%Y-%m-%d).txt
+
+# View trade journal
+cat data/trades_$(date +%Y%m%d).jsonl | jq
+
+# Monitor live performance
+tail -f logs/scalping_system.log
+```
 
 ## Testing
 

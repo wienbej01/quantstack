@@ -5,17 +5,22 @@ Integrates signals, execution, and risk management for live scalping.
 
 import logging
 import signal
-import sys
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional
 
 import yaml
 from data.l2_feed import L2DataFeed, L2Snapshot, MockL2DataFeed
-from execution.order_manager import IBKROrderManager, OrderRequest, OrderSide, OrderType
+from execution.order_manager import (
+    IBKROrderManager,
+    OrderRequest,
+    OrderSide,
+    OrderType,
+)
+from reporting.performance_reporter import PerformanceReporter
+from reporting.trade_journal import TradeJournal
 from risk.risk_manager import CircuitBreaker, RiskManager
+from scheduler import MarketScheduler
 
 # Import system components
 from signals.l2_signals import L2SignalGenerator
@@ -49,14 +54,30 @@ class ScalpingSystem:
             logger.warning("USING MOCK DATA - REMOVE BEFORE PAPER TRADING")
             self.data_feed = MockL2DataFeed(self.config["strategy"]["mock_data"])
         else:
-            self.data_feed = L2DataFeed(self.config["ibkr"]["market_data"])
+            # Load symbols from daily SIP
+            from data.sip_integration import get_scalping_symbols
+
+            sip_symbols = get_scalping_symbols(max_symbols=3)
+
+            # Update config with SIP symbols
+            market_data_config = self.config["ibkr"]["market_data"].copy()
+            market_data_config["symbols"] = sip_symbols
+
+            self.data_feed = L2DataFeed(market_data_config)
+
+        # Market scheduler
+        self.scheduler = MarketScheduler(self.config.get("schedule", {}))
+
+        # Trade journal and reporting
+        self.trade_journal = TradeJournal(data_dir="data")
+        self.reporter = PerformanceReporter(reports_dir="logs")
 
         # System state
         self.is_running = False
         self.account_value = self.config["ibkr"]["account"].get(
             "initial_capital", 100000
         )
-        self.active_positions: Dict[str, Dict] = {}
+        self.active_positions: dict[str, dict] = {}
 
         # Performance tracking
         self.trades_today = 0
@@ -70,7 +91,7 @@ class ScalpingSystem:
 
         logger.info("Scalping System initialized")
 
-    def _load_config(self) -> Dict:
+    def _load_config(self) -> dict:
         """Load all configuration files"""
         config = {}
 
@@ -82,14 +103,28 @@ class ScalpingSystem:
 
         for key, filename in config_files.items():
             filepath = self.config_dir / filename
-            with open(filepath, "r") as f:
+            with open(filepath) as f:
                 config[key] = yaml.safe_load(f)
 
         logger.info(f"Loaded configuration from {self.config_dir}")
         return config
 
     def start(self) -> None:
-        """Start the trading system"""
+        """Start the trading system with automatic scheduling"""
+        logger.info("=" * 60)
+        logger.info("STARTING L2 SCALPING SYSTEM")
+        logger.info("=" * 60)
+
+        # Check if auto-start is enabled
+        if self.scheduler.auto_start:
+            logger.info("Auto-start enabled - will wait for market hours")
+            self.scheduler.run_with_schedule(self._run_trading_session)
+        else:
+            logger.info("Manual mode - starting immediately")
+            self._run_trading_session()
+
+    def _run_trading_session(self) -> None:
+        """Run a single trading session"""
         logger.info("=" * 60)
         logger.info("STARTING L2 SCALPING SYSTEM")
         logger.info("=" * 60)
@@ -180,6 +215,13 @@ class ScalpingSystem:
             signal = self.signal_generator.generate_signal(signal_snapshot)
             self.signals_generated += 1
 
+            # Record signal in journal
+            self.trade_journal.record_signal(
+                symbol=signal.symbol,
+                signal_type=signal.signal_type.name,
+                signal_strength=signal.confidence,
+            )
+
             # Validate signal
             is_valid, reason = self.signal_validator.is_valid_signal(
                 signal, signal_snapshot
@@ -262,6 +304,15 @@ class ScalpingSystem:
                 self.signals_traded += 1
                 logger.info(
                     f"Executed signal: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
+                )
+
+                # Record trade entry in journal
+                self.trade_journal.record_trade_entry(
+                    symbol=signal.symbol,
+                    side=side.value,
+                    quantity=quantity,
+                    entry_price=limit_price,
+                    order_id=order_id,
                 )
             else:
                 logger.error(f"Failed to place order for {signal.symbol}")
@@ -379,6 +430,23 @@ class ScalpingSystem:
             order_id = self.order_manager.place_order(order_request)
 
             if order_id:
+                # Calculate P&L
+                entry_price = position["entry_price"]
+                quantity = position["quantity"]
+
+                if position["side"] == "LONG":
+                    pnl = (exit_price - entry_price) * quantity
+                else:
+                    pnl = (entry_price - exit_price) * quantity
+
+                # Record trade exit in journal
+                self.trade_journal.record_trade_exit(
+                    symbol=symbol,
+                    exit_price=exit_price,
+                    pnl=pnl,
+                    commission=2.0,  # Estimate $2 commission
+                )
+
                 # Close position in risk manager
                 realized_pnl = self.risk_manager.close_position(symbol, exit_price)
 
@@ -449,6 +517,14 @@ class ScalpingSystem:
         )
         logger.info(f"Total Trades: {self.risk_manager.daily_trades}")
         logger.info(f"Daily P&L: ${self.risk_manager.daily_pnl:.2f}")
+
+        # Generate daily report
+        summary = self.trade_journal.get_daily_summary()
+        report_text = self.reporter.generate_daily_report(
+            summary, self.trade_journal.journal_file
+        )
+        self.reporter.print_report(report_text)
+
         logger.info("=" * 60)
 
     def _signal_handler(self, signum, frame) -> None:

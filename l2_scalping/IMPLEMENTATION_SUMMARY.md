@@ -17,6 +17,9 @@ l2_scalping/
 │   ├── execution/order_manager.py # IBKR order placement & management
 │   ├── risk/risk_manager.py       # Risk limits & circuit breaker
 │   ├── data/l2_feed.py            # Real-time L2 data processing
+│   ├── reporting/                 # Trade journal & performance reports
+│   │   ├── trade_journal.py       # Comprehensive trade recording
+│   │   └── performance_reporter.py # Daily performance analytics
 │   └── main.py                    # Main trading loop
 ├── config/                        # YAML configuration files
 ├── tests/test_system.py           # Comprehensive test suite
@@ -48,6 +51,12 @@ l2_scalping/
    - All parameters externalized to YAML
    - Symbol-specific settings
    - Time-of-day adjustments
+
+5. **Trade Journal & Reporting**
+   - Comprehensive trade recording to daily JSONL files
+   - Real-time P&L tracking and performance metrics
+   - Automated daily reports (text + JSON formats)
+   - Win rate, profit factor, and execution quality analytics
    - Mock data toggle (MUST be disabled for live)
 
 ## Performance Expectations
