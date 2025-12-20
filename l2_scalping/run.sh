@@ -11,7 +11,7 @@ echo "=========================================="
 mkdir -p logs data
 
 # Set up Python path
-export PYTHONPATH="${PYTHONPATH}:$(pwd)/src"
+export PYTHONPATH="$(pwd)/src:${PYTHONPATH}"
 
 # Function to check IBKR connection
 check_ibkr() {
