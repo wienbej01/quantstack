@@ -1,0 +1,18 @@
+[Unit]
+Description=L2 Collector Watchdog Monitor
+After=network.target
+Wants=l2-collector.service
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment=PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/bin:/bin
+ExecStart=/home/jacobw/quantstack/.venv/bin/python /home/jacobw/quantstack/scripts/l2_watchdog.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

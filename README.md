@@ -48,6 +48,8 @@ python scripts/test_phase2_1min_trading.py
 - ✅ **Live Trading**: Running on IBKR paper account (PID: 1594347)
 - ✅ **Regime Detection**: Bull/Bear/Sideways models trained on 6 months data
 - ✅ **Feature Set**: 11 cross-sectional features (best performers)
+- ✅ **L2 Data Collection**: 135,920+ records collected (HAL, PFE, LUV, SLB, XOM)
+- ✅ **L2 Storage**: `/home/jacobw/quantstack/data/l2_maximum/` (128MB+)
 - ✅ **Position Sizing**: 100 shares per trade, confidence-based entry
 - ✅ **Universe**: 40 NYSE symbols via live Polygon SIP filtering
 - ✅ **L2 Collection**: Opening hour (9:30-10:30) + Power hour (15:00-16:00) ET
@@ -142,7 +144,62 @@ python examples/daily_hmm_sip_example.py
 qx-cli exp entry-ab experiments/vwap_daily_hmm/strategy.yaml
 ```
 
-## Architecture
+## L2 Data Collection
+
+### Current Status (2025-12-20)
+- **Records Collected**: 135,920+ L2 snapshots
+- **Symbols**: HAL (45k), PFE (44k), LUV (44k), SLB (1.3k), XOM (1.3k)
+- **Data Quality**: 100% depth coverage, 2 snapshots/second
+- **Features**: 32 per record (OBI, depth imbalance, spread dynamics)
+- **Analysis Ready**: ✅ Sufficient for initial microstructure analysis
+
+### Data Locations
+```
+Primary Directory: /home/jacobw/quantstack/data/l2_maximum/
+├── features/date=2025-12-19/     # Processed L2 features (parquet)
+│   ├── symbol=HAL/               # 45,307 records
+│   ├── symbol=PFE/               # 43,974 records (today's SIP)
+│   ├── symbol=LUV/               # 43,971 records
+│   ├── symbol=SLB/               # 1,334 records
+│   └── symbol=XOM/               # 1,334 records
+├── raw/                          # Raw L2 snapshots
+├── exports/                      # Analysis exports
+├── selection_log/                # Symbol rotation logs
+└── journal.db                    # Collection metadata (40KB)
+```
+
+### L2 Features Schema
+Each record contains 32 features:
+- **Timestamps**: ts_utc, ts_epoch, date_et
+- **Depth**: depth_bid_k, depth_ask_k, depth_imb_k, pressure_k
+- **Order Book Imbalance**: obi_1, obi_2, obi_3, obi_5, obi_10
+- **Delta Features** (4 windows: 5s, 15s, 30s, 60s):
+  - Mid price changes (d_mid_*)
+  - Spread changes (d_spread_*)
+  - OBI changes (d_obi_1_*)
+  - Microstructure offset (d_micro_off_*)
+
+### Analysis Examples
+```python
+import pandas as pd
+import glob
+
+# Load PFE L2 data
+files = glob.glob('data/l2_maximum/features/date=2025-12-19/symbol=PFE/*.parquet')
+df = pd.concat([pd.read_parquet(f) for f in files])
+
+# Analyze order book imbalance
+obi_correlation = df[['obi_1', 'obi_2', 'obi_3', 'd_mid_5s']].corr()
+print(f"Records: {len(df):,}")
+print(f"OBI-1 range: {df['obi_1'].min():.3f} to {df['obi_1'].max():.3f}")
+```
+
+### Collection System
+- **Service**: `l2-collector.service` (systemd)
+- **Watchdog**: `l2-watchdog.service` (enhanced monitoring)
+- **IBKR Client ID**: 521 (separate from trading systems)
+- **Compliance**: 3-symbol concurrent limit with 5-minute rotation
+- **SIP Integration**: Dynamic symbol selection from daily universe
 
 The system uses modular qx-* packages:
 

@@ -1,5 +1,6 @@
 """Independent L2 symbol selection."""
 
+import hashlib
 import json
 import logging
 from datetime import datetime
@@ -53,7 +54,7 @@ class L2SymbolSelector:
             return self.core_symbols[: self.max_symbols]
 
         # Deterministic rotation based on date
-        day_hash = hash(date_str) % len(self.rotating_pool)
+        day_hash = self._stable_hash(date_str) % len(self.rotating_pool)
         rotated = self.rotating_pool[day_hash:] + self.rotating_pool[:day_hash]
         return rotated[: self.max_symbols]
 
@@ -65,7 +66,7 @@ class L2SymbolSelector:
             # Exclude core from rotating pool
             available = [s for s in self.rotating_pool if s not in self.core_symbols]
             if available:
-                day_hash = hash(date_str) % len(available)
+                day_hash = self._stable_hash(date_str) % len(available)
                 rotated = available[day_hash:] + available[:day_hash]
                 remaining = self.max_symbols - len(symbols)
                 symbols.extend(rotated[:remaining])
@@ -82,6 +83,12 @@ class L2SymbolSelector:
         """Inject external symbols (e.g., from SIP)."""
         self._external_symbols = symbols
         logger.info(f"External symbols set: {symbols}")
+
+    @staticmethod
+    def _stable_hash(value: str) -> int:
+        """Stable hash for deterministic rotations."""
+        digest = hashlib.md5(value.encode("utf-8")).hexdigest()
+        return int(digest, 16)
 
     def _log_selection(self, date_str: str, symbols: list[str]):
         """Log symbol selection for tracking."""

@@ -18,6 +18,9 @@ ibkr:
 symbols:
   # Modes: static, rotating, hybrid, external
   mode: "hybrid"
+  nyse_only: true
+  exchange: "NYSE"
+  allowed_primary_exchanges: ["NYSE"]
   
   # Core symbols (always included in hybrid mode)
   core:
@@ -43,8 +46,9 @@ symbols:
 collection:
   levels: 10                    # Order book depth levels
   snapshot_interval_ms: 1000    # 1 snapshot per second
-  smart_depth: true             # Use IBKR smart depth
+  smart_depth: false            # Direct NYSE OpenBook
   rotate_seconds: 300           # 5-minute symbol rotation
+  poll_interval_sec: 0.1
 
 # Collection schedule
 schedule:

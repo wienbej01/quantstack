@@ -69,6 +69,9 @@ ibkr:
 ```yaml
 symbols:
   mode: "hybrid"           # Selection mode
+  nyse_only: true          # Enforce NYSE-only contracts
+  exchange: "NYSE"         # Contract exchange for depth requests
+  allowed_primary_exchanges: ["NYSE"]  # Optional primary exchange filter
   core: [HAL, PFE, LUV]   # Core symbols (always included)
   rotating_pool:           # Pool for rotation
     - MOS
@@ -118,6 +121,9 @@ symbols:
 
 **Options:**
 - `mode`: Selection strategy (`static`, `rotating`, `hybrid`, `external`)
+- `nyse_only`: Enforce NYSE-only contracts and NYSE exchange routing
+- `exchange`: Contract exchange used for L2 requests (`SMART`, `NYSE`, etc.)
+- `allowed_primary_exchanges`: Optional allowlist for contract primary exchanges
 - `core`: Symbols always included (for time-series continuity)
 - `rotating_pool`: Pool of symbols for rotation
 - `max_symbols`: Maximum concurrent L2 subscriptions (IBKR limit: ~6)
@@ -129,6 +135,7 @@ collection:
   snapshot_interval_ms: 1000    # Snapshot frequency (milliseconds)
   smart_depth: true             # Use IBKR smart depth aggregation
   rotate_seconds: 300           # Symbol rotation interval (seconds)
+  poll_interval_sec: 0.1        # Daemon poll interval (seconds)
 ```
 
 **Options:**
@@ -138,6 +145,7 @@ collection:
 - `snapshot_interval_ms`: Time between snapshots per symbol
   - 1000ms = 1 snapshot/second (recommended)
   - Lower values = higher frequency but more data
+- `poll_interval_sec`: Main loop sleep interval while in-window
 - `smart_depth`: Use IBKR's smart depth aggregation
   - `true`: Aggregated across exchanges (recommended)
   - `false`: Exchange-specific depth
@@ -155,7 +163,8 @@ schedule:
     - "14:00-15:00"            # Afternoon
     - "15:00-16:00"            # Power hour
   skip_weekends: true          # Skip Saturday/Sunday
-  skip_holidays: true          # Skip market holidays (future)
+  skip_holidays: true          # Skip market holidays (requires list)
+  holidays: ["2025-12-25"]     # Optional holiday date list
 ```
 
 **Options:**
@@ -165,7 +174,8 @@ schedule:
   - Times are in the specified timezone
   - Multiple windows supported
 - `skip_weekends`: Skip collection on weekends
-- `skip_holidays`: Skip market holidays (not implemented yet)
+- `skip_holidays`: Skip market holidays defined in `holidays`
+- `holidays`: List of YYYY-MM-DD dates to skip
 
 **Common Timezones:**
 - `"America/New_York"`: US Eastern (NYSE, NASDAQ)

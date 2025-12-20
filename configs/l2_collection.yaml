@@ -1,0 +1,56 @@
+# L2 Data Collection Configuration
+# Optimized for ML training dataset building
+
+collection:
+  # IBKR connection
+  host: "127.0.0.1"
+  port: 7497
+  client_id: 500  # Dedicated L2 client
+  
+  # Collection parameters
+  levels: 10
+  snapshot_interval_ms: 1000  # 1 snapshot/second
+  smart_depth: true
+  
+  # Symbol rotation (IBKR limits concurrent L2 subscriptions)
+  max_symbols: 6          # Increased from 3
+  rotate_seconds: 300     # 5-minute rotation
+  
+  # Time windows (ET) - EXPANDED
+  windows:
+    - "09:30-10:30"  # Opening volatility
+    - "11:30-12:30"  # Pre-lunch consolidation  
+    - "14:00-15:00"  # Afternoon momentum
+    - "15:00-16:00"  # Power hour
+  
+  # Output
+  output_dir: "./data/live_l2"
+  flush_rows: 300
+  write_features: true
+
+# Symbol selection strategy
+symbols:
+  # Primary: Consistent daily collection for time-series
+  primary:
+    - HAL   # Energy - good liquidity
+    - PFE   # Healthcare - stable spreads
+    - MOS   # Materials - volatility
+    - LUV   # Transport - momentum
+    - ACHR  # Growth - high activity
+    - CRGY  # Energy - correlation with HAL
+  
+  # Secondary: Rotate based on SIP scores
+  use_sip_rotation: true
+  sip_top_k: 6
+
+# Data quality thresholds
+quality:
+  min_depth_rate: 0.85
+  max_spread_pct: 0.005  # 0.5% max spread
+  min_volume: 100000
+
+# ML training targets
+training:
+  min_days: 30
+  min_records: 50000
+  target_records: 200000  # ~3 months collection

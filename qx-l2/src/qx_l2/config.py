@@ -18,6 +18,9 @@ DEFAULT_CONFIG = {
     },
     "symbols": {
         "mode": "hybrid",
+        "nyse_only": True,
+        "exchange": "NYSE",
+        "allowed_primary_exchanges": ["NYSE"],
         "core": ["HAL", "PFE", "LUV"],
         "rotating_pool": ["MOS", "ACHR", "CRGY", "FCX", "AA"],
         "max_symbols": 6,
@@ -27,11 +30,14 @@ DEFAULT_CONFIG = {
         "snapshot_interval_ms": 1000,
         "smart_depth": True,
         "rotate_seconds": 300,
+        "poll_interval_sec": 0.1,
     },
     "schedule": {
         "timezone": "America/New_York",
         "windows": ["09:30-10:30", "11:30-12:30", "14:00-15:00", "15:00-16:00"],
         "skip_weekends": True,
+        "skip_holidays": False,
+        "holidays": [],
     },
     "storage": {
         "base_dir": "./data/l2",
@@ -63,6 +69,7 @@ def load_config(config_path: str = None) -> dict[str, Any]:
 
     # Environment variable overrides
     config = _apply_env_overrides(config)
+    config = _apply_symbol_constraints(config)
 
     return config
 
@@ -95,4 +102,17 @@ def _apply_env_overrides(config: dict) -> dict:
                 value = int(value)
             config[section][key] = value
 
+    return config
+
+
+def _apply_symbol_constraints(config: dict) -> dict:
+    """Normalize symbol constraints (NYSE-only enforcement)."""
+    symbols_cfg = config.get("symbols", {})
+    if symbols_cfg.get("nyse_only"):
+        symbols_cfg["exchange"] = "NYSE"
+        symbols_cfg["allowed_primary_exchanges"] = ["NYSE"]
+        coll_cfg = config.get("collection", {})
+        coll_cfg.setdefault("smart_depth", False)
+        config["collection"] = coll_cfg
+    config["symbols"] = symbols_cfg
     return config

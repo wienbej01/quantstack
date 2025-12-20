@@ -40,8 +40,9 @@ def run_daily_sip_selection():
     start_time = time.time()
     sip_universe = sip_selector.get_sip_universe(top_k=40, score_floor=0.0)
 
-    # Get top 6 NYSE symbols for L2 collection
-    l2_symbols = sip_selector.get_nyse_symbols(sip_universe)
+    # Get top 3 NYSE symbols for L2 collection (IBKR LIMIT)
+    # IBKR account limitation: Error 309 above 3 concurrent L2 depth subscriptions
+    l2_symbols = sip_selector.get_nyse_symbols(sip_universe, max_symbols=3)
 
     elapsed = time.time() - start_time
 
@@ -55,10 +56,22 @@ def run_daily_sip_selection():
     with open(sip_file, "w") as f:
         f.write("\n".join(sip_universe))
 
-    # Save L2 symbols
+    # Save L2 symbols (top-3 for IBKR limit compliance)
     l2_file = results_dir / f"l2_symbols_{date_str}.txt"
     with open(l2_file, "w") as f:
         f.write("\n".join(l2_symbols))
+
+    # Also run L2 symbol selector for rotation pool and logging
+    try:
+        from l2_symbol_selector import get_l2_symbols, get_rotation_pool, log_symbol_selection
+        
+        # Generate rotation pool and detailed logging
+        rotation_pool = get_rotation_pool(sip_universe, pool_size=15)
+        log_symbol_selection(l2_symbols, sip_universe, rotation_pool)
+        
+        logger.info(f"L2 rotation pool: {len(rotation_pool)} symbols")
+    except ImportError:
+        logger.warning("L2 symbol selector not available - basic L2 file saved only")
 
     logger.info(f"ORIGINAL SIP methodology complete in {elapsed:.1f}s")
     logger.info(f"NYSE SIP universe: {len(sip_universe)} symbols")

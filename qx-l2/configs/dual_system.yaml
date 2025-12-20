@@ -1,0 +1,126 @@
+# Dual System L2 Configuration
+# Optimized for L2 collection + intraday_stack trading system
+
+# System identification - UNIQUE CLIENT ID
+system:
+  name: "L2COLLECT"
+  client_id: 520  # Different from intraday_stack (avoid conflicts)
+  version: "1.0.0"
+
+# IBKR connection
+ibkr:
+  host: "127.0.0.1"
+  port: 7497
+  timeout: 30
+
+# Symbol selection - MAXIMUM FOR DUAL OPERATION
+symbols:
+  mode: "external"  # Accept from intraday_stack SIP
+  
+  # Extended fallback symbols for maximum collection
+  nyse_only: true
+  exchange: "NYSE"
+  allowed_primary_exchanges:
+    - "NYSE"
+  core:
+    - HAL
+    - PFE  
+    - LUV
+    - MOS
+    - ACHR
+    - CRGY
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - TSLA
+    - NVDA
+    - META
+    - NFLX
+    - AMD
+    - INTC
+    - CRM
+    - ORCL
+    - ADBE
+    - PYPL
+    - UBER
+    - LYFT
+    - SNAP
+    - TWTR
+    - ROKU
+    - SQ
+    - SHOP
+    - SPOT
+    - ZM
+    - DOCU
+    - OKTA
+    - SNOW
+    - PLTR
+    - COIN
+    - HOOD
+    - SOFI
+    - UPST
+    - AFRM
+    - DKNG
+    - PENN
+    - MGM
+    - WYNN
+    - LVS
+    - CZR
+    - BYD
+    - F
+    - GM
+    - RIVN
+    - LCID
+    - NIO
+  
+  # Maximum symbols for aggressive collection (50 symbols)
+  max_symbols: 50  # Conservative approach: 50 L2 + 40 trading = 90/100 lines
+
+# Collection - MAXIMUM FOR DUAL SYSTEM
+collection:
+  levels: 10
+  snapshot_interval_ms: 500     # 2/second (aggressive but stable)
+  smart_depth: false            # Direct NYSE OpenBook
+  rotate_seconds: 120           # 2-minute rotation for faster coverage
+  poll_interval_sec: 0.1
+
+# Schedule - EXTENDED MARKET HOURS
+schedule:
+  timezone: "America/New_York"
+  windows:
+    - "09:30-10:30"  # Opening hour
+    - "10:30-11:30"  # Late morning
+    - "11:30-12:30"  # Pre-lunch
+    - "12:30-13:30"  # Lunch
+    - "13:30-14:30"  # Early afternoon
+    - "14:30-15:30"  # Late afternoon
+    - "15:30-16:00"  # Power hour
+  skip_weekends: true
+
+# Storage - HIGH THROUGHPUT
+storage:
+  base_dir: "./data/l2_dual"
+  format: "parquet"
+  compression: "snappy"
+  flush_rows: 1000              # Larger batches for efficiency
+  consolidate_daily: true
+  retention_days: 180           # Longer retention for more data
+
+# Features - COMPREHENSIVE
+features:
+  enabled: true
+  obi_levels: [1, 2, 3, 5, 10]  # More granular OBI
+  delta_windows_sec: [5, 15, 30, 60]  # More time windows
+
+# Journaling - MINIMAL OVERHEAD
+journal:
+  enabled: true
+  db_path: "./data/l2_dual/journal.db"
+  sample_rate: 0.02  # 2% sampling
+
+# Quality
+quality:
+  min_depth_rate: 0.85
+  max_spread: 0.03
+  alert_on_degradation: true

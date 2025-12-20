@@ -1,0 +1,102 @@
+# Maximum L2 Data Collection Configuration
+# Optimized for maximum data collection while preserving trading capacity
+
+# System identification - UNIQUE CLIENT ID
+system:
+  name: "L2COLLECT_MAX"
+  client_id: 521  # Different from intraday_stack and dual_system
+  version: "2.0.0"
+
+# IBKR connection
+ibkr:
+  host: "127.0.0.1"
+  port: 7497
+  timeout: 30
+
+# Symbol selection - DYNAMIC FROM DAILY SIP
+symbols:
+  mode: "sip_dynamic"           # Use daily SIP universe selection
+  
+  # NYSE-listed stocks only (OpenBook L2 compatible)
+  nyse_only: true
+  exchange: "NYSE"
+  allowed_primary_exchanges:
+    - "NYSE"
+  
+  # SIP integration - NO HARDCODED TICKERS
+  sip_source: "data/daily_sip/sip_universe_*.txt"  # Daily SIP file pattern
+  sip_fallback: "data/daily_sip/l2_symbols_*.txt"  # L2-specific fallback
+  
+  # Selection strategy
+  selection_strategy: "top_3_rotation"  # Rotate through top symbols for maximum coverage
+  
+  # Maximum symbols for IBKR account limit (3 concurrent L2 subscriptions)
+  max_symbols: 3  # IBKR account limitation: Error 309 above 3 symbols
+  
+  # Rotation pool from SIP
+  rotation_pool_size: 15        # Top 15 from daily SIP for rotation
+  
+  # Top-3 selection strategy
+  selection_strategy: "top_3_rotation"  # Rotate through top symbols for maximum coverage
+
+# Collection - OPTIMIZED FOR 3-SYMBOL LIMIT WITH ROTATION
+collection:
+  levels: 10
+  snapshot_interval_ms: 500     # 2/second (aggressive but stable)
+  smart_depth: false            # Direct NYSE OpenBook
+  rotate_seconds: 300           # 5-minute rotation for broader coverage
+  rotation_pool_size: 15        # Top 15 symbols for rotation
+  poll_interval_sec: 0.1
+  
+  # Rotation strategy for maximum coverage with 3-symbol limit
+  rotation:
+    enabled: true
+    interval_seconds: 300       # 5-minute intervals
+    pool_source: "sip_top_15"   # Use top 15 from daily SIP
+    strategy: "round_robin"     # Cycle through pool systematically
+
+# Schedule - EXTENDED MARKET HOURS
+schedule:
+  timezone: "America/New_York"
+  windows:
+    - "09:30-10:30"  # Opening hour
+    - "10:30-11:30"  # Late morning
+    - "11:30-12:30"  # Pre-lunch
+    - "12:30-13:30"  # Lunch
+    - "13:30-14:30"  # Early afternoon
+    - "14:30-15:30"  # Late afternoon
+    - "15:30-16:00"  # Power hour
+  skip_weekends: true
+
+# Storage - HIGH THROUGHPUT
+storage:
+  base_dir: "./data/l2_maximum"
+  format: "parquet"
+  compression: "snappy"
+  flush_rows: 1000              # Larger batches for efficiency
+  consolidate_daily: true
+  retention_days: 180           # Longer retention for more data
+
+# Features - COMPREHENSIVE
+features:
+  enabled: true
+  obi_levels: [1, 2, 3, 5, 10]  # More granular OBI
+  delta_windows_sec: [5, 15, 30, 60]  # More time windows
+
+# Journaling - DETAILED TRACKING
+journal:
+  enabled: true
+  db_path: "./data/l2_maximum/journal.db"
+  sample_rate: 0.05  # 5% sampling for better monitoring
+
+# Quality - STRICT STANDARDS
+quality:
+  min_depth_rate: 0.90          # Higher quality threshold
+  max_spread: 0.025             # Tighter spread requirement
+  alert_on_degradation: true
+
+# Performance monitoring
+monitoring:
+  enabled: true
+  log_interval_seconds: 300     # 5-minute status updates
+  metrics_retention_hours: 48   # 2 days of metrics

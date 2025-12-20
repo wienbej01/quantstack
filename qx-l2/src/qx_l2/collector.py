@@ -55,6 +55,13 @@ class L2Collector:
         self.snapshot_interval_ms = coll_cfg.get("snapshot_interval_ms", 1000)
         self.smart_depth = coll_cfg.get("smart_depth", True)
         self.rotate_seconds = coll_cfg.get("rotate_seconds", 300)
+        self.poll_interval_sec = coll_cfg.get("poll_interval_sec", 0.1)
+
+        symbols_cfg = config.get("symbols", {})
+        self.symbol_exchange = symbols_cfg.get("exchange")
+        if not self.symbol_exchange:
+            self.symbol_exchange = "SMART" if self.smart_depth else "NYSE"
+        self.allowed_primary_exchanges = symbols_cfg.get("allowed_primary_exchanges")
 
         # Components
         self.symbol_selector = L2SymbolSelector(config)
@@ -73,6 +80,11 @@ class L2Collector:
         self._feat_buffer: list[dict] = []
         self._session_id: str = ""
         self._running = False
+        self._req_id_to_symbol: dict[int, str] = {}
+        self._disabled_symbols: set[str] = set()
+        self._session_stats = self._init_session_stats()
+
+        self._fatal_depth_errors = {10092, 200, 10167, 10147}
 
     def connect(self) -> bool:
         """Connect to IBKR."""
@@ -84,6 +96,7 @@ class L2Collector:
             logger.info(
                 f"[{self.system_tag}] Connected to IBKR {self.host}:{self.port}"
             )
+            self.ib.errorEvent += self._on_ib_error
             return True
         except Exception as e:
             logger.error(f"[{self.system_tag}] Connection failed: {e}")
@@ -101,22 +114,56 @@ class L2Collector:
                         pass
             self.ib.disconnect()
             logger.info(f"[{self.system_tag}] Disconnected from IBKR")
+        self._states = {}
+        self._req_id_to_symbol = {}
 
     def _subscribe_symbol(self, symbol: str) -> bool:
         """Subscribe to L2 data for a symbol."""
-        try:
-            contract = Stock(symbol, "SMART", "USD")
-            self.ib.qualifyContracts(contract)
+        if symbol in self._disabled_symbols:
+            logger.info(f"[{self.system_tag}] Skipping disabled symbol {symbol}")
+            return False
+        if symbol in self._states:
+            return True
 
-            # Request market depth
-            self.ib.reqMktDepth(
+        try:
+            contract = Stock(symbol, self.symbol_exchange, "USD")
+            details = self.ib.qualifyContracts(contract)
+            if not details:
+                self.journal.log_error(
+                    "CONTRACT",
+                    f"Qualify failed for {symbol}",
+                    self._session_id,
+                    symbol=symbol,
+                )
+                self._disable_symbol(symbol, "qualify_failed")
+                return False
+
+            qualified = details[0]
+            contract = qualified.contract if hasattr(qualified, "contract") else qualified
+
+            if self.allowed_primary_exchanges:
+                primary = getattr(contract, "primaryExchange", None) or getattr(
+                    contract, "exchange", None
+                )
+                if primary not in self.allowed_primary_exchanges:
+                    logger.warning(
+                        f"[{self.system_tag}] Skipping {symbol} due to "
+                        f"primaryExchange={primary}"
+                    )
+                    return False
+
+            # Request market depth - disable smartDepth for direct exchange
+            ticker = self.ib.reqMktDepth(
                 contract, numRows=self.levels, isSmartDepth=self.smart_depth
             )
+            req_id = getattr(ticker, "reqId", None)
+            if req_id is not None:
+                self._req_id_to_symbol[req_id] = symbol
 
             state = CollectorState(
                 symbol=symbol,
                 contract=contract,
-                ticker=self.ib.ticker(contract),
+                ticker=ticker,
                 feature_eng=(
                     L2FeatureEngineer(self.config) if self.features_enabled else None
                 ),
@@ -140,6 +187,37 @@ class L2Collector:
                     pass
             del self._states[symbol]
             logger.debug(f"[{self.system_tag}] Unsubscribed from {symbol}")
+
+    def _disable_symbol(self, symbol: str, reason: str):
+        """Disable symbol for remainder of process."""
+        if symbol not in self._disabled_symbols:
+            self._disabled_symbols.add(symbol)
+            self._unsubscribe_symbol(symbol)
+            logger.warning(f"[{self.system_tag}] Disabled {symbol}: {reason}")
+
+    def _on_ib_error(self, req_id, error_code, error_string, contract=None):
+        """Handle IBKR errors with symbol-level safeguards."""
+        symbol = None
+        if contract is not None:
+            symbol = getattr(contract, "symbol", None)
+        if symbol is None:
+            symbol = self._req_id_to_symbol.get(req_id)
+
+        if error_code in self._fatal_depth_errors and symbol:
+            self.journal.log_error(
+                "IBKR_DEPTH",
+                f"code={error_code} msg={error_string}",
+                self._session_id,
+                symbol=symbol,
+            )
+            self._disable_symbol(symbol, f"IBKR error {error_code}")
+        else:
+            self.journal.log_error(
+                "IBKR_ERROR",
+                f"code={error_code} msg={error_string}",
+                self._session_id,
+                symbol=symbol,
+            )
 
     def _make_snapshot(self, symbol: str) -> Optional[dict]:
         """Create snapshot from current ticker state."""
@@ -237,20 +315,35 @@ class L2Collector:
         now = time.time()
         interval_sec = self.snapshot_interval_ms / 1000.0
 
-        for symbol, state in self._states.items():
+        for symbol, state in list(self._states.items()):
             if now - state.last_snapshot_ts < interval_sec:
                 continue
 
-            snapshot = self._make_snapshot(symbol)
-            if snapshot:
-                self._raw_buffer.append(snapshot)
-                state.last_snapshot_ts = now
+            try:
+                snapshot = self._make_snapshot(symbol)
+                if snapshot:
+                    self._raw_buffer.append(snapshot)
+                    self._session_stats["records"] += 1
+                    if snapshot.get("has_depth"):
+                        self._session_stats["depth_records"] += 1
+                    spread = snapshot.get("l1_spread")
+                    if spread is not None:
+                        self._session_stats["spread_total"] += spread
+                        self._session_stats["spread_count"] += 1
+                    state.last_snapshot_ts = now
 
-                # Compute features
-                if self.features_enabled and state.feature_eng:
-                    features = state.feature_eng.compute(snapshot, self.levels)
-                    if features:
-                        self._feat_buffer.append(features)
+                    # Compute features
+                    if self.features_enabled and state.feature_eng:
+                        features = state.feature_eng.compute(snapshot, self.levels)
+                        if features:
+                            self._feat_buffer.append(features)
+            except Exception as e:
+                self.journal.log_error(
+                    "SNAPSHOT",
+                    f"{symbol}: {e}",
+                    self._session_id,
+                    symbol=symbol,
+                )
 
         # Flush buffers if needed
         flush_rows = self.config.get("storage", {}).get("flush_rows", 300)
@@ -260,12 +353,28 @@ class L2Collector:
     def _flush_buffers(self):
         """Flush data buffers to storage."""
         if self._raw_buffer:
-            self.storage.write_batch(self._raw_buffer, "raw")
-            self._raw_buffer = []
+            try:
+                self.storage.write_batch(self._raw_buffer, "raw")
+                self._raw_buffer = []
+            except Exception as e:
+                self.journal.log_error("STORAGE", f"raw: {e}", self._session_id)
 
         if self._feat_buffer:
-            self.storage.write_batch(self._feat_buffer, "features")
-            self._feat_buffer = []
+            try:
+                self.storage.write_batch(self._feat_buffer, "features")
+                self._feat_buffer = []
+            except Exception as e:
+                self.journal.log_error("STORAGE", f"features: {e}", self._session_id)
+
+    @staticmethod
+    def _init_session_stats() -> dict[str, float]:
+        """Initialize per-session stats tracking."""
+        return {
+            "records": 0,
+            "depth_records": 0,
+            "spread_total": 0.0,
+            "spread_count": 0,
+        }
 
     def run_once(self, symbols: list[str] = None):
         """Run single collection cycle."""
@@ -283,9 +392,10 @@ class L2Collector:
             # Collect for one window or until interrupted
             logger.info(f"[{self.system_tag}] Collecting for {len(symbols)} symbols")
 
+            self._session_stats = self._init_session_stats()
             while self.scheduler.is_collection_time():
                 self.poll_once()
-                time.sleep(0.1)
+                time.sleep(self.poll_interval_sec)
 
             self._flush_buffers()
 
@@ -296,12 +406,14 @@ class L2Collector:
         """Run as daemon, collecting during scheduled windows."""
         logger.info(f"[{self.system_tag}] Starting daemon mode")
         self._running = True
+        was_in_window = False
 
         def on_window_start():
             symbols = self.symbol_selector.get_symbols()
             self._session_id = self.journal.start_session(
                 symbols, str(self.scheduler.current_window())
             )
+            self._session_stats = self._init_session_stats()
 
             if not self.connect():
                 self.journal.log_error(
@@ -316,16 +428,37 @@ class L2Collector:
             self._flush_buffers()
 
             # Calculate stats
+            records = self._session_stats["records"]
+            depth_records = self._session_stats["depth_records"]
+            spread_count = self._session_stats["spread_count"]
+            spread_total = self._session_stats["spread_total"]
             stats = {
-                "records": len(self._raw_buffer),
-                "depth_rate": 1.0,  # TODO: calculate actual
-                "avg_spread": 0.01,  # TODO: calculate actual
+                "records": records,
+                "depth_rate": (depth_records / records) if records else 0.0,
+                "avg_spread": (spread_total / spread_count) if spread_count else 0.0,
             }
             self.journal.end_session(self._session_id, stats)
             self.disconnect()
 
         try:
-            self.scheduler.run_daemon(on_window_start, on_window_end)
+            while self._running:
+                in_window = self.scheduler.is_collection_time()
+
+                if in_window and not was_in_window:
+                    window = self.scheduler.current_window()
+                    logger.info(f"Collection window started: {window}")
+                    on_window_start()
+                elif not in_window and was_in_window:
+                    logger.info("Collection window ended")
+                    on_window_end()
+
+                if in_window:
+                    self.poll_once()
+                    time.sleep(self.poll_interval_sec)
+                else:
+                    time.sleep(5)
+
+                was_in_window = in_window
         except KeyboardInterrupt:
             logger.info(f"[{self.system_tag}] Daemon stopped")
             self._running = False

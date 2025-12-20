@@ -32,13 +32,17 @@ class TaggedIBKRManager:
             return True
         try:
             self.ib.connect(self.host, self.port, clientId=self.client_id)
-            logger.info(f"System '{self.system_name}' connected with client ID {self.client_id}")
+            logger.info(
+                f"System '{self.system_name}' connected with client ID {self.client_id}"
+            )
             return self.ib.isConnected()
         except Exception as e:
             logger.error(f"System '{self.system_name}' failed to connect: {e}")
             return False
 
-    def place_tagged_order(self, symbol: str, action: str, quantity: int, strategy_tag: str = ""):
+    def place_tagged_order(
+        self, symbol: str, action: str, quantity: int, strategy_tag: str = ""
+    ):
         """Place order with system and strategy tags."""
         if not self.ib or not self.ib.isConnected():
             logger.error(f"System '{self.system_name}' not connected")
@@ -77,7 +81,8 @@ class TaggedIBKRManager:
         system_trades = [
             trade
             for trade in all_trades
-            if trade.order.orderRef and trade.order.orderRef.startswith(self.order_ref_prefix)
+            if trade.order.orderRef
+            and trade.order.orderRef.startswith(self.order_ref_prefix)
         ]
         return system_trades
 

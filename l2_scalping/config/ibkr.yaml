@@ -1,0 +1,51 @@
+# IBKR Connection Configuration
+
+# Connection Settings
+ibkr:
+  host: "127.0.0.1"
+  port: 7497                    # Paper trading port (7496 for live)
+  
+  # Client IDs (must be unique)
+  order_client_id: 1            # For order management
+  data_client_id: 2             # For market data
+  
+  # Connection parameters
+  timeout: 30
+  max_reconnect_attempts: 5
+  reconnect_delay: 5
+
+# Account Settings
+account:
+  account_id: "DU123456"        # Paper trading account
+  initial_capital: 100000       # Starting capital
+  currency: "USD"
+
+# Order Settings
+orders:
+  default_order_type: "LMT"     # Limit orders
+  default_tif: "DAY"            # Time in force
+  use_ioc_for_scalping: true    # Use IOC for quick fills
+  
+  # Order validation
+  min_order_value: 100          # Minimum $100 orders
+  max_order_value: 10000        # Maximum $10k orders
+
+# Market Data Settings
+market_data:
+  request_level2: true          # Request L2 market depth
+  depth_levels: 10              # Number of depth levels
+  smart_depth: false            # Use exchange-specific depth
+  
+  # Data validation
+  max_stale_data_seconds: 5     # Reject stale data
+  require_bid_ask: true         # Require valid bid/ask
+
+# Error Handling
+error_handling:
+  critical_error_codes: [1100, 1101, 1102, 2104, 2106, 2108]
+  retry_on_errors: [502, 503, 504]  # Temporary errors
+  
+  # Logging
+  log_all_errors: true
+  log_order_events: true
+  log_market_data: false        # Too verbose for production

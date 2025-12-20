@@ -21,16 +21,13 @@ from daily_sip_scheduler import load_daily_sip_results, run_daily_sip_selection
 
 from qx_data.live.ibkr_data_tagged import create_quantstack_manager
 from qx_data.live.l2_collector import QuantstackL2Collector
-from qx_data.live.ml_predictor import RegimeAwarePredictor, PaperTrader
+from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
 from qx_data.live.performance_monitor import PerformanceMonitor
 
 logging.basicConfig(
-    level=logging.ERROR, 
+    level=logging.ERROR,
     format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("logs/live_trading.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("logs/live_trading.log"), logging.StreamHandler()],
 )
 
 # Also log warnings for critical connection/subscription issues
@@ -91,10 +88,14 @@ class LiveTradingSystem:
                 ib.disconnect()
                 return True
             else:
-                self.logger.error("CRITICAL: IBKR connection failed - not connected after connect()")
+                self.logger.error(
+                    "CRITICAL: IBKR connection failed - not connected after connect()"
+                )
                 return False
         except Exception as e:
-            self.logger.error(f"CRITICAL: IBKR connection exception: {e}", exc_info=True)
+            self.logger.error(
+                f"CRITICAL: IBKR connection exception: {e}", exc_info=True
+            )
             return False
 
     def load_or_create_daily_universe(self):
@@ -175,7 +176,9 @@ class LiveTradingSystem:
             self.l2_collector.start_collection()
             self.l2_active = True
         except Exception as e:
-            self.logger.error(f"CRITICAL: L2 collection start failed: {e}", exc_info=True)
+            self.logger.error(
+                f"CRITICAL: L2 collection start failed: {e}", exc_info=True
+            )
             self.l2_active = False
 
     def stop_l2_collection(self):
@@ -185,7 +188,9 @@ class LiveTradingSystem:
                 metadata = self.l2_collector.stop_collection()
                 counters = metadata.get("counters", {})
             except Exception as e:
-                self.logger.error(f"CRITICAL: L2 collection stop failed: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: L2 collection stop failed: {e}", exc_info=True
+                )
             finally:
                 self.l2_collector = None
                 self.l2_active = False
@@ -201,7 +206,9 @@ class LiveTradingSystem:
                 if not self.trading_connected:
                     self.logger.error("CRITICAL: Paper trading connection failed")
             except Exception as e:
-                self.logger.error(f"CRITICAL: Paper trading connection exception: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: Paper trading connection exception: {e}", exc_info=True
+                )
                 self.trading_connected = False
         return self.trading_connected
 
@@ -213,17 +220,23 @@ class LiveTradingSystem:
         if not self.data_subscribed:
             try:
                 if not self.ibkr_data.connect():
-                    self.logger.error("CRITICAL: Failed to connect IBKRMarketDataManager")
+                    self.logger.error(
+                        "CRITICAL: Failed to connect IBKRMarketDataManager"
+                    )
                     return False
                 self.ibkr_data.subscribe_symbols(self.sip_universe)
                 # Check if any subscriptions succeeded
                 if len(self.ibkr_data.subscribed_symbols) == 0:
-                    self.logger.error("CRITICAL: No symbols subscribed successfully - all subscriptions failed")
+                    self.logger.error(
+                        "CRITICAL: No symbols subscribed successfully - all subscriptions failed"
+                    )
                     return False
                 self.data_subscribed = True
                 return True
             except Exception as e:
-                self.logger.error(f"CRITICAL: Market data subscription exception: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: Market data subscription exception: {e}", exc_info=True
+                )
                 self.data_subscribed = False
                 return False
         return True
@@ -291,7 +304,7 @@ class LiveTradingSystem:
                 self.logger.error(f"Historical data fetch failed: {e}")
                 self.performance.record_skipped_cycle()
                 return
-                
+
             feature_time = time.time() - phase_start
             self.performance.record_phase("features", feature_time)
 
@@ -414,7 +427,9 @@ class LiveTradingSystem:
             )
 
         except Exception as e:
-            self.logger.error(f"CRITICAL: Paper trading cycle failed: {e}", exc_info=True)
+            self.logger.error(
+                f"CRITICAL: Paper trading cycle failed: {e}", exc_info=True
+            )
             self.performance.record_skipped_cycle()
 
     def run_live_system(self):
@@ -467,25 +482,33 @@ class LiveTradingSystem:
         except KeyboardInterrupt:
             pass
         except Exception as e:
-            self.logger.error(f"CRITICAL: System error in main loop: {e}", exc_info=True)
+            self.logger.error(
+                f"CRITICAL: System error in main loop: {e}", exc_info=True
+            )
         finally:
             try:
                 if self.l2_active:
                     self.stop_l2_collection()
             except Exception as e:
-                self.logger.error(f"CRITICAL: L2 stop failed in cleanup: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: L2 stop failed in cleanup: {e}", exc_info=True
+                )
 
             try:
                 if self.trading_connected:
                     self.paper_trader.disconnect()
             except Exception as e:
-                self.logger.error(f"CRITICAL: Paper trader disconnect failed: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: Paper trader disconnect failed: {e}", exc_info=True
+                )
 
             try:
                 if self.data_subscribed:
                     self.ibkr_data.disconnect()
             except Exception as e:
-                self.logger.error(f"CRITICAL: IBKR disconnect failed: {e}", exc_info=True)
+                self.logger.error(
+                    f"CRITICAL: IBKR disconnect failed: {e}", exc_info=True
+                )
 
 
 def main():

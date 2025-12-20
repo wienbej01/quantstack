@@ -3,7 +3,7 @@
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from datetime import time as dt_time
 from typing import Callable, Optional
 
@@ -30,6 +30,8 @@ class L2Scheduler:
         schedule_cfg = config.get("schedule", {})
         self.timezone = pytz.timezone(schedule_cfg.get("timezone", "America/New_York"))
         self.skip_weekends = schedule_cfg.get("skip_weekends", True)
+        self.skip_holidays = schedule_cfg.get("skip_holidays", False)
+        self.holidays = set(schedule_cfg.get("holidays", []))
         self.windows = self._parse_windows(schedule_cfg.get("windows", []))
 
     def _parse_windows(self, window_strs: list[str]) -> list[TimeWindow]:
@@ -52,9 +54,12 @@ class L2Scheduler:
     def is_collection_time(self) -> bool:
         """Check if current time is within collection windows."""
         now = self.now_local()
+        date_str = now.strftime("%Y-%m-%d")
 
         # Skip weekends
         if self.skip_weekends and now.weekday() >= 5:
+            return False
+        if self.skip_holidays and date_str in self.holidays:
             return False
 
         # Check windows
@@ -86,12 +91,21 @@ class L2Scheduler:
 
         # Next window is tomorrow (first window)
         if self.windows:
-            tomorrow = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            tomorrow = tomorrow.replace(day=tomorrow.day + 1)
-            first_window = min(self.windows, key=lambda x: x.start)
-            return tomorrow.replace(
-                hour=first_window.start.hour, minute=first_window.start.minute
+            tomorrow = (now + timedelta(days=1)).replace(
+                hour=0, minute=0, second=0, microsecond=0
             )
+            first_window = min(self.windows, key=lambda x: x.start)
+            while True:
+                date_str = tomorrow.strftime("%Y-%m-%d")
+                if self.skip_weekends and tomorrow.weekday() >= 5:
+                    tomorrow += timedelta(days=1)
+                    continue
+                if self.skip_holidays and date_str in self.holidays:
+                    tomorrow += timedelta(days=1)
+                    continue
+                return tomorrow.replace(
+                    hour=first_window.start.hour, minute=first_window.start.minute
+                )
 
         return None
 

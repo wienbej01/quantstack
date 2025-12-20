@@ -1,0 +1,14 @@
+{
+  "date": "2025-01-02",
+  "timestamp": "2025-12-19T14:15:00.804122",
+  "mode": "rotating",
+  "symbols": [
+    "PFE",
+    "LUV"
+  ],
+  "core": [],
+  "rotating": [
+    "PFE",
+    "LUV"
+  ]
+}

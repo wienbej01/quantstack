@@ -6,8 +6,8 @@ After=network.target
 Type=simple
 User=jacobw
 WorkingDirectory=/home/jacobw/quantstack
-Environment=PYTHONPATH=/home/jacobw/quantstack
-ExecStart=/home/jacobw/quantstack/.venv/bin/python qx-l2/scripts/run_collector.py --config qx-l2/configs/maximum_l2.yaml --daemon
+Environment=PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/jacobw/.local/bin/l2-collect --config qx-l2/configs/maximum_l2.yaml --daemon
 Restart=on-failure
 RestartSec=60
 StandardOutput=journal

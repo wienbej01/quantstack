@@ -33,20 +33,25 @@ class L2FeatureEngineer:
             "has_depth": True,
         }
 
-        # Basic microstructure
+        # Basic microstructure - calculate from L2 book if L1 not available
+        bid_px = snapshot.get("bid_px_1")
+        ask_px = snapshot.get("ask_px_1")
+        bid_sz = snapshot.get("bid_sz_1")
+        ask_sz = snapshot.get("ask_sz_1")
+
         mid = snapshot.get("l1_mid")
         spread = snapshot.get("l1_spread")
+
+        # Fallback to L2 top-of-book if L1 is missing
+        if (mid is None or spread is None) and bid_px and ask_px:
+            mid = (bid_px + ask_px) / 2
+            spread = ask_px - bid_px
 
         if mid and spread:
             features["mid"] = mid
             features["spread"] = spread
 
             # Microprice (volume-weighted fair value)
-            bid_px = snapshot.get("bid_px_1")
-            ask_px = snapshot.get("ask_px_1")
-            bid_sz = snapshot.get("bid_sz_1")
-            ask_sz = snapshot.get("ask_sz_1")
-
             if all(x for x in [bid_px, ask_px, bid_sz, ask_sz]):
                 microprice = (bid_px * ask_sz + ask_px * bid_sz) / (bid_sz + ask_sz)
                 features["microprice"] = microprice

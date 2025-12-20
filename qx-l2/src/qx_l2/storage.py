@@ -2,6 +2,7 @@
 
 import logging
 import shutil
+from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -31,31 +32,37 @@ class L2Storage:
         """Get partitioned path for data."""
         return self.base_dir / data_type / f"date={date_str}" / f"symbol={symbol}"
 
-    def write_batch(self, records: list[dict], data_type: str = "raw") -> str:
+    def write_batch(self, records: list[dict], data_type: str = "raw") -> list[str]:
         """Write batch of records with partitioning."""
         if not records:
-            return ""
+            return []
 
-        df = pd.DataFrame(records)
+        grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
+        for record in records:
+            date_str = record.get("date_et", datetime.now().strftime("%Y-%m-%d"))
+            symbol = record.get("symbol", "UNKNOWN")
+            grouped[(date_str, symbol)].append(record)
 
-        # Extract partition keys
-        date_str = records[0].get("date_et", datetime.now().strftime("%Y-%m-%d"))
-        symbol = records[0].get("symbol", "UNKNOWN")
+        written_files = []
+        for (date_str, symbol), rows in grouped.items():
+            df = pd.DataFrame(rows)
 
-        # Create partition directory
-        partition_dir = self.get_partition_path(data_type, date_str, symbol)
-        partition_dir.mkdir(parents=True, exist_ok=True)
+            # Create partition directory
+            partition_dir = self.get_partition_path(data_type, date_str, symbol)
+            partition_dir.mkdir(parents=True, exist_ok=True)
 
-        # Generate filename with timestamp
-        ts = datetime.now().strftime("%H%M%S")
-        filename = f"part_{ts}.parquet"
-        filepath = partition_dir / filename
+            # Generate filename with timestamp
+            ts = datetime.now().strftime("%H%M%S%f")
+            filename = f"part_{ts}.parquet"
+            filepath = partition_dir / filename
 
-        # Write with compression
-        df.to_parquet(filepath, index=False, compression=self.compression)
+            # Write with compression
+            df.to_parquet(filepath, index=False, compression=self.compression)
 
-        logger.debug(f"Wrote {len(records)} records to {filepath}")
-        return str(filepath)
+            logger.debug(f"Wrote {len(rows)} records to {filepath}")
+            written_files.append(str(filepath))
+
+        return written_files
 
     def consolidate_daily(self, date_str: str = None) -> dict:
         """Consolidate small files into daily files per symbol."""

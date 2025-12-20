@@ -158,8 +158,10 @@ class PolygonSIPSelector:
 
         return sip_universe
 
-    def get_nyse_symbols(self, sip_universe: list[str]) -> list[str]:
-        """Return top 6 NYSE symbols for L2 collection."""
-        selected = sip_universe[:6]  # Top 6 highest scoring
-        self.logger.info(f"L2 symbols (top 6 SIP): {selected}")
+    def get_nyse_symbols(
+        self, sip_universe: list[str], max_symbols: int = 6
+    ) -> list[str]:
+        """Return top N NYSE symbols for L2 collection."""
+        selected = sip_universe[:max_symbols]  # Top N highest scoring
+        self.logger.info(f"L2 symbols (top {max_symbols} SIP): {selected}")
         return selected

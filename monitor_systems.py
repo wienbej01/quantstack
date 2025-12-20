@@ -7,7 +7,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 
-from qx_data.live.ibkr_data_tagged import create_quantstack_manager, create_system2_manager
+from qx_data.live.ibkr_data_tagged import (
+    create_quantstack_manager,
+    create_system2_manager,
+)
 
 
 def monitor_all_systems():

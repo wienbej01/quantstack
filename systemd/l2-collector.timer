@@ -3,8 +3,8 @@ Description=L2 Data Collector Daily Timer
 Requires=l2-collector.service
 
 [Timer]
-# Start daily at 9:25 AM ET (14:25 UTC) - 5 minutes before market open
-OnCalendar=Mon..Fri 14:25
+# Start daily at 9:25 AM ET (22:25 PST) - 5 minutes before market open
+OnCalendar=Mon..Fri *-*-* 22:25:00
 Persistent=true
 AccuracySec=1min
 

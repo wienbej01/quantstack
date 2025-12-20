@@ -1,0 +1,62 @@
+# L2 Scalping System Configuration
+
+# Strategy Parameters
+strategy:
+  name: "L2_OBI_Momentum_Scalper"
+  version: "1.0"
+  
+  # Signal thresholds
+  obi_entry_threshold: 0.3      # OBI level for entry signals
+  obi_extreme_threshold: 0.6    # High conviction threshold
+  min_confidence: 0.3           # Minimum signal confidence
+  max_spread_multiple: 2.0      # Max spread vs median
+  
+  # Timing parameters
+  default_hold_seconds: 5       # Default hold time
+  max_hold_seconds: 15          # Maximum hold time
+  min_time_between_trades_ms: 1000  # Minimum time between trades
+
+# Symbol Configuration
+symbols:
+  PFE:
+    enabled: true
+    priority: 1                 # Highest priority
+    max_spread: 0.02
+    median_spread: 0.01
+    correlation_5s: 0.269       # From analysis
+    
+  HAL:
+    enabled: true
+    priority: 2
+    max_spread: 0.03
+    median_spread: 0.01
+    correlation_5s: 0.170
+    
+  LUV:
+    enabled: true
+    priority: 3
+    max_spread: 0.04
+    median_spread: 0.02
+    correlation_5s: 0.133
+
+# Time-of-day adjustments
+time_adjustments:
+  # PFE best at open
+  PFE:
+    "09:30-10:00": 1.2          # Boost signals 20%
+    "10:00-16:00": 1.0
+    
+  # HAL best in afternoon  
+  HAL:
+    "09:30-12:00": 1.0
+    "12:00-16:00": 1.1          # Boost signals 10%
+    
+  # LUV steady throughout
+  LUV:
+    "09:30-16:00": 1.0
+
+# Mock data (REMOVE BEFORE PAPER TRADING)
+mock_data:
+  enabled: false               # SET TO FALSE FOR LIVE TRADING
+  update_frequency_hz: 2
+  symbols: ["PFE", "HAL", "LUV"]

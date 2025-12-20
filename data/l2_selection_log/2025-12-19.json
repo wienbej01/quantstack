@@ -1,0 +1,32 @@
+{
+  "date": "2025-12-19",
+  "timestamp": "2025-12-19T22:38:34.985431",
+  "strategy": "top_3_rotation",
+  "ibkr_limit": 3,
+  "l2_symbols": [
+    "HPE",
+    "PFE",
+    "CMG"
+  ],
+  "rotation_pool": [
+    "HPE",
+    "PFE",
+    "CMG",
+    "FCX",
+    "VZ",
+    "T",
+    "LUV",
+    "SLB",
+    "KVUE",
+    "BKSY",
+    "DBRG",
+    "F",
+    "ACHR",
+    "AMRC",
+    "HAL"
+  ],
+  "sip_universe_size": 40,
+  "total_l2_symbols": 3,
+  "compliance_note": "IBKR Error 309 - Max 3 concurrent L2 depth subscriptions",
+  "data_source": "daily_sip_dynamic"
+}

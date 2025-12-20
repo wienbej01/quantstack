@@ -1,0 +1,50 @@
+# Risk Management Configuration
+
+# Per-trade Risk Limits
+per_trade:
+  max_loss_bps: 10              # Maximum loss per trade (basis points)
+  profit_target_bps: 15         # Primary profit target
+  extended_target_bps: 25       # Extended target if regime persists
+  max_position_pct: 0.01        # 1% of account per trade
+
+# Daily Risk Limits
+daily:
+  max_loss_bps: 100             # Daily loss limit (circuit breaker)
+  max_trades: 100               # Maximum trades per day
+  warning_threshold_pct: 0.5    # Warning at 50% of daily limit
+  breach_threshold_pct: 0.7     # Breach at 70% of daily limit
+  emergency_threshold_pct: 0.9  # Emergency stop at 90% of daily limit
+
+# Position Sizing
+position_sizing:
+  base_risk_pct: 0.01           # Base position size (1% of account)
+  min_position_value: 100       # Minimum $100 position
+  strength_scaling: true        # Scale by signal strength
+  confidence_scaling: true      # Scale by confidence
+  drawdown_scaling: true        # Reduce size in drawdown
+
+# Circuit Breaker
+circuit_breaker:
+  enabled: true
+  max_loss_rate_per_minute: 50  # Max 50 bps loss per minute
+  max_consecutive_losses: 5     # Stop after 5 consecutive losses
+  min_time_between_trades_ms: 1000  # Minimum 1 second between trades
+  cooldown_period_minutes: 5    # Cooldown after trigger
+
+# Thin Book Protection
+thin_book:
+  enabled: true
+  allow_thin_book: false        # Reject trades in thin book
+  size_reduction_pct: 0.5       # Reduce size by 50% if near threshold
+
+# Symbol-specific thresholds (P10 from analysis)
+thin_book_thresholds:
+  HAL:
+    bid_p10: 3200
+    ask_p10: 4200
+  PFE:
+    bid_p10: 31100
+    ask_p10: 38500
+  LUV:
+    bid_p10: 2100
+    ask_p10: 2100
