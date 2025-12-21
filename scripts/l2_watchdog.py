@@ -18,7 +18,7 @@ class L2Watchdog:
         self.service_name = "l2-collector.service"
         self.log_file = Path("logs/l2_watchdog.log")
         self.log_file.parent.mkdir(exist_ok=True)
-        
+
         # Error patterns to detect
         self.fatal_patterns = [
             r"Connection refused",
@@ -31,7 +31,7 @@ class L2Watchdog:
             r"Error 1100",  # Connectivity lost
             r"Error 2110",  # Connectivity restored (monitor)
         ]
-        
+
         # Gateway crash indicators
         self.gateway_crash_patterns = [
             r"Error 317.*Market depth data has been RESET",
@@ -39,13 +39,13 @@ class L2Watchdog:
             r"Connection reset by peer",
             r"Socket connection broken",
         ]
-        
+
         self.warning_patterns = [
             r"Error 10092",  # Deep market data not supported
-            r"Error 200",    # No security definition
+            r"Error 200",  # No security definition
             r"Error 10167",  # Requested market data is not subscribed
         ]
-        
+
         self.restart_count = 0
         self.last_restart = None
         self.max_restarts_per_hour = 5
@@ -54,23 +54,26 @@ class L2Watchdog:
         """Check for gateway crash indicators in recent logs."""
         try:
             # Check last 50 lines of service logs
-            result = subprocess.run([
-                "journalctl", "-u", self.service_name, "--lines=50", "--no-pager"
-            ], capture_output=True, text=True, timeout=10)
-            
+            result = subprocess.run(
+                ["journalctl", "-u", self.service_name, "--lines=50", "--no-pager"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+
             if result.returncode != 0:
                 return False
-                
+
             recent_logs = result.stdout
-            
+
             # Check for gateway crash patterns
             for pattern in self.gateway_crash_patterns:
                 if re.search(pattern, recent_logs, re.IGNORECASE):
                     self.log(f"Gateway crash detected: {pattern}", "ERROR")
                     return True
-                    
+
             return False
-            
+
         except Exception as e:
             self.log(f"Error checking gateway crash: {e}", "WARNING")
             return False
@@ -81,23 +84,23 @@ class L2Watchdog:
             data_dir = Path("./data/l2_maximum/features")
             if not data_dir.exists():
                 return False
-                
+
             # Find most recent parquet file
             parquet_files = list(data_dir.rglob("*.parquet"))
             if not parquet_files:
                 return False
-                
+
             # Get most recent file
             latest_file = max(parquet_files, key=lambda p: p.stat().st_mtime)
             file_age = time.time() - latest_file.stat().st_mtime
-            
+
             # If no new data in 10 minutes, consider it stale
             if file_age > 600:  # 10 minutes
                 self.log(f"Data flow stale: latest file {file_age:.0f}s old", "WARNING")
                 return False
-                
+
             return True
-            
+
         except Exception as e:
             self.log(f"Error checking data flow: {e}", "WARNING")
             return False
@@ -120,7 +123,7 @@ class L2Watchdog:
                 check=False,
             )
             is_active = result.stdout.strip() == "active"
-            
+
             # Get main PID
             result = subprocess.run(
                 ["systemctl", "show", self.service_name, "--property=MainPID"],
@@ -129,7 +132,7 @@ class L2Watchdog:
                 check=False,
             )
             pid = result.stdout.strip().split("=")[1]
-            
+
             return {"active": is_active, "pid": pid}
         except Exception as e:
             self.log(f"Failed to get service status: {e}", "ERROR")
@@ -159,20 +162,20 @@ class L2Watchdog:
     def check_for_errors(self, logs: str) -> dict:
         """Check logs for error patterns."""
         errors = {"fatal": [], "warning": []}
-        
+
         for line in logs.split("\n"):
             # Check fatal errors
             for pattern in self.fatal_patterns:
                 if re.search(pattern, line, re.IGNORECASE):
                     errors["fatal"].append(line)
                     break
-            
+
             # Check warnings
             for pattern in self.warning_patterns:
                 if re.search(pattern, line, re.IGNORECASE):
                     errors["warning"].append(line)
                     break
-        
+
         return errors
 
     def restart_service(self) -> bool:
@@ -191,9 +194,9 @@ class L2Watchdog:
             else:
                 # Reset counter after 1 hour
                 self.restart_count = 0
-        
+
         self.log("Attempting to restart L2 collector service...", "WARNING")
-        
+
         try:
             # Restart service
             subprocess.run(
@@ -201,10 +204,10 @@ class L2Watchdog:
                 check=True,
                 capture_output=True,
             )
-            
+
             # Wait for service to start
             time.sleep(5)
-            
+
             # Verify it started
             status = self.get_service_status()
             if status["active"]:
@@ -218,7 +221,7 @@ class L2Watchdog:
             else:
                 self.log("Service restart failed - not active", "ERROR")
                 return False
-                
+
         except Exception as e:
             self.log(f"Failed to restart service: {e}", "ERROR")
             return False
@@ -228,15 +231,15 @@ class L2Watchdog:
         self.log("L2 Watchdog started - monitoring every 30 seconds")
         self.log(f"Service: {self.service_name}")
         self.log(f"Max restarts per hour: {self.max_restarts_per_hour}")
-        
+
         consecutive_errors = 0
         max_consecutive_errors = 3
-        
+
         while True:
             try:
                 # Check service status
                 status = self.get_service_status()
-                
+
                 if not status["active"]:
                     self.log("Service is not active!", "ERROR")
                     if self.restart_service():
@@ -247,7 +250,7 @@ class L2Watchdog:
                     # Service is active, check logs for errors
                     logs = self.get_recent_logs(lines=100)
                     errors = self.check_for_errors(logs)
-                    
+
                     if errors["fatal"]:
                         self.log(
                             f"Detected {len(errors['fatal'])} fatal errors",
@@ -255,20 +258,20 @@ class L2Watchdog:
                         )
                         for error in errors["fatal"][-3:]:  # Show last 3
                             self.log(f"  {error}", "ERROR")
-                        
+
                         # Restart on fatal errors
                         if self.restart_service():
                             consecutive_errors = 0
                         else:
                             consecutive_errors += 1
-                    
+
                     elif errors["warning"]:
                         self.log(
                             f"Detected {len(errors['warning'])} warnings (non-fatal)",
                             "WARNING",
                         )
                         consecutive_errors = 0
-                    
+
                     else:
                         # All good
                         consecutive_errors = 0
@@ -277,7 +280,7 @@ class L2Watchdog:
                                 f"Service healthy (PID: {status['pid']})",
                                 "INFO",
                             )
-                
+
                 # Check if we're stuck in error loop
                 if consecutive_errors >= max_consecutive_errors:
                     self.log(
@@ -286,9 +289,9 @@ class L2Watchdog:
                         "ERROR",
                     )
                     break
-                
+
                 time.sleep(check_interval)
-                
+
             except KeyboardInterrupt:
                 self.log("Watchdog stopped by user", "INFO")
                 break

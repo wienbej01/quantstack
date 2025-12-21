@@ -31,13 +31,18 @@ class TestL2Signals(unittest.TestCase):
 
     def setUp(self):
         self.config = {
-            "obi_entry_threshold": 0.3,
-            "obi_extreme_threshold": 0.6,
-            "min_confidence": 0.3,
+            "strategy": {
+                "obi_entry_threshold": 0.3,
+                "obi_extreme_threshold": 0.6,
+                "min_confidence": 0.3,
+                "max_spread_multiple": 2.0,
+                "confirm_k": 1,
+                "min_calibration_points": 1,
+            },
             "symbols": {"PFE": {"max_spread": 0.02}},
         }
         self.generator = L2SignalGenerator(self.config)
-        self.validator = SignalValidator(self.config)
+        self.validator = SignalValidator(self.config, {"thin_book": {"allow_thin_book": True}})
 
     def test_obi_momentum_signal(self):
         """Test OBI momentum signal generation"""
@@ -105,10 +110,9 @@ class TestRiskManager(unittest.TestCase):
 
     def setUp(self):
         self.config = {
-            "max_daily_loss_bps": 100,
-            "max_trade_loss_bps": 10,
-            "max_position_pct": 0.01,
-            "max_daily_trades": 100,
+            "per_trade": {"max_loss_bps": 10, "max_position_pct": 0.01},
+            "daily": {"max_loss_bps": 100, "max_trades": 100},
+            "position_sizing": {"min_position_value": 100, "max_shares": 100},
         }
         self.risk_manager = RiskManager(self.config)
 
@@ -123,7 +127,7 @@ class TestRiskManager(unittest.TestCase):
         )
 
         self.assertGreater(size, 0)
-        self.assertLess(size * 25.50, 2000)  # Reasonable position size
+        self.assertLessEqual(size, 100)  # Max shares cap
 
     def test_pre_trade_risk_check(self):
         """Test pre-trade risk checks"""
@@ -167,7 +171,7 @@ class TestCircuitBreaker(unittest.TestCase):
         for i in range(3):
             if i > 0:
                 time.sleep(1.1)  # Wait longer than min_time_between_trades
-            triggered, reason = self.breaker.check_circuit_breaker(-0.0001)  # Very small loss
+            triggered, reason = self.breaker.check_circuit_breaker(-0.0001, 100000)
             if i < 2:
                 self.assertFalse(triggered, f"Should not trigger on loss {i+1}: {reason}")
             else:

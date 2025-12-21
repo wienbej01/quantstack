@@ -6,7 +6,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 import pandas as pd
 
 logger = logging.getLogger(__name__)

@@ -63,12 +63,16 @@ def run_daily_sip_selection():
 
     # Also run L2 symbol selector for rotation pool and logging
     try:
-        from l2_symbol_selector import get_l2_symbols, get_rotation_pool, log_symbol_selection
-        
+        from l2_symbol_selector import (
+            get_l2_symbols,
+            get_rotation_pool,
+            log_symbol_selection,
+        )
+
         # Generate rotation pool and detailed logging
         rotation_pool = get_rotation_pool(sip_universe, pool_size=15)
         log_symbol_selection(l2_symbols, sip_universe, rotation_pool)
-        
+
         logger.info(f"L2 rotation pool: {len(rotation_pool)} symbols")
     except ImportError:
         logger.warning("L2 symbol selector not available - basic L2 file saved only")

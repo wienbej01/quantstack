@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import logging
 import re
+import time
 from collections.abc import Sequence
 from datetime import timedelta
 from pathlib import Path
@@ -198,7 +199,7 @@ def build_sip_for_range(
 
     while current_date <= end_date_dt:
         date_str = current_date.strftime("%Y-%m-%d")
-        logger.info(f"Processing SIP for {date_str}...")
+        logger.info("Processing SIP for %s...", date_str)
 
         if current_date.weekday() >= 5:
             logger.info("Skipping %s (non-trading day).", date_str)
@@ -206,12 +207,25 @@ def build_sip_for_range(
             continue
 
         try:
+            day_started = time.monotonic()
             window_start = current_date - timedelta(days=lookback_days)
             window_end = current_date + timedelta(days=1) - timedelta(microseconds=1)
+            logger.info(
+                "  Loading bars for %s (window %s -> %s)...",
+                date_str,
+                window_start.strftime("%Y-%m-%d"),
+                window_end.strftime("%Y-%m-%d"),
+            )
             bars_utc = cache.get_window(
                 start_date=window_start,
                 end_date=window_end,
                 symbols=candidate_symbols,
+            )
+            logger.info(
+                "  Loaded %s bars (%s symbols) from cache in %.1fs",
+                f"{len(bars_utc):,}",
+                bars_utc["symbol"].nunique() if not bars_utc.empty else 0,
+                time.monotonic() - day_started,
             )
 
             if bars_utc.empty:
@@ -223,6 +237,7 @@ def build_sip_for_range(
                 fallback_dates = pd.bdate_range(window_start, current_date)
                 fallback_str_dates = [d.strftime("%Y-%m-%d") for d in fallback_dates]
                 if fallback_str_dates:
+                    fallback_started = time.monotonic()
                     try:
                         bars_utc = load_bars(
                             root=gold_root,
@@ -234,6 +249,12 @@ def build_sip_for_range(
                         )
                     except RuntimeError:
                         bars_utc = pd.DataFrame()
+                    logger.info(
+                        "  Loaded %s bars (%s symbols) from Gold in %.1fs",
+                        f"{len(bars_utc):,}",
+                        bars_utc["symbol"].nunique() if not bars_utc.empty else 0,
+                        time.monotonic() - fallback_started,
+                    )
 
             if bars_utc.empty:
                 logger.info(
@@ -247,14 +268,21 @@ def build_sip_for_range(
             # The selector returns a map of {timestamp: {symbols...}}.
             # We need to get the union of all selected symbols for the day.
             ref = {"target_date": date_str}
+            logger.info("  Running SIP selection for %s...", date_str)
+            select_started = time.monotonic()
             sip_map = selector.select(bars_utc=bars_utc, ref=ref)
+            logger.info(
+                "  SIP selection complete in %.1fs (%s timestamps)",
+                time.monotonic() - select_started,
+                len(sip_map),
+            )
 
             sip_symbols_for_day = set()
             if sip_map:
                 for symbols in sip_map.values():
                     sip_symbols_for_day.update(symbols)
 
-            logger.info(f"Found {len(sip_symbols_for_day)} SIP symbols for {date_str}")
+            logger.info("Found %s SIP symbols for %s", len(sip_symbols_for_day), date_str)
 
             # Create the membership DataFrame for the day
             membership_records = []
@@ -277,10 +305,14 @@ def build_sip_for_range(
                 gold_root=gold_root,
                 output_root=output_root,
             )
-            logger.info(f"Successfully saved SIP membership for {date_str}.")
+            logger.info(
+                "Successfully saved SIP membership for %s (elapsed %.1fs).",
+                date_str,
+                time.monotonic() - day_started,
+            )
 
         except Exception as e:
-            logger.error(f"Failed to process SIP for {date_str}: {e}", exc_info=True)
+            logger.error("Failed to process SIP for %s: %s", date_str, e, exc_info=True)
 
         current_date += timedelta(days=1)
 

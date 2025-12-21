@@ -1,7 +1,6 @@
 from datetime import date, datetime, time
 
 import pytz
-
 from qx_l2.scheduler import L2Scheduler
 
 

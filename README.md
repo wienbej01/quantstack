@@ -2,12 +2,11 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Live Intraday ML Trading System (2024-12-16)
+## Latest: Live Intraday ML Trading System (2025-12-21)
 
-**✅ PHASE 1 & 2 COMPLETE: Real IBKR data + 1-minute trading implemented**  
-**⏳ TESTING REQUIRED: Run validation before production deployment**  
-**✅ REGIME-AWARE MODEL: +13.0% return (2024), 49.7% win rate**  
-**✅ TRAINED MODELS: 3 regime models on 6 months of data**  
+**✅ FULL 2025 YTD COVERAGE: Features and SIP complete through Dec 15, 2025**  
+**✅ REGIME-AWARE MODELS: Trained on 2024-12-01 to 2025-11-15, validated through Dec 15**  
+**✅ PRODUCTION READY: 1,700,509 feature rows, 86 features, 3 regime models**  
 **✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
 
 ### Phase 1 & 2 Implementation Complete

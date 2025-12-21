@@ -2,9 +2,10 @@
 """Reprocess raw L2 data to add mid/spread features."""
 
 import glob
-import pandas as pd
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pandas as pd
 
 RAW_DIR = Path("/home/jacobw/quantstack/data/l2_maximum/raw")
 OUT_DIR = Path("/home/jacobw/quantstack/data/l2_maximum/features_v2")
@@ -51,18 +52,48 @@ def compute_features(df: pd.DataFrame, levels: int = 10) -> pd.DataFrame:
         for field in ["mid", "spread", "obi_1", "micro_off"]:
             if field in df.columns:
                 df[f"d_{field}_{window_sec}s"] = df[field] - df[field].shift(lag)
-                df[f"d_{field}_{window_sec}s"] = df[f"d_{field}_{window_sec}s"].fillna(0)
+                df[f"d_{field}_{window_sec}s"] = df[f"d_{field}_{window_sec}s"].fillna(
+                    0
+                )
 
     # Select output columns
     out_cols = [
-        "ts_utc", "ts_epoch", "date_et", "symbol", "exchange", "smart_depth", "has_depth",
-        "mid", "spread", "microprice", "micro_off",
-        "depth_bid_k", "depth_ask_k", "depth_imb_k", "pressure_k",
-        "obi_1", "obi_2", "obi_3", "obi_5", "obi_10",
-        "d_mid_5s", "d_spread_5s", "d_obi_1_5s", "d_micro_off_5s",
-        "d_mid_15s", "d_spread_15s", "d_obi_1_15s", "d_micro_off_15s",
-        "d_mid_30s", "d_spread_30s", "d_obi_1_30s", "d_micro_off_30s",
-        "d_mid_60s", "d_spread_60s", "d_obi_1_60s", "d_micro_off_60s",
+        "ts_utc",
+        "ts_epoch",
+        "date_et",
+        "symbol",
+        "exchange",
+        "smart_depth",
+        "has_depth",
+        "mid",
+        "spread",
+        "microprice",
+        "micro_off",
+        "depth_bid_k",
+        "depth_ask_k",
+        "depth_imb_k",
+        "pressure_k",
+        "obi_1",
+        "obi_2",
+        "obi_3",
+        "obi_5",
+        "obi_10",
+        "d_mid_5s",
+        "d_spread_5s",
+        "d_obi_1_5s",
+        "d_micro_off_5s",
+        "d_mid_15s",
+        "d_spread_15s",
+        "d_obi_1_15s",
+        "d_micro_off_15s",
+        "d_mid_30s",
+        "d_spread_30s",
+        "d_obi_1_30s",
+        "d_micro_off_30s",
+        "d_mid_60s",
+        "d_spread_60s",
+        "d_obi_1_60s",
+        "d_micro_off_60s",
     ]
     return df[[c for c in out_cols if c in df.columns]]
 

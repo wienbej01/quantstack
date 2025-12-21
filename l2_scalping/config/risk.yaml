@@ -19,6 +19,7 @@ daily:
 position_sizing:
   base_risk_pct: 0.01           # Base position size (1% of account)
   min_position_value: 100       # Minimum $100 position
+  max_shares: 100               # Hard cap for testing
   strength_scaling: true        # Scale by signal strength
   confidence_scaling: true      # Scale by confidence
   drawdown_scaling: true        # Reduce size in drawdown

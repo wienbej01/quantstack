@@ -6,8 +6,8 @@ ibkr:
   port: 7497                    # Paper trading port (7496 for live)
   
   # Client IDs (must be unique)
-  order_client_id: 1            # For order management
-  data_client_id: 2             # For market data
+  order_client_id: 10           # L2 Scalping system - orders
+  data_client_id: 11            # L2 Scalping system - market data
   
   # Connection parameters
   timeout: 30
@@ -25,7 +25,10 @@ orders:
   default_order_type: "LMT"     # Limit orders
   default_tif: "DAY"            # Time in force
   use_ioc_for_scalping: true    # Use IOC for quick fills
-  
+  order_ref_prefix: "L2SCALP"   # Order tag prefix
+  commission_per_share: 0.0     # Set per IBKR commission schedule
+  fee_per_share: 0.0            # SEC/FINRA fees if applicable
+
   # Order validation
   min_order_value: 100          # Minimum $100 orders
   max_order_value: 10000        # Maximum $10k orders
@@ -35,6 +38,7 @@ market_data:
   request_level2: true          # Request L2 market depth
   depth_levels: 10              # Number of depth levels
   smart_depth: false            # Use exchange-specific depth
+  exchange: "NYSE"              # Match L2 data subscription
   
   # Data validation
   max_stale_data_seconds: 5     # Reject stale data

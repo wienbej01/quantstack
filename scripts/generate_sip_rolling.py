@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 
 def main():
     logging.info("=" * 80)
-    logging.info("GENERATING SIP MEMBERSHIP: 2023-01 to 2025-09")
+    logging.info("GENERATING SIP MEMBERSHIP: 2023-01 to 2025-12")
     logging.info("=" * 80)
 
     features_path = Path("run/daily_features_rolling/features.parquet")

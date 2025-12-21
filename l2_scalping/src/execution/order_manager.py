@@ -13,7 +13,7 @@ from queue import Queue
 from typing import Callable, Dict, List, Optional
 
 from ib_insync import IB, Fill, LimitOrder, Order, Stock, Trade
-from ib_insync.objects import OrderStatus
+from ib_insync import *
 
 logger = logging.getLogger(__name__)
 
@@ -63,11 +63,17 @@ class IBKROrderManager:
         self.config = config
         self.ib: Optional[IB] = None
         self.is_connected = False
+        self._loop_thread: Optional[threading.Thread] = None
+        self._running = False
 
         # Connection parameters
-        self.host = config.get("ibkr_host", "127.0.0.1")
-        self.port = config.get("ibkr_port", 7497)  # Paper trading port
-        self.client_id = config.get("client_id", 1)
+        ibkr_cfg = config.get("ibkr", config)
+        self.host = ibkr_cfg.get("host", "127.0.0.1")
+        self.port = ibkr_cfg.get("port", 7497)
+        self.client_id = ibkr_cfg.get("order_client_id", 1)
+        self.order_ref_prefix = (
+            config.get("orders", {}).get("order_ref_prefix", "L2SCALP")
+        )
 
         # Order tracking
         self.active_orders: Dict[int, Trade] = {}
@@ -103,6 +109,9 @@ class IBKROrderManager:
 
             self.is_connected = True
             self.reconnect_attempts = 0
+            self._running = True
+            self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._loop_thread.start()
 
             logger.info(f"Connected to IBKR: {self.host}:{self.port}")
             return True
@@ -114,6 +123,9 @@ class IBKROrderManager:
 
     def disconnect(self) -> None:
         """Disconnect from IBKR"""
+        self._running = False
+        if self._loop_thread:
+            self._loop_thread.join(timeout=1)
         if self.ib and self.ib.isConnected():
             self.ib.disconnect()
         self.is_connected = False
@@ -154,6 +166,10 @@ class IBKROrderManager:
             # Add client order ID if provided
             if order_request.client_order_id:
                 order.orderRef = order_request.client_order_id
+            else:
+                order.orderRef = (
+                    f"{self.order_ref_prefix}_{order_request.symbol}_{int(time.time()*1000)}"
+                )
 
             # Place order
             trade = self.ib.placeOrder(contract, order)
@@ -322,6 +338,15 @@ class IBKROrderManager:
                 return
 
         logger.critical("Failed to reconnect to IBKR after maximum attempts")
+
+    def _run_loop(self) -> None:
+        """Run IBKR event loop"""
+        while self._running and self.ib and self.ib.isConnected():
+            try:
+                self.ib.sleep(0.1)
+            except Exception as e:
+                logger.error(f"Order manager loop error: {e}")
+                break
 
     def get_next_order_update(self, timeout: float = 1.0) -> Optional[OrderUpdate]:
         """Get next order update from queue"""

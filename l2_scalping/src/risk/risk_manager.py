@@ -53,19 +53,24 @@ class RiskManager:
         self.trade_history: List[Dict] = []
         self.risk_status = RiskStatus.NORMAL
         self.last_reset = time.time()
+        self.account_value: float = 0.0
 
-        # Risk limits from config
-        self.max_daily_loss = (
-            config.get("max_daily_loss_bps", 100) / 10000
-        )  # Convert bps to decimal
-        self.max_trade_loss = config.get("max_trade_loss_bps", 10) / 10000
-        self.max_position_pct = config.get("max_position_pct", 0.01)  # 1% of account
-        self.max_daily_trades = config.get("max_daily_trades", 100)
+        # Risk limits from nested config
+        per_trade = config.get("per_trade", {})
+        daily = config.get("daily", {})
+        position_sizing = config.get("position_sizing", {})
+
+        self.max_daily_loss_bps = daily.get("max_loss_bps", 100)
+        self.max_trade_loss_bps = per_trade.get("max_loss_bps", 10)
+        self.max_position_pct = per_trade.get("max_position_pct", 0.01)
+        self.max_daily_trades = daily.get("max_trades", 100)
+        self.max_shares = position_sizing.get("max_shares", 100)
+        self.min_position_value = position_sizing.get("min_position_value", 100)
 
         logger.info(
             f"Risk Manager initialized with limits: "
-            f"daily_loss={self.max_daily_loss:.1%}, "
-            f"trade_loss={self.max_trade_loss:.1%}, "
+            f"daily_loss={self.max_daily_loss_bps:.1f} bps, "
+            f"trade_loss={self.max_trade_loss_bps:.1f} bps, "
             f"position_pct={self.max_position_pct:.1%}"
         )
 
@@ -73,9 +78,11 @@ class RiskManager:
         self, symbol: str, quantity: int, price: float, account_value: float
     ) -> tuple[bool, str]:
         """Check if trade is allowed before execution"""
+        self.account_value = account_value
 
         # Check daily loss limit
-        if self.daily_pnl <= -self.max_daily_loss * account_value:
+        daily_loss_limit = account_value * self.max_daily_loss_bps / 10000
+        if self.daily_pnl <= -daily_loss_limit:
             return False, f"Daily loss limit breached: {self.daily_pnl:.2f}"
 
         # Check daily trade limit
@@ -85,6 +92,8 @@ class RiskManager:
         # Check position size limit
         position_value = abs(quantity) * price
         max_position_value = account_value * self.max_position_pct
+        if abs(quantity) > self.max_shares:
+            return False, f"Share cap exceeded: {quantity} > {self.max_shares}"
 
         if position_value > max_position_value:
             return (
@@ -111,10 +120,12 @@ class RiskManager:
         price: float,
     ) -> int:
         """Calculate optimal position size"""
+        self.account_value = account_value
 
-        # Base position size (1% of account)
-        base_value = account_value * self.max_position_pct
-        base_shares = int(base_value / price)
+        # Risk-at-stop sizing using max loss bps
+        stop_dist = price * (self.max_trade_loss_bps / 10000)
+        risk_budget = account_value * self.max_position_pct
+        qty_risk = int(risk_budget / stop_dist) if stop_dist > 0 else 0
 
         # Scale by signal strength (0.3-1.0 → 0.5-1.5x)
         strength_multiplier = 0.5 + signal_strength
@@ -126,23 +137,32 @@ class RiskManager:
         drawdown_multiplier = 1.0
         if self.daily_pnl < 0:
             # Reduce size by 50% if in significant drawdown
-            drawdown_pct = abs(self.daily_pnl) / (account_value * self.max_daily_loss)
+            drawdown_pct = abs(self.daily_pnl) / max(
+                1.0, account_value * self.max_daily_loss_bps / 10000
+            )
             if drawdown_pct > 0.5:
                 drawdown_multiplier = 0.5
 
         final_shares = int(
-            base_shares
+            qty_risk
             * strength_multiplier
             * confidence_multiplier
             * drawdown_multiplier
         )
 
         # Ensure minimum viable size
-        min_shares = max(1, int(100 / price))  # At least $100 position
+        min_shares = max(1, int(self.min_position_value / price))
         final_shares = max(min_shares, final_shares)
+        max_notional_shares = int((account_value * self.max_position_pct) / price)
+        final_shares = min(
+            final_shares,
+            qty_risk,
+            self.max_shares,
+            max_notional_shares,
+        )
 
         logger.debug(
-            f"Position sizing for {symbol}: base={base_shares}, "
+            f"Position sizing for {symbol}: risk_qty={qty_risk}, "
             f"strength={strength_multiplier:.2f}, confidence={confidence_multiplier:.2f}, "
             f"drawdown={drawdown_multiplier:.2f}, final={final_shares}"
         )
@@ -212,13 +232,14 @@ class RiskManager:
     def _update_risk_status(self) -> None:
         """Update overall risk status"""
         old_status = self.risk_status
+        daily_loss_limit = self.account_value * self.max_daily_loss_bps / 10000
 
         # Check for emergency stop conditions
-        if self.daily_pnl <= -self.max_daily_loss * 0.9:  # 90% of daily limit
+        if self.daily_pnl <= -daily_loss_limit * 0.9:
             self.risk_status = RiskStatus.EMERGENCY_STOP
-        elif self.daily_pnl <= -self.max_daily_loss * 0.7:  # 70% of daily limit
+        elif self.daily_pnl <= -daily_loss_limit * 0.7:
             self.risk_status = RiskStatus.BREACH
-        elif self.daily_pnl <= -self.max_daily_loss * 0.5:  # 50% of daily limit
+        elif self.daily_pnl <= -daily_loss_limit * 0.5:
             self.risk_status = RiskStatus.WARNING
         else:
             self.risk_status = RiskStatus.NORMAL
@@ -290,7 +311,9 @@ class CircuitBreaker:
         self.consecutive_losses = 0
         self.last_trade_time = 0.0
 
-    def check_circuit_breaker(self, trade_pnl: float) -> tuple[bool, str]:
+    def check_circuit_breaker(
+        self, trade_pnl: float, account_value: float
+    ) -> tuple[bool, str]:
         """Check if circuit breaker should trigger"""
         current_time = time.time()
 
@@ -305,8 +328,11 @@ class CircuitBreaker:
 
         # Check loss rate
         recent_pnl = sum(t["pnl"] for t in self.recent_trades)
-        if recent_pnl <= -self.max_loss_rate:
-            self._trigger_breaker(f"Loss rate exceeded: {recent_pnl:.4f} in 1 minute")
+        loss_rate_limit = account_value * self.max_loss_rate / 10000
+        if recent_pnl <= -loss_rate_limit:
+            self._trigger_breaker(
+                f"Loss rate exceeded: {recent_pnl:.2f} in 1 minute"
+            )
             return True, self.trigger_reason
 
         # Check consecutive losses

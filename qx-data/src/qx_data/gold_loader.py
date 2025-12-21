@@ -1,7 +1,9 @@
 """Gold loader for read-only access to normalized bars."""
 
 import glob
+import logging
 import os
+import time
 from datetime import datetime
 
 import pandas as pd
@@ -9,6 +11,8 @@ import pyarrow.parquet as pq
 
 from qx_core.hashers import hash_dataframe
 from qx_core.validators import ValidationError, validate_bars_dataframe
+
+logger = logging.getLogger(__name__)
 
 REQUIRED = ["ts", "symbol", "open", "high", "low", "close", "volume"]
 OPTIONAL = ["trades", "vwap", "session", "date_et"]
@@ -61,6 +65,17 @@ def load_bars(
 
     internal_family = "bars_1m" if family in {"stocks", "bars_1m"} else family
 
+    total_symbols = len(symbols)
+    total_dates = len(dates)
+    log_progress = total_symbols >= 200
+    load_started = time.monotonic()
+    logger.info(
+        "Loading bars: %d symbols, %d dates, family=%s",
+        total_symbols,
+        total_dates,
+        internal_family,
+    )
+
     dfs: list[pd.DataFrame] = []
     files_attempted = 0
 
@@ -71,7 +86,7 @@ def load_bars(
         d for d in dates if len(d) >= 10 and d[4] == "-" and d[7] == "-" and d[:4].isdigit()
     }
 
-    for symbol in symbols:
+    for idx, symbol in enumerate(symbols, 1):
         seen_paths: set[str] = set()
 
         for date_str in dates:
@@ -106,6 +121,15 @@ def load_bars(
                         continue
 
                 dfs.append(df)
+
+        if log_progress and (idx == 1 or idx % 200 == 0 or idx == total_symbols):
+            logger.info(
+                "Loaded symbols %d/%d (files attempted %d, elapsed %.1fs)",
+                idx,
+                total_symbols,
+                files_attempted,
+                time.monotonic() - load_started,
+            )
 
     if not dfs:
         raise RuntimeError(
@@ -151,17 +175,25 @@ def list_available_symbols(root: str, family: str) -> set[str]:
         symbols = set()
         for base_path in search_roots:
             try:
-                letter_dirs = os.listdir(base_path)
+                entries = list(os.scandir(base_path))
             except FileNotFoundError:
                 continue
-            for letter_dir in letter_dirs:
-                letter_path = os.path.join(base_path, letter_dir)
-                try:
-                    symbol_dirs = os.listdir(letter_path)
-                except FileNotFoundError:
+            for entry in entries:
+                if not entry.is_dir():
                     continue
-                for symbol in symbol_dirs:
-                    symbols.add(symbol)
+                name = entry.name
+                # Two layouts are supported:
+                # 1) <base>/<LETTER>/<SYMBOL>/...
+                # 2) <base>/<SYMBOL>/...
+                if len(name) == 1 and name.isalpha():
+                    try:
+                        for symbol_entry in os.scandir(entry.path):
+                            if symbol_entry.is_dir():
+                                symbols.add(symbol_entry.name)
+                    except FileNotFoundError:
+                        continue
+                else:
+                    symbols.add(name)
             if symbols:
                 break
         return symbols

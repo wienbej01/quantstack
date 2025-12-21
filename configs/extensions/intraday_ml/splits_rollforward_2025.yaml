@@ -1,0 +1,12 @@
+# Roll-forward Phase A splits aligned to the latest 1m gold data (through 2025-12-15).
+train:
+  start: "2024-11-01"
+  end:   "2025-10-31"
+
+val:
+  start: "2025-11-01"
+  end:   "2025-11-30"
+
+oos:
+  start: "2025-12-01"
+  end:   "2025-12-15"

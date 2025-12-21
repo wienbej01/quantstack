@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-
 from ib_insync import IB, Stock, Ticker
 from qx_l2.features import L2FeatureEngineer
 from qx_l2.journal import L2Journal
@@ -139,7 +138,9 @@ class L2Collector:
                 return False
 
             qualified = details[0]
-            contract = qualified.contract if hasattr(qualified, "contract") else qualified
+            contract = (
+                qualified.contract if hasattr(qualified, "contract") else qualified
+            )
 
             if self.allowed_primary_exchanges:
                 primary = getattr(contract, "primaryExchange", None) or getattr(

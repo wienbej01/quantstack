@@ -48,19 +48,26 @@ class L2DataFeed:
         self.config = config
         self.ib: Optional[IB] = None
         self.is_connected = False
+        self._loop_thread: Optional[threading.Thread] = None
+        self._running = False
 
         # Connection parameters
-        self.host = config.get("ibkr_host", "127.0.0.1")
-        self.port = config.get("ibkr_port", 7497)
-        self.client_id = config.get("data_client_id", 2)  # Different from order client
+        ibkr_cfg = config.get("ibkr", config)
+        self.host = ibkr_cfg.get("host", "127.0.0.1")
+        self.port = ibkr_cfg.get("port", 7497)
+        self.client_id = ibkr_cfg.get("data_client_id", 2)
 
         # Subscribed symbols
-        self.symbols = config.get("symbols", [])
+        market_cfg = config.get("market_data", {})
+        self.symbols = market_cfg.get("symbols", [])
         self.contracts: Dict[str, Stock] = {}
         self.tickers: Dict[str, Ticker] = {}
 
         # Feature engineering
         self.feature_engineers: Dict[str, L2FeatureEngineer] = {}
+        self.depth_levels = market_cfg.get("depth_levels", 10)
+        self.smart_depth = market_cfg.get("smart_depth", False)
+        self.exchange = market_cfg.get("exchange", "NYSE")
 
         # Data callbacks
         self.data_callbacks: List[Callable[[L2Snapshot], None]] = []
@@ -85,6 +92,9 @@ class L2DataFeed:
             self.ib.errorEvent += self._on_error
 
             self.is_connected = True
+            self._running = True
+            self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
+            self._loop_thread.start()
             logger.info(f"Connected to IBKR for market data: {self.host}:{self.port}")
 
             # Subscribe to symbols
@@ -99,6 +109,9 @@ class L2DataFeed:
 
     def disconnect(self) -> None:
         """Disconnect from IBKR"""
+        self._running = False
+        if self._loop_thread:
+            self._loop_thread.join(timeout=1)
         if self.ib and self.ib.isConnected():
             # Cancel all subscriptions
             for ticker in self.tickers.values():
@@ -114,10 +127,12 @@ class L2DataFeed:
         """Subscribe to L2 data for all symbols"""
         for symbol in self.symbols:
             try:
-                contract = Stock(symbol, "SMART", "USD")
+                contract = Stock(symbol, self.exchange, "USD")
 
                 # Request market depth (L2)
-                ticker = self.ib.reqMktDepth(contract, numRows=10, isSmartDepth=False)
+                ticker = self.ib.reqMktDepth(
+                    contract, numRows=self.depth_levels, isSmartDepth=self.smart_depth
+                )
 
                 if ticker:
                     self.contracts[symbol] = contract
@@ -259,6 +274,15 @@ class L2DataFeed:
     def add_data_callback(self, callback: Callable[[L2Snapshot], None]) -> None:
         """Add callback for data updates"""
         self.data_callbacks.append(callback)
+
+    def _run_loop(self) -> None:
+        """Run IBKR event loop"""
+        while self._running and self.ib and self.ib.isConnected():
+            try:
+                self.ib.sleep(0.1)
+            except Exception as e:
+                logger.error(f"Data feed loop error: {e}")
+                break
 
     def get_latest_snapshot(self, symbol: str) -> Optional[L2Snapshot]:
         """Get latest snapshot for symbol"""

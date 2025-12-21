@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build daily feature store for rolling training: 2023-01 to 2025-09."""
+"""Build daily feature store for rolling training: 2024-11 to 2025-12."""
 
 import logging
 from datetime import datetime
@@ -53,6 +53,62 @@ def load_daily_bars(symbol, start_date, end_date):
         return load_daily_bars_gcs(symbol, start_date, end_date)
 
 
+KEEP_COLS = [
+    "date",
+    "symbol",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "prior_close",
+    "gap_pct",
+    "atr14",
+    "adv20",
+]
+
+SCHEMA_CASTS = {
+    "date": pl.Date,
+    "symbol": pl.Utf8,
+    "open": pl.Float64,
+    "high": pl.Float64,
+    "low": pl.Float64,
+    "close": pl.Float64,
+    "volume": pl.Float64,
+    "prior_close": pl.Float64,
+    "gap_pct": pl.Float64,
+    "tr": pl.Float64,
+    "atr14": pl.Float64,
+    "adv20": pl.Float64,
+}
+
+
+def _read_parquet_minimal(source) -> pl.DataFrame:
+    """Read only the columns needed for daily aggregation."""
+    columns = ["ts", "timestamp", "open", "high", "low", "close", "volume"]
+    try:
+        return pl.read_parquet(source, columns=columns)
+    except Exception:
+        df = pl.read_parquet(source)
+        keep = [col for col in columns if col in df.columns]
+        return df.select(keep)
+
+
+def _normalize_schema(df: pl.DataFrame) -> pl.DataFrame:
+    """Align schema across parquet shards to avoid concat mismatches."""
+    casts = {}
+    if "timestamp" in df.columns:
+        casts["timestamp"] = pl.Datetime("ns")
+    for col in ("open", "high", "low", "close"):
+        if col in df.columns:
+            casts[col] = pl.Float64
+    if "volume" in df.columns:
+        casts["volume"] = pl.Int64
+    if not casts:
+        return df
+    return df.with_columns([pl.col(name).cast(dtype) for name, dtype in casts.items()])
+
+
 def load_daily_bars_mount(symbol, start_date, end_date):
     """Load from mount."""
     symbol_path = MOUNT_PATH / symbol
@@ -71,9 +127,10 @@ def load_daily_bars_mount(symbol, start_date, end_date):
     dfs = []
     for file_path in files:
         try:
-            df = pl.read_parquet(file_path)
+            df = _read_parquet_minimal(file_path)
             if "ts" in df.columns:
                 df = df.rename({"ts": "timestamp"})
+            df = _normalize_schema(df)
             dfs.append(df)
         except Exception as e:
             logging.debug(f"Error reading {file_path}: {e}")
@@ -102,9 +159,10 @@ def load_daily_bars_gcs(symbol, start_date, end_date):
     for file_path in files:
         try:
             with fs.open(file_path, "rb") as f:
-                df = pl.read_parquet(f)
+                df = _read_parquet_minimal(f)
             if "ts" in df.columns:
                 df = df.rename({"ts": "timestamp"})
+            df = _normalize_schema(df)
             dfs.append(df)
         except Exception as e:
             logging.debug(f"Error reading {file_path}: {e}")
@@ -174,22 +232,30 @@ def aggregate_to_daily(df, start_date, end_date):
             pl.col("volume").rolling_mean(20).alias("adv20"),
         ]
     )
+    # Enforce consistent schema across all batches
+    for col, dtype in SCHEMA_CASTS.items():
+        if col not in daily.columns:
+            daily = daily.with_columns(pl.lit(None).cast(dtype).alias(col))
+        else:
+            daily = daily.with_columns(pl.col(col).cast(dtype))
+
+    daily = daily.select(KEEP_COLS)
 
     return daily
 
 
 def main():
     logging.info("=" * 80)
-    logging.info("BUILDING DAILY FEATURE STORE: 2023-01 to 2025-09")
+    logging.info("BUILDING DAILY FEATURE STORE: 2024-11 to 2025-12")
     logging.info("=" * 80)
 
     # Load universe
     symbols = load_gold_universe()
     logging.info(f"Universe: {len(symbols)} symbols")
 
-    # Date range: 2023-01-01 to 2025-09-30 (33 months)
-    start_date = datetime(2023, 1, 1).date()
-    end_date = datetime(2025, 9, 30).date()
+    # Date range: 2024-11-01 to 2025-12-15 (train/val/oos window)
+    start_date = datetime(2024, 11, 1).date()
+    end_date = datetime(2025, 12, 15).date()
     logging.info(f"Date range: {start_date} to {end_date}")
 
     # Check for checkpoint
@@ -204,6 +270,17 @@ def main():
     if checkpoint_file.exists():
         logging.info(f"Found checkpoint: {checkpoint_file}")
         checkpoint_df = pl.read_parquet(checkpoint_file)
+        # Align checkpoint schema to KEEP_COLS
+        for col in KEEP_COLS:
+            if col not in checkpoint_df.columns:
+                checkpoint_df = checkpoint_df.with_columns(
+                    pl.lit(None).cast(SCHEMA_CASTS[col]).alias(col)
+                )
+            else:
+                checkpoint_df = checkpoint_df.with_columns(
+                    pl.col(col).cast(SCHEMA_CASTS[col])
+                )
+        checkpoint_df = checkpoint_df.select(KEEP_COLS)
         all_features.append(checkpoint_df)
         processed_symbols = set(checkpoint_df["symbol"].unique().to_list())
         start_batch = len(processed_symbols) // 50
@@ -238,6 +315,17 @@ def main():
 
         if batch_data:
             batch_df = pl.concat(batch_data)
+            # Enforce schema and column order
+            for col in KEEP_COLS:
+                if col not in batch_df.columns:
+                    batch_df = batch_df.with_columns(
+                        pl.lit(None).cast(SCHEMA_CASTS[col]).alias(col)
+                    )
+                else:
+                    batch_df = batch_df.with_columns(
+                        pl.col(col).cast(SCHEMA_CASTS[col])
+                    )
+            batch_df = batch_df.select(KEEP_COLS)
             all_features.append(batch_df)
             logging.info(
                 f"  Batch {batch_num}: {len(batch_data)}/{len(batch)} symbols had data"
@@ -256,7 +344,19 @@ def main():
         logging.error("No features generated!")
         return
 
-    combined = pl.concat(all_features)
+    # Final alignment before concat to guarantee identical width/order
+    aligned = []
+    for df in all_features:
+        tmp = df
+        for col in KEEP_COLS:
+            if col not in tmp.columns:
+                tmp = tmp.with_columns(pl.lit(None).cast(SCHEMA_CASTS[col]).alias(col))
+            else:
+                tmp = tmp.with_columns(pl.col(col).cast(SCHEMA_CASTS[col]))
+        tmp = tmp.select(KEEP_COLS)
+        aligned.append(tmp)
+
+    combined = pl.concat(aligned)
     output_dir = Path("run/daily_features_rolling")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_file = output_dir / "features.parquet"

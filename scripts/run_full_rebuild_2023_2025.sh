@@ -4,10 +4,10 @@
 set -e
 
 echo "=========================================="
-echo "FULL REBUILD: 2023-01 to 2025-09"
+echo "FULL REBUILD: 2023-01 to 2025-12"
 echo "=========================================="
-echo "Date range: 2023-01-01 to 2025-09-30"
-echo "Training periods: 26 months (2023-08 to 2025-09)"
+echo "Date range: 2023-01-01 to 2025-12-15"
+echo "Training periods: 26 months (2023-08 to 2025-12)"
 echo "Daily SIP selection: Top 50 stocks per day"
 echo ""
 
