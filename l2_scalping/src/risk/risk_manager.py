@@ -144,10 +144,7 @@ class RiskManager:
                 drawdown_multiplier = 0.5
 
         final_shares = int(
-            qty_risk
-            * strength_multiplier
-            * confidence_multiplier
-            * drawdown_multiplier
+            qty_risk * strength_multiplier * confidence_multiplier * drawdown_multiplier
         )
 
         # Ensure minimum viable size
@@ -330,9 +327,7 @@ class CircuitBreaker:
         recent_pnl = sum(t["pnl"] for t in self.recent_trades)
         loss_rate_limit = account_value * self.max_loss_rate / 10000
         if recent_pnl <= -loss_rate_limit:
-            self._trigger_breaker(
-                f"Loss rate exceeded: {recent_pnl:.2f} in 1 minute"
-            )
+            self._trigger_breaker(f"Loss rate exceeded: {recent_pnl:.2f} in 1 minute")
             return True, self.trigger_reason
 
         # Check consecutive losses

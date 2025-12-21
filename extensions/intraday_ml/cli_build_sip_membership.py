@@ -30,14 +30,16 @@ from pathlib import Path
 
 import pandas as pd
 import yaml
-from qx_data.gold_loader import list_available_symbols, load_bars
-from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
 from extensions.intraday_ml.sip_membership import save_sip_membership
 from extensions.intraday_ml.utils import MonthlyBarsCache
+from qx_data.gold_loader import list_available_symbols, load_bars
+from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,12 @@ def _load_symbols_from_list_file(path: str) -> list[str]:
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
-        cleaned = line.replace("├──", " ").replace("└──", " ").replace("│", " ").replace("─", " ")
+        cleaned = (
+            line.replace("├──", " ")
+            .replace("└──", " ")
+            .replace("│", " ")
+            .replace("─", " ")
+        )
         for token in cleaned.replace(",", " ").split():
             candidate = token.strip()
             if not candidate:
@@ -128,7 +135,9 @@ def _resolve_candidate_symbols(
             "--use-gold-universe to define the candidate symbols."
         )
     if sum(selections) > 1:
-        raise ValueError("Please choose only one universe source: config, list file, or full Gold.")
+        raise ValueError(
+            "Please choose only one universe source: config, list file, or full Gold."
+        )
 
     if universe_config_path:
         return _load_symbols_from_config(universe_config_path)
@@ -161,7 +170,9 @@ def build_sip_for_range(
     if not candidate_symbols:
         raise ValueError("candidate_symbols cannot be empty.")
     candidate_symbols = sorted({str(symbol).upper() for symbol in candidate_symbols})
-    logger.info("Using %d candidate symbols for SIP generation.", len(candidate_symbols))
+    logger.info(
+        "Using %d candidate symbols for SIP generation.", len(candidate_symbols)
+    )
 
     # Configure the HMM SIP selector to use the legacy mode
     sip_config = HMMSIPConfig(
@@ -282,7 +293,9 @@ def build_sip_for_range(
                 for symbols in sip_map.values():
                     sip_symbols_for_day.update(symbols)
 
-            logger.info("Found %s SIP symbols for %s", len(sip_symbols_for_day), date_str)
+            logger.info(
+                "Found %s SIP symbols for %s", len(sip_symbols_for_day), date_str
+            )
 
             # Create the membership DataFrame for the day
             membership_records = []
@@ -407,7 +420,9 @@ def main():
     )
     external_premarket_root = args.external_premarket_root
     if not external_premarket_root:
-        external_premarket_root = str(Path(args.gold_root) / "intraday_ml" / "sip_universe_pre")
+        external_premarket_root = str(
+            Path(args.gold_root) / "intraday_ml" / "sip_universe_pre"
+        )
 
     output_root = args.output_root
     if output_root:

@@ -7,6 +7,7 @@ A modular, framework-agnostic trading system with configurable universe selectio
 **✅ FULL 2025 YTD COVERAGE: Features and SIP complete through Dec 15, 2025**  
 **✅ REGIME-AWARE MODELS: Trained on 2024-12-01 to 2025-11-15, validated through Dec 15**  
 **✅ PRODUCTION READY: 1,700,509 feature rows, 86 features, 3 regime models**  
+**✅ VALIDATION: Long 49.9% win rate, Short 50.1% win rate on holdout period**  
 **✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
 
 ### Phase 1 & 2 Implementation Complete

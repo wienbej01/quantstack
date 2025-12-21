@@ -42,7 +42,9 @@ class TestL2Signals(unittest.TestCase):
             "symbols": {"PFE": {"max_spread": 0.02}},
         }
         self.generator = L2SignalGenerator(self.config)
-        self.validator = SignalValidator(self.config, {"thin_book": {"allow_thin_book": True}})
+        self.validator = SignalValidator(
+            self.config, {"thin_book": {"allow_thin_book": True}}
+        )
 
     def test_obi_momentum_signal(self):
         """Test OBI momentum signal generation"""
@@ -138,8 +140,10 @@ class TestRiskManager(unittest.TestCase):
         # Print reason for debugging
         if not can_trade:
             print(f"Risk check failed: {reason}")
-        
-        self.assertTrue(can_trade or "position" in reason.lower())  # Allow position-related failures
+
+        self.assertTrue(
+            can_trade or "position" in reason.lower()
+        )  # Allow position-related failures
 
     def test_daily_loss_limit(self):
         """Test daily loss limit"""
@@ -173,7 +177,9 @@ class TestCircuitBreaker(unittest.TestCase):
                 time.sleep(1.1)  # Wait longer than min_time_between_trades
             triggered, reason = self.breaker.check_circuit_breaker(-0.0001, 100000)
             if i < 2:
-                self.assertFalse(triggered, f"Should not trigger on loss {i+1}: {reason}")
+                self.assertFalse(
+                    triggered, f"Should not trigger on loss {i+1}: {reason}"
+                )
             else:
                 self.assertTrue(triggered, "Should trigger on 3rd consecutive loss")
                 self.assertIn("Consecutive losses", reason)

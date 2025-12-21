@@ -12,8 +12,8 @@ from enum import Enum
 from queue import Queue
 from typing import Callable, Dict, List, Optional
 
-from ib_insync import IB, Fill, LimitOrder, Order, Stock, Trade
 from ib_insync import *
+from ib_insync import IB, Fill, LimitOrder, Order, Stock, Trade
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +71,8 @@ class IBKROrderManager:
         self.host = ibkr_cfg.get("host", "127.0.0.1")
         self.port = ibkr_cfg.get("port", 7497)
         self.client_id = ibkr_cfg.get("order_client_id", 1)
-        self.order_ref_prefix = (
-            config.get("orders", {}).get("order_ref_prefix", "L2SCALP")
+        self.order_ref_prefix = config.get("orders", {}).get(
+            "order_ref_prefix", "L2SCALP"
         )
 
         # Order tracking
@@ -167,9 +167,7 @@ class IBKROrderManager:
             if order_request.client_order_id:
                 order.orderRef = order_request.client_order_id
             else:
-                order.orderRef = (
-                    f"{self.order_ref_prefix}_{order_request.symbol}_{int(time.time()*1000)}"
-                )
+                order.orderRef = f"{self.order_ref_prefix}_{order_request.symbol}_{int(time.time()*1000)}"
 
             # Place order
             trade = self.ib.placeOrder(contract, order)
