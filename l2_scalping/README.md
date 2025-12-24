@@ -1,31 +1,49 @@
 # L2 Scalping System
 
-A high-frequency scalping system based on Level-2 order book imbalance signals.
+A high-frequency scalping system based on Level-2 order book imbalance signals using the shared **daily SIP universe**.
 
 ## Quick Start
 
 ```bash
-# 1. Run tests
+# 1. Generate SIP universe (shared daily_sip JSON)
+python /home/jacobw/intraday_stack/scripts/generate_daily_sip_universe.py --date 2025-12-22
+
+# 2. Run tests
 ./run.sh test
 
-# 2. Validate system (requires IBKR connection)
+# 3. Validate system (requires IBKR connection)
 ./run.sh validate
 
-# 3. Start paper trading (manual)
+# 4. Start paper trading (manual)
 ./run.sh run
 
-# 4. Install as system service (automatic)
+# 5. Install as system service (automatic)
 ./run.sh install
 sudo systemctl start l2-scalping
 ```
 
 ## System Overview
 
-- **Strategy**: OBI momentum scalping with 5-15 second holds
-- **Target**: 15-20 bps per trade  
-- **Symbols**: Auto-selected from daily SIP universe (top 3)
+- **Strategy**: OBI momentum scalping with 5-30 second holds
+- **Target**: 0.5-1.1 bps gross at 10-30s in the latest sample  
+- **Universe**: Daily SIP universe ranked by score
+- **Selection**: Top 3 symbols from daily SIP ranking
 - **Risk**: 10 bps stop loss, 100 bps daily limit
 - **Schedule**: Automatic start/stop with market hours
+
+## SIP Universe Integration
+
+### Daily SIP Generation
+```bash
+# Inspect SIP universe for L2 scalping
+python src/data/sip_integration.py --date 2025-12-22
+```
+
+### SIP Configuration
+- **Algorithm**: `news_attention×0.5 + volume×0.3 + volatility×0.2`
+- **Parameters**: score_floor configurable in generator
+- **Output**: All passing symbols ranked → Top 3 selected for scalping
+- **Storage**: `SIP_DAILY_ROOT/date=YYYY-MM-DD/sip_universe.json`
 
 ## System Requirements Met ✅
 
@@ -42,7 +60,7 @@ sudo systemctl start l2-scalping
 - **Auto-restart**: Handles disconnections and errors
 
 ### 3. SIP Integration
-- **Shared Data Source**: Reads from `/home/jacobw/quantstack/data/daily_sip/`
+- **Shared Data Source**: Reads from `/home/jacobw/intraday_stack/data/daily_sip/` (override with `SIP_DAILY_ROOT`)
 - **Same Universe**: Uses identical SIP files as l2-collector
 - **Top 3 Selection**: Automatically selects top 3 symbols from daily HMM ranking
 - **Fallback**: Uses PFE, HAL, LUV if SIP data unavailable
@@ -172,15 +190,16 @@ Tests cover:
 
 ## Performance Expectations
 
-Based on analysis of 135k L2 snapshots:
+Based on analysis of 272,808 L2 records (Dec 19 & Dec 23, 2025):
 
 | Metric | Expected Value |
 |--------|----------------|
-| Win Rate | 20-30% |
-| Avg Win | +15-20 bps |
-| Avg Loss | -10 bps |
-| Signals/Day | ~50-100 |
-| Sharpe Ratio | 1.5-2.0 |
+| Mean Return (10-30s) | 0.4-0.7 bps (gross) |
+| Win Rate (30s extreme OBI) | ~41-42% |
+| Win Rate (5m strict filter) | ~56% (182 trades, Dec 23) |
+| Signals/Day (30s extreme OBI) | ~9k (sample) |
+| Cost Note | Break-even size ~ $17.5k for 30s at $2 commission |
+| Long Holds (net positive) | 600-900s for OBI>0.8 + rel_vol>2 + RSI>50 |
 
 ## Troubleshooting
 
