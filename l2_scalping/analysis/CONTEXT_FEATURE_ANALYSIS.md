@@ -75,3 +75,14 @@ Assumptions: $4k position size, $2 commission.
 | baseline_obi_08 | 900s | 6.84 bps | +$0.73 | 4,682 |
 | obi_08_relvol_rsi50 | 600s | 14.19 bps | +$3.67 | 173 |
 | obi_08_relvol_rsi50 | 900s | 29.68 bps | +$9.87 | 159 |
+
+## Leverage-Capped Sensitivity (3x Max, 900s Hold)
+
+Assumptions: max gross exposure $30k, FIFO admission, $2 commission.
+
+| Position Size | Trades | Mean Return | Win Rate | Avg Net P&L | Total Net P&L |
+|---------------|--------|-------------|----------|-------------|---------------|
+| $2,000 | 78 | 8.15 bps | 61.5% | -$0.37 | -$28.87 |
+| $4,000 | 42 | 12.28 bps | 78.6% | +$2.91 | +$122.22 |
+
+Rank-replace (score = rel_vol) at $4,000: 51 trades, +$88.98 total net P&L.

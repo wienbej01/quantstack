@@ -51,6 +51,17 @@ At longer holds, net P&L turns positive for this filter:
 | 600s | 14.19 bps | +$3.67 | 173 |
 | 900s | 29.68 bps | +$9.87 | 159 |
 
+## Leverage-Capped Results (3x Max, 900s Hold)
+
+Assumptions: max gross exposure $30k, FIFO admission, $2 commission.
+
+| Position Size | Trades | Mean Return | Win Rate | Avg Net P&L | Total Net P&L |
+|---------------|--------|-------------|----------|-------------|---------------|
+| $2,000 | 78 | 8.15 bps | 61.5% | -$0.37 | -$28.87 |
+| $4,000 | 42 | 12.28 bps | 78.6% | +$2.91 | +$122.22 |
+
+Rank-replace (score = rel_vol) at $4,000: 51 trades, +$88.98 total net P&L.
+
 ## Next Validation Steps
 
 1. Re-test hard gates on the expanded sample
