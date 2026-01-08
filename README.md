@@ -18,6 +18,12 @@ A modular, framework-agnostic trading system with configurable universe selectio
 - **Process Validation**: Ensures single gateway instance on port 7497
 - **L2 Collection**: Restored after Docker container removal (BE, F, ACHR active)
 
+### Systemd Service Fixes (2026-01-09)
+- **Timezone Fix**: Added `TZ=America/New_York` to all trading services
+- **API Compatibility**: Fixed deprecated `fillEvent` → `execDetailsEvent` in l2-scalping
+- **Service Status**: All services now running with proper ET time detection
+- **Client IDs**: l2-scalping (10,11), l2-collector (521) - no conflicts
+
 ### Systemd Services
 | Service | Purpose | Status |
 |---------|---------|--------|
