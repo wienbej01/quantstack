@@ -67,25 +67,15 @@ class L2SignalGenerator:
         self._calibration: dict[str, dict[str, deque[float]]] = {}
 
     def _load_symbol_stats(self) -> Dict:
-        """Load pre-computed symbol statistics"""
+        """Load default symbol statistics - applied to all SIP symbols dynamically"""
+        # Conservative defaults for any symbol from daily SIP
+        # Real stats are computed during calibration window
         return {
-            "HAL": {
-                "pressure_mean": -700,
-                "pressure_std": 2000,
-                "bid_p10": 3200,
-                "ask_p10": 4200,
-            },
-            "PFE": {
-                "pressure_mean": -5500,
-                "pressure_std": 20000,
-                "bid_p10": 31100,
-                "ask_p10": 38500,
-            },
-            "LUV": {
-                "pressure_mean": -300,
-                "pressure_std": 1700,
-                "bid_p10": 2100,
-                "ask_p10": 2100,
+            "defaults": {
+                "pressure_mean": 0,
+                "pressure_std": 5000,
+                "bid_p10": 2000,
+                "ask_p10": 2000,
             },
         }
 

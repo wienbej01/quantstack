@@ -4,15 +4,52 @@ Universe selection and screening for QuantStack.
 
 ## Overview
 
-qx-screener provides deterministic universe selection based on relative volume ranking with cross-sectional filtering for quantitative trading strategies.
+qx-screener provides deterministic universe selection using the shared **daily SIP universe** JSON artifacts for quantitative trading strategies.
 
 ## Features
 
-- **SIP (Symbol Selection by Independent Popularity)** screener
-- **Deterministic ranking** by relative volume
-- **Configurable filters** for price, volume, and other criteria
+- **Daily SIP Universe** - Shared JSON artifacts across all systems
+- **News Attention Scoring** - `volume × |returns|` for catalyst detection  
+- **Multi-factor Algorithm** - `news_attention×0.5 + volume×0.3 + volatility×0.2`
+- **Configurable Filters** - Score floor and optional top_k cap
+- **Parallel Processing** - ThreadPoolExecutor with configurable workers
 - **Integration** with qx-features for feature engineering
-- **Cross-sectional selection** with top-N capabilities
+
+## SIP Universe Generation
+
+### Command Line Usage
+```bash
+# Single date (shared daily_sip JSON)
+python -m qx_screener.hmm_sip --mode polygon --date 2025-12-22
+
+# Using configuration
+python scripts/generate_sip_from_feature_store.py --date 2025-12-22
+```
+
+### Python API
+```python
+from qx_screener.hmm_sip import HMMSIPConfig, HMMSIPUniverseSelector
+
+# Configure shared daily_sip mode
+config = HMMSIPConfig(
+    mode="polygon",
+    top_k=40,
+    score_floor=0.01,
+    price_min=5.0,
+    price_max=50.0,
+    volume_min=100000
+)
+
+selector = HMMSIPUniverseSelector(config)
+universe_map = selector.select(bars_utc, {"target_date": "2025-12-22"})
+```
+
+### Storage Location
+```
+SIP_DAILY_ROOT/date=YYYY-MM-DD/
+├── date=2025-12-22/
+│   └── sip_universe.json
+```
 
 ## Installation
 
@@ -20,13 +57,12 @@ qx-screener provides deterministic universe selection based on relative volume r
 pip install qx-screener
 ```
 
-## Quick Start
+## Legacy Compatibility
 
-```python
-from qx_screener.sip import SipScreener, ScreenerConfig, create_sample_universe_data
-
-# Create sample data
-data = create_sample_universe_data()
+The system maintains backward compatibility with legacy modes:
+- `mode="legacy"` - Original HMM SIP (deprecated)
+- `mode="daily"` - Daily HMM SIP (deprecated)  
+- `mode="polygon"` - **Recommended** shared daily_sip JSON method
 
 # Configure screener
 config = ScreenerConfig(

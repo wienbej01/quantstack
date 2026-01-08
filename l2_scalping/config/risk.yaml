@@ -38,14 +38,9 @@ thin_book:
   allow_thin_book: false        # Reject trades in thin book
   size_reduction_pct: 0.5       # Reduce size by 50% if near threshold
 
-# Symbol-specific thresholds (P10 from analysis)
+# Thin book thresholds - DYNAMIC defaults for SIP symbols
+# Conservative defaults applied to all symbols from daily SIP
 thin_book_thresholds:
-  HAL:
-    bid_p10: 3200
-    ask_p10: 4200
-  PFE:
-    bid_p10: 31100
-    ask_p10: 38500
-  LUV:
-    bid_p10: 2100
-    ask_p10: 2100
+  defaults:
+    bid_p10: 2000               # Conservative default
+    ask_p10: 2000               # Conservative default

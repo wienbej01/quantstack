@@ -1,109 +1,66 @@
 #!/usr/bin/env python3
-"""Generate SIP membership from existing feature store."""
+"""Inspect SIP membership from shared daily_sip JSON artifacts."""
 
+import argparse
+import json
 import logging
+import os
+from datetime import datetime
 from pathlib import Path
-
-import polars as pl
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(message)s")
 
 
+def _sip_daily_root() -> Path:
+    return Path(
+        os.environ.get("SIP_DAILY_ROOT", "/home/jacobw/intraday_stack/data/daily_sip")
+    )
+
+
+def _latest_sip_date(root: Path) -> str | None:
+    date_dirs = sorted(root.glob("date=*"))
+    if not date_dirs:
+        return None
+    return date_dirs[-1].name.split("date=")[-1]
+
+
 def main():
+    parser = argparse.ArgumentParser(
+        description="Inspect SIP membership from daily_sip JSON"
+    )
+    parser.add_argument("--date", help="Date YYYY-MM-DD (default: latest)")
+    args = parser.parse_args()
+
+    root = _sip_daily_root()
+    date_str = (
+        args.date or _latest_sip_date(root) or datetime.now().strftime("%Y-%m-%d")
+    )
+    sip_file = root / f"date={date_str}" / "sip_universe.json"
+
     logging.info("=" * 80)
-    logging.info("GENERATING SIP MEMBERSHIP FROM FEATURE STORE")
+    logging.info("LOADING SIP MEMBERSHIP FROM DAILY_SIP JSON")
     logging.info("=" * 80)
+    logging.info(f"File: {sip_file}")
 
-    # Load feature store
-    feature_path = Path("run/daily_features_full_gold_6months/features.parquet")
-    logging.info(f"Loading features from: {feature_path}")
+    if not sip_file.exists():
+        raise SystemExit(f"SIP file not found: {sip_file}")
 
-    df = pl.read_parquet(feature_path)
-    logging.info(
-        f"Loaded {len(df):,} rows, {df['symbol'].n_unique()} symbols, {df['date'].n_unique()} dates"
-    )
+    with open(sip_file) as f:
+        data = json.load(f)
 
-    # SMB SIP parameters
-    min_gap_pct = 0.02  # 2% gap
-    min_atr = 0.70  # $0.70 ATR (adjusted for gold universe)
-    min_adv = 1_000_000  # 1M ADV (adjusted for gold universe)
-    top_k = 50  # Top 50 per day
+    symbols = data.get("symbols", []) if isinstance(data, dict) else data
+    scores = data.get("scores", {}) if isinstance(data, dict) else {}
 
-    logging.info(
-        f"SIP Filters: gap≥{min_gap_pct:.1%}, ATR≥${min_atr:.2f}, ADV≥{min_adv:,}"
-    )
-    logging.info(f"Top-k per day: {top_k}")
-    logging.info("")
+    logging.info(f"Selected {len(symbols)} symbols:")
+    for i, symbol in enumerate(symbols[:10], start=1):
+        score = scores.get(symbol)
+        if score is not None:
+            logging.info(f"  {i:2d}. {symbol}: {score:.4f}")
+        else:
+            logging.info(f"  {i:2d}. {symbol}")
 
-    # Calculate gap % (open vs prev_close)
-    df = df.with_columns([(pl.col("gap_pct").abs()).alias("abs_gap_pct")])
-
-    # Apply filters
-    filtered = df.filter(
-        (pl.col("abs_gap_pct") >= min_gap_pct)
-        & (pl.col("atr14") >= min_atr)
-        & (pl.col("adv20") >= min_adv)
-    )
-
-    logging.info(
-        f"After filters: {len(filtered):,} rows ({len(filtered)/len(df)*100:.1f}%)"
-    )
-
-    # Score = |gap| * ATR * (ADV / 1M)
-    filtered = filtered.with_columns(
-        [
-            (
-                pl.col("abs_gap_pct") * pl.col("atr14") * (pl.col("adv20") / 1_000_000)
-            ).alias("score")
-        ]
-    )
-
-    # Select top-k per day
-    sip = (
-        filtered.sort(["date", "score"], descending=[False, True])
-        .group_by("date")
-        .head(top_k)
-    )
-
-    logging.info(f"Selected {len(sip):,} symbol-date pairs")
-    logging.info(f"Unique symbols: {sip['symbol'].n_unique()}")
-    logging.info(f"Unique dates: {sip['date'].n_unique()}")
-    logging.info(f"Avg symbols/day: {len(sip) / sip['date'].n_unique():.1f}")
-
-    # Save
-    output_dir = Path("run/sip_membership_full_gold_6months")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    output_file = output_dir / "sip_membership.parquet"
-    sip.write_parquet(output_file)
-
-    logging.info("")
-    logging.info("=" * 80)
-    logging.info("SIP MEMBERSHIP GENERATED")
-    logging.info("=" * 80)
-    logging.info(f"Saved to: {output_file}")
-
-    # Daily distribution
-    daily_counts = sip.group_by("date").agg(pl.count().alias("count"))
-    logging.info("")
-    logging.info("Daily Distribution:")
-    logging.info(f"  Min: {daily_counts['count'].min()}")
-    logging.info(f"  Max: {daily_counts['count'].max()}")
-    logging.info(f"  Mean: {daily_counts['count'].mean():.1f}")
-    logging.info(f"  Std: {daily_counts['count'].std():.1f}")
-
-    # Top symbols
-    top_symbols = (
-        sip.group_by("symbol")
-        .agg(pl.count().alias("count"))
-        .sort("count", descending=True)
-        .head(20)
-    )
-    logging.info("")
-    logging.info("Top 20 Most Frequent Symbols:")
-    for row in top_symbols.iter_rows(named=True):
-        pct = row["count"] / sip["date"].n_unique() * 100
-        logging.info(f"  {row['symbol']}: {row['count']} days ({pct:.1f}%)")
+    if len(symbols) > 10:
+        logging.info(f"  ... and {len(symbols) - 10} more")
 
 
 if __name__ == "__main__":

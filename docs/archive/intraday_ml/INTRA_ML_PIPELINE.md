@@ -1,10 +1,29 @@
 # Intraday ML Pipeline
 
-This document describes the new, streamlined pipeline for intraday ML experiments.
+This document describes the streamlined pipeline for intraday ML experiments using the shared **daily SIP universe**.
 
 ## Overview
 
-The new pipeline is designed to be a single, production-grade pipeline that operates entirely within the `extensions/intraday_ml*` namespace. It is a config-driven pipeline that can be run with a single command.
+The pipeline operates within the `extensions/intraday_ml*` namespace and uses the shared **daily SIP universe** JSON artifacts for symbol selection.
+
+## SIP Universe Integration
+
+### SIP Generation
+```bash
+# Generate SIP membership using shared daily_sip JSON
+python /home/jacobw/intraday_stack/scripts/generate_daily_sip_universe.py \
+    --start 2023-01-01 \
+    --end 2023-12-31
+```
+
+### SIP Configuration
+```yaml
+# Shared SIP config (generator defaults)
+score_floor: 0.01
+price_min: 5.0
+price_max: 50.0
+min_dv_pre: 5000000
+```
 
 ## Canonical Command
 
@@ -21,13 +40,20 @@ python run_phaseA_pipeline.py --config /path/to/your/master_config.yaml
 
 The pipeline is configured using a master YAML file that includes other configuration files for different parts of the pipeline. The master config specifies the paths to the following configuration files:
 
-- `universe`: Defines the symbols to be used in the experiment.
+- `universe`: Daily SIP universe (ranked, score-filtered)
 - `splits`: Defines the train, test, and OOS (out-of-sample) date ranges.
 - `cuts`: Defines the time-of-day cuts for signal generation.
 - `features`: Defines the features to be used for training.
 - `targets`: Defines the target variable for the model.
 - `model`: Defines the model to be used for training.
 - `cv`: Defines the cross-validation strategy.
+
+## SIP Storage Location
+```
+SIP_DAILY_ROOT/
+├── date=2025-12-22/
+│   └── sip_universe.json
+```
 - `policy`: Defines the decision policy for generating orders.
 
 The policy configuration supports optional strategy-aware gating. Set

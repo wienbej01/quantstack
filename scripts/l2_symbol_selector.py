@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 """L2 symbol selection strategy for IBKR 3-symbol limit compliance."""
 
-import glob
 import json
+import os
 from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
+
+
+def _sip_daily_root() -> Path:
+    return Path(
+        os.environ.get("SIP_DAILY_ROOT", "/home/jacobw/intraday_stack/data/daily_sip")
+    )
+
+
+def _current_date_str() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
 
 
 def load_daily_sip_universe() -> list[str]:
@@ -12,31 +23,29 @@ def load_daily_sip_universe() -> list[str]:
     Load today's SIP universe from daily SIP files.
     Returns symbols ranked by HMM score (highest first).
     """
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    sip_dir = _sip_daily_root()
+    date_str = _current_date_str()
+    sip_file = sip_dir / f"date={date_str}" / "sip_universe.json"
 
-    # Try to load today's SIP universe
-    sip_file_pattern = f"data/daily_sip/sip_universe_{date_str}.txt"
-    sip_files = glob.glob(sip_file_pattern)
-
-    if not sip_files:
-        # Fallback to most recent SIP file
-        sip_files = glob.glob("data/daily_sip/sip_universe_*.txt")
-        if sip_files:
-            sip_files.sort()  # Get most recent
-            sip_file_pattern = sip_files[-1]
-        else:
-            print(f"Warning: No SIP universe files found in data/daily_sip/")
-            return []
+    if not sip_file.exists():
+        print(f"Warning: SIP universe not found for {date_str}: {sip_file}")
+        return []
 
     try:
-        with open(sip_files[0] if sip_files else sip_file_pattern, "r") as f:
-            symbols = [line.strip() for line in f if line.strip()]
-        print(
-            f"Loaded {len(symbols)} symbols from {sip_files[0] if sip_files else sip_file_pattern}"
-        )
+        with open(sip_file, "r") as f:
+            data = json.load(f)
+        artifact_date = data.get("date") if isinstance(data, dict) else None
+        if artifact_date and artifact_date != date_str:
+            print(
+                f"Warning: SIP artifact date mismatch (file={artifact_date}, "
+                f"expected={date_str})"
+            )
+            return []
+        symbols = data.get("symbols", []) if isinstance(data, dict) else data
+        print(f"Loaded {len(symbols)} symbols from {sip_file}")
         return symbols
     except FileNotFoundError:
-        print(f"Warning: Could not load SIP universe from {sip_file_pattern}")
+        print(f"Warning: Could not load SIP universe from {sip_file}")
         return []
 
 
@@ -84,7 +93,7 @@ def get_rotation_pool(sip_universe: list[str] = None, pool_size: int = 15) -> li
 
 def save_l2_symbols(l2_symbols: list[str]):
     """Save L2 symbols to daily file for L2 collector to read."""
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = _current_date_str()
     l2_file = Path(f"data/daily_sip/l2_symbols_{date_str}.txt")
 
     # Ensure directory exists
@@ -105,7 +114,7 @@ def log_symbol_selection(
     log_dir = Path("data/l2_selection_log")
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = _current_date_str()
     log_file = log_dir / f"{date_str}.json"
 
     selection = {

@@ -95,7 +95,7 @@ class EnhancedLiveTradingSystem:
 
     def load_or_create_daily_universe(self):
         """Load today's SIP universe."""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = self.get_et_time().strftime("%Y-%m-%d")
         sip_universe, l2_symbols = load_daily_sip_results(date_str)
 
         if sip_universe is None:

@@ -36,7 +36,7 @@ class NotificationManager:
     def __init__(self):
         self.base_url = "https://ntfy.sh"
         self.topics = {
-            "alerts": "trading-system-alerts",
+            "alerts": "jacobw-trading-alerts",
             "status": "trading-system-status",
             "trades": "trading-system-trades",
             "data": "trading-system-data",
@@ -389,7 +389,8 @@ class MultiSessionSIPGenerator:
             f"Multi-session SIP generation complete: {len(qualified)} symbols qualified"
         )
         # Clean up connection pool
-        await self.sip_generator.close()
+        if self.client_pool:
+            await self.client_pool.aclose()
 
         return artifact
 

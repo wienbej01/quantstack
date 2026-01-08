@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """Daily SIP universe selection - EXACT original methodology."""
 
-import sys
-from pathlib import Path
-
-# Add paths FIRST
-repo_root = Path(__file__).parent.parent
-sys.path.insert(0, str(repo_root / "qx-data" / "src"))
-
+import json
 import logging
 import os
 import time
 from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
-from qx_data.live.polygon_sip import PolygonSIPSelector
+
+def _current_date_str() -> str:
+    return datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d")
 
 
 def run_daily_sip_selection():
-    """Run daily SIP selection - EXACT original methodology."""
+    """Run daily SIP selection using shared daily_sip JSON artifacts."""
 
     # Setup logging
     logging.basicConfig(
@@ -27,27 +25,39 @@ def run_daily_sip_selection():
     )
     logger = logging.getLogger(__name__)
 
-    logger.info("=== DAILY SIP SELECTION - EXACT ORIGINAL METHODOLOGY ===")
+    logger.info("=== DAILY SIP SELECTION - SHARED DAILY_SIP JSON ===")
 
-    # Check API key
-    if not os.getenv("POLYGON_API_KEY"):
-        raise RuntimeError("POLYGON_API_KEY not set")
+    sip_root = Path(
+        os.environ.get("SIP_DAILY_ROOT", "/home/jacobw/intraday_stack/data/daily_sip")
+    )
+    date_str = _current_date_str()
+    sip_file = sip_root / f"date={date_str}" / "sip_universe.json"
 
-    # Initialize SIP selector
-    sip_selector = PolygonSIPSelector()
+    if not sip_file.exists():
+        logger.error(f"SIP universe not found: {sip_file}")
+        raise RuntimeError("Daily SIP JSON not found")
 
-    # Get NYSE SIP universe using EXACT original parameters
     start_time = time.time()
-    sip_universe = sip_selector.get_sip_universe(top_k=40, score_floor=0.0)
+    with open(sip_file) as f:
+        data = json.load(f)
+    artifact_date = data.get("date") if isinstance(data, dict) else None
+    if artifact_date and artifact_date != date_str:
+        logger.error(
+            "SIP artifact date mismatch: file=%s expected=%s",
+            artifact_date,
+            date_str,
+        )
+        raise RuntimeError("Daily SIP date mismatch")
+
+    sip_universe = data.get("symbols", []) if isinstance(data, dict) else data
 
     # Get top 3 NYSE symbols for L2 collection (IBKR LIMIT)
     # IBKR account limitation: Error 309 above 3 concurrent L2 depth subscriptions
-    l2_symbols = sip_selector.get_nyse_symbols(sip_universe, max_symbols=3)
+    l2_symbols = sip_universe[:3]
 
     elapsed = time.time() - start_time
 
     # Save results
-    date_str = datetime.now().strftime("%Y-%m-%d")
     results_dir = Path("data/daily_sip")
     results_dir.mkdir(parents=True, exist_ok=True)
 
@@ -77,7 +87,7 @@ def run_daily_sip_selection():
     except ImportError:
         logger.warning("L2 symbol selector not available - basic L2 file saved only")
 
-    logger.info(f"ORIGINAL SIP methodology complete in {elapsed:.1f}s")
+    logger.info(f"Shared SIP load complete in {elapsed:.1f}s")
     logger.info(f"NYSE SIP universe: {len(sip_universe)} symbols")
     logger.info(f"L2 symbols: {len(l2_symbols)} symbols")
     logger.info(f"Results saved to {results_dir}")
@@ -88,25 +98,28 @@ def run_daily_sip_selection():
 def load_daily_sip_results(date_str: str = None):
     """Load daily SIP results - NO FALLBACKS."""
     if date_str is None:
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = _current_date_str()
+    sip_root = Path(
+        os.environ.get("SIP_DAILY_ROOT", "/home/jacobw/intraday_stack/data/daily_sip")
+    )
+    sip_file = sip_root / f"date={date_str}" / "sip_universe.json"
 
-    results_dir = Path("data/daily_sip")
-
-    # Load SIP universe
-    sip_file = results_dir / f"sip_universe_{date_str}.txt"
     if not sip_file.exists():
         return None, None
 
     with open(sip_file, "r") as f:
-        sip_universe = [line.strip() for line in f if line.strip()]
-
-    # Load L2 symbols
-    l2_file = results_dir / f"l2_symbols_{date_str}.txt"
-    if not l2_file.exists():
+        data = json.load(f)
+    artifact_date = data.get("date") if isinstance(data, dict) else None
+    if artifact_date and artifact_date != date_str:
+        logging.getLogger(__name__).warning(
+            "SIP artifact date mismatch: file=%s expected=%s",
+            artifact_date,
+            date_str,
+        )
         return None, None
 
-    with open(l2_file, "r") as f:
-        l2_symbols = [line.strip() for line in f if line.strip()]
+    sip_universe = data.get("symbols", []) if isinstance(data, dict) else data
+    l2_symbols = sip_universe[:3]
 
     return sip_universe, l2_symbols
 

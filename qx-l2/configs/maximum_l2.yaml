@@ -24,8 +24,8 @@ symbols:
     - "NYSE"
   
   # SIP integration - NO HARDCODED TICKERS
-  sip_source: "data/daily_sip/sip_universe_*.txt"  # Daily SIP file pattern
-  sip_fallback: "data/daily_sip/l2_symbols_*.txt"  # L2-specific fallback
+  sip_source: "/home/jacobw/intraday_stack/data/daily_sip/date=*/sip_universe.json"
+  sip_fallback: "/home/jacobw/intraday_stack/data/daily_sip/date=*/sip_universe.json"
   
   # Selection strategy
   selection_strategy: "top_3_rotation"  # Rotate through top symbols for maximum coverage

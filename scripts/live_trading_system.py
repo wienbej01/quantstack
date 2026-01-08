@@ -19,6 +19,7 @@ from datetime import time as dt_time
 import pytz
 from daily_sip_scheduler import load_daily_sip_results, run_daily_sip_selection
 
+from qx_data.live.ibkr_data import IBKRMarketDataManager
 from qx_data.live.ibkr_data_tagged import create_quantstack_manager
 from qx_data.live.l2_collector import QuantstackL2Collector
 from qx_data.live.ml_predictor import PaperTrader, RegimeAwarePredictor
@@ -100,7 +101,7 @@ class LiveTradingSystem:
 
     def load_or_create_daily_universe(self):
         """Load today's SIP universe - LIVE DATA ONLY."""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = self.get_et_time().strftime("%Y-%m-%d")
 
         # Try to load existing results first
         sip_universe, l2_symbols = load_daily_sip_results(date_str)
@@ -111,10 +112,11 @@ class LiveTradingSystem:
                 sip_universe, l2_symbols = run_daily_sip_selection()
             except Exception as e:
                 self.logger.error(f"SIP selection failed: {e}")
-                raise RuntimeError("LIVE SIP analysis failed")
+                return False
 
             if sip_universe is None:
-                raise RuntimeError("LIVE SIP analysis returned no results")
+                self.logger.error("LIVE SIP analysis returned no results")
+                return False
 
         self.sip_universe = sip_universe
         self.l2_symbols = l2_symbols
@@ -434,26 +436,34 @@ class LiveTradingSystem:
 
     def run_live_system(self):
         """Main live trading system loop - LIVE DATA ONLY."""
-        # Check prerequisites
         if not os.getenv("POLYGON_API_KEY"):
-            raise RuntimeError("POLYGON_API_KEY not set")
+            self.logger.warning(
+                "POLYGON_API_KEY not set; relying on existing SIP artifacts"
+            )
 
-        # Check IBKR availability
-        self.ibkr_available = self.check_ibkr_connection()
+        # Start pessimistically; only check IBKR when needed
+        self.ibkr_available = False
 
         # Load daily universe (LIVE DATA ONLY)
         self.load_or_create_daily_universe()
 
         last_trade_time = 0
         last_ibkr_check = 0
+        last_sip_check = 0
 
         try:
             while True:
                 current_time = time.time()
                 et_now = self.get_et_time()
 
-                # Recheck IBKR every 5 minutes if not available
-                if not self.ibkr_available and (current_time - last_ibkr_check) > 300:
+                # Refresh SIP universe periodically if missing
+                if not self.sip_universe and (current_time - last_sip_check) > 300:
+                    self.load_or_create_daily_universe()
+                    last_sip_check = current_time
+
+                # Recheck IBKR every 5 minutes if we need it
+                needs_ibkr = self.is_market_hours() or self.is_l2_collection_time()
+                if needs_ibkr and (current_time - last_ibkr_check) > 300:
                     self.ibkr_available = self.check_ibkr_connection()
                     last_ibkr_check = current_time
 
@@ -473,7 +483,11 @@ class LiveTradingSystem:
                         self.logger.error(f"L2 polling failed: {e}")
 
                 # Paper Trading (every 1 minute during market hours)
-                if self.is_market_hours() and current_time - last_trade_time > 60:
+                if (
+                    self.sip_universe
+                    and self.is_market_hours()
+                    and current_time - last_trade_time > 60
+                ):
                     self.execute_paper_trades()
                     last_trade_time = current_time
 

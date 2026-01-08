@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
 import os
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import pandas as pd
+import requests
 from pydantic import BaseModel, Field
 
 from qx_core.contracts import UniverseSelector
@@ -19,21 +24,29 @@ class HMMSIPConfig(BaseModel):
     """Configuration for HMM SIP universe selection with daily mode support"""
 
     # Daily mode fields
-    mode: Literal["legacy", "daily"] = "legacy"
+    mode: Literal["legacy", "daily", "polygon"] = "legacy"
     rebalance_frequency: Literal["daily", "weekly"] = "daily"
     broadcast_time: str = "09:30:00"  # Market open time
 
     # Existing fields (maintaining backward compatibility)
-    top_k: int = 40
-    score_floor: float = 0.0
+    top_k: int = 12
+    score_floor: float = 0.89
     universe_file: str | None = None
     external_premarket_root: str = Field(
-        default=str(Path.home() / "hybrid-local" / "signals" / "sip" / "universe" / "pre"),
+        default=str(
+            Path.home() / "hybrid-local" / "signals" / "sip" / "universe" / "pre"
+        ),
         description="Directory for external premarket HMM files",
     )
     enable_gold_fallback: bool = True
     p_hat_threshold: float | None = None
     min_minutes_in_state: int = 0
+
+    # Polygon SIP fields
+    price_min: float = 5.0
+    price_max: float = 50.0
+    volume_min: int = 100000
+    artifact_dir: str = "data/daily_sip"
 
 
 class HMMSIPUniverseSelector(UniverseSelector):
@@ -48,6 +61,13 @@ class HMMSIPUniverseSelector(UniverseSelector):
         # Cache for minute-level p_hat files
         self._p_hat_cache: dict[tuple[str, str, float], tuple[pd.DataFrame, float]] = {}
         self._p_hat_cache_ttl_seconds = 1800  # 30 minutes TTL for p_hat files
+
+        # Polygon SIP initialization (aligned to shared daily_sip JSON)
+        env_root = os.environ.get("SIP_DAILY_ROOT")
+        self.artifact_dir = Path(env_root) if env_root else Path(cfg.artifact_dir)
+        if cfg.mode == "polygon":
+            self.api_key = os.getenv("POLYGON_API_KEY")
+            self.base_url = "https://api.polygon.io"
         self._p_hat_max_cache_size = 200  # More entries for minute-level data
         # Cache for Gold symbols discovery (expensive operation)
         self._gold_symbols_cache: tuple[set[str], float] | None = None
@@ -66,9 +86,13 @@ class HMMSIPUniverseSelector(UniverseSelector):
         else:
             self._daily_selector = None
 
-    def select(self, bars_utc: pd.DataFrame, ref: dict, **params) -> dict[int, set[str]]:
+    def select(
+        self, bars_utc: pd.DataFrame, ref: dict, **params
+    ) -> dict[int, set[str]]:
         if self.cfg.mode == "daily":
             return self._select_daily_mode(bars_utc, ref, **params)
+        elif self.cfg.mode == "polygon":
+            return self._select_polygon_mode(bars_utc, ref, **params)
         else:
             return self._select_legacy_mode(bars_utc, ref, **params)
 
@@ -129,7 +153,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             # Trigger Gold fallback if external file doesn't exist or is empty/filtered out
             if self.cfg.enable_gold_fallback:
                 print(f"  [HMM SIP] Using Gold fallback for {target_et_date}")
-                shortlist = self._compute_gold_premarket_shortlist(bars_utc, target_et_date)
+                shortlist = self._compute_gold_premarket_shortlist(
+                    bars_utc, target_et_date
+                )
 
         if not shortlist:
             print(f"  [HMM SIP] No shortlist available for {target_et_date}")
@@ -189,7 +215,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if cache_key not in self._cache:
                 # Clean up old entries if cache is full
                 if len(self._cache) >= self._max_cache_size:
-                    oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][1])
+                    oldest_key = min(
+                        self._cache.keys(), key=lambda k: self._cache[k][1]
+                    )
                     del self._cache[oldest_key]
 
                 df = pd.read_parquet(parquet_path)
@@ -230,7 +258,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
         if self._gold_symbols_cache is not None:
             cached_symbols, cache_time = self._gold_symbols_cache
             if current_time - cache_time < self._gold_symbols_cache_ttl_seconds:
-                print(f"  [CACHE HIT] Using cached Gold symbols: {len(cached_symbols)} symbols")
+                print(
+                    f"  [CACHE HIT] Using cached Gold symbols: {len(cached_symbols)} symbols"
+                )
                 return cached_symbols
 
         # Cache miss - discover symbols
@@ -265,7 +295,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
         # Load comprehensive universe from Gold data for proper HMM_SIP filtering (cached)
         gold_symbols = self._get_gold_symbols()
         available_symbols.update(gold_symbols)
-        print(f"  [HMM SIP] Using comprehensive universe: {len(available_symbols)} total symbols")
+        print(
+            f"  [HMM SIP] Using comprehensive universe: {len(available_symbols)} total symbols"
+        )
 
         # Use the input data as-is for premarket analysis
         full_bars_df = bars_utc
@@ -273,7 +305,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
 
         # Convert UTC timestamps to ET for slicing
         bars_et = full_bars_df.copy()
-        bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(ET_TZ)
+        bars_et["ts_et"] = pd.to_datetime(
+            bars_et["ts"], unit="ns", utc=True
+        ).dt.tz_convert(ET_TZ)
 
         # Filter to target ET date
         target_date = pd.to_datetime(target_et_date)
@@ -315,7 +349,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
         # Vectorized calculations for better performance with 1000+ symbols
         # Group by symbol and aggregate premarket data
         premarket_agg = (
-            premarket_bars.groupby("symbol").agg({"close": "last", "volume": "sum"}).reset_index()
+            premarket_bars.groupby("symbol")
+            .agg({"close": "last", "volume": "sum"})
+            .reset_index()
         )
 
         # Calculate premarket dollar volume (close * volume)
@@ -330,11 +366,16 @@ class HMMSIPUniverseSelector(UniverseSelector):
         )
 
         # Merge premarket data with RTH opens
-        merged = premarket_agg.merge(rth_open_bars[["symbol", "open"]], on="symbol", how="inner")
+        merged = premarket_agg.merge(
+            rth_open_bars[["symbol", "open"]], on="symbol", how="inner"
+        )
 
         # Merge with previous close data
         prev_close_df = pd.DataFrame(
-            [{"symbol": symbol, "prev_close": close} for symbol, close in prev_close_map.items()]
+            [
+                {"symbol": symbol, "prev_close": close}
+                for symbol, close in prev_close_map.items()
+            ]
         )
 
         merged = merged.merge(prev_close_df, on="symbol", how="inner")
@@ -346,11 +387,15 @@ class HMMSIPUniverseSelector(UniverseSelector):
             return []
 
         # Calculate gap metrics vectorized
-        merged["gap_pct"] = (merged["open"] - merged["prev_close"]) / merged["prev_close"]
+        merged["gap_pct"] = (merged["open"] - merged["prev_close"]) / merged[
+            "prev_close"
+        ]
         merged["gap_abs"] = merged["gap_pct"].abs()
 
         # Prepare final metrics
-        symbol_metrics = merged[["symbol", "gap_pct", "premarket_dv", "gap_abs"]].to_dict("records")
+        symbol_metrics = merged[
+            ["symbol", "gap_pct", "premarket_dv", "gap_abs"]
+        ].to_dict("records")
 
         if not symbol_metrics:
             return []
@@ -360,17 +405,23 @@ class HMMSIPUniverseSelector(UniverseSelector):
 
         # Cross-sectional z-scoring
         metrics_df["gap_abs_z"] = self._cross_sectional_z(metrics_df["gap_abs"])
-        metrics_df["premarket_dv_z"] = self._cross_sectional_z(metrics_df["premarket_dv"])
+        metrics_df["premarket_dv_z"] = self._cross_sectional_z(
+            metrics_df["premarket_dv"]
+        )
 
         # Calculate composite score
-        metrics_df["score"] = 0.6 * metrics_df["premarket_dv_z"] + 0.4 * metrics_df["gap_abs_z"]
+        metrics_df["score"] = (
+            0.6 * metrics_df["premarket_dv_z"] + 0.4 * metrics_df["gap_abs_z"]
+        )
 
         # Filter by score floor
         if self.cfg.score_floor > 0:
             metrics_df = metrics_df[metrics_df["score"] >= self.cfg.score_floor]
 
         # Sort and select top K
-        metrics_df = metrics_df.sort_values(["score", "symbol"], ascending=[False, True])
+        metrics_df = metrics_df.sort_values(
+            ["score", "symbol"], ascending=[False, True]
+        )
         shortlist = metrics_df["symbol"].head(self.cfg.top_k).tolist()
 
         return [str(symbol).upper() for symbol in shortlist]
@@ -381,7 +432,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
         """Get previous trading day close for each symbol."""
         # Convert to ET for date logic
         bars_et = bars_utc.copy()
-        bars_et["ts_et"] = pd.to_datetime(bars_et["ts"], unit="ns", utc=True).dt.tz_convert(ET_TZ)
+        bars_et["ts_et"] = pd.to_datetime(
+            bars_et["ts"], unit="ns", utc=True
+        ).dt.tz_convert(ET_TZ)
         bars_et["date"] = bars_et["ts_et"].dt.date
 
         # Look back up to 5 days for previous close
@@ -510,7 +563,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
                     all_p_hat_data.append(df)
 
             except Exception as e:
-                print(f"  [P_HAT CACHE ERROR] Failed to load p_hat data for {symbol}: {e}")
+                print(
+                    f"  [P_HAT CACHE ERROR] Failed to load p_hat data for {symbol}: {e}"
+                )
                 continue
 
         if not all_p_hat_data:
@@ -524,7 +579,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             return None
 
         # Filter to target date and ensure UTC timestamps
-        combined_p_hat["ts_utc"] = pd.to_datetime(combined_p_hat["ts"], unit="ns", utc=True)
+        combined_p_hat["ts_utc"] = pd.to_datetime(
+            combined_p_hat["ts"], unit="ns", utc=True
+        )
         combined_p_hat["date_utc"] = combined_p_hat["ts_utc"].dt.date
 
         target_date_utc = target_date.tz_localize(None).date()
@@ -590,9 +647,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if "p_hat" in group.columns:
                 # Filter out rows with NaN p_hat values, then apply threshold
                 valid_p_hat = group.dropna(subset=["p_hat"])
-                passing_symbols = valid_p_hat[valid_p_hat["p_hat"] >= self.cfg.p_hat_threshold][
-                    "symbol"
-                ].unique()
+                passing_symbols = valid_p_hat[
+                    valid_p_hat["p_hat"] >= self.cfg.p_hat_threshold
+                ]["symbol"].unique()
             else:
                 passing_symbols = set()
 
@@ -600,7 +657,9 @@ class HMMSIPUniverseSelector(UniverseSelector):
             if self.cfg.min_minutes_in_state > 0 and len(passing_symbols) > 0:
                 # Look back to ensure symbol has been passing threshold for minimum minutes
                 current_time = pd.to_datetime(ts, unit="ns", utc=True)
-                window_start = current_time - pd.Timedelta(minutes=self.cfg.min_minutes_in_state)
+                window_start = current_time - pd.Timedelta(
+                    minutes=self.cfg.min_minutes_in_state
+                )
 
                 # Get p_hat data for the time window
                 window_data = minute_p_hat[
@@ -633,3 +692,173 @@ class HMMSIPUniverseSelector(UniverseSelector):
             )
 
         return universe_map
+
+    def _select_polygon_mode(
+        self, bars_utc: pd.DataFrame, ref: dict, **params
+    ) -> dict[int, set[str]]:
+        """Polygon SIP mode: use Polygon API for daily universe selection"""
+        validate_bars_dataframe(bars_utc)
+        target_et_date = ref.get("target_date")
+        if not target_et_date:
+            raise ValueError("target_date required for Polygon SIP selector")
+
+        print(f"  [POLYGON SIP] Using Polygon mode for {target_et_date}")
+
+        # Get universe from Polygon SIP
+        universe_symbols = self._get_polygon_sip_universe(target_et_date)
+
+        if not universe_symbols:
+            print(f"  [POLYGON SIP] No symbols selected for {target_et_date}")
+            return {}
+
+        print(f"  [POLYGON SIP] Selected {len(universe_symbols)} symbols")
+
+        # Broadcast to all timestamps
+        universe_map = {}
+        for ts in bars_utc["ts"].unique():
+            universe_map[int(ts)] = set(universe_symbols)
+
+        # Generate hash for compatibility
+        sip_hash = hash_sip_map(universe_map)
+        print(
+            f"  [POLYGON SIP] Universe map: {len(universe_map)} timestamps, sip_hash: {sip_hash[:8]}..."
+        )
+
+        return universe_map
+
+    def _get_polygon_sip_universe(self, date_str: str) -> list[str]:
+        """Get Polygon SIP universe for date"""
+        # Check for existing artifact
+        artifact = self._load_polygon_artifact(date_str)
+        if artifact:
+            return artifact["symbols"]
+
+        print(f"  [POLYGON SIP] No shared daily_sip artifact for {date_str}")
+        return []
+
+    def _load_polygon_artifact(self, date_str: str) -> Optional[dict]:
+        """Load existing Polygon SIP artifact"""
+        date_dir = self.artifact_dir / f"date={date_str}"
+        path = date_dir / "sip_universe.json"
+
+        if path.exists():
+            try:
+                with open(path) as f:
+                    artifact = json.load(f)
+                if artifact.get("date") == date_str:
+                    return artifact
+            except Exception as e:
+                print(f"  [POLYGON SIP] Error loading artifact: {e}")
+        return None
+
+    def _generate_polygon_universe(self, date_str: str) -> Optional[dict]:
+        """Generate new Polygon SIP universe"""
+        print(
+            "  [POLYGON SIP] Generation disabled; use shared daily_sip JSON artifacts."
+        )
+        return None
+
+    def _load_ticker_list(self) -> list[str]:
+        """Load ticker list from file or fetch from Polygon"""
+        ticker_file = Path("data/nyse_gold_tickers.txt")
+
+        if ticker_file.exists():
+            with open(ticker_file) as f:
+                symbols = [line.strip() for line in f if line.strip()]
+            return symbols
+
+        # Fallback: fetch from Polygon
+        return self._fetch_active_tickers()
+
+    def _fetch_active_tickers(self) -> list[str]:
+        """Fetch active US stock tickers from Polygon"""
+        symbols = []
+        url = f"{self.base_url}/v3/reference/tickers"
+        params = {
+            "apikey": self.api_key,
+            "market": "stocks",
+            "active": "true",
+            "limit": 1000,
+        }
+
+        try:
+            while url and len(symbols) < 2000:
+                resp = requests.get(url, params=params, timeout=30)
+                resp.raise_for_status()
+                data = resp.json()
+
+                for t in data.get("results", []):
+                    if t.get("market") == "stocks" and t.get("locale") == "us":
+                        symbols.append(t["ticker"])
+
+                url = data.get("next_url")
+                params = {"apikey": self.api_key} if url else {}
+                time.sleep(0.1)
+
+        except Exception as e:
+            print(f"  [POLYGON SIP] Error fetching tickers: {e}")
+
+        return symbols
+
+    def _get_previous_day_data(self, symbol: str) -> Optional[dict]:
+        """Get previous day OHLCV for symbol"""
+        try:
+            url = f"{self.base_url}/v2/aggs/ticker/{symbol}/prev"
+            resp = requests.get(url, params={"apikey": self.api_key}, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+
+            if data.get("status") == "OK" and data.get("results"):
+                return data["results"][0]
+        except Exception:
+            pass
+        return None
+
+    def _calculate_polygon_sip_score(self, data: dict) -> float:
+        """Calculate Polygon SIP score from OHLCV data"""
+        try:
+            volume = data.get("v", 0)
+            high = data.get("h", 0)
+            low = data.get("l", 0)
+            close = data.get("c", 0)
+            open_price = data.get("o", 0)
+
+            if close == 0:
+                return 0.0
+
+            # Price filter
+            if close < self.cfg.price_min or close > self.cfg.price_max:
+                return 0.0
+
+            # Volume filter
+            if volume < self.cfg.volume_min:
+                return 0.0
+
+            # SIP scoring: volume × |returns| (news attention proxy)
+            returns = abs((close - open_price) / open_price) if open_price > 0 else 0
+            news_attention = volume * returns * 100
+
+            # Normalize components
+            volume_score = min(volume / 10_000_000, 1.0)
+            volatility = (high - low) / close if close > 0 else 0
+            volatility_score = min(volatility * 20, 1.0)
+            attention_score = min(news_attention / 1_000_000, 1.0)
+
+            # Combined score
+            return attention_score * 0.5 + volume_score * 0.3 + volatility_score * 0.2
+
+        except Exception:
+            return 0.0
+
+    def _save_polygon_artifact(self, date_str: str, artifact: dict):
+        """Save Polygon SIP artifact to disk"""
+        date_dir = self.artifact_dir / f"date={date_str}"
+        date_dir.mkdir(parents=True, exist_ok=True)
+        path = date_dir / "sip_universe.json"
+
+        try:
+            with open(path, "w") as f:
+                json.dump(artifact, f, indent=2)
+            print(f"  [POLYGON SIP] Saved artifact to {path}")
+        except Exception as e:
+            print(f"  [POLYGON SIP] Error saving artifact: {e}")

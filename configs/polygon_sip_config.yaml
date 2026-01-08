@@ -1,0 +1,16 @@
+# Polygon SIP Configuration for CLI Build
+# Use this config to generate SIP membership using Polygon SIP Universe
+
+sip_config:
+  mode: "polygon"  # Use Polygon SIP instead of legacy HMM
+  top_k: 40
+  score_floor: 0.01
+  price_min: 5.0
+  price_max: 50.0
+  volume_min: 100000
+  artifact_dir: "data/daily_sip"
+  
+  # Legacy compatibility (ignored in polygon mode)
+  rebalance_frequency: "daily"
+  broadcast_time: "09:30:00"
+  enable_gold_fallback: true

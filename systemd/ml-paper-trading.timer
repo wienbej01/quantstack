@@ -1,0 +1,9 @@
+[Unit]
+Description=Start ML Paper Trading at market open
+
+[Timer]
+OnCalendar=Mon-Fri 09:25:00 America/New_York
+Persistent=true
+
+[Install]
+WantedBy=timers.target

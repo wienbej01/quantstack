@@ -1,0 +1,19 @@
+[Unit]
+Description=Quantstack ML Paper Trading System
+After=network.target
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment="PATH=/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PYTHONPATH=/home/jacobw/quantstack"
+Environment="POLYGON_API_KEY=%h/.env"
+ExecStart=/home/jacobw/quantstack/.venv/bin/python scripts/live_trading_system.py
+Restart=on-failure
+RestartSec=60
+StandardOutput=append:/home/jacobw/quantstack/logs/ml_trading.log
+StandardError=append:/home/jacobw/quantstack/logs/ml_trading.log
+
+[Install]
+WantedBy=multi-user.target

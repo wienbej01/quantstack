@@ -34,50 +34,21 @@ context_gates:
   #   use_displacement_boost: true
   #   use_counter_momentum: true
 
-# Symbol Configuration
+# Symbol Configuration - DYNAMIC FROM DAILY SIP
+# Symbols loaded at runtime from /home/jacobw/intraday_stack/data/daily_sip/
+# See src/data/sip_integration.py for loading logic
 symbols:
-  PFE:
-    enabled: true
-    priority: 1                 # Highest priority
-    max_spread: 0.02
-    median_spread: 0.01
-    correlation_5s: 0.269       # From analysis
-    
-  HAL:
-    enabled: true
-    priority: 2
+  # Default parameters applied to all SIP-selected symbols
+  defaults:
     max_spread: 0.03
-    median_spread: 0.01
-    correlation_5s: 0.170
+    median_spread: 0.015
     
-  LUV:
-    enabled: true
-    priority: 3
-    max_spread: 0.04
-    median_spread: 0.02
-    correlation_5s: 0.133
-
-# Time-of-day adjustments
+# Time-of-day adjustments (applied to all symbols)
 time_adjustments:
-  # PFE best at open
-  PFE:
-    "09:30-10:00": 1.2          # Boost signals 20%
-    "10:00-16:00": 1.0
-    
-  # HAL best in afternoon  
-  HAL:
-    "09:30-12:00": 1.0
-    "12:00-16:00": 1.1          # Boost signals 10%
-    
-  # LUV steady throughout
-  LUV:
-    "09:30-16:00": 1.0
-
-# Mock data (REMOVE BEFORE PAPER TRADING)
-mock_data:
-  enabled: false               # SET TO FALSE FOR LIVE TRADING
-  update_frequency_hz: 2
-  symbols: ["PFE", "HAL", "LUV"]
+  defaults:
+    "09:30-10:00": 1.1          # Opening volatility boost
+    "10:00-15:30": 1.0          # Normal trading
+    "15:30-16:00": 0.9          # Reduce near close
 
 # Automatic Scheduling
 schedule:

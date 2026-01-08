@@ -1,11 +1,13 @@
 """Independent L2 symbol selection."""
 
+import glob
 import hashlib
 import json
 import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +22,15 @@ class L2SymbolSelector:
         self.rotating_pool = symbols_cfg.get("rotating_pool", [])
         self.max_symbols = symbols_cfg.get("max_symbols", 6)
         self._external_symbols: Optional[list[str]] = None
+        self.sip_source = symbols_cfg.get("sip_source")
+        self.sip_fallback = symbols_cfg.get("sip_fallback")
+        self.sip_required = symbols_cfg.get("sip_required", True)
+        schedule_cfg = config.get("schedule", {})
+        self.timezone = (
+            symbols_cfg.get("timezone")
+            or schedule_cfg.get("timezone")
+            or "America/New_York"
+        )
 
         storage_cfg = config.get("storage", {})
         self.log_dir = Path(storage_cfg.get("base_dir", "./data/l2")) / "selection_log"
@@ -27,7 +38,7 @@ class L2SymbolSelector:
     def get_symbols(self, date_str: str = None) -> list[str]:
         """Get symbols for collection based on mode."""
         if date_str is None:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            date_str = self._current_date_str()
 
         if self.mode == "static":
             symbols = self._get_static()
@@ -37,6 +48,8 @@ class L2SymbolSelector:
             symbols = self._get_hybrid(date_str)
         elif self.mode == "external":
             symbols = self._get_external()
+        elif self.mode == "sip_dynamic":
+            symbols = self._get_sip_dynamic(date_str)
         else:
             logger.warning(f"Unknown mode '{self.mode}', using static")
             symbols = self._get_static()
@@ -79,10 +92,77 @@ class L2SymbolSelector:
             return self._external_symbols[: self.max_symbols]
         return self.core_symbols[: self.max_symbols]
 
+    def _get_sip_dynamic(self, date_str: str) -> list[str]:
+        """SIP dynamic: load symbols from daily SIP artifacts."""
+        symbols = self._load_sip_symbols(date_str)
+        if not symbols:
+            message = f"SIP universe not found for {date_str}"
+            if self.sip_required:
+                raise RuntimeError(message)
+            logger.warning(message)
+            return []
+        return symbols[: self.max_symbols]
+
     def set_external_symbols(self, symbols: list[str]):
         """Inject external symbols (e.g., from SIP)."""
         self._external_symbols = symbols
         logger.info(f"External symbols set: {symbols}")
+
+    def _current_date_str(self) -> str:
+        try:
+            tz = ZoneInfo(self.timezone)
+        except Exception:
+            logger.warning(
+                "Invalid timezone %s; defaulting to America/New_York",
+                self.timezone,
+            )
+            tz = ZoneInfo("America/New_York")
+        return datetime.now(tz).strftime("%Y-%m-%d")
+
+    def _load_sip_symbols(self, date_str: str) -> list[str]:
+        for pattern in (self.sip_source, self.sip_fallback):
+            if not pattern:
+                continue
+            sip_path = self._resolve_sip_path(pattern, date_str)
+            if not sip_path or not sip_path.exists():
+                continue
+            try:
+                with open(sip_path, "r") as f:
+                    data = json.load(f)
+            except Exception as exc:
+                logger.warning("Failed to load SIP universe from %s: %s", sip_path, exc)
+                continue
+
+            if isinstance(data, dict):
+                artifact_date = data.get("date")
+                if artifact_date and artifact_date != date_str:
+                    logger.warning(
+                        "SIP artifact date mismatch: file=%s expected=%s",
+                        artifact_date,
+                        date_str,
+                    )
+                    continue
+                symbols = data.get("symbols", [])
+            else:
+                symbols = data
+
+            if symbols:
+                logger.info("Loaded %s SIP symbols from %s", len(symbols), sip_path)
+                return symbols
+
+        return []
+
+    @staticmethod
+    def _resolve_sip_path(pattern: str, date_str: str) -> Optional[Path]:
+        if "date=*" in pattern:
+            return Path(pattern.replace("date=*", f"date={date_str}"))
+        if any(char in pattern for char in ("*", "?", "[")):
+            matches = [Path(path) for path in sorted(glob.glob(pattern))]
+            if not matches:
+                return None
+            dated = [path for path in matches if f"date={date_str}" in str(path)]
+            return dated[0] if dated else None
+        return Path(pattern)
 
     @staticmethod
     def _stable_hash(value: str) -> int:

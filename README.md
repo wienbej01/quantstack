@@ -2,13 +2,56 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Production-Ready Live Trading System (2025-12-21)
+## Latest: Production SIP & Trading System (2026-01-08)
 
-**✅ PRODUCTION RELIABILITY: Enhanced orchestrator with automatic recovery**  
-**✅ SYSTEM PERSISTENCE: All services enabled for autostart across reboots**  
-**✅ MULTI-SESSION SIP: Prior day + overnight + premarket data integration**  
-**✅ API RESILIENCE: Polygon retry logic with exponential backoff**  
-**✅ IBKR AUTO-RECOVERY: Gateway restart capability with health monitoring**
+**✅ SIP GENERATION: Polygon live data, score_floor=0.70 (~20 tickers)**  
+**✅ ORCHESTRATOR: Full service monitoring with NTFY alerts**  
+**✅ L2 COLLECTOR: Dynamic SIP symbols, no hardcoded tickers**  
+**✅ L2 SCALPING: Dynamic SIP symbols, mock data removed**  
+**✅ INTRADAY PAPER: Integrated with daily SIP universe**
+
+### Systemd Services
+| Service | Purpose | Status |
+|---------|---------|--------|
+| `trading-orchestrator.timer` | Pre-market SIP generation | 8:00 AM ET |
+| `l2-collector.service` | L2 data collection | Running |
+| `l2-scalping.service` | L2-based scalping trades | Running |
+| `l2-watchdog.service` | Service health monitoring | Running |
+| `intraday-paper.service` | Paper trading execution | Timer-triggered |
+
+### SIP Configuration
+- **Data Source**: Polygon (live delayed data)
+- **Score Floor**: 0.70 (targets ~20 tickers)
+- **Price Range**: $2-200
+- **Min Dollar Volume**: $5M
+- **Output**: `/home/jacobw/intraday_stack/data/daily_sip/date=YYYY-MM-DD/sip_universe.json`
+
+### Quick Start
+```bash
+# Check all services
+systemctl status l2-collector l2-scalping l2-watchdog
+
+# View orchestrator logs
+tail -f logs/orchestrator.log
+
+# View audit trail
+tail -f logs/orchestrator_audit.log
+
+# Manual SIP generation
+python bulletproof_orchestrator.py
+
+# Check today's SIP universe
+cat /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/sip_universe.json | jq '.symbols[:10]'
+```
+
+### NTFY Notifications
+- `jacobw-trading-status`: System status updates
+- `jacobw-trading-alerts`: Errors and failures
+- `jacobw-trading-trades`: Trade executions
+
+---
+
+## Previous: Production-Ready Live Trading System (2025-12-21)
 
 ### Phase 1 & 2 Implementation Complete
 
