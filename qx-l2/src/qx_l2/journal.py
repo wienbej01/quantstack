@@ -124,6 +124,19 @@ class L2Journal:
             f"Session ended: {session_id} with {stats.get('records', 0)} records"
         )
 
+    def increment_records(self, session_id: str, count: int):
+        """Increment record count for running session."""
+        if not self.enabled or not session_id:
+            return
+
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "UPDATE sessions SET records_collected = records_collected + ? WHERE session_id = ?",
+            (count, session_id),
+        )
+        conn.commit()
+        conn.close()
+
     def log_error(
         self, error_type: str, message: str, session_id: str = None, symbol: str = None
     ):

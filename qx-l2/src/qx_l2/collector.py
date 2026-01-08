@@ -353,9 +353,11 @@ class L2Collector:
 
     def _flush_buffers(self):
         """Flush data buffers to storage."""
+        flushed_count = 0
         if self._raw_buffer:
             try:
                 self.storage.write_batch(self._raw_buffer, "raw")
+                flushed_count += len(self._raw_buffer)
                 self._raw_buffer = []
             except Exception as e:
                 self.journal.log_error("STORAGE", f"raw: {e}", self._session_id)
@@ -363,9 +365,14 @@ class L2Collector:
         if self._feat_buffer:
             try:
                 self.storage.write_batch(self._feat_buffer, "features")
+                flushed_count += len(self._feat_buffer)
                 self._feat_buffer = []
             except Exception as e:
                 self.journal.log_error("STORAGE", f"features: {e}", self._session_id)
+
+        # Update journal with incremental count
+        if flushed_count > 0 and self._session_id:
+            self.journal.increment_records(self._session_id, flushed_count)
 
     @staticmethod
     def _init_session_stats() -> dict[str, float]:

@@ -2,13 +2,21 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Production SIP & Trading System (2026-01-08)
+## Latest: Production SIP & Trading System (2026-01-09)
 
 **✅ SIP GENERATION: Polygon live data, score_floor=0.70 (~20 tickers)**  
-**✅ ORCHESTRATOR: Full service monitoring with NTFY alerts**  
+**✅ ORCHESTRATOR: Full service monitoring with NTFY alerts + gateway conflict detection**  
 **✅ L2 COLLECTOR: Dynamic SIP symbols, no hardcoded tickers**  
 **✅ L2 SCALPING: Dynamic SIP symbols, mock data removed**  
-**✅ INTRADAY PAPER: Integrated with daily SIP universe**
+**✅ INTRADAY PAPER: Integrated with daily SIP universe**  
+**✅ GATEWAY MONITORING: Duplicate process detection, Docker container alerts**
+
+### Gateway Monitoring Enhancement (2026-01-09)
+- **Duplicate Detection**: Orchestrator detects multiple IBKR Gateway processes
+- **Docker Conflict Resolution**: Removed conflicting `jacobw-ib-gateway-1` container
+- **NTFY Alerts**: Gateway conflicts reported via `jacobw-trading-alerts`
+- **Process Validation**: Ensures single gateway instance on port 7497
+- **L2 Collection**: Restored after Docker container removal (BE, F, ACHR active)
 
 ### Systemd Services
 | Service | Purpose | Status |
