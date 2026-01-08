@@ -308,6 +308,8 @@ See [VWAP Momentum Guide](docs/vwap_momentum_guide.md) for detailed documentatio
 
 - [Features](docs/features/) - Detailed feature documentation
 - [Architecture](docs/ARCHITECTURE.md) - System architecture overview
+- [Production Architecture](docs/PRODUCTION_ARCHITECTURE.md) - Production system details
+- [IBKR Gateway Startup](docs/IBKR_GATEWAY_STARTUP.md) - Programmatic Gateway startup methods
 - [Experiments](docs/EXPERIMENTS.md) - Experiment framework guide
 - [Development](docs/DEV_ENV.md) - Development environment setup
 - [Examples](examples/) - Working code examples

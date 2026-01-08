@@ -139,6 +139,7 @@ systemctl list-timers trading-orchestrator.timer
 ### IBKR Gateway Issues
 - **Detection**: Socket connection health checks
 - **Recovery**: Automatic systemd service restart
+- **Programmatic Startup**: Multiple methods available (see [IBKR Gateway Startup Guide](IBKR_GATEWAY_STARTUP.md))
 - **Validation**: Verify connectivity after restart
 
 ### Service Failures
