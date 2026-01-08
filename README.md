@@ -2,13 +2,13 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Live Intraday ML Trading System (2025-12-21)
+## Latest: Production-Ready Live Trading System (2025-12-21)
 
-**✅ FULL 2025 YTD COVERAGE: Features and SIP complete through Dec 15, 2025**  
-**✅ REGIME-AWARE MODELS: Trained on 2024-12-01 to 2025-11-15, validated through Dec 15**  
-**✅ PRODUCTION READY: 1,700,509 feature rows, 86 features, 3 regime models**  
-**✅ VALIDATION: Long 49.9% win rate, Short 50.1% win rate on holdout period**  
-**✅ LIVE SIP: 40 NYSE symbols via real-time Polygon filtering**
+**✅ PRODUCTION RELIABILITY: Enhanced orchestrator with automatic recovery**  
+**✅ SYSTEM PERSISTENCE: All services enabled for autostart across reboots**  
+**✅ MULTI-SESSION SIP: Prior day + overnight + premarket data integration**  
+**✅ API RESILIENCE: Polygon retry logic with exponential backoff**  
+**✅ IBKR AUTO-RECOVERY: Gateway restart capability with health monitoring**
 
 ### Phase 1 & 2 Implementation Complete
 
@@ -45,15 +45,14 @@ python scripts/test_phase2_1min_trading.py
 **Status**: Both phases complete, ready for production testing.
 
 ### System Status
-- ✅ **Live Trading**: Running on IBKR paper account (PID: 1594347)
-- ✅ **Regime Detection**: Bull/Bear/Sideways models trained on 6 months data
-- ✅ **Feature Set**: 11 cross-sectional features (best performers)
-- ✅ **L2 Data Collection**: 135,920+ records collected (HAL, PFE, LUV, SLB, XOM)
-- ✅ **L2 Storage**: `/home/jacobw/quantstack/data/l2_maximum/` (128MB+)
-- ✅ **Position Sizing**: 100 shares per trade, confidence-based entry
-- ✅ **Universe**: 40 NYSE symbols via live Polygon SIP filtering
-- ✅ **L2 Collection**: Opening hour (9:30-10:30) + Power hour (15:00-16:00) ET
-- ✅ **Next Market Open**: 9:30 AM ET, system ready for trading
+- ✅ **Live Trading**: Running on IBKR paper account with production reliability
+- ✅ **Multi-Session SIP**: Prior day + overnight + premarket data integration  
+- ✅ **API Resilience**: Polygon retry logic with exponential backoff
+- ✅ **Auto-Recovery**: IBKR Gateway and L2 collector automatic restart
+- ✅ **System Persistence**: All services enabled for autostart across reboots
+- ✅ **Price Range**: Expanded to $2-200 for broader universe coverage
+- ✅ **Notifications**: Real-time system status via ntfy (iPhone compatible)
+- ✅ **Scheduling**: Daily SIP generation at 8:00 AM ET via systemd timer
 
 ### Quick Start
 ```bash
@@ -67,7 +66,7 @@ python scripts/train_and_save_regime_models.py
 python scripts/regime_aware_strategy.py
 
 # Regenerate daily SIP universe
-python scripts/daily_sip_scheduler.py
+python /home/jacobw/intraday_stack/scripts/generate_daily_sip_universe.py --date $(date +%F)
 
 # Start/restart live system
 ./start_live_system.sh
@@ -118,7 +117,7 @@ cat run/rolling_results_fixed/trades.csv
 ## Features
 
 ### Daily HMM_SIP Universe Selection
-- **Dynamic Symbol Selection**: Uses Hidden Markov Model scoring to select top-k symbols daily
+- **Dynamic Symbol Selection**: Uses shared daily_sip JSON ranked by score
 - **Configuration Driven**: Simple enable/disable via SIP configuration (`mode: "daily"`)
 - **Framework Agnostic**: Works with any trading strategy (VWAP, ML, custom policies)
 - **Performance Optimized**: Hybrid caching with O(1) symbol eligibility checks
@@ -132,8 +131,8 @@ sip:
   method: "hmm"
   config:
     mode: "daily"      # Enable daily universe selection
-    score_floor: 0.01  # Minimum HMM score
-    top_k: 40         # Maximum symbols per day
+    score_floor: 0.01  # Minimum SIP score
+    top_k: 40         # Maximum symbols per day (optional cap)
 ```
 
 ```bash
@@ -144,6 +143,48 @@ python examples/daily_hmm_sip_example.py
 qx-cli exp entry-ab experiments/vwap_daily_hmm/strategy.yaml
 ```
 
+## Data Storage Locations
+
+### Core Data Directories
+```
+/home/jacobw/quantstack/
+├── data/
+│   ├── daily_sip/                    # Compatibility outputs (txt)
+│   │   ├── sip_universe_YYYY-MM-DD.txt
+│   │   └── l2_symbols_YYYY-MM-DD.txt
+│   ├── l2_maximum/                   # L2 microstructure data
+│   │   ├── features/date=YYYY-MM-DD/ # Processed L2 features (parquet)
+│   │   │   └── symbol=XXX/           # Per-symbol feature files
+│   │   ├── raw/                      # Raw L2 snapshots
+│   │   ├── exports/                  # Analysis exports
+│   │   ├── selection_log/            # Symbol rotation logs
+│   │   └── journal.db                # Collection metadata
+│   └── models/                       # Trained ML models
+├── logs/
+│   ├── live_trading.log             # Live trading system logs
+│   ├── l2_collector.log             # L2 data collection logs
+│   └── daily_sip.log                # SIP universe generation logs
+├── run/
+│   ├── rolling_results_fixed/       # Backtest results
+│   │   └── trades.csv               # Trade execution records
+│   └── experiments/                 # Experiment outputs
+└── config/                          # Configuration files
+```
+
+### External Data Sources
+```
+/home/jacobw/gcs-mount/gold/stocks/1m/   # Historical training data (GCS mount)
+/home/jacobw/intraday_stack/data/daily_sip/  # Shared SIP JSON artifacts
+```
+
+### Live System Files
+```
+~/.aws/credentials                   # AWS credentials for services
+/etc/systemd/system/
+├── l2-collector.service            # L2 collection service
+└── l2-watchdog.service             # L2 monitoring service
+```
+
 ## L2 Data Collection
 
 ### Current Status (2025-12-20)
@@ -152,21 +193,6 @@ qx-cli exp entry-ab experiments/vwap_daily_hmm/strategy.yaml
 - **Data Quality**: 100% depth coverage, 2 snapshots/second
 - **Features**: 32 per record (OBI, depth imbalance, spread dynamics)
 - **Analysis Ready**: ✅ Sufficient for initial microstructure analysis
-
-### Data Locations
-```
-Primary Directory: /home/jacobw/quantstack/data/l2_maximum/
-├── features/date=2025-12-19/     # Processed L2 features (parquet)
-│   ├── symbol=HAL/               # 45,307 records
-│   ├── symbol=PFE/               # 43,974 records (today's SIP)
-│   ├── symbol=LUV/               # 43,971 records
-│   ├── symbol=SLB/               # 1,334 records
-│   └── symbol=XOM/               # 1,334 records
-├── raw/                          # Raw L2 snapshots
-├── exports/                      # Analysis exports
-├── selection_log/                # Symbol rotation logs
-└── journal.db                    # Collection metadata (40KB)
-```
 
 ### L2 Features Schema
 Each record contains 32 features:
@@ -213,12 +239,33 @@ The system uses modular qx-* packages:
 - **qx-cli**: Typer/Rich CLI surface and experiment orchestration
 
 ### Data Integration (Gold + Polygon + IBKR)
-- **Historical training**: Reads gold parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`.
-- **Live SIP**: Uses Polygon delayed data to select daily SIP universes and persists to `data/daily_sip/`.
-- **Paper trading**: Executes via IBKR (TWS/Gateway on `127.0.0.1:7497`) using the live SIP list.
-- **L2 capture**: Collects NYSE L2 for opening/power hours from the SIP-filtered list.
-- **Validator**: Run `python scripts/validate_data_integrations.py --check-polygon --check-ibkr` to
-  verify gold mount, SIP artifacts, and live endpoints before market open.
+- **Historical training**: Reads gold parquet from `/home/jacobw/gcs-mount/gold/stocks/1m/`
+- **Live SIP**: Uses Polygon delayed data to select daily SIP universes and persists to `data/daily_sip/`
+- **Paper trading**: Executes via IBKR (TWS/Gateway on `127.0.0.1:7497`) using the live SIP list
+- **L2 capture**: Collects NYSE L2 for opening/power hours from the SIP-filtered list
+- **Validator**: Run `python scripts/validate_data_integrations.py --check-polygon --check-ibkr` to verify gold mount, SIP artifacts, and live endpoints before market open
+
+### Key Data Files by Purpose
+
+#### Daily Trading Operations
+- `data/daily_sip/sip_universe_YYYY-MM-DD.txt` - 40 NYSE symbols for live trading
+- `logs/live_trading.log` - Real-time trading system activity
+- `run/rolling_results_fixed/trades.csv` - Historical trade execution records
+
+#### L2 Microstructure Analysis
+- `data/l2_maximum/features/date=YYYY-MM-DD/symbol=XXX/*.parquet` - Processed L2 features
+- `data/l2_maximum/journal.db` - Collection metadata and symbol rotation logs
+- `logs/l2_collector.log` - L2 data collection system logs
+
+#### Model Training & Backtesting
+- `data/models/` - Trained regime-aware ML models
+- `/home/jacobw/gcs-mount/gold/stocks/1m/` - Historical 1-minute bar data
+- `run/experiments/` - Experiment outputs and comparative analysis
+
+#### System Configuration
+- `config/` - YAML configuration files for strategies and experiments
+- `~/.aws/credentials` - AWS credentials for cloud services
+- `/etc/systemd/system/l2-*.service` - L2 collection system services
 
 ### VWAP Momentum Strategy
 
