@@ -18,6 +18,14 @@ A modular, framework-agnostic trading system with configurable universe selectio
 - **Process Validation**: Ensures single gateway instance on port 7497
 - **L2 Collection**: Restored after Docker container removal (BE, F, ACHR active)
 
+### Orchestrator Validation (2026-01-09)
+- **Sequence Control**: ✅ Pre-market sequence: Gateway check → SIP generation → Service monitoring → Trade/L2 status
+- **Service Monitoring**: ⚠️ Monitors but doesn't start services (l2-collector, l2-scalping, intraday-paper, l2-watchdog)
+- **Ongoing Monitoring**: ✅ Systemd status checks, journalctl error scanning, L2 collection stats
+- **Full Audit Trail**: ✅ JSON audit logs to `logs/orchestrator_audit.log` with timestamps, operations, status
+- **NTFY Reporting**: ✅ All 4 topics active (status, alerts, data, trades) - no silent failures
+- **Timer Schedule**: Runs daily at 8:00 AM ET via `trading-orchestrator.timer`
+
 ### Systemd Service Fixes (2026-01-09)
 - **Timezone Fix**: Added `TZ=America/New_York` to all trading services
 - **API Compatibility**: Fixed deprecated `fillEvent` → `execDetailsEvent` in l2-scalping
