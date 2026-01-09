@@ -417,6 +417,7 @@ class BulletproofOrchestrator:
 
             env = os.environ.copy()
             env["POLYGON_API_KEY"] = os.environ.get("POLYGON_API_KEY", "")
+            env["PYTHONPATH"] = str(self.intraday_dir)
 
             logger.info(f"Executing: {' '.join(cmd)}")
 

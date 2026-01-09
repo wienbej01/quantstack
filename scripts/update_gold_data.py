@@ -47,18 +47,14 @@ def create_update_config():
 
 
 def get_nyse_symbols_for_update():
-    """Get NYSE symbols that need updating."""
-    nyse_file = Path("/home/jacobw/quantstack/data/nyse_gold_tickers.txt")
+    """Get NYSE symbols from gold data directory."""
+    gold_path = Path("/home/jacobw/gcs-mount/gold/stocks/1m")
+    
+    if not gold_path.exists():
+        raise RuntimeError("Gold data mount not available at /home/jacobw/gcs-mount/gold/stocks/1m")
 
-    if not nyse_file.exists():
-        raise RuntimeError(
-            "NYSE ticker list not found. Run identify_nyse_gold_tickers.py first"
-        )
-
-    with open(nyse_file, "r") as f:
-        symbols = [line.strip() for line in f if line.strip()]
-
-    print(f"Found {len(symbols)} NYSE symbols for update")
+    symbols = [p.name for p in gold_path.iterdir() if p.is_dir()]
+    print(f"Found {len(symbols)} symbols in gold data for update")
     return symbols
 
 

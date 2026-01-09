@@ -4,6 +4,29 @@
 
 Multiple methods exist for programmatically starting the IBKR Gateway without Docker interference. This document covers all available options with implementation details.
 
+## ⚠️ CRITICAL: API Settings Must Be Configured in BOTH TWS AND Gateway
+
+**IBKR has separate API settings for TWS and Gateway. Both must be configured identically or connections will fail silently (timeout errors).**
+
+### Required Settings (Configure in BOTH TWS and Gateway)
+1. **Enable ActiveX and Socket Clients**: ✅ Checked
+2. **Socket port**: 7497 (or your chosen port)
+3. **Allow connections from localhost only**: ✅ Checked
+4. **Trusted IPs**: 127.0.0.1
+5. **Read-Only API**: ❌ Unchecked (unless you only need read access)
+
+### How to Configure
+- **Gateway**: Configure → Settings → API → Settings
+- **TWS**: File → Global Configuration → API → Settings
+
+### Symptoms of Misconfiguration
+- Connection timeout errors despite Gateway showing "connected"
+- Socket connects but immediately closes
+- Gateway shows "API client connected" briefly then disconnects
+
+### Known Gateway Bug
+When starting Gateway, a duplicate login window may appear. **Do not close it** - closing it kills the main Gateway. Minimize and ignore the duplicate window.
+
 ## 1. IBC (Interactive Brokers Controller) - Recommended
 
 **Primary non-Docker solution** for programmatic Gateway control.

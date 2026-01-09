@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-09",
+  "timestamp": "2026-01-09T10:47:16.273946",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "SMR",
+    "UNG",
+    "VST"
+  ],
+  "core": [],
+  "rotating": [
+    "SMR",
+    "UNG",
+    "VST"
+  ]
+}

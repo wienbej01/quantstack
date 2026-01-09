@@ -276,6 +276,7 @@ class L2DataFeed:
     def _run_loop(self) -> None:
         """Run IBKR event loop"""
         from ib_insync import util
+
         while self._running and self.ib and self.ib.isConnected():
             try:
                 util.run(self.ib.sleep(0.1))

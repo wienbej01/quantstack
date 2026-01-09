@@ -10,7 +10,6 @@ from enum import Enum
 from typing import Dict, Tuple
 
 
-
 class SignalType(Enum):
     LONG = 1
     SHORT = -1

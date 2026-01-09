@@ -482,12 +482,11 @@ class TradingOrchestrator:
         # Paths
         self.base_dir = Path("/home/jacobw/quantstack")
         self.intraday_dir = Path("/home/jacobw/intraday_stack")
-        self.universe_file = self.intraday_dir / "data/nyse_gold_tickers.txt"
+        self.gold_path = Path("/home/jacobw/gcs-mount/gold/stocks/1m")
 
     def load_universe_symbols(self) -> List[str]:
-        """Load NYSE universe symbols."""
-        with open(self.universe_file) as f:
-            return [line.strip() for line in f if line.strip()]
+        """Load NYSE universe symbols from gold data directory."""
+        return [p.name for p in self.gold_path.iterdir() if p.is_dir()]
 
     def get_next_trading_day(self) -> str:
         """Get next trading day date string."""

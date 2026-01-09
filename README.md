@@ -24,6 +24,11 @@ A modular, framework-agnostic trading system with configurable universe selectio
 - **E2E Validation**: Comprehensive test suite validates all 47 critical system interactions
 - **Root Cause**: Jan 8 failure due to async/threading bug + timezone confusion (13-hour offset)
 - **Documentation**: Added [TIMEZONE_GUIDE.md](docs/TIMEZONE_GUIDE.md) and updated forensic audit
+- **Hardcoded Universe Fix**: Removed `nyse_gold_tickers.txt` - all SIP generation now uses full gold data (1796 symbols)
+- **IBKR API Settings**: Documented that TWS AND Gateway both need API settings configured (see [IBKR_GATEWAY_STARTUP.md](docs/IBKR_GATEWAY_STARTUP.md))
+- **Health Monitor Enhancement**: Now detects CRITICAL errors in logs, not just service status
+- **Client ID Conflict Fix**: Changed preflight to use unique client ID (998)
+- **Lessons Learned**: Comprehensive resilience guide at [LESSONS_LEARNED_2026-01-09.md](docs/LESSONS_LEARNED_2026-01-09.md)
 
 ### Timer Schedule (Manila Time)
 | Timer | Manila | ET | Purpose | NTFY Behavior |
@@ -94,7 +99,7 @@ python scripts/validate_all_components.py
 ### Quick Start
 ```bash
 # Check all services
-systemctl status l2-collector l2-scalping l2-watchdog
+systemctl status l2-collector l2-scalping l2-watchdog intraday-paper
 
 # View orchestrator logs
 tail -f logs/orchestrator.log
@@ -107,12 +112,47 @@ python bulletproof_orchestrator.py
 
 # Check today's SIP universe
 cat /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/sip_universe.json | jq '.symbols[:10]'
+
+# Trading performance report
+python scripts/trading_report.py --date $(date +%F)
+
+# Export trades to CSV
+python scripts/trading_report.py --date $(date +%F) --export trades_today.csv
 ```
 
 ### NTFY Notifications
 - `jacobw-trading-status`: System status updates
 - `jacobw-trading-alerts`: Errors and failures
 - `jacobw-trading-trades`: Trade executions
+
+### Trade Journal & Performance Analysis
+
+All trades are logged to SQLite database at `/home/jacobw/intraday_stack/data/journal/events.db` with:
+- **System tracking**: Identifies which system made each trade (intraday-paper, l2-scalping)
+- **Strategy tracking**: Records strategy name (reversal, scalping, etc.)
+- **Full audit trail**: Entry/exit prices, fills, commissions, P&L
+- **Per-system reports**: Separate performance metrics for each trading system
+
+**Generate Reports:**
+```bash
+# Today's performance by system
+python scripts/trading_report.py --date $(date +%F)
+
+# All-time performance
+python scripts/trading_report.py
+
+# Export to CSV for analysis
+python scripts/trading_report.py --date $(date +%F) --export trades_today.csv
+
+# Filter by strategy
+python scripts/trading_report.py --strategy reversal
+```
+
+**Report Output:**
+- Total trades, open/closed breakdown
+- Per-system performance (intraday-paper vs l2-scalping)
+- Win rate, P&L, commission by strategy
+- Trade-by-trade audit with entry/exit details
 
 ---
 

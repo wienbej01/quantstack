@@ -323,10 +323,10 @@ async def main():
 
     args = parser.parse_args()
 
-    # Load universe symbols
-    universe_file = Path("/home/jacobw/intraday_stack/data/nyse_gold_tickers.txt")
-    with open(universe_file) as f:
-        universe_symbols = [line.strip() for line in f if line.strip()]
+    # Load universe symbols from gold data (dynamic, no hardcoded list)
+    gold_path = Path("/home/jacobw/gcs-mount/gold/stocks/1m")
+    universe_symbols = [p.name for p in gold_path.iterdir() if p.is_dir()]
+    logger.info(f"Loaded {len(universe_symbols)} symbols from gold data")
 
     # Initialize generator
     api_key = os.environ.get("POLYGON_API_KEY")

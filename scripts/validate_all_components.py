@@ -93,7 +93,7 @@ else:
 
     # 5. API connectivity
     print("\n[5/6] API CONNECTIVITY")
-    
+
     # Polygon
     polygon_test = 'curl -s "https://api.polygon.io/v2/aggs/ticker/AAPL/prev?apiKey=ZBxeJYOn0_e0UcPgEYLA90CQ9S28_EfU" | grep -q "OK" && echo "OK"'
     passed, out = run_test("Polygon API", polygon_test)
@@ -106,7 +106,9 @@ else:
     passed, out = run_test("IBKR Gateway", ibkr_test)
     is_open = "succeeded" in out or "open" in out.lower()
     status = "🟢" if is_open else "⚠️ "
-    print(f"  {status} IBKR Gateway: {'Connected' if is_open else 'Offline (start before market)'}")
+    print(
+        f"  {status} IBKR Gateway: {'Connected' if is_open else 'Offline (start before market)'}"
+    )
     tests.append(("api_ibkr", is_open))  # Warning, not failure
 
     # NTFY
@@ -149,9 +151,10 @@ print('OK')
 
     passed_count = sum(1 for _, p in tests if p)
     failed_count = len(tests) - passed_count
-    
-    critical_failures = [name for name, passed in tests 
-                        if not passed and not name.startswith("api_ibkr")]
+
+    critical_failures = [
+        name for name, passed in tests if not passed and not name.startswith("api_ibkr")
+    ]
 
     if critical_failures:
         print(f"🔴 CRITICAL FAILURES ({len(critical_failures)}):")
