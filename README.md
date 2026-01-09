@@ -121,9 +121,24 @@ python scripts/trading_report.py --date $(date +%F) --export trades_today.csv
 ```
 
 ### NTFY Notifications
+
+Real-time trade notifications sent to your phone via NTFY:
+
+**Channels:**
 - `jacobw-trading-status`: System status updates
-- `jacobw-trading-alerts`: Errors and failures
-- `jacobw-trading-trades`: Trade executions
+- `jacobw-trading-alerts`: Errors and failures  
+- `jacobw-trading-trades`: **Trade executions and exits with P&L**
+
+**Trade Notifications:**
+- Entry: Symbol, direction, price, quantity, system
+- Exit: Symbol, P&L, exit reason (TARGET/STOP/EXIT), system
+
+**Subscribe on your phone:**
+```
+https://ntfy.sh/jacobw-trading-trades
+https://ntfy.sh/jacobw-trading-alerts
+https://ntfy.sh/jacobw-trading-status
+```
 
 ### Trade Journal & Performance Analysis
 

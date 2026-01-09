@@ -228,7 +228,15 @@ class GatewayManager:
         """Check if any ib-gateway Docker container exists."""
         try:
             result = subprocess.run(
-                ["docker", "ps", "-a", "--filter", "name=ib-gateway", "--format", "{{.Names}}:{{.Status}}"],
+                [
+                    "docker",
+                    "ps",
+                    "-a",
+                    "--filter",
+                    "name=ib-gateway",
+                    "--format",
+                    "{{.Names}}:{{.Status}}",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -242,21 +250,29 @@ class GatewayManager:
     async def check_gateway_health(self) -> tuple[bool, str | None]:
         """Check gateway health and detect conflicts. Returns (ok, warning_msg)."""
         warning = None
-        
+
         # Check for duplicate processes
         proc_count, pids = self._count_gateway_processes()
         if proc_count > 1:
-            warning = f"DUPLICATE GATEWAYS: {proc_count} processes (PIDs: {', '.join(pids)})"
+            warning = (
+                f"DUPLICATE GATEWAYS: {proc_count} processes (PIDs: {', '.join(pids)})"
+            )
             logger.warning(warning)
-            self.audit.log_operation("gateway_duplicate_check", "WARNING", {"count": proc_count, "pids": pids})
-        
+            self.audit.log_operation(
+                "gateway_duplicate_check",
+                "WARNING",
+                {"count": proc_count, "pids": pids},
+            )
+
         # Check for Docker container
         docker_status = self._check_docker_gateway()
         if docker_status:
             docker_warn = f"Docker ib-gateway exists: {docker_status}"
             warning = f"{warning}; {docker_warn}" if warning else docker_warn
             logger.warning(docker_warn)
-            self.audit.log_operation("gateway_docker_check", "WARNING", {"status": docker_status})
+            self.audit.log_operation(
+                "gateway_docker_check", "WARNING", {"status": docker_status}
+            )
 
         # Check port connectivity
         try:
@@ -266,7 +282,9 @@ class GatewayManager:
             sock.close()
             if result == 0:
                 logger.info("IBKR Gateway accessible on port 7497")
-                self.audit.log_operation("gateway_health_check", "SUCCESS", {"port": 7497})
+                self.audit.log_operation(
+                    "gateway_health_check", "SUCCESS", {"port": 7497}
+                )
                 return True, warning
             logger.error("IBKR Gateway NOT accessible - start manually")
             self.audit.log_operation("gateway_health_check", "FAILED", {"port": 7497})
@@ -363,11 +381,15 @@ class L2CollectionMonitor:
                 "errors": errors,
             }
 
-            self.audit.log_operation("l2_collection_check", "SUCCESS", {
-                "active_records": result["active_records"],
-                "total_records": result["total_records"],
-                "errors": errors,
-            })
+            self.audit.log_operation(
+                "l2_collection_check",
+                "SUCCESS",
+                {
+                    "active_records": result["active_records"],
+                    "total_records": result["total_records"],
+                    "errors": errors,
+                },
+            )
 
             return result
 
@@ -536,7 +558,9 @@ class BulletproofOrchestrator:
             )
 
             # 1. Check Gateway (must be started manually)
-            gateway_ok, gateway_warning = await self.gateway_manager.check_gateway_health()
+            gateway_ok, gateway_warning = (
+                await self.gateway_manager.check_gateway_health()
+            )
             if not gateway_ok:
                 await self.notifications.send(
                     "alerts",

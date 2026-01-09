@@ -49,9 +49,11 @@ def create_update_config():
 def get_nyse_symbols_for_update():
     """Get NYSE symbols from gold data directory."""
     gold_path = Path("/home/jacobw/gcs-mount/gold/stocks/1m")
-    
+
     if not gold_path.exists():
-        raise RuntimeError("Gold data mount not available at /home/jacobw/gcs-mount/gold/stocks/1m")
+        raise RuntimeError(
+            "Gold data mount not available at /home/jacobw/gcs-mount/gold/stocks/1m"
+        )
 
     symbols = [p.name for p in gold_path.iterdir() if p.is_dir()]
     print(f"Found {len(symbols)} symbols in gold data for update")

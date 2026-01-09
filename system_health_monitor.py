@@ -128,11 +128,12 @@ def main():
         if errors > 10:  # Threshold for "spike"
             issues.append(f"⚠️ {svc}: {errors} errors in 5min")
             logger.warning(f"{svc} error spike: {errors}")
-        
+
         # Check for CRITICAL errors (service running but broken)
         result = subprocess.run(
             ["journalctl", "-u", svc, "--since", "5 minutes ago", "--no-pager"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         if "CRITICAL" in result.stdout or "Failed to reconnect" in result.stdout:
             issues.append(f"🔴 {svc}: CRITICAL failure detected")

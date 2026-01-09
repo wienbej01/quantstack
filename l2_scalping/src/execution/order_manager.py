@@ -320,7 +320,7 @@ class IBKROrderManager:
     def _attempt_reconnect(self) -> None:
         """Attempt to reconnect to IBKR"""
         from ib_insync import util
-        
+
         while (
             not self.is_connected
             and self.reconnect_attempts < self.max_reconnect_attempts
@@ -339,21 +339,25 @@ class IBKROrderManager:
                     self.is_connected = True
                     logger.info("Reconnection successful")
                     return
-                    
+
                 self.ib = IB()
-                util.run(self.ib.connectAsync(self.host, self.port, clientId=self.client_id, timeout=30))
-                
+                util.run(
+                    self.ib.connectAsync(
+                        self.host, self.port, clientId=self.client_id, timeout=30
+                    )
+                )
+
                 self.ib.orderStatusEvent += self._on_order_status
                 self.ib.execDetailsEvent += self._on_fill
                 self.ib.errorEvent += self._on_error
                 self.ib.disconnectedEvent += self._on_disconnect
-                
+
                 self.is_connected = True
                 self.reconnect_attempts = 0
                 self._running = True
                 self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
                 self._loop_thread.start()
-                
+
                 logger.info("Reconnection successful")
                 return
             except Exception as e:
