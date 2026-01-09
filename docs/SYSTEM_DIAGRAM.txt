@@ -1,0 +1,253 @@
+================================================================================
+                    COMPLETE TRADING SYSTEM ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          EXTERNAL DATA SOURCES                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────────────┐  │
+│  │  IBKR Gateway    │  │  Polygon API     │  │  Gold Data (GCS Mount)   │  │
+│  │  127.0.0.1:7497  │  │  api.polygon.io  │  │  /gcs-mount/gold/stocks/ │  │
+│  │                  │  │                  │  │  1796 symbols, 1m bars   │  │
+│  │  - L2 order book │  │  - Daily OHLCV   │  │                          │  │
+│  │  - Market data   │  │  - SIP scoring   │  │  Training data for ML    │  │
+│  │  - Order exec    │  │  - Delayed data  │  │                          │  │
+│  └────────┬─────────┘  └────────┬─────────┘  └────────────┬─────────────┘  │
+│           │                     │                         │                 │
+└───────────┼─────────────────────┼─────────────────────────┼─────────────────┘
+            │                     │                         │
+            ▼                     ▼                         ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      ORCHESTRATION LAYER (21:00 Manila)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  trading-orchestrator.service                                       │   │
+│  │  bulletproof_orchestrator.py                                        │   │
+│  │                                                                     │   │
+│  │  1. Load 1796 symbols from gold data                               │   │
+│  │  2. Call Polygon API for daily OHLCV                               │   │
+│  │  3. Calculate SIP scores (volume, volatility, attention)           │   │
+│  │  4. Filter by score_floor=0.70 → ~4-20 symbols                    │   │
+│  │  5. Save to /daily_sip/sip_universe.json                           │   │
+│  │  6. Check IBKR Gateway health                                      │   │
+│  │  7. Monitor all services                                           │   │
+│  │  8. Send NTFY status updates                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    DATA COLLECTION LAYER (22:25 Manila)                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────────┐  ┌──────────────────────────────────┐   │
+│  │  l2-collector.service        │  │  intraday-sip.service (21:45)    │   │
+│  │  /home/jacobw/.local/bin/    │  │  refresh_sip.py                  │   │
+│  │  l2-collect                  │  │                                  │   │
+│  │                              │  │  Refresh SIP universe mid-day     │   │
+│  │  Client ID: 521              │  │                                  │   │
+│  │  - Subscribe to L2 (NYSE)    │  │                                  │   │
+│  │  - 3 concurrent symbols      │  │                                  │   │
+│  │  - Rotation strategy         │  │                                  │   │
+│  │  - 32 features/snapshot      │  │                                  │   │
+│  │  - 2 snapshots/second        │  │                                  │   │
+│  │  - Parquet output            │  │                                  │   │
+│  └──────────────┬───────────────┘  └──────────────────────────────────┘   │
+│                 │                                                           │
+│                 ▼                                                           │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  /data/l2_maximum/features/date=YYYY-MM-DD/symbol=XXX/*.parquet    │  │
+│  │  - OBI (Order Book Imbalance)                                       │  │
+│  │  - Depth metrics                                                    │  │
+│  │  - Spread dynamics                                                  │  │
+│  │  - Delta features (5s, 15s, 30s, 60s windows)                      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    TRADING EXECUTION LAYER (22:25 Manila)                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────────┐  ┌──────────────────────────────────┐   │
+│  │  l2-scalping.service         │  │  intraday-paper.service          │   │
+│  │  l2_scalping/src/main.py     │  │  scripts/paper_trade.py          │   │
+│  │                              │  │                                  │   │
+│  │  Client IDs: 10 (feed), 11   │  │  Client ID: 15                   │   │
+│  │  (orders)                    │  │                                  │   │
+│  │                              │  │  Strategy: Reversal              │   │
+│  │  Strategy: L2 Scalping       │  │  - Buy oversold                  │   │
+│  │  - Microstructure signals    │  │  - Sell overbought               │   │
+│  │  - OBI-based entry/exit      │  │  - SIP universe symbols          │   │
+│  │  - Risk management           │  │  - Bracket orders (TP/SL)        │   │
+│  │  - Position tracking         │  │  - Trade journal logging         │   │
+│  │                              │  │  - NTFY notifications            │   │
+│  └──────────────┬───────────────┘  └──────────────┬───────────────────┘   │
+│                 │                                 │                        │
+│                 └─────────────────┬────────────────┘                        │
+│                                   ▼                                         │
+│                    ┌──────────────────────────────┐                        │
+│                    │  IBKR Gateway (7497)         │                        │
+│                    │  - Order execution           │                        │
+│                    │  - Position updates          │                        │
+│                    │  - Fill notifications        │                        │
+│                    │  - Market data streaming     │                        │
+│                    └──────────────┬───────────────┘                        │
+│                                   │                                         │
+└───────────────────────────────────┼─────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      LOGGING & REPORTING LAYER                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────────┐  ┌──────────────────────────────────┐   │
+│  │  Trade Journal (SQLite)      │  │  NTFY Notifications             │   │
+│  │  /journal/events.db          │  │  https://ntfy.sh                │   │
+│  │                              │  │                                  │   │
+│  │  Tables:                     │  │  Channels:                       │   │
+│  │  - trades (entry/exit, P&L)  │  │  - jacobw-trading-trades        │   │
+│  │  - orders (submissions)      │  │  - jacobw-trading-alerts        │   │
+│  │  - fills (executions)        │  │  - jacobw-trading-status        │   │
+│  │  - decisions (signals)       │  │                                  │   │
+│  │  - risk_events (violations)  │  │  Triggers:                       │   │
+│  │                              │  │  - Trade entry/exit              │   │
+│  │  System tracking:            │  │  - P&L alerts                    │   │
+│  │  - intraday-paper            │  │  - Service failures              │   │
+│  │  - l2-scalping               │  │  - System status                 │   │
+│  └──────────────────────────────┘  └──────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  Service Logs                                                        │  │
+│  │  - journalctl -u l2-collector                                        │  │
+│  │  - journalctl -u l2-scalping                                         │  │
+│  │  - journalctl -u intraday-paper                                      │  │
+│  │  - /logs/orchestrator.log                                            │  │
+│  │  - /logs/paper_YYYYMMDD.log                                          │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      MONITORING & HEALTH CHECK LAYER                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌──────────────────────────────┐  ┌──────────────────────────────────┐   │
+│  │  preflight-check.service     │  │  system-health-monitor.service   │   │
+│  │  (20:00 Manila / 07:00 ET)   │  │  (Every 5 min, market hours)     │   │
+│  │                              │  │                                  │   │
+│  │  - IBKR connectivity test    │  │  - Check l2-collector status     │   │
+│  │  - Polygon API validation    │  │  - Check l2-scalping status      │   │
+│  │  - Service status checks     │  │  - Check l2-watchdog status      │   │
+│  │  - Pre-market validation     │  │  - Scan journalctl for CRITICAL  │   │
+│  │                              │  │  - Check IBKR Gateway access     │   │
+│  │                              │  │  - Send NTFY alerts on failure   │   │
+│  └──────────────────────────────┘  └──────────────────────────────────┘   │
+│                                                                              │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │  l2-watchdog.service                                                 │  │
+│  │  - Monitor l2-collector health                                       │  │
+│  │  - Auto-restart on failure                                           │  │
+│  │  - Collection statistics                                             │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+                            TIMER SCHEDULE (Manila Time)
+================================================================================
+
+20:00 ─► preflight-check.timer
+         └─► Validate IBKR, Polygon, services
+
+21:00 ─► trading-orchestrator.timer
+         └─► Generate SIP universe (1796 → ~20 symbols)
+
+21:45 ─► intraday-sip.timer
+         └─► Refresh SIP mid-day
+
+22:25 ─► l2-collector.timer + intraday-paper.timer
+         ├─► Start L2 collection (3 concurrent)
+         └─► Start paper trading (reversal strategy)
+
+22:30 ─► Market Open (NYSE 09:30 ET)
+         └─► Trading begins
+
+Every 5min ─► system-health-monitor.timer
+             └─► Check services, scan logs, alert on failures
+
+================================================================================
+                          CLIENT ID ALLOCATION
+================================================================================
+
+IBKR Gateway (127.0.0.1:7497)
+├── 10: l2-scalping (L2 feed)
+├── 11: l2-scalping (order execution)
+├── 15: intraday-paper (trading)
+├── 521: l2-collector (L2 collection)
+└── 998: preflight-check (validation)
+
+================================================================================
+                        CRITICAL DATA PATHS
+================================================================================
+
+SIP GENERATION PATH:
+  trading-orchestrator (21:00)
+    ↓
+  multi_session_sip_generator.py
+    ↓
+  Polygon API (1796 symbols)
+    ↓
+  /daily_sip/date=YYYY-MM-DD/sip_universe.json
+    ↓
+  l2-collector, l2-scalping, intraday-paper (load at startup)
+
+TRADE EXECUTION PATH:
+  intraday-paper.py (trading loop)
+    ↓
+  candidate_generator.py (reversal signals)
+    ↓
+  IBKR Gateway (client 15)
+    ↓
+  Order execution
+    ↓
+  event_store.py (log to SQLite)
+    ↓
+  ntfy_notifier.py (send alert)
+    ↓
+  jacobw-trading-trades (NTFY)
+
+HEALTH MONITORING PATH:
+  system-health-monitor.timer (every 5min)
+    ↓
+  system_health_monitor.py
+    ↓
+  Check: l2-collector, l2-scalping, l2-watchdog
+  Scan: journalctl for CRITICAL errors
+  Check: IBKR Gateway connectivity
+    ↓
+  ntfy_notifier.py (if issues)
+    ↓
+  jacobw-trading-alerts (NTFY)
+
+================================================================================
+                        RESILIENCE MECHANISMS
+================================================================================
+
+AUTO-RECOVERY:
+  ✓ L2 Watchdog: Monitors l2-collector, auto-restarts on failure
+  ✓ Async Reconnect: l2-scalping reconnects on IBKR disconnect
+  ✓ Health Monitor: Detects CRITICAL errors, sends alerts
+  ✓ Systemd Restart: Services configured with Restart=always
+
+MANUAL INTERVENTION:
+  ⚠ Gateway API settings: TWS AND Gateway both need config
+  ⚠ Stale connections: Restart Gateway to clear
+  ⚠ Preflight failures: Check IBKR connectivity
+
+================================================================================
