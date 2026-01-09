@@ -7,10 +7,8 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from queue import Queue
 from typing import Callable, Dict, List, Optional
 
-import pandas as pd
 from ib_insync import IB, Stock, Ticker
 from qx_l2.features import L2FeatureEngineer
 
@@ -277,9 +275,10 @@ class L2DataFeed:
 
     def _run_loop(self) -> None:
         """Run IBKR event loop"""
+        from ib_insync import util
         while self._running and self.ib and self.ib.isConnected():
             try:
-                self.ib.sleep(0.1)
+                util.run(self.ib.sleep(0.1))
             except Exception as e:
                 logger.error(f"Data feed loop error: {e}")
                 break

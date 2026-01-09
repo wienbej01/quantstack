@@ -4,12 +4,55 @@ A modular, framework-agnostic trading system with configurable universe selectio
 
 ## Latest: Production SIP & Trading System (2026-01-09)
 
+**✅ ASYNC EVENT LOOP FIX: Threading bug resolved - services now stable**  
+**✅ TIMEZONE FIX: All services use TZ=America/New_York - no more confusion**  
+**✅ PRE-FLIGHT VALIDATION: Automated testing 1 hour before market prep**  
+**✅ NTFY SPAM FIX: Health monitor only alerts on issues during market hours**  
+**✅ COMPREHENSIVE E2E TESTING: 47 tests validate all components and flows**  
 **✅ SIP GENERATION: Polygon live data, score_floor=0.70 (~20 tickers)**  
 **✅ ORCHESTRATOR: Full service monitoring with NTFY alerts + gateway conflict detection**  
 **✅ L2 COLLECTOR: Dynamic SIP symbols, no hardcoded tickers**  
 **✅ L2 SCALPING: Dynamic SIP symbols, mock data removed**  
 **✅ INTRADAY PAPER: Integrated with daily SIP universe**  
 **✅ GATEWAY MONITORING: Duplicate process detection, Docker container alerts**
+
+### Critical Fixes (2026-01-09)
+- **Async Event Loop Bug**: Fixed `ib_insync` threading issue - wrapped async calls with `util.run()`
+- **Timezone Hell**: All trading services now use `TZ=America/New_York` in systemd units
+- **Pre-Flight Testing**: New timer at 20:00 Manila (7:00 AM ET) validates system before market prep
+- **NTFY Spam Fix**: Health monitor only runs during market hours, only alerts on failures
+- **E2E Validation**: Comprehensive test suite validates all 47 critical system interactions
+- **Root Cause**: Jan 8 failure due to async/threading bug + timezone confusion (13-hour offset)
+- **Documentation**: Added [TIMEZONE_GUIDE.md](docs/TIMEZONE_GUIDE.md) and updated forensic audit
+
+### Timer Schedule (Manila Time)
+| Timer | Manila | ET | Purpose | NTFY Behavior |
+|-------|--------|-----|---------|---------------|
+| **preflight-check** | **20:00** | **07:00 AM** | **Pre-flight validation** | **Alert on failure only** |
+| trading-orchestrator | 21:00 | 08:00 AM | SIP generation | Status updates |
+| intraday-sip | 21:45 | 08:45 AM | SIP refresh | - |
+| l2-collector | 22:25 | 09:25 AM | Start L2 collection | - |
+| intraday-paper | 22:25 | 09:25 AM | Start paper trading | - |
+| system-health-monitor | Every 5min | Every 5min | Health checks | **Issues only (market hours)** |
+
+### Validation Scripts
+```bash
+# Pre-flight (lightweight, runs automatically at 20:00 Manila)
+python scripts/preflight_check.py
+
+# Comprehensive validation (run manually before major changes)
+python scripts/definitive_e2e_test.py
+
+# Quick service check
+python scripts/validate_all_components.py
+```
+
+### Timezone Configuration (CRITICAL)
+- **System Timezone**: Manila (UTC+8) - DO NOT CHANGE
+- **Service Timezone**: America/New_York (ET) - Set in systemd units
+- **Market Hours in Manila**: 22:30 PM → 05:00 AM next day (winter)
+- **Debugging**: Always convert Manila timestamps to ET when analyzing trading
+- **See**: [docs/TIMEZONE_GUIDE.md](docs/TIMEZONE_GUIDE.md) for complete reference
 
 ### Gateway Monitoring Enhancement (2026-01-09)
 - **Duplicate Detection**: Orchestrator detects multiple IBKR Gateway processes

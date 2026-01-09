@@ -6,7 +6,6 @@ Reads the same daily SIP ticker list used by l2-collector.
 import json
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)

@@ -7,13 +7,13 @@ Based on ~/intraday_stack/docs/PAPER_TRADING_GUIDE.md patterns.
 import logging
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from queue import Queue
-from typing import Callable, Dict, List, Optional
+from typing import Dict, List, Optional
 
-from ib_insync import *
-from ib_insync import IB, Fill, LimitOrder, Order, Stock, Trade
+from ib_insync import IB, Fill, LimitOrder, Stock, Trade
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +59,11 @@ class OrderUpdate:
 class IBKROrderManager:
     """IBKR order management with error handling and reconnection"""
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: dict):
         self.config = config
-        self.ib: Optional[IB] = None
+        self.ib: IB | None = None
         self.is_connected = False
-        self._loop_thread: Optional[threading.Thread] = None
+        self._loop_thread: threading.Thread | None = None
         self._running = False
 
         # Connection parameters
@@ -103,7 +103,7 @@ class IBKROrderManager:
 
             # Set up event handlers
             self.ib.orderStatusEvent += self._on_order_status
-            self.ib.fillEvent += self._on_fill
+            self.ib.execDetailsEvent += self._on_fill
             self.ib.errorEvent += self._on_error
             self.ib.disconnectedEvent += self._on_disconnect
 
@@ -339,9 +339,10 @@ class IBKROrderManager:
 
     def _run_loop(self) -> None:
         """Run IBKR event loop"""
+        from ib_insync import util
         while self._running and self.ib and self.ib.isConnected():
             try:
-                self.ib.sleep(0.1)
+                util.run(self.ib.sleep(0.1))
             except Exception as e:
                 logger.error(f"Order manager loop error: {e}")
                 break
@@ -350,7 +351,7 @@ class IBKROrderManager:
         """Get next order update from queue"""
         try:
             return self.order_updates.get(timeout=timeout)
-        except:
+        except Exception:
             return None
 
     def health_check(self) -> Dict[str, any]:

@@ -7,9 +7,8 @@ Implements OBI momentum and hidden liquidity signals.
 from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
-import numpy as np
 
 
 class SignalType(Enum):

@@ -1,200 +1,141 @@
 #!/usr/bin/env python3
 """
-System Health Monitor - Monitors all systemd services and sends NTFY alerts
+System Health Monitor - Market Hours Only
+
+Only runs during US market hours and only sends alerts for:
+1. Service failures
+2. Error spikes in logs
+3. Gateway disconnections
+
+NO routine "all healthy" spam.
 """
 
-import asyncio
 import json
 import logging
+import os
 import subprocess
-from datetime import datetime
+import sys
+from datetime import datetime, time
 from pathlib import Path
 
-import httpx
+import pytz
 
-# Configure logging
+# Set timezone
+os.environ['TZ'] = 'America/New_York'
+
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler("/home/jacobw/quantstack/logs/system_monitor.log"),
-        logging.StreamHandler(),
-    ],
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
+ET = pytz.timezone('America/New_York')
 
-class SystemHealthMonitor:
-    """Monitor all trading system services and send alerts."""
+# Market hours (ET)
+MARKET_OPEN = time(9, 25)   # 5 min before open
+MARKET_CLOSE = time(16, 5)  # 5 min after close
 
-    def __init__(self):
-        self.base_url = "https://ntfy.sh"
-        self.alert_topic = "jacobw-trading-alerts"
-        self.status_topic = "jacobw-trading-status"
 
-        self.services = [
-            "trading-orchestrator.service",
-            "l2-collector.service",
-            "ibkr-gateway.service",
-        ]
+def is_market_hours() -> bool:
+    """Check if within market hours (ET)."""
+    now = datetime.now(ET)
+    # Weekday check (Mon=0, Fri=4)
+    if now.weekday() > 4:
+        return False
+    return MARKET_OPEN <= now.time() <= MARKET_CLOSE
 
-    async def send_notification(
-        self,
-        topic: str,
-        title: str,
-        message: str,
-        priority: str = "high",
-        tags: str = "warning",
-    ):
-        """Send NTFY notification."""
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.base_url}/{topic}",
-                    data=message,
-                    headers={"Title": title, "Priority": priority, "Tags": tags},
-                )
-                response.raise_for_status()
-                logger.info(f"Alert sent: {title}")
-                return True
-        except Exception as e:
-            logger.error(f"Failed to send alert: {e}")
-            return False
 
-    def check_service_status(self, service: str) -> dict:
-        """Check systemd service status."""
-        try:
-            result = subprocess.run(
-                ["systemctl", "is-active", service],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            status = result.stdout.strip()
-
-            # Get detailed status
-            detail_result = subprocess.run(
-                ["systemctl", "status", service, "--no-pager", "-l"],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
-
-            return {
-                "service": service,
-                "status": status,
-                "active": status == "active",
-                "details": detail_result.stdout,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-        except Exception as e:
-            logger.error(f"Failed to check {service}: {e}")
-            return {
-                "service": service,
-                "status": "error",
-                "active": False,
-                "error": str(e),
-                "timestamp": datetime.now().isoformat(),
-            }
-
-    async def check_all_services(self) -> dict:
-        """Check all services and return status summary."""
-        results = {}
-        failed_services = []
-
-        for service in self.services:
-            status = self.check_service_status(service)
-            results[service] = status
-
-            if not status["active"]:
-                failed_services.append(service)
-
-        return {
-            "timestamp": datetime.now().isoformat(),
-            "total_services": len(self.services),
-            "failed_services": failed_services,
-            "failed_count": len(failed_services),
-            "all_healthy": len(failed_services) == 0,
-            "details": results,
-        }
-
-    async def check_sip_universe_exists(self) -> bool:
-        """Check if today's SIP universe exists."""
-        today = datetime.now().strftime("%Y-%m-%d")
-        sip_file = Path(
-            f"/home/jacobw/intraday_stack/data/daily_sip/date={today}/sip_universe.json"
+def send_alert(title: str, message: str, priority: str = "high"):
+    """Send NTFY alert - alerts channel only."""
+    import urllib.request
+    try:
+        req = urllib.request.Request(
+            "https://ntfy.sh/jacobw-trading-alerts",
+            data=message.encode(),
+            headers={"Title": title, "Priority": priority, "Tags": "warning"}
         )
-        return sip_file.exists()
-
-    async def run_health_check(self):
-        """Run comprehensive health check and send alerts."""
-        logger.info("Starting system health check...")
-
-        # Check all services
-        service_status = await self.check_all_services()
-
-        # Check SIP universe
-        sip_exists = await self.check_sip_universe_exists()
-
-        # Generate alerts for failed services
-        if service_status["failed_count"] > 0:
-            failed_list = "\n".join(
-                [
-                    f"❌ {service}: {service_status['details'][service]['status']}"
-                    for service in service_status["failed_services"]
-                ]
-            )
-
-            await self.send_notification(
-                self.alert_topic,
-                f"🚨 {service_status['failed_count']} Service(s) Failed",
-                f"Failed services:\n{failed_list}\n\nTime: {datetime.now().strftime('%H:%M:%S ET')}",
-                priority="high",
-                tags="rotating_light,warning",
-            )
-
-        # Alert if SIP universe missing
-        if not sip_exists:
-            await self.send_notification(
-                self.alert_topic,
-                "📊 SIP Universe Missing",
-                f"No SIP universe found for {datetime.now().strftime('%Y-%m-%d')}\nL2 collector will fail until SIP is generated",
-                priority="high",
-                tags="chart_with_downwards_trend,warning",
-            )
-
-        # Send status summary
-        status_emoji = "✅" if service_status["all_healthy"] and sip_exists else "⚠️"
-        summary = f"""{status_emoji} System Health Check
-        
-Services: {service_status['total_services'] - service_status['failed_count']}/{service_status['total_services']} healthy
-SIP Universe: {"✅" if sip_exists else "❌"}
-Time: {datetime.now().strftime('%H:%M:%S ET')}
-
-Failed: {', '.join(service_status['failed_services']) if service_status['failed_services'] else 'None'}"""
-
-        await self.send_notification(
-            self.status_topic,
-            "System Health Report",
-            summary,
-            priority="default",
-            tags="information_source",
-        )
-
-        # Log detailed results
-        logger.info(f"Health check complete: {json.dumps(service_status, indent=2)}")
-
-        return service_status["all_healthy"] and sip_exists
+        urllib.request.urlopen(req, timeout=10)
+        logger.info(f"Alert sent: {title}")
+    except Exception as e:
+        logger.error(f"Failed to send alert: {e}")
 
 
-async def main():
-    """Run health check."""
-    monitor = SystemHealthMonitor()
-    healthy = await monitor.run_health_check()
-    exit(0 if healthy else 1)
+def check_service(name: str) -> tuple[bool, str]:
+    """Check if service is active."""
+    result = subprocess.run(
+        ['systemctl', 'is-active', name],
+        capture_output=True, text=True
+    )
+    status = result.stdout.strip()
+    return status == 'active', status
+
+
+def check_recent_errors(service: str, minutes: int = 5) -> int:
+    """Count errors in recent logs."""
+    result = subprocess.run(
+        ['journalctl', '-u', service, '--since', f'{minutes} minutes ago', '--no-pager'],
+        capture_output=True, text=True
+    )
+    error_count = result.stdout.lower().count('error')
+    return error_count
+
+
+def check_gateway() -> bool:
+    """Check if IBKR Gateway is accessible."""
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex(('127.0.0.1', 7497))
+        sock.close()
+        return result == 0
+    except:
+        return False
+
+
+def main():
+    # Skip if outside market hours
+    if not is_market_hours():
+        logger.info("Outside market hours - skipping health check")
+        return 0
+    
+    now = datetime.now(ET)
+    logger.info(f"Health check at {now.strftime('%H:%M ET')}")
+    
+    issues = []
+    
+    # Check critical services
+    services = ['l2-collector', 'l2-scalping', 'l2-watchdog']
+    for svc in services:
+        active, status = check_service(svc)
+        if not active:
+            issues.append(f"🔴 {svc}: {status}")
+            logger.error(f"{svc} not active: {status}")
+    
+    # Check for error spikes (only if services running)
+    if not issues:
+        for svc in ['l2-scalping', 'l2-collector']:
+            errors = check_recent_errors(svc, minutes=5)
+            if errors > 10:  # Threshold for "spike"
+                issues.append(f"⚠️ {svc}: {errors} errors in 5min")
+                logger.warning(f"{svc} error spike: {errors}")
+    
+    # Check gateway during market hours
+    if MARKET_OPEN <= now.time() <= MARKET_CLOSE:
+        if not check_gateway():
+            issues.append("🔴 IBKR Gateway: not accessible")
+            logger.error("IBKR Gateway not accessible")
+    
+    # Only send alert if there are issues
+    if issues:
+        msg = f"Health check {now.strftime('%H:%M ET')}:\n" + "\n".join(issues)
+        send_alert("⚠️ System Issues Detected", msg, priority="high")
+        return 1
+    
+    logger.info("All systems healthy - no alert needed")
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(main())
