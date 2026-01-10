@@ -1,0 +1,15 @@
+[Unit]
+Description=Emergency EOD Position Closer (Backup)
+After=network.target
+
+[Service]
+Type=oneshot
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment="TZ=America/New_York"
+ExecStart=/usr/bin/python3 /home/jacobw/quantstack/scripts/emergency_eod_close.py
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

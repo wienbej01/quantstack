@@ -99,13 +99,16 @@ class IBKROrderManager:
                 return True
 
             self.ib = IB()
-            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=30)
-
-            # Set up event handlers
-            self.ib.orderStatusEvent += self._on_order_status
-            self.ib.execDetailsEvent += self._on_fill
+            
+            # Attach event handlers BEFORE connect (required for API handshake)
             self.ib.errorEvent += self._on_error
             self.ib.disconnectedEvent += self._on_disconnect
+            
+            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=30)
+
+            # Attach order-specific handlers after connect
+            self.ib.orderStatusEvent += self._on_order_status
+            self.ib.execDetailsEvent += self._on_fill
 
             self.is_connected = True
             self.reconnect_attempts = 0
@@ -119,6 +122,13 @@ class IBKROrderManager:
         except Exception as e:
             logger.error(f"Failed to connect to IBKR: {e}")
             self.is_connected = False
+            # Clean up failed connection to prevent zombie sockets
+            if self.ib:
+                try:
+                    self.ib.disconnect()
+                except Exception:
+                    pass
+                self.ib = None
             return False
 
     def disconnect(self) -> None:
@@ -340,6 +350,13 @@ class IBKROrderManager:
                     logger.info("Reconnection successful")
                     return
 
+                # Disconnect old connection before creating new one
+                if self.ib:
+                    try:
+                        self.ib.disconnect()
+                    except Exception as e:
+                        logger.warning(f"Error disconnecting old connection: {e}")
+
                 self.ib = IB()
                 util.run(
                     self.ib.connectAsync(
@@ -361,8 +378,20 @@ class IBKROrderManager:
                 logger.info("Reconnection successful")
                 return
             except Exception as e:
-                logger.error(f"Failed to connect to IBKR: {e}")
-                self.is_connected = False
+                logger.error(f"Reconnection attempt failed: {e}")
+                
+                # Clean up failed connection
+                if self.ib:
+                    try:
+                        self.ib.disconnect()
+                    except Exception:
+                        pass
+                    self.ib = None
+                
+                # Stop reconnection attempts on event loop errors
+                if "event loop" in str(e).lower():
+                    logger.error("Event loop error - stopping reconnection attempts")
+                    break
 
         logger.critical("Failed to reconnect to IBKR after maximum attempts")
 

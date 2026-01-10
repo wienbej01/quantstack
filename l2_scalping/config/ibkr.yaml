@@ -5,9 +5,11 @@ ibkr:
   host: "127.0.0.1"
   port: 7497                    # Paper trading port (7496 for live)
   
-  # Client IDs (must be unique)
-  order_client_id: 10           # L2 Scalping system - orders
-  data_client_id: 11            # L2 Scalping system - market data
+  # Client ID ranges (100 IDs per service to avoid Gateway caching issues)
+  # l2-collector: 1-99, intraday-paper: 100-199, l2-scalping: 200-299
+  order_client_id_base: 200     # L2 Scalping orders - will increment on reconnect  
+  data_client_id_base: 250      # L2 Scalping data - will increment on reconnect
+  client_id_max: 299            # Max ID in range, wraps back to base
   
   # Connection parameters
   timeout: 30

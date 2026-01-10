@@ -4,7 +4,7 @@
 # System identification - UNIQUE CLIENT ID
 system:
   name: "L2COLLECT_MAX"
-  client_id: 521  # Different from intraday_stack and dual_system
+  client_id: 1  # l2-collector range: 1-99 (will increment on reconnect)
   version: "2.0.0"
 
 # IBKR connection

@@ -1,0 +1,12 @@
+[Unit]
+Description=Emergency EOD Position Closer Timer (Backup)
+Requires=emergency-eod-close.service
+
+[Timer]
+# Run at 3:55 PM ET = 20:55 Manila (winter) / 19:55 Manila (summer)
+# Using Manila time since system timezone is Manila
+OnCalendar=Mon-Fri 20:55:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

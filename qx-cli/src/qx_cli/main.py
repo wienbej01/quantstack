@@ -9,6 +9,7 @@ import typer
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from qx_cli.commands.gateway import app as gateway_app
 from qx_cli.commands.regime import app as regime_app
 from qx_cli.commands.warehouse import app as warehouse_app
 from qx_cli.experiments.cost_sweep import (
@@ -25,6 +26,7 @@ app.add_typer(
     help="Warehouse commands for data ingestion and querying",
 )
 app.add_typer(regime_app, name="regime", help="Regime detection and analysis commands")
+app.add_typer(gateway_app, name="gateway", help="IBKR Gateway health utilities")
 
 
 @app.command()

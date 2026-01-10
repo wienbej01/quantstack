@@ -63,15 +63,24 @@ class ScalpingSystem:
         # Load symbols from daily SIP
         from data.sip_integration import get_scalping_symbols
 
-        sip_symbols = get_scalping_symbols(max_symbols=3)
+        sip_symbols = get_scalping_symbols()
+        
+        if not sip_symbols:
+            logger.warning("No NYSE symbols available for L2 scalping - system will not trade")
+            # Create empty data feed to maintain system structure
+            ibkr_config = self.config["ibkr"].copy()
+            ibkr_config = dict(ibkr_config)
+            ibkr_config["market_data"] = ibkr_config.get("market_data", {}).copy()
+            ibkr_config["market_data"]["symbols"] = []
+            self.data_feed = L2DataFeed(ibkr_config)
+        else:
+            # Update config with SIP symbols
+            ibkr_config = self.config["ibkr"].copy()
+            ibkr_config = dict(ibkr_config)
+            ibkr_config["market_data"] = ibkr_config.get("market_data", {}).copy()
+            ibkr_config["market_data"]["symbols"] = sip_symbols
 
-        # Update config with SIP symbols
-        ibkr_config = self.config["ibkr"].copy()
-        ibkr_config = dict(ibkr_config)
-        ibkr_config["market_data"] = ibkr_config.get("market_data", {}).copy()
-        ibkr_config["market_data"]["symbols"] = sip_symbols
-
-        self.data_feed = L2DataFeed(ibkr_config)
+            self.data_feed = L2DataFeed(ibkr_config)
 
         # Market scheduler
         self.scheduler = MarketScheduler(self.config["strategy"].get("schedule", {}))

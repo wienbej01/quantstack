@@ -1,14 +1,26 @@
 """Trade Journal for L2 Scalping System
 
 Records all trades, signals, and performance metrics.
+Uses shared event store for consistency with intraday-paper system.
 """
 
 import json
 import logging
+import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
+
+# Add intraday_stack to path for shared event store
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "intraday_stack" / "src"))
+
+try:
+    from journal.event_store import EventStore
+    SHARED_EVENT_STORE = True
+except ImportError:
+    SHARED_EVENT_STORE = False
+    logging.warning("Could not import shared event store, using local journal")
 
 logger = logging.getLogger(__name__)
 
@@ -50,21 +62,40 @@ class TradeJournal:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
 
-        # Daily journal file
-        today = datetime.now().strftime("%Y%m%d")
-        self.journal_file = self.data_dir / f"trades_{today}.jsonl"
+        # Use shared event store if available
+        if SHARED_EVENT_STORE:
+            self.event_store = EventStore("/home/jacobw/intraday_stack/data/journal/events.db")
+            logger.info("Using shared event store for L2 scalping trades")
+        else:
+            self.event_store = None
+            # Daily journal file fallback
+            today = datetime.now().strftime("%Y%m%d")
+            self.journal_file = self.data_dir / f"trades_{today}.jsonl"
 
         # In-memory storage
         self.trades: list[TradeRecord] = []
-        self.load_today_trades()
+        if not SHARED_EVENT_STORE:
+            self.load_today_trades()
 
-        logger.info(f"Trade journal initialized: {self.journal_file}")
+        logger.info(f"L2 Trade journal initialized")
 
     def record_signal(
         self, symbol: str, signal_type: str, signal_strength: float
     ) -> str:
         """Record a trading signal (before execution)"""
         trade_id = f"{symbol}_{datetime.now().strftime('%H%M%S_%f')}"
+
+        if SHARED_EVENT_STORE:
+            # Log decision to shared event store
+            self.event_store.log_decision(
+                symbol=symbol,
+                strategy="l2_scalping",
+                direction="long" if signal_strength > 0 else "short",
+                signal_strength=abs(signal_strength),
+                net_edge_bps=signal_strength * 100,  # Convert to bps
+                decision="TRADE",
+                features={"signal_type": signal_type}
+            )
 
         trade = TradeRecord(
             timestamp=datetime.now().isoformat(),
@@ -78,21 +109,37 @@ class TradeJournal:
         )
 
         self.trades.append(trade)
-        self._persist_trade(trade)
+        if not SHARED_EVENT_STORE:
+            self._persist_trade(trade)
 
         logger.info(
-            f"Signal recorded: {symbol} {signal_type} strength={signal_strength:.3f}"
+            f"L2 Signal recorded: {symbol} {signal_type} strength={signal_strength:.3f}"
         )
         return trade_id
 
     def record_trade_entry(
         self, symbol: str, side: str, quantity: int, entry_price: float, order_id: str
-    ) -> None:
+    ) -> str:
         """Record trade entry"""
-        # Find pending trade for this symbol
+        if SHARED_EVENT_STORE:
+            # Open trade in shared event store
+            trade_id = self.event_store.open_trade(
+                symbol=symbol,
+                strategy="l2_scalping",
+                direction="long" if side == "BUY" else "short",
+                signal_id=f"l2_{symbol}_{datetime.now().strftime('%H%M%S')}",
+                entry_order_id=int(order_id) if order_id.isdigit() else 0,
+                entry_price=entry_price,
+                entry_qty=quantity,
+                signal_price=entry_price,
+                system="l2-scalping"
+            )
+            logger.info(f"L2 Trade opened in shared store: {trade_id}")
+            return trade_id
+
+        # Fallback to local journal
         trade = self._find_pending_trade(symbol)
         if not trade:
-            # Create new trade if no pending signal
             trade = TradeRecord(
                 timestamp=datetime.now().isoformat(),
                 symbol=symbol,
@@ -104,7 +151,6 @@ class TradeJournal:
             )
             self.trades.append(trade)
         else:
-            # Update existing trade
             trade.side = side
             trade.quantity = quantity
             trade.entry_price = entry_price
@@ -113,15 +159,31 @@ class TradeJournal:
             trade.status = TradeStatus.FILLED.value
 
         self._persist_trade(trade)
-        logger.info(f"Trade entry: {symbol} {side} {quantity}@{entry_price:.4f}")
+        logger.info(f"L2 Trade entry: {symbol} {side} {quantity}@{entry_price:.4f}")
+        return f"local_{symbol}_{datetime.now().strftime('%H%M%S')}"
 
     def record_trade_exit(
-        self, symbol: str, exit_price: float, pnl: float, commission: float = 0.0
+        self, trade_id: str, symbol: str, exit_price: float, pnl: float, commission: float = 0.0
     ) -> None:
         """Record trade exit"""
+        if SHARED_EVENT_STORE and trade_id:
+            # Close trade in shared event store
+            self.event_store.close_trade(
+                trade_id=trade_id,
+                exit_order_id=0,  # L2 scalping uses market orders
+                exit_price=exit_price,
+                exit_qty=100,  # Standard L2 scalping size
+                exit_reason="L2_SIGNAL",
+                commission=commission,
+                signal_price=exit_price
+            )
+            logger.info(f"L2 Trade closed in shared store: {trade_id}")
+            return
+
+        # Fallback to local journal
         trade = self._find_open_trade(symbol)
         if not trade:
-            logger.warning(f"No open trade found for exit: {symbol}")
+            logger.warning(f"No open L2 trade found for exit: {symbol}")
             return
 
         entry_time = datetime.fromisoformat(trade.fill_time or trade.timestamp)
@@ -135,7 +197,7 @@ class TradeJournal:
 
         self._persist_trade(trade)
         logger.info(
-            f"Trade exit: {symbol} {exit_price:.4f} PnL=${pnl:.2f} hold={hold_duration}s"
+            f"L2 Trade exit: {symbol} {exit_price:.4f} PnL=${pnl:.2f} hold={hold_duration}s"
         )
 
     def get_daily_summary(self) -> dict:
