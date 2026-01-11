@@ -25,7 +25,12 @@ def evaluate_pattern_1(bar: dict) -> bool:
     Returns:
         True if pattern matches
     """
-    return bool(bar.get("atr_14_bin") == 4 and bar.get("is_power_hour_bin"))
+    return bool(
+        bar.get("atr_14_bin") == 4
+        and bar.get("is_power_hour_bin")
+        and bar.get("ret_60m_bin", 0) >= 3  # Add momentum filter
+        and bar.get("rvol_bin", 0) >= 2  # Add volume filter
+    )
 
 
 def evaluate_pattern_2(bar: dict) -> bool:
@@ -40,7 +45,12 @@ def evaluate_pattern_2(bar: dict) -> bool:
     Returns:
         True if pattern matches
     """
-    return bool(bar.get("ret_60m_bin") == 4.0 and bar.get("is_power_hour_bin"))
+    return bool(
+        bar.get("ret_60m_bin") == 4.0
+        and bar.get("is_power_hour_bin")
+        and bar.get("atr_14_bin", 0) >= 3  # Add volatility filter
+        and bar.get("rvol_bin", 0) >= 2  # Add volume filter
+    )
 
 
 def evaluate_pattern_15(bar: dict) -> bool:

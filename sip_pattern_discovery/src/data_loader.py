@@ -133,7 +133,7 @@ def load_sip_filtered_data(
     lookback_days: int,
     sip_dir: Path,
     gold_dir: Path,
-) -> tuple[pd.DataFrame, dict]:
+) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     """Load SIP-filtered 1m data across date range.
 
     Args:
@@ -144,10 +144,18 @@ def load_sip_filtered_data(
         gold_dir: Path to gold/stocks/1m directory
 
     Returns:
-        Tuple of (DataFrame with all bars, metadata dict)
+        Tuple of (DataFrame with all bars, SPY DataFrame, metadata dict)
     """
     trading_days = get_trading_days(start_date, end_date, sip_dir)
     print(f"Found {len(trading_days)} trading days")
+
+    # Load SPY data for regime features
+    print("Loading SPY data for regime features...")
+    spy_df = load_symbol_bars("SPY", end_date, lookback_days + 60, gold_dir)
+    if not spy_df.empty:
+        print(f"  Loaded {len(spy_df):,} SPY bars")
+    else:
+        print("  WARNING: No SPY data found")
 
     all_bars = []
     symbol_dates: dict[str, list[str]] = {}
@@ -179,7 +187,7 @@ def load_sip_filtered_data(
         )
 
     if not all_bars:
-        return pd.DataFrame(), {}
+        return pd.DataFrame(), spy_df, {}
 
     combined = pd.concat(all_bars, ignore_index=True)
 
@@ -192,4 +200,4 @@ def load_sip_filtered_data(
         "symbol_dates": symbol_dates,
     }
 
-    return combined, metadata
+    return combined, spy_df, metadata

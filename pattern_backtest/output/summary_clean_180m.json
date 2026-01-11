@@ -1,0 +1,29 @@
+{
+  "period": "2024-08-01 to 2024-08-31",
+  "total_trades": 26611,
+  "total_pnl": 265.6485999999518,
+  "win_rate": 0.4347074518056443,
+  "per_pattern": {
+    "pattern_1_high_atr_power": {
+      "trades": 7827.0,
+      "total_pnl": 434.89859999996315,
+      "avg_pnl": 0.055563894212337185,
+      "win_rate": 0.4562412163025425,
+      "avg_bars_held": 371.3859716366424
+    },
+    "pattern_2_momentum_power": {
+      "trades": 7990.0,
+      "total_pnl": -9.400000000003843,
+      "avg_pnl": -0.001176470588235775,
+      "win_rate": 0.4250312891113892,
+      "avg_bars_held": 327.08147684605757
+    },
+    "pattern_15_volume_power": {
+      "trades": 10794.0,
+      "total_pnl": -159.8500000000069,
+      "avg_pnl": -0.014809153233278386,
+      "win_rate": 0.42625532703353713,
+      "avg_bars_held": 367.4414489531221
+    }
+  }
+}

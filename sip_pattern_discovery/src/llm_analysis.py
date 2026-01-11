@@ -54,17 +54,35 @@ These patterns predict {horizon}-minute forward returns.
 
 Target: {target_name}
 Horizon: {horizon} minutes
+Discovery Period: June-July 2024 (training data)
 
 {patterns_text}
 
-For each pattern, provide:
-1. **Market microstructure explanation**: Why might this pattern predict future returns?
-2. **Risk factors**: What market conditions could invalidate this pattern?
-3. **Confidence rating**: High/Medium/Low based on lift, support, and logical coherence
-4. **Implementation notes**: Practical considerations for trading this pattern
+CRITICAL ANALYSIS REQUIRED FOR EACH PATTERN:
 
-Focus on patterns with strong statistical evidence (high lift, low p-value, sufficient support).
-Be skeptical of patterns that seem spurious or lack clear market logic.
+1. **FALSE POSITIVE ANALYSIS**: During June-July 2024, estimate how often this pattern triggered but FAILED to deliver the expected move. Consider:
+   - How many times would this pattern have fired?
+   - What percentage were false positives?
+   - Is the success rate realistic or overfitted?
+
+2. **OVERTRADING RISK**: If deployed live, how many trades per day would this generate?
+   - Support rate × daily bars = daily trigger frequency
+   - Would this cause excessive trading costs?
+
+3. **REGIME ROBUSTNESS**: Would this pattern work in:
+   - Bear markets vs bull markets?
+   - High volatility vs low volatility periods?
+   - Different sector rotations?
+
+4. **ECONOMIC RATIONALE**: What market microstructure explains this pattern?
+   - Is there a logical reason institutions/algorithms would create this edge?
+   - Or is this likely a statistical artifact?
+
+5. **GO/NO-GO DECISION**: 
+   - GO: Only if lift ≥10x, support ≤0.2%, low false positive rate, clear economic rationale
+   - NO-GO: If any red flags for overtrading, overfitting, or lack of economic logic
+
+Be extremely skeptical. Reject 90% of patterns to prevent overtrading.
 """
 
     return prompt
@@ -89,23 +107,38 @@ def call_llm_api(prompt: str, api_key: str | None = None) -> str:
     if not api_key:
         return "# LLM Analysis Skipped\n\nNo API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable."
 
-    system_prompt = """You are the head of quant trading at a hedge fund, working on a private project. Assess the proposed patterns to identify HIGH-QUALITY, LOW-FREQUENCY trading opportunities with real alpha.
+    system_prompt = """You are a senior quantitative researcher at a top-tier hedge fund. Your job is to REJECT 90% of proposed patterns to prevent overtrading and ensure only the most exceptional opportunities are traded.
 
-FOCUS ON QUALITY OVER QUANTITY:
-- Prioritize patterns with exceptional lift (>4x preferred)
-- Look for patterns with strong statistical significance
-- Favor patterns that trade less frequently but with higher conviction
-- Avoid patterns that would generate excessive trading
+CRITICAL ANTI-OVERTRADING MANDATE:
+- Target: Maximum 10 positions per day across ALL patterns
+- Reject ANY pattern that could cause frequent trading
+- Only approve patterns with 10x+ lift AND rare occurrence
+- Consider this a QUALITY OVER QUANTITY exercise
 
-Based on your analysis, you must score each pattern 0-100 based on:
-- Alpha potential (expected edge) - Weight: 40%
-- Risk characteristics (drawdown, volatility) - Weight: 20%
-- Persistency (regime stability, overfitting risk) - Weight: 20%
-- Implementation feasibility (execution, slippage, capacity) - Weight: 20%
+CONFIRMATION BIAS ANALYSIS REQUIRED:
+For each pattern, you MUST analyze:
+1. FALSE POSITIVES: How often did this pattern trigger but NOT deliver the expected move during the discovery period?
+2. OVERFITTING RISK: Does this pattern seem too specific to the training data?
+3. REGIME DEPENDENCY: Would this pattern fail in different market conditions?
+4. EXECUTION REALITY: Can this actually be traded profitably after slippage/commissions?
 
-For each pattern, you must give a Go/No-go decision on whether the pattern is suitable for a HIGH-QUALITY quant strategy backtesting process.
+REJECTION CRITERIA (Reject if ANY apply):
+- Lift < 10x (we need exceptional moves only)
+- Support > 0.5% (too frequent = overtrading)
+- Pattern seems overfit to specific market events
+- High false positive rate during discovery period
+- Relies on hard-to-execute timing
+- Would generate >5 trades per day if deployed
 
-REJECT patterns that would cause overtrading or have marginal edge."""
+APPROVAL CRITERIA (ALL must be met):
+- Lift ≥ 10x with high statistical significance
+- Support ≤ 0.2% (rare occurrence)
+- Clear economic rationale (not just statistical artifact)
+- Low false positive rate during discovery period
+- Robust across different market regimes
+- Executable with realistic slippage
+
+For each pattern, you must give a Go/No-go decision with specific analysis of false positives and overtrading risk."""
 
     # Try Anthropic first
     if "ANTHROPIC_API_KEY" in os.environ:
