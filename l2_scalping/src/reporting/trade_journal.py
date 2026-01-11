@@ -14,9 +14,10 @@ from enum import Enum
 from pathlib import Path
 
 # Add intraday_stack to path for shared event store and notifications
-sys.path.insert(
-    0, str(Path(__file__).parent.parent.parent.parent.parent / "intraday_stack" / "src")
-)
+# Use append to avoid shadowing l2_scalping modules
+_intraday_path = str(Path(__file__).parent.parent.parent.parent.parent / "intraday_stack" / "src")
+if _intraday_path not in sys.path:
+    sys.path.append(_intraday_path)
 
 try:
     from journal.event_store import EventStore
