@@ -2,19 +2,176 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Production SIP & Trading System (2026-01-09)
+## Latest: SIP Pattern Discovery & Backtest System (2026-01-11)
 
-**✅ ASYNC EVENT LOOP FIX: Threading bug resolved - services now stable**  
-**✅ TIMEZONE FIX: All services use TZ=America/New_York - no more confusion**  
-**✅ PRE-FLIGHT VALIDATION: Automated testing 1 hour before market prep**  
-**✅ NTFY SPAM FIX: Health monitor only alerts on issues during market hours**  
-**✅ COMPREHENSIVE E2E TESTING: 47 tests validate all components and flows**  
-**✅ SIP GENERATION: Polygon live data, score_floor=0.70 (~20 tickers)**  
-**✅ ORCHESTRATOR: Full service monitoring with NTFY alerts + gateway conflict detection**  
-**✅ L2 COLLECTOR: Dynamic SIP symbols, no hardcoded tickers**  
-**✅ L2 SCALPING: Dynamic SIP symbols, mock data removed**  
-**✅ INTRADAY PAPER: Integrated with daily SIP universe**  
-**✅ GATEWAY MONITORING: Duplicate process detection, Docker container alerts**
+**✅ PATTERN DISCOVERY SYSTEM: High-quality long/short pattern identification**  
+**✅ OVERNIGHT HOLD BACKTESTING: Proper 180-bar exit logic with pattern attribution**  
+**✅ LONG/SHORT DISCOVERY: Finds profitable opportunities in both directions**  
+**✅ QUALITY FILTERS: Min 3.0x lift, max 10 patterns per direction**  
+**✅ LLM ANALYSIS: Enhanced prompts for high-quality, low-frequency patterns**  
+
+### SIP Pattern Discovery System (NEW)
+
+**Location:** `/home/jacobw/quantstack/sip_pattern_discovery/`
+
+Discovers high-lift trading patterns from SIP-filtered 1-minute data using statistical analysis and LLM interpretation.
+
+**Key Features:**
+- **Dual Direction**: Finds both LONG and SHORT opportunities
+- **Quality Focus**: Min 3.0x lift, highly significant patterns only
+- **Pattern Attribution**: Each trade tagged with originating pattern
+- **Overnight Holds**: 180-minute horizon spans overnight (power hour → next day noon)
+- **LLM Analysis**: Claude/GPT analysis with Go/No-go decisions
+
+**Usage:**
+```bash
+cd /home/jacobw/quantstack/sip_pattern_discovery
+
+# High-quality long/short discovery
+.venv/bin/python3 run_long_short_discovery.py
+
+# Output: Top 10 long + 10 short patterns with >3x lift
+```
+
+### Pattern Backtest System (NEW)
+
+**Location:** `/home/jacobw/quantstack/pattern_backtest/`
+
+Validates discovered patterns using qx-backtest framework with proper overnight hold logic.
+
+**Key Features:**
+- **Per-Pattern Performance**: Separate metrics for each pattern
+- **Consolidated Reporting**: Overall performance across all patterns
+- **Overnight Validation**: Proper 180-bar exit logic (power hour → next day noon)
+- **No Overtrading**: Prevents duplicate orders, tracks pending positions
+- **Method Tracking**: All trades tagged with method_id for comparison
+
+**Usage:**
+```bash
+cd /home/jacobw/quantstack/pattern_backtest
+
+# Clean backtest with proper exit logic
+.venv/bin/python3 test_clean_180m.py
+
+# Output: Per-pattern + consolidated performance
+```
+
+### Manual Pattern Implementation (EXAMPLE)
+
+**Implemented Patterns from 180m LLM Analysis:**
+- **Pattern 1**: High ATR + Power Hour (5.86x lift, 2.30% support)
+- **Pattern 2**: Strong 60m momentum + Power Hour (5.40x lift, 2.59% support)  
+- **Pattern 15**: Elevated volume + Power Hour (4.02x lift, 3.76% support)
+
+**All patterns are LONG ONLY** - power hour momentum continuation overnight.
+
+**Files:**
+- `src/manual_patterns.py` - Pattern definitions and evaluators
+- `src/manual_pattern_policy.py` - qx-backtest Policy implementation
+- `MANUAL_PATTERNS.md` - Documentation and rationale
+
+### Discovery Quality Filters
+
+**Statistical Criteria:**
+- **Min Lift**: 3.0x (exceptional patterns only)
+- **Min Support**: 1.0% (sufficient frequency)
+- **Max P-value**: 0.001 (highly significant)
+- **Max Patterns**: 10 per direction (top performers)
+
+**LLM Quality Assessment:**
+- Focus on quality over quantity
+- Reject overtrading patterns
+- Prioritize exceptional lift (>4x preferred)
+- Weight alpha potential 40%
+- Explicit anti-overtrading instructions
+
+### Data Pipeline
+
+```
+Gold 1m Data (GCS Mount)
+    ↓
+SIP Daily Filtering (40 symbols/day)
+    ↓
+Feature Computation (VWAP, RVOL, ATR, momentum, session anchors)
+    ↓
+Pattern Discovery (Long + Short, 3.0x+ lift)
+    ↓
+LLM Analysis (Go/No-go decisions)
+    ↓
+Backtest Validation (Overnight holds, per-pattern performance)
+```
+
+### File Structure
+
+```
+quantstack/
+├── sip_pattern_discovery/          # Pattern discovery system
+│   ├── src/
+│   │   ├── data_loader.py          # SIP-filtered gold data loading
+│   │   ├── features.py             # Feature computation (VWAP, RVOL, etc.)
+│   │   ├── targets.py              # Forward return targets (up/down)
+│   │   ├── pattern_engine.py       # Statistical pattern discovery
+│   │   └── llm_analysis.py         # LLM interpretation
+│   ├── discover.py                 # Main discovery CLI
+│   ├── run_long_short_discovery.py # High-quality long/short discovery
+│   └── output_high_quality/        # Discovery results
+│
+├── pattern_backtest/               # Pattern validation system
+│   ├── src/
+│   │   ├── pattern_parser.py       # CSV pattern loading
+│   │   ├── rule_evaluator.py       # Pattern condition evaluation
+│   │   ├── feature_pipeline.py     # Feature computation + discretization
+│   │   ├── manual_patterns.py      # Hand-coded pattern implementations
+│   │   └── manual_pattern_policy.py # qx-backtest Policy
+│   ├── test_clean_180m.py          # Clean backtest implementation
+│   ├── cache/                      # Data caching for fast reload
+│   └── output/                     # Backtest results
+│
+└── [existing systems...]          # Live trading, L2 collection, etc.
+```
+
+### Quick Start: Pattern Discovery & Validation
+
+```bash
+# 1. Discover high-quality long/short patterns (45 min)
+cd /home/jacobw/quantstack/sip_pattern_discovery
+.venv/bin/python3 run_long_short_discovery.py
+
+# 2. Validate patterns with overnight holds
+cd /home/jacobw/quantstack/pattern_backtest  
+.venv/bin/python3 test_clean_180m.py
+
+# 3. Review results
+cat output/summary_clean_180m.json
+```
+
+### Key Insights: Overnight Hold Strategy
+
+**Critical Discovery**: 180-minute patterns from power hour are **overnight hold strategies**:
+
+- **Entry**: 3:00-4:00 PM (power hour)
+- **Market Close**: 4:00 PM (30 minutes later)
+- **Overnight Gap**: 15.5 hours
+- **Exit**: Next day ~12:00 PM (180 bars from entry)
+- **Total Duration**: ~20 calendar hours
+
+**This captures:**
+- End-of-day institutional positioning
+- Overnight gap continuation
+- Next-morning follow-through
+- Multi-session momentum
+
+**Risk Considerations:**
+- Overnight gap risk
+- News/earnings exposure
+- Extended holding period
+- Margin requirements
+
+---
+
+## Previous: Production SIP & Trading System (2026-01-09)
+
+[Previous content remains unchanged...]
 
 ### Critical Fixes (2026-01-09)
 - **Async Event Loop Bug**: Fixed `ib_insync` threading issue - wrapped async calls with `util.run()`

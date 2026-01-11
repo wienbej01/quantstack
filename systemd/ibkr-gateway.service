@@ -1,11 +1,15 @@
 [Unit]
 Description=IBKR Gateway (IBC-managed)
-After=network.target
+After=network-online.target nordvpnd.service
+Wants=network-online.target nordvpnd.service
 
 [Service]
 Type=simple
+User=jacobw
+Group=jacobw
 WorkingDirectory=/home/jacobw/quantstack
 Environment=TZ=America/New_York
+Environment=PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/home/jacobw/quantstack/scripts/start_ibkr_gateway.sh
 Restart=on-failure
 RestartSec=30

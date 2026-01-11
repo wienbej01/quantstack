@@ -15,6 +15,8 @@ STATUS_URL="${IBKR_STATUS_URL:-https://www.interactivebrokers.com/en/software/sy
 STATUS_CHECK="${IBKR_STATUS_CHECK:-1}"
 STATUS_BACKOFF_SECONDS="${IBKR_STATUS_BACKOFF_SECONDS:-900}"
 STATUS_MAX_RETRIES="${IBKR_STATUS_MAX_RETRIES:-0}"
+NORDVPN_REQUIRED="${IBKR_NORDVPN_REQUIRED:-1}"
+NORDVPN_COUNTRY="${IBKR_NORDVPN_COUNTRY:-United_States}"
 
 if [ -z "$TWS_MAJOR_VERSION" ] && [ -d "$TWS_PATH/ibgateway" ]; then
     TWS_MAJOR_VERSION="$(ls -1 "$TWS_PATH/ibgateway" \
@@ -26,6 +28,30 @@ fi
 TWS_MAJOR_VERSION="${TWS_MAJOR_VERSION:-1019}"
 
 status_retry_count=0
+
+ensure_nordvpn() {
+    if [ "$NORDVPN_REQUIRED" != "1" ]; then
+        return 0
+    fi
+
+    if ! command -v nordvpn >/dev/null 2>&1; then
+        echo "ERROR: nordvpn CLI not found."
+        exit 3
+    fi
+
+    vpn_status="$(nordvpn status 2>/dev/null || true)"
+    if echo "$vpn_status" | grep -qi "Status: Connected"; then
+        return 0
+    fi
+
+    echo "NordVPN not connected. Connecting to ${NORDVPN_COUNTRY}..."
+    if ! nordvpn c "$NORDVPN_COUNTRY"; then
+        echo "ERROR: nordvpn connect failed."
+        exit 3
+    fi
+}
+
+ensure_nordvpn
 check_ibkr_status() {
     if [ "$STATUS_CHECK" != "1" ]; then
         return 0

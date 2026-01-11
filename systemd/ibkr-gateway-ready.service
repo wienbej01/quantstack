@@ -1,0 +1,14 @@
+[Unit]
+Description=IBKR Gateway Ready Check
+After=ibkr-gateway.service
+Requires=ibkr-gateway.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/jacobw/quantstack
+Environment=TZ=America/New_York
+ExecStart=/home/jacobw/quantstack/scripts/wait_for_ibkr_gateway.sh
+TimeoutStartSec=360
+
+[Install]
+WantedBy=multi-user.target
