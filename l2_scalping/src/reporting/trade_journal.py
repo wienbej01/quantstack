@@ -2,6 +2,7 @@
 
 Records all trades, signals, and performance metrics.
 Uses shared event store for consistency with intraday-paper system.
+Sends NTFY notifications for trade executions.
 """
 
 import json
@@ -12,9 +13,9 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 
-# Add intraday_stack to path for shared event store
+# Add intraday_stack to path for shared event store and notifications
 sys.path.insert(
-    0, str(Path(__file__).parent.parent.parent.parent / "intraday_stack" / "src")
+    0, str(Path(__file__).parent.parent.parent.parent.parent / "intraday_stack" / "src")
 )
 
 try:
@@ -24,6 +25,13 @@ try:
 except ImportError:
     SHARED_EVENT_STORE = False
     logging.warning("Could not import shared event store, using local journal")
+
+try:
+    from notifications.ntfy_notifier import NTFYNotifier
+    NTFY_AVAILABLE = True
+except ImportError:
+    NTFY_AVAILABLE = False
+    logging.warning("Could not import NTFY notifier")
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +61,7 @@ class TradeRecord:
     order_id: str | None = None
     fill_time: str | None = None
     hold_duration_seconds: int | None = None
+    rule_name: str = "obi_momentum"  # Trading rule attribution
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -76,6 +85,13 @@ class TradeJournal:
             # Daily journal file fallback
             today = datetime.now().strftime("%Y%m%d")
             self.journal_file = self.data_dir / f"trades_{today}.jsonl"
+
+        # NTFY notifier
+        if NTFY_AVAILABLE:
+            self.notifier = NTFYNotifier()
+            logger.info("NTFY notifications enabled for L2 scalping")
+        else:
+            self.notifier = None
 
         # In-memory storage
         self.trades: list[TradeRecord] = []
@@ -123,23 +139,35 @@ class TradeJournal:
         return trade_id
 
     def record_trade_entry(
-        self, symbol: str, side: str, quantity: int, entry_price: float, order_id: str
+        self, symbol: str, side: str, quantity: int, entry_price: float, order_id: str,
+        rule_name: str = "obi_momentum"
     ) -> str:
-        """Record trade entry"""
+        """Record trade entry with rule attribution and NTFY notification"""
+        # Send NTFY notification
+        if self.notifier:
+            system_tag = f"l2-scalping:{rule_name}"
+            self.notifier.trade_alert(
+                symbol=symbol,
+                direction=side,
+                price=entry_price,
+                quantity=quantity,
+                system=system_tag
+            )
+        
         if SHARED_EVENT_STORE:
-            # Open trade in shared event store
+            # Open trade in shared event store with rule_name in strategy field
             trade_id = self.event_store.open_trade(
                 symbol=symbol,
-                strategy="l2_scalping",
+                strategy=f"l2_scalping_{rule_name}",  # Include rule name
                 direction="long" if side == "BUY" else "short",
-                signal_id=f"l2_{symbol}_{datetime.now().strftime('%H%M%S')}",
+                signal_id=f"l2_{rule_name}_{symbol}_{datetime.now().strftime('%H%M%S')}",
                 entry_order_id=int(order_id) if order_id.isdigit() else 0,
                 entry_price=entry_price,
                 entry_qty=quantity,
                 signal_price=entry_price,
                 system="l2-scalping",
             )
-            logger.info(f"L2 Trade opened in shared store: {trade_id}")
+            logger.info(f"L2 Trade opened [{rule_name}] in shared store: {trade_id}")
             return trade_id
 
         # Fallback to local journal
@@ -153,6 +181,7 @@ class TradeJournal:
                 entry_price=entry_price,
                 order_id=order_id,
                 status=TradeStatus.FILLED.value,
+                rule_name=rule_name,
             )
             self.trades.append(trade)
         else:
@@ -162,9 +191,10 @@ class TradeJournal:
             trade.order_id = order_id
             trade.fill_time = datetime.now().isoformat()
             trade.status = TradeStatus.FILLED.value
+            trade.rule_name = rule_name
 
         self._persist_trade(trade)
-        logger.info(f"L2 Trade entry: {symbol} {side} {quantity}@{entry_price:.4f}")
+        logger.info(f"L2 Trade entry [{rule_name}]: {symbol} {side} {quantity}@{entry_price:.4f}")
         return f"local_{symbol}_{datetime.now().strftime('%H%M%S')}"
 
     def record_trade_exit(
@@ -174,8 +204,20 @@ class TradeJournal:
         exit_price: float,
         pnl: float,
         commission: float = 0.0,
+        rule_name: str = "obi_momentum",
+        exit_reason: str = "L2_SIGNAL",
     ) -> None:
-        """Record trade exit"""
+        """Record trade exit with NTFY notification"""
+        # Send NTFY notification
+        if self.notifier:
+            system_tag = f"l2-scalping:{rule_name}"
+            self.notifier.trade_exit(
+                symbol=symbol,
+                pnl=pnl,
+                reason=exit_reason,
+                system=system_tag
+            )
+        
         if SHARED_EVENT_STORE and trade_id:
             # Close trade in shared event store
             self.event_store.close_trade(
@@ -183,11 +225,11 @@ class TradeJournal:
                 exit_order_id=0,  # L2 scalping uses market orders
                 exit_price=exit_price,
                 exit_qty=100,  # Standard L2 scalping size
-                exit_reason="L2_SIGNAL",
+                exit_reason=exit_reason,
                 commission=commission,
                 signal_price=exit_price,
             )
-            logger.info(f"L2 Trade closed in shared store: {trade_id}")
+            logger.info(f"L2 Trade closed [{rule_name}] in shared store: {trade_id}")
             return
 
         # Fallback to local journal

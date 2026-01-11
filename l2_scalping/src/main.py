@@ -514,6 +514,7 @@ class ScalpingSystem:
                     quantity=entry_qty,
                     entry_price=fill_price,
                     order_id=str(order_id),
+                    rule_name=pending.get("rule_name", "obi_momentum"),
                 )
                 return
 
@@ -529,10 +530,13 @@ class ScalpingSystem:
 
                 commission = self._estimate_commission(quantity)
                 self.trade_journal.record_trade_exit(
+                    trade_id=position.get("trade_id", ""),
                     symbol=symbol,
                     exit_price=fill_price,
                     pnl=pnl,
                     commission=commission,
+                    rule_name=position.get("rule_name", "obi_momentum"),
+                    exit_reason=position.get("exit_reason", "L2_SIGNAL"),
                 )
 
                 realized_pnl = self.risk_manager.close_position(symbol, fill_price)
