@@ -13,10 +13,13 @@ from enum import Enum
 from pathlib import Path
 
 # Add intraday_stack to path for shared event store
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "intraday_stack" / "src"))
+sys.path.insert(
+    0, str(Path(__file__).parent.parent.parent.parent / "intraday_stack" / "src")
+)
 
 try:
     from journal.event_store import EventStore
+
     SHARED_EVENT_STORE = True
 except ImportError:
     SHARED_EVENT_STORE = False
@@ -64,7 +67,9 @@ class TradeJournal:
 
         # Use shared event store if available
         if SHARED_EVENT_STORE:
-            self.event_store = EventStore("/home/jacobw/intraday_stack/data/journal/events.db")
+            self.event_store = EventStore(
+                "/home/jacobw/intraday_stack/data/journal/events.db"
+            )
             logger.info("Using shared event store for L2 scalping trades")
         else:
             self.event_store = None
@@ -94,7 +99,7 @@ class TradeJournal:
                 signal_strength=abs(signal_strength),
                 net_edge_bps=signal_strength * 100,  # Convert to bps
                 decision="TRADE",
-                features={"signal_type": signal_type}
+                features={"signal_type": signal_type},
             )
 
         trade = TradeRecord(
@@ -132,7 +137,7 @@ class TradeJournal:
                 entry_price=entry_price,
                 entry_qty=quantity,
                 signal_price=entry_price,
-                system="l2-scalping"
+                system="l2-scalping",
             )
             logger.info(f"L2 Trade opened in shared store: {trade_id}")
             return trade_id
@@ -163,7 +168,12 @@ class TradeJournal:
         return f"local_{symbol}_{datetime.now().strftime('%H%M%S')}"
 
     def record_trade_exit(
-        self, trade_id: str, symbol: str, exit_price: float, pnl: float, commission: float = 0.0
+        self,
+        trade_id: str,
+        symbol: str,
+        exit_price: float,
+        pnl: float,
+        commission: float = 0.0,
     ) -> None:
         """Record trade exit"""
         if SHARED_EVENT_STORE and trade_id:
@@ -175,7 +185,7 @@ class TradeJournal:
                 exit_qty=100,  # Standard L2 scalping size
                 exit_reason="L2_SIGNAL",
                 commission=commission,
-                signal_price=exit_price
+                signal_price=exit_price,
             )
             logger.info(f"L2 Trade closed in shared store: {trade_id}")
             return

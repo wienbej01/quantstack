@@ -1,0 +1,280 @@
+{
+  "single": {
+    "obi_1": {
+      "type": "single",
+      "pos_mean": 0.14409048035667643,
+      "neg_mean": -0.2761423768144756,
+      "separation": 0.9739220204842024,
+      "direction": "higher"
+    },
+    "d_obi_1_30s": {
+      "type": "single",
+      "pos_mean": 0.19867356048447454,
+      "neg_mean": -0.11645185877193431,
+      "separation": 0.5631183548198034,
+      "direction": "higher"
+    },
+    "depth_imb_k": {
+      "type": "single",
+      "pos_mean": -0.07067220667151165,
+      "neg_mean": -0.16159147402134855,
+      "separation": 0.5358742795123832,
+      "direction": "higher"
+    },
+    "depth_bid_k": {
+      "type": "single",
+      "pos_mean": 27553.897978825793,
+      "neg_mean": 13638.693548387097,
+      "separation": 0.4916671395304851,
+      "direction": "higher"
+    },
+    "d_obi_1_15s": {
+      "type": "single",
+      "pos_mean": 0.15385135693090868,
+      "neg_mean": -0.08293356532896357,
+      "separation": 0.45704728835334624,
+      "direction": "higher"
+    },
+    "depth_ask_k": {
+      "type": "single",
+      "pos_mean": 35272.762271414824,
+      "neg_mean": 18673.290322580644,
+      "separation": 0.4384420044349564,
+      "direction": "higher"
+    },
+    "d_obi_1_5s": {
+      "type": "single",
+      "pos_mean": 0.06239370952142269,
+      "neg_mean": -0.03665745903626768,
+      "separation": 0.24174134919330775,
+      "direction": "higher"
+    },
+    "obi_5": {
+      "type": "single",
+      "pos_mean": -0.060794725953597396,
+      "neg_mean": -0.11711881763503298,
+      "separation": 0.18100217401114405,
+      "direction": "higher"
+    },
+    "obi_3": {
+      "type": "single",
+      "pos_mean": -0.07599988082647847,
+      "neg_mean": -0.049315175501022136,
+      "separation": 0.09553143778002952,
+      "direction": "lower"
+    },
+    "pressure_k": {
+      "type": "single",
+      "pos_mean": -7718.864292589028,
+      "neg_mean": -5034.596774193548,
+      "separation": 0.09021723269967351,
+      "direction": "lower"
+    },
+    "obi_2": {
+      "type": "single",
+      "pos_mean": -0.09346702547701369,
+      "neg_mean": -0.11183764027092646,
+      "separation": 0.06408220675925612,
+      "direction": "higher"
+    }
+  },
+  "combinations": [
+    {
+      "features": [
+        "d_obi_1_30s",
+        "depth_ask_k"
+      ],
+      "condition": "high d_obi_1_30s AND high depth_ask_k",
+      "pos_rate": 0.023177636234961076,
+      "baseline": 0.007735835008562281,
+      "lift": 2.9961389054067586,
+      "samples": 11304
+    },
+    {
+      "features": [
+        "d_obi_1_30s",
+        "depth_bid_k"
+      ],
+      "condition": "high d_obi_1_30s AND high depth_bid_k",
+      "pos_rate": 0.022502791376792924,
+      "baseline": 0.007735835008562281,
+      "lift": 2.908902704347505,
+      "samples": 11643
+    },
+    {
+      "features": [
+        "d_obi_1_15s",
+        "depth_ask_k"
+      ],
+      "condition": "high d_obi_1_15s AND high depth_ask_k",
+      "pos_rate": 0.020655005582433942,
+      "baseline": 0.007735835008562281,
+      "lift": 2.6700421557042375,
+      "samples": 10748
+    },
+    {
+      "features": [
+        "depth_bid_k",
+        "d_obi_1_15s"
+      ],
+      "condition": "high depth_bid_k AND high d_obi_1_15s",
+      "pos_rate": 0.02006326253953909,
+      "baseline": 0.007735835008562281,
+      "lift": 2.5935484039321417,
+      "samples": 11065
+    },
+    {
+      "features": [
+        "obi_1",
+        "depth_ask_k"
+      ],
+      "condition": "high obi_1 AND high depth_ask_k",
+      "pos_rate": 0.01773132017034456,
+      "baseline": 0.007735835008562281,
+      "lift": 2.2921016478142233,
+      "samples": 12915
+    },
+    {
+      "features": [
+        "obi_1",
+        "depth_bid_k"
+      ],
+      "condition": "high obi_1 AND high depth_bid_k",
+      "pos_rate": 0.016899121836026862,
+      "baseline": 0.007735835008562281,
+      "lift": 2.1845245946070913,
+      "samples": 13551
+    },
+    {
+      "features": [
+        "depth_bid_k",
+        "depth_ask_k"
+      ],
+      "condition": "high depth_bid_k AND high depth_ask_k",
+      "pos_rate": 0.015576892970829202,
+      "baseline": 0.007735835008562281,
+      "lift": 2.013602016277257,
+      "samples": 38326
+    },
+    {
+      "features": [
+        "obi_1",
+        "d_obi_1_30s"
+      ],
+      "condition": "high obi_1 AND high d_obi_1_30s",
+      "pos_rate": 0.013956507627393703,
+      "baseline": 0.007735835008562281,
+      "lift": 1.8041371890618367,
+      "samples": 24648
+    },
+    {
+      "features": [
+        "depth_imb_k",
+        "d_obi_1_15s"
+      ],
+      "condition": "high depth_imb_k AND low d_obi_1_15s",
+      "pos_rate": 0.0018682399213372665,
+      "baseline": 0.007735835008562281,
+      "lift": 0.24150462351762106,
+      "samples": 10170
+    },
+    {
+      "features": [
+        "obi_1",
+        "depth_imb_k"
+      ],
+      "condition": "high obi_1 AND low depth_imb_k",
+      "pos_rate": 0.012880095604833355,
+      "baseline": 0.007735835008562281,
+      "lift": 1.6649909919972743,
+      "samples": 7531
+    },
+    {
+      "features": [
+        "obi_1",
+        "depth_ask_k"
+      ],
+      "condition": "high obi_1 AND low depth_ask_k",
+      "pos_rate": 0.012854889589905362,
+      "baseline": 0.007735835008562281,
+      "lift": 1.6617326475651484,
+      "samples": 12680
+    },
+    {
+      "features": [
+        "obi_1",
+        "d_obi_1_15s"
+      ],
+      "condition": "high obi_1 AND high d_obi_1_15s",
+      "pos_rate": 0.011817670230725942,
+      "baseline": 0.007735835008562281,
+      "lift": 1.527652828381907,
+      "samples": 23101
+    },
+    {
+      "features": [
+        "d_obi_1_30s",
+        "depth_ask_k"
+      ],
+      "condition": "high d_obi_1_30s AND low depth_ask_k",
+      "pos_rate": 0.011665231347373366,
+      "baseline": 0.007735835008562281,
+      "lift": 1.507947278407812,
+      "samples": 12773
+    },
+    {
+      "features": [
+        "d_obi_1_30s",
+        "d_obi_1_15s"
+      ],
+      "condition": "high d_obi_1_30s AND high d_obi_1_15s",
+      "pos_rate": 0.01161755541707469,
+      "baseline": 0.007735835008562281,
+      "lift": 1.5017842811042366,
+      "samples": 22466
+    },
+    {
+      "features": [
+        "d_obi_1_30s",
+        "depth_imb_k"
+      ],
+      "condition": "high d_obi_1_30s AND low depth_imb_k",
+      "pos_rate": 0.01114699447859152,
+      "baseline": 0.007735835008562281,
+      "lift": 1.440955561520334,
+      "samples": 9599
+    }
+  ],
+  "temporal": [
+    {
+      "pattern": "obi_accelerating",
+      "condition": "OBI acceleration > 80th percentile",
+      "pos_rate": 0.008264770485089907,
+      "lift": 1.0683747101563286,
+      "samples": 26861
+    },
+    {
+      "pattern": "obi_reversal_bullish",
+      "condition": "OBI flips from negative to positive",
+      "pos_rate": 0.004548408057179987,
+      "lift": 0.587966011703411,
+      "samples": 3078
+    }
+  ],
+  "regime": [
+    {
+      "regime": "high_depth",
+      "condition": "depth_bid_k > 70th percentile",
+      "pos_rate": 0.014828614008941877,
+      "lift": 1.916873096767068,
+      "samples": 40260
+    },
+    {
+      "regime": "imbalanced_book",
+      "condition": "|depth_imb_k| > 80th percentile",
+      "pos_rate": 0.0014148484622831187,
+      "lift": 0.18289537725625185,
+      "samples": 26858
+    }
+  ]
+}

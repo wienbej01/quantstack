@@ -113,7 +113,7 @@ class GatewayManager:
         except Exception:
             return 0, 0
 
-        port_pattern = re.compile(fr":{self.config.port}\b")
+        port_pattern = re.compile(rf":{self.config.port}\b")
         estab = 0
         close_wait = 0
         for line in result.stdout.splitlines():

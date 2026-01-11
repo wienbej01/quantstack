@@ -1,0 +1,8 @@
+LogToConsole=no
+IbLoginId=YOUR_USERNAME
+IbPassword=YOUR_PASSWORD
+PasswordEncrypted=no
+TradingMode=paper
+AcceptIncomingConnectionAction=accept
+AllowBlindTrading=yes
+IbControllerPort=7462

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 
 from qx_broker.gateway.config import GatewayConfig
 from qx_broker.gateway.health import GatewayManager
+from qx_broker.gateway.status import fetch_status
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,11 @@ class GatewayRestarter:
         steps: list[str] = []
         warnings: list[str] = []
 
+        status = fetch_status(self.config)
+        if status.maintenance:
+            warnings.append(status.message)
+            return RestartReport(success=False, steps=steps, warnings=warnings)
+
         baseline = self.manager.check_health()
         steps.append(
             "Baseline: "
@@ -38,7 +44,9 @@ class GatewayRestarter:
         target_clients = self._expected_drain_target(baseline.estab_clients)
         if target_clients is not None:
             drained = self._wait_for_clients_below(
-                target_clients, timeout=self.config.gateway_stop_wait_seconds, dry_run=dry_run
+                target_clients,
+                timeout=self.config.gateway_stop_wait_seconds,
+                dry_run=dry_run,
             )
             if drained:
                 steps.append(f"Drain: estab_clients <= {target_clients}")
@@ -86,9 +94,7 @@ class GatewayRestarter:
                 result = self._run_cmd(cmd)
                 steps.append(f"Stopped {service} (rc={result.returncode})")
                 if result.returncode != 0:
-                    steps.append(
-                        f"{service}: stderr={result.stderr.strip() or 'n/a'}"
-                    )
+                    steps.append(f"{service}: stderr={result.stderr.strip() or 'n/a'}")
         return steps
 
     def _start_services(self, dry_run: bool, warnings: list[str]) -> list[str]:
@@ -151,9 +157,7 @@ class GatewayRestarter:
             )
         return steps
 
-    def _wait_for_clients_below(
-        self, target: int, timeout: int, dry_run: bool
-    ) -> bool:
+    def _wait_for_clients_below(self, target: int, timeout: int, dry_run: bool) -> bool:
         if dry_run:
             return True
         if timeout <= 0:

@@ -1,0 +1,18 @@
+[Unit]
+Description=IBKR Gateway (IBC-managed)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/jacobw/quantstack
+Environment=TZ=America/New_York
+ExecStart=/home/jacobw/quantstack/scripts/start_ibkr_gateway.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

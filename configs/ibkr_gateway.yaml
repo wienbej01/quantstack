@@ -9,12 +9,22 @@ services:
   - "l2-scalping"
   - "l2-collector"
   - "intraday-paper"
-use_sudo: false
-use_user_systemctl: true
+use_sudo: true
+use_user_systemctl: false
 gateway_startup_wait_seconds: 30
 gateway_stop_wait_seconds: 10
 service_start_delay_seconds: 5
 service_start_timeout_seconds: 45
+gateway_log_path: "/home/jacobw/gateway-exported-logs.txt"
+status_url: "https://www.interactivebrokers.com/en/software/systemStatus.php"
+status_keywords:
+  - "scheduled maintenance"
+  - "maintenance"
+  - "unable to connect"
+monitor_interval_seconds: 60
+maintenance_backoff_seconds: 900
+allow_force_kill: false
+drop_unknown_clients: false
 expected_client_ids:
   l2_scalping:
     - 20

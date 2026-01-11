@@ -83,10 +83,10 @@ class L2DataFeed:
                 return True
 
             self.ib = IB()
-            
+
             # Attach error handler BEFORE connect (required for API handshake)
             self.ib.errorEvent += self._on_error
-            
+
             self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=30)
 
             # Attach data handlers after connect

@@ -32,7 +32,9 @@ app.add_typer(gateway_app, name="gateway", help="IBKR Gateway health utilities")
 @app.command()
 def run_cost_sweep(
     name: str | None = typer.Option(None, help="Experiment name"),
-    symbols: list[str] | None = typer.Option(None, help="Symbols to test (comma-separated)"),
+    symbols: list[str] | None = typer.Option(
+        None, help="Symbols to test (comma-separated)"
+    ),
     start_date: str | None = typer.Option(None, help="Start date (YYYY-MM-DD)"),
     end_date: str | None = typer.Option(None, help="End date (YYYY-MM-DD)"),
     commission_per_share: str | None = typer.Option(
@@ -74,7 +76,9 @@ def run_cost_sweep(
     if end_date:
         config.end_date = end_date
     if commission_per_share:
-        config.commission_per_share = [float(x.strip()) for x in commission_per_share.split(",")]
+        config.commission_per_share = [
+            float(x.strip()) for x in commission_per_share.split(",")
+        ]
     if commission_min:
         config.commission_min = [float(x.strip()) for x in commission_min.split(",")]
     if slippage_bps:
@@ -118,7 +122,9 @@ def run_cost_sweep(
                 typer.echo(
                     f"  Commission per share: ${best_config.get('commission_per_share', 'N/A')}"
                 )
-                typer.echo(f"  Commission min: ${best_config.get('commission_min', 'N/A')}")
+                typer.echo(
+                    f"  Commission min: ${best_config.get('commission_min', 'N/A')}"
+                )
                 typer.echo(f"  Slippage bps: {best_config.get('slippage_bps', 'N/A')}")
 
                 if "best_metrics" in analysis:
@@ -165,7 +171,9 @@ def create_config(
 
 
 @app.command()
-def list_experiments(output_dir: str = typer.Option("runs", help="Output directory")) -> None:
+def list_experiments(
+    output_dir: str = typer.Option("runs", help="Output directory")
+) -> None:
     """List completed experiments."""
 
     runs_path = Path(output_dir)

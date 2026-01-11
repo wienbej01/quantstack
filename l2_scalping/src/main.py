@@ -11,12 +11,7 @@ from pathlib import Path
 
 import yaml
 from data.l2_feed import L2DataFeed, L2Snapshot
-from execution.order_manager import (
-    IBKROrderManager,
-    OrderRequest,
-    OrderSide,
-    OrderType,
-)
+from execution.order_manager import IBKROrderManager, OrderRequest, OrderSide, OrderType
 from reporting.performance_reporter import PerformanceReporter
 from reporting.trade_journal import TradeJournal
 from risk.risk_manager import CircuitBreaker, RiskManager
@@ -64,9 +59,11 @@ class ScalpingSystem:
         from data.sip_integration import get_scalping_symbols
 
         sip_symbols = get_scalping_symbols()
-        
+
         if not sip_symbols:
-            logger.warning("No NYSE symbols available for L2 scalping - system will not trade")
+            logger.warning(
+                "No NYSE symbols available for L2 scalping - system will not trade"
+            )
             # Create empty data feed to maintain system structure
             ibkr_config = self.config["ibkr"].copy()
             ibkr_config = dict(ibkr_config)
@@ -217,7 +214,7 @@ class ScalpingSystem:
                 symbol=snapshot.symbol,
                 mid=snapshot.mid,
                 volume=snapshot.bid_size + snapshot.ask_size,  # Proxy for volume
-                timestamp=snapshot.timestamp
+                timestamp=snapshot.timestamp,
             )
 
             # Convert to signal snapshot format
@@ -266,7 +263,7 @@ class ScalpingSystem:
             ctx = self.context_computer.compute(snapshot.symbol)
             if ctx is not None:
                 ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
-                
+
                 # Hard gate: block trade
                 if ctx_result.tier == TradeTier.BLOCKED:
                     logger.info(
@@ -274,7 +271,7 @@ class ScalpingSystem:
                         f"(vol_exp={ctx.vol_expansion}, bb_sq={ctx.bb_squeeze})"
                     )
                     return
-                
+
                 # Log context for monitoring
                 logger.debug(
                     f"Context OK [{snapshot.symbol}]: rel_vol={ctx.rel_vol:.2f}, "

@@ -99,11 +99,11 @@ class IBKROrderManager:
                 return True
 
             self.ib = IB()
-            
+
             # Attach event handlers BEFORE connect (required for API handshake)
             self.ib.errorEvent += self._on_error
             self.ib.disconnectedEvent += self._on_disconnect
-            
+
             self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=30)
 
             # Attach order-specific handlers after connect
@@ -379,7 +379,7 @@ class IBKROrderManager:
                 return
             except Exception as e:
                 logger.error(f"Reconnection attempt failed: {e}")
-                
+
                 # Clean up failed connection
                 if self.ib:
                     try:
@@ -387,7 +387,7 @@ class IBKROrderManager:
                     except Exception:
                         pass
                     self.ib = None
-                
+
                 # Stop reconnection attempts on event loop errors
                 if "event loop" in str(e).lower():
                     logger.error("Event loop error - stopping reconnection attempts")

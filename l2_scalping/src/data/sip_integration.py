@@ -58,7 +58,7 @@ def get_scalping_symbols(max_symbols: int = 3) -> list[str]:
 
     Uses all symbols from SIP file that qualify, but filters for NYSE only
     since L2 data subscription is NYSE-only.
-    
+
     If no NYSE symbols qualify, returns empty list - system should not trade.
 
     Raises RuntimeError if no SIP file found.
@@ -74,11 +74,23 @@ def get_scalping_symbols(max_symbols: int = 3) -> list[str]:
 
     # Filter for NYSE symbols only (L2 data subscription requirement)
     nyse_symbols = []
-    
+
     # Quick exchange check using known NYSE vs ARCA symbols
-    known_nyse = {'SMR', 'VST', 'INSM', 'F', 'GE', 'BAC', 'C', 'JPM', 'WFC', 'XOM', 'CVX'}
-    known_arca = {'UNG', 'SPY', 'QQQ', 'IWM', 'EFA', 'EEM', 'GLD', 'SLV', 'TLT', 'HYG'}
-    
+    known_nyse = {
+        "SMR",
+        "VST",
+        "INSM",
+        "F",
+        "GE",
+        "BAC",
+        "C",
+        "JPM",
+        "WFC",
+        "XOM",
+        "CVX",
+    }
+    known_arca = {"UNG", "SPY", "QQQ", "IWM", "EFA", "EEM", "GLD", "SLV", "TLT", "HYG"}
+
     for symbol in sip_symbols:
         if symbol in known_nyse:
             nyse_symbols.append(symbol)
