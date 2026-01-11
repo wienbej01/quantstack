@@ -22,6 +22,7 @@ from signals.context_filter import ContextFeatureComputer, ContextFilter, TradeT
 from signals.l2_signals import L2SignalGenerator
 from signals.l2_signals import L2Snapshot as SignalSnapshot
 from signals.l2_signals import SignalValidator
+from signals.pattern_rules import MultiRuleSignalGenerator, RuleName
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +51,9 @@ class ScalpingSystem:
         # Context-aware filtering
         self.context_filter = ContextFilter(self.config["strategy"])
         self.context_computer = ContextFeatureComputer(lookback=30)
+
+        # Pattern-based rules (new)
+        self.multi_rule_generator = MultiRuleSignalGenerator(self.config["strategy"])
 
         # Data feed (production only - mock data must not be enabled)
         if self.config["strategy"].get("mock_data", {}).get("enabled", False):
@@ -235,7 +239,7 @@ class ScalpingSystem:
                 self.risk_manager.update_position_pnl(snapshot.symbol, snapshot.mid)
                 return  # Don't generate new signals if we have a position
 
-            # Generate signal
+            # === ORIGINAL OBI MOMENTUM RULE ===
             signal = self.signal_generator.generate_signal(signal_snapshot)
             self.signals_generated += 1
 
@@ -251,40 +255,56 @@ class ScalpingSystem:
                 signal, signal_snapshot
             )
 
-            if not is_valid:
-                logger.debug(f"Signal rejected for {snapshot.symbol}: {reason}")
-                return
-
-            # Check if we should trade
-            if signal.signal_type.value == 0:  # No signal
-                return
-
-            # === CONTEXT-AWARE HARD GATES ===
-            ctx = self.context_computer.compute(snapshot.symbol)
-            if ctx is not None:
-                ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
-
-                # Hard gate: block trade
-                if ctx_result.tier == TradeTier.BLOCKED:
-                    logger.info(
-                        f"Trade BLOCKED [{snapshot.symbol}]: {ctx_result.reasons} "
-                        f"(vol_exp={ctx.vol_expansion}, bb_sq={ctx.bb_squeeze})"
-                    )
-                    return
-
-                # Log context for monitoring
-                logger.debug(
-                    f"Context OK [{snapshot.symbol}]: rel_vol={ctx.rel_vol:.2f}, "
-                    f"rsi={ctx.rsi_14:.1f}, vol_exp={ctx.vol_expansion}, bb_sq={ctx.bb_squeeze}"
-                )
-
-            # Execute trade
-            self._execute_signal(signal, snapshot)
+            if is_valid and signal.signal_type.value != 0:
+                # Check context gates
+                ctx = self.context_computer.compute(snapshot.symbol)
+                if ctx is not None:
+                    ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
+                    if ctx_result.tier == TradeTier.BLOCKED:
+                        logger.info(
+                            f"Trade BLOCKED [{snapshot.symbol}]: {ctx_result.reasons}"
+                        )
+                    else:
+                        # Execute original OBI momentum rule
+                        self._execute_signal(signal, snapshot, RuleName.OBI_MOMENTUM)
+            
+            # === NEW PATTERN-BASED RULES ===
+            extended_snap = self.multi_rule_generator.create_extended_snapshot(
+                symbol=snapshot.symbol,
+                timestamp=snapshot.timestamp,
+                mid=snapshot.mid,
+                spread=snapshot.spread,
+                obi_1=snapshot.obi_1,
+                obi_5=snapshot.obi_5,
+                depth_bid=snapshot.depth_bid,
+                depth_ask=snapshot.depth_ask,
+                pressure=snapshot.pressure,
+            )
+            
+            pattern_signals = self.multi_rule_generator.generate_pattern_signals(extended_snap)
+            
+            for rule_signal in pattern_signals:
+                # Skip if we already have a position
+                if snapshot.symbol in self.active_positions:
+                    break
+                
+                # Check context gates for pattern rules too
+                ctx = self.context_computer.compute(snapshot.symbol)
+                if ctx is not None:
+                    ctx_result = self.context_filter.evaluate(ctx, rule_signal.direction)
+                    if ctx_result.tier == TradeTier.BLOCKED:
+                        logger.debug(
+                            f"Pattern rule BLOCKED [{rule_signal.rule_name.value}]: {ctx_result.reasons}"
+                        )
+                        continue
+                
+                # Execute pattern rule signal
+                self._execute_pattern_signal(rule_signal, snapshot)
 
         except Exception as e:
             logger.error(f"Error processing market data: {e}", exc_info=True)
 
-    def _execute_signal(self, signal, snapshot: L2Snapshot) -> None:
+    def _execute_signal(self, signal, snapshot: L2Snapshot, rule_name: RuleName = RuleName.OBI_MOMENTUM) -> None:
         """Execute trading signal"""
         try:
             # Check risk limits
@@ -327,7 +347,7 @@ class ScalpingSystem:
                 side = OrderSide.SELL
                 limit_price = snapshot.bid  # Sell at bid
 
-            # Create order request
+            # Create order request with rule name in reference
             order_request = OrderRequest(
                 symbol=signal.symbol,
                 side=side,
@@ -344,7 +364,7 @@ class ScalpingSystem:
                     else "DAY"
                 ),
                 client_order_id=self._build_order_ref(
-                    signal.symbol, "ENTRY", side.value
+                    signal.symbol, "ENTRY", side.value, rule_name.value
                 ),
             )
 
@@ -354,18 +374,104 @@ class ScalpingSystem:
             if order_id:
                 self.signals_traded += 1
                 logger.info(
-                    f"TRADE: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
+                    f"TRADE [{rule_name.value}]: {signal.symbol} {side.value} {quantity}@{limit_price:.4f}"
                 )
                 self.pending_entries[order_id] = {
                     "symbol": signal.symbol,
                     "side": side.value,
                     "quantity": quantity,
+                    "rule_name": rule_name.value,
                 }
             else:
                 logger.error(f"Failed to place order for {signal.symbol}")
 
         except Exception as e:
             logger.error(f"Error executing signal: {e}", exc_info=True)
+
+    def _execute_pattern_signal(self, rule_signal, snapshot: L2Snapshot) -> None:
+        """Execute pattern rule signal"""
+        try:
+            # Check risk limits
+            should_stop, reason = self.risk_manager.should_stop_trading()
+            if should_stop:
+                logger.warning(f"Trading stopped: {reason}")
+                return
+
+            # Calculate position size based on rule confidence
+            quantity = self.risk_manager.calculate_position_size(
+                symbol=snapshot.symbol,
+                signal_strength=rule_signal.strength,
+                confidence=rule_signal.confidence,
+                account_value=self.account_value,
+                price=snapshot.mid,
+            )
+
+            # Ensure minimum quantity
+            if quantity < 1:
+                logger.debug(f"Quantity too small: {quantity}")
+                return
+
+            # Pre-trade risk check
+            can_trade, reason = self.risk_manager.check_pre_trade_risk(
+                symbol=snapshot.symbol,
+                quantity=quantity,
+                price=snapshot.mid,
+                account_value=self.account_value,
+            )
+
+            if not can_trade:
+                logger.info(f"Trade rejected: {reason}")
+                return
+
+            # Determine order side and price
+            if rule_signal.direction > 0:  # Long
+                side = OrderSide.BUY
+                limit_price = snapshot.ask
+            else:  # Short
+                side = OrderSide.SELL
+                limit_price = snapshot.bid
+
+            # Create order request with rule name
+            order_request = OrderRequest(
+                symbol=snapshot.symbol,
+                side=side,
+                quantity=quantity,
+                price=limit_price,
+                order_type=(
+                    OrderType.IOC
+                    if self.config["ibkr"]["orders"]["use_ioc_for_scalping"]
+                    else OrderType.LIMIT
+                ),
+                time_in_force=(
+                    "IOC"
+                    if self.config["ibkr"]["orders"]["use_ioc_for_scalping"]
+                    else "DAY"
+                ),
+                client_order_id=self._build_order_ref(
+                    snapshot.symbol, "ENTRY", side.value, rule_signal.rule_name.value
+                ),
+            )
+
+            # Place order
+            order_id = self.order_manager.place_order(order_request)
+
+            if order_id:
+                self.signals_traded += 1
+                logger.info(
+                    f"TRADE [{rule_signal.rule_name.value}]: {snapshot.symbol} {side.value} "
+                    f"{quantity}@{limit_price:.4f} ({rule_signal.reason})"
+                )
+                self.pending_entries[order_id] = {
+                    "symbol": snapshot.symbol,
+                    "side": side.value,
+                    "quantity": quantity,
+                    "rule_name": rule_signal.rule_name.value,
+                }
+            else:
+                logger.error(f"Failed to place order for {snapshot.symbol}")
+
+        except Exception as e:
+            logger.error(f"Error executing pattern signal: {e}", exc_info=True)
 
     def _on_order_fill(self, trade, fill) -> None:
         """Handle order fill"""
@@ -399,6 +505,7 @@ class ScalpingSystem:
                     "entry_order_id": order_id,
                     "exit_order_id": None,
                     "exit_reason": None,
+                    "rule_name": pending.get("rule_name", "obi_momentum"),
                 }
 
                 self.trade_journal.record_trade_entry(
@@ -594,10 +701,10 @@ class ScalpingSystem:
         logger.info(f"Received signal {signum}")
         self.is_running = False
 
-    def _build_order_ref(self, symbol: str, intent: str, side: str) -> str:
-        """Build order reference for tagging"""
+    def _build_order_ref(self, symbol: str, intent: str, side: str, rule_name: str = "obi_momentum") -> str:
+        """Build order reference for tagging with rule name"""
         prefix = self.config["ibkr"]["orders"].get("order_ref_prefix", "L2SCALP")
-        return f"{prefix}_{intent}_{side}_{symbol}_{int(time.time()*1000)}"
+        return f"{prefix}_{rule_name}_{intent}_{side}_{symbol}_{int(time.time()*1000)}"
 
     def _estimate_commission(self, quantity: int) -> float:
         """Estimate commission and fees for trade reporting"""

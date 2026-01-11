@@ -24,12 +24,55 @@ sudo systemctl start l2-scalping
 
 ## System Overview
 
-- **Strategy**: OBI momentum scalping with 5-30 second holds
-- **Target**: 0.5-1.1 bps gross at 10-30s in the latest sample  
+- **Strategy**: Multi-rule L2 scalping with 4 parallel trading rules
+- **Target**: 0.5-3.0 bps gross at 5-minute hold
 - **Universe**: Daily SIP universe ranked by score
 - **Selection**: Top 3 symbols from daily SIP ranking
 - **Risk**: 10 bps stop loss, 100 bps daily limit
 - **Schedule**: Automatic start/stop with market hours
+
+## Trading Rules (v2.0)
+
+The system runs 4 trading rules in parallel, each with rule attribution for performance tracking:
+
+### Rule 1: OBI Momentum (Original)
+- **Entry**: `obi_1 > 0.8` (high order book imbalance)
+- **Confidence**: Based on OBI strength
+- **Rule Name**: `obi_momentum`
+
+### Rule 2: OBI + Depth Combo (NEW - lift=3.00x)
+- **Entry**: `d_obi_1_30s > 0.2` AND `depth_ask > $25k`
+- **Rationale**: OBI momentum with liquidity support
+- **Rule Name**: `obi_depth_combo`
+
+### Rule 3: Bid Depth + OBI Change (NEW - lift=2.59x)
+- **Entry**: `depth_bid > $20k` AND `d_obi_1_15s > 0.1`
+- **Rationale**: Strong bid support with positive OBI momentum
+- **Rule Name**: `bid_depth_obi`
+
+### Rule 4: High OBI + Depth (NEW - lift=2.29x)
+- **Entry**: `obi_1 > 0.1` AND `depth_ask > $30k`
+- **Rationale**: Positive OBI with deep liquidity
+- **Rule Name**: `high_obi_depth`
+
+### Rule Configuration
+
+Rules can be enabled/disabled in `config/strategy.yaml`:
+
+```yaml
+pattern_rules:
+  rule1_enabled: true
+  rule1_d_obi_30s: 0.2
+  rule1_depth_ask: 25000
+  
+  rule2_enabled: true
+  rule2_depth_bid: 20000
+  rule2_d_obi_15s: 0.1
+  
+  rule3_enabled: true
+  rule3_obi_1: 0.1
+  rule3_depth_ask: 30000
+```
 
 ## SIP Universe Integration
 

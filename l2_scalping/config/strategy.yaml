@@ -3,9 +3,9 @@
 # Strategy Parameters
 strategy:
   name: "L2_OBI_Momentum_Scalper"
-  version: "1.1"
+  version: "2.0"  # Updated with pattern rules
   
-  # Signal thresholds
+  # Signal thresholds (original OBI momentum rule)
   obi_entry_threshold: 0.8      # OBI level for entry signals (raised from 0.3)
   obi_extreme_threshold: 0.9    # High conviction threshold
   min_confidence: 0.3           # Minimum signal confidence
@@ -18,6 +18,24 @@ strategy:
   default_hold_seconds: 300     # 5-minute hold (from analysis)
   max_hold_seconds: 600         # Maximum hold time
   min_time_between_trades_ms: 1000  # Minimum time between trades
+
+# Pattern-Based Trading Rules (from L2 analysis Jan 2026)
+# These run in parallel with the original OBI momentum rule
+pattern_rules:
+  # Rule 1: OBI momentum + depth (lift=3.00x, strongest signal)
+  rule1_enabled: true
+  rule1_d_obi_30s: 0.2          # d_obi_1_30s threshold
+  rule1_depth_ask: 25000        # depth_ask threshold ($k)
+  
+  # Rule 2: Bid depth + OBI change (lift=2.59x)
+  rule2_enabled: true
+  rule2_depth_bid: 20000        # depth_bid threshold ($k)
+  rule2_d_obi_15s: 0.1          # d_obi_1_15s threshold
+  
+  # Rule 3: High OBI + depth (lift=2.29x)
+  rule3_enabled: true
+  rule3_obi_1: 0.1              # obi_1 threshold
+  rule3_depth_ask: 30000        # depth_ask threshold ($k)
 
 # Context-Aware Filtering (from correlation analysis)
 # Hard gates DOUBLE profit: $201 -> $402, win rate 58% -> 85%
