@@ -385,10 +385,10 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
         direction="backward",
     )
 
-    # Fill any missing values
-    result["spy_above_sma20"] = result["spy_above_sma20"].fillna(True)
-    result["spy_ret_60m"] = result["spy_ret_60m"].fillna(0.0)
-    result["spy_high_vol"] = result["spy_high_vol"].fillna(False)
+    # Fill any missing values with proper dtype handling
+    result["spy_above_sma20"] = result["spy_above_sma20"].fillna(True).astype(bool)
+    result["spy_ret_60m"] = result["spy_ret_60m"].fillna(0.0).astype(float)
+    result["spy_high_vol"] = result["spy_high_vol"].fillna(False).astype(bool)
 
     # Drop merge column
     if "spy_ts" in result.columns:

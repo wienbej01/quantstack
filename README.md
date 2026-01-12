@@ -2,7 +2,103 @@
 
 A modular, framework-agnostic trading system with configurable universe selection, backtesting, and experiment orchestration.
 
-## Latest: Ultra-High-Quality Pattern Discovery System (2026-01-12)
+## Latest: IBKR API Platform Migration (2026-01-13)
+
+**🚨 MAJOR UPGRADE: Replaced socket-based ib_insync connections with centralized IBKR API Platform**
+**✅ NEW ARCHITECTURE: All services now connect through REST-based platform (port 8000)**
+
+### Current Status: Platform Migration Complete
+
+**Problem with Previous Approach:**
+- Socket-based ib_insync connections prone to stale connections
+- Individual connection management in each service
+- Complex client ID coordination and zombie connection cleanup
+- Service failures due to Gateway connection issues
+
+**New Platform Architecture:**
+- **Centralized Platform**: Single IBKR API Platform service (port 8000)
+- **REST-based Interface**: No socket connections, eliminates stale connection issues
+- **Service Registry**: Automatic service registration and health monitoring
+- **Unified Authentication**: Single point for IBKR Gateway authentication
+- **Built-in Recovery**: Automatic reconnection and error handling
+
+### Platform Components
+
+**Core Services:**
+- `ibkr-platform.service` - Centralized IBKR API Platform (port 8000)
+- `cpapi/platform.py` - FastAPI server with unified IBKR endpoints
+- `cpapi/platform_client.py` - HTTP client for services to replace ib_insync
+
+**Migrated Services:**
+- `l2-collector` - Uses platform client for market data
+- `l2-scalping` - Uses platform client for orders and data
+- `intraday-paper` - Uses platform client for paper trading
+
+### API Endpoints
+
+**Service Management:**
+- `POST /services/register` - Register service with platform
+- `POST /services/{id}/heartbeat` - Service heartbeat
+- `GET /health` - Platform health and authentication status
+
+**IBKR Operations:**
+- `GET /api/accounts` - Get IBKR accounts
+- `POST /api/market-data/snapshot` - Market data snapshots
+- `GET /api/market-data/historical` - Historical data
+- `POST /api/orders/place` - Place orders
+- `GET /api/positions/{account}` - Get positions
+
+### Migration Benefits
+
+- **No More Stale Connections**: REST-based, no socket issues
+- **Simplified Code**: Remove complex ib_insync connection management
+- **Centralized Monitoring**: Single point for health checks
+- **Better Reliability**: Platform handles reconnection automatically
+- **Easier Testing**: Mock platform instead of IBKR Gateway
+
+### Authentication Setup
+
+1. **Start Client Portal Gateway**:
+   ```bash
+   cd /home/jacobw/quantstack/cpapi/gateway
+   bin/run.sh root/conf.yaml
+   ```
+
+2. **Browser Login**: https://localhost:5000 (IBKR credentials + 2FA)
+
+3. **Verify Platform**: `curl http://127.0.0.1:8000/health`
+
+### Service Migration Pattern
+
+**Before (socket-based)**:
+```python
+from ib_insync import IB
+ib = IB()
+ib.connect('127.0.0.1', 7497, clientId=521)
+```
+
+**After (platform-based)**:
+```python
+from cpapi.platform_client import IBKRPlatformClient
+client = IBKRPlatformClient("service-id", "Service Name")
+client.register(["market-data", "orders"])
+```
+
+### Production Status
+
+- ✅ **Platform Service**: Running as systemd service
+- ✅ **Authentication**: Client Portal Gateway authenticated
+- ✅ **Services Migrated**: L2 collector, scalping, paper trading
+- ✅ **Timer Schedule**: Configured for NY market hours
+- ✅ **Documentation**: Updated connection protocol
+
+**Files Archived**: Socket-based code moved to `archive/socket_based_ibkr/`
+
+---
+
+## Previous: Ultra-High-Quality Pattern Discovery System (2026-01-12)
+
+[Previous content remains unchanged...]
 
 **🚨 MAJOR UPGRADE: Replaced lift-based ranking with t-statistic ranking for statistically rigorous pattern discovery**
 **✅ NEW APPROACH: Patterns ranked by statistical significance + trading metrics (expectancy, win rate, profit factor)**

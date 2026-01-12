@@ -13,7 +13,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-
 GCS_GOLD_PATH = Path("/home/jacobw/gcs-mount/gold/stocks/1m/")
 DAILY_SIP_DIR = Path("data/daily_sip")
 
@@ -42,13 +41,17 @@ def check_daily_sip(date_str: Optional[str] = None) -> bool:
         count = len([ln for ln in sip_file.read_text().splitlines() if ln.strip()])
         print(f"✅ SIP universe present for {date_str}: {sip_file} ({count} symbols)")
     else:
-        print(f"⚠️  SIP universe missing for {date_str}: {sip_file} (run daily_sip_scheduler.py)")
+        print(
+            f"⚠️  SIP universe missing for {date_str}: {sip_file} (run daily_sip_scheduler.py)"
+        )
         ok = False
     if l2_file.exists():
         count = len([ln for ln in l2_file.read_text().splitlines() if ln.strip()])
         print(f"✅ L2 symbols present for {date_str}: {l2_file} ({count} symbols)")
     else:
-        print(f"⚠️  L2 symbols missing for {date_str}: {l2_file} (run daily_sip_scheduler.py)")
+        print(
+            f"⚠️  L2 symbols missing for {date_str}: {l2_file} (run daily_sip_scheduler.py)"
+        )
         ok = False
     return ok
 
@@ -95,8 +98,12 @@ def check_ibkr_live() -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Validate data integrations (gold, Polygon, IBKR).")
-    parser.add_argument("--date", help="Date (YYYY-MM-DD) to check for SIP outputs; defaults to today.")
+    parser = argparse.ArgumentParser(
+        description="Validate data integrations (gold, Polygon, IBKR)."
+    )
+    parser.add_argument(
+        "--date", help="Date (YYYY-MM-DD) to check for SIP outputs; defaults to today."
+    )
     parser.add_argument(
         "--check-polygon",
         action="store_true",

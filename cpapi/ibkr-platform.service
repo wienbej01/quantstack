@@ -1,0 +1,28 @@
+[Unit]
+Description=IBKR API Platform Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jacobw
+Group=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment=PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=TZ=America/New_York
+ExecStart=/usr/bin/python3 -m cpapi.platform
+Restart=always
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=25%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,310 +1,133 @@
-"""Real-time L2 Data Feed for Scalping System
+"""
+L2 Data Feed - Platform-based implementation.
 
-Integrates with existing qx-l2 collector and provides real-time feature computation.
+Replaces socket-based ib_insync with IBKR API Platform client.
 """
 
 import logging
-import threading
 import time
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional
+from datetime import datetime
+from typing import Dict, List, Optional
 
-from ib_insync import IB, Stock, Ticker
-from qx_l2.features import L2FeatureEngineer
+from cpapi.platform_client import IBKRPlatformClient
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class L2Snapshot:
-    """Real-time L2 snapshot with computed features"""
+    """L2 market data snapshot."""
 
     symbol: str
-    timestamp: float
-    # L1 data
-    bid: float
-    ask: float
-    mid: float
-    spread: float
-    bid_size: float
-    ask_size: float
-    # L2 features
-    obi_1: float
-    obi_5: float
-    depth_bid: float
-    depth_ask: float
-    pressure: float
-    # Deltas (if available)
-    d_mid_5s: float = 0.0
-    d_obi_1_5s: float = 0.0
+    timestamp: datetime
+    bid_price: Optional[float] = None
+    ask_price: Optional[float] = None
+    bid_size: Optional[int] = None
+    ask_size: Optional[int] = None
+    last_price: Optional[float] = None
+    volume: Optional[int] = None
 
 
 class L2DataFeed:
-    """Real-time L2 data feed with feature computation"""
+    """L2 data feed using IBKR API Platform."""
 
     def __init__(self, config: Dict):
         self.config = config
-        self.ib: Optional[IB] = None
-        self.is_connected = False
-        self._loop_thread: Optional[threading.Thread] = None
-        self._running = False
-
-        # Connection parameters
-        ibkr_cfg = config.get("ibkr", config)
-        self.host = ibkr_cfg.get("host", "127.0.0.1")
-        self.port = ibkr_cfg.get("port", 7497)
-        self.client_id = ibkr_cfg.get("data_client_id", 2)
-
-        # Subscribed symbols
-        market_cfg = config.get("market_data", {})
-        self.symbols = market_cfg.get("symbols", [])
-        self.contracts: Dict[str, Stock] = {}
-        self.tickers: Dict[str, Ticker] = {}
-
-        # Feature engineering
-        self.feature_engineers: Dict[str, L2FeatureEngineer] = {}
-        self.depth_levels = market_cfg.get("depth_levels", 10)
-        self.smart_depth = market_cfg.get("smart_depth", False)
-        self.exchange = market_cfg.get("exchange", "NYSE")
-
-        # Data callbacks
-        self.data_callbacks: List[Callable[[L2Snapshot], None]] = []
-
-        # Data history for delta computation
-        self.history: Dict[str, List[L2Snapshot]] = {}
-        self.max_history = config.get("max_history_points", 120)  # 1 minute at 2Hz
-
-        logger.info(f"L2 Data Feed initialized for symbols: {self.symbols}")
+        self.client = IBKRPlatformClient("l2-scalping-data", "L2 Scalping Data")
+        self.symbols = []
+        self.contracts = {}  # symbol -> conid mapping
 
     def connect(self) -> bool:
-        """Connect to IBKR for market data"""
+        """Connect to IBKR API Platform."""
         try:
-            if self.ib and self.ib.isConnected():
+            success = self.client.register(["market-data"])
+            if success and self.client.check_auth_status():
+                logger.info("Connected to IBKR API Platform for data feed")
                 return True
-
-            self.ib = IB()
-
-            # Attach error handler BEFORE connect (required for API handshake)
-            self.ib.errorEvent += self._on_error
-
-            self.ib.connect(self.host, self.port, clientId=self.client_id, timeout=30)
-
-            # Attach data handlers after connect
-            self.ib.pendingTickersEvent += self._on_ticker_update
-
-            self.is_connected = True
-            self._running = True
-            self._loop_thread = threading.Thread(target=self._run_loop, daemon=True)
-            self._loop_thread.start()
-            logger.info(f"Connected to IBKR for market data: {self.host}:{self.port}")
-
-            # Subscribe to symbols
-            self._subscribe_symbols()
-
-            return True
-
+            else:
+                logger.error("Platform not authenticated")
+                return False
         except Exception as e:
-            logger.error(f"Failed to connect to IBKR for market data: {e}")
-            self.is_connected = False
+            logger.error(f"Data feed connection failed: {e}")
             return False
 
-    def disconnect(self) -> None:
-        """Disconnect from IBKR"""
-        self._running = False
-        if self._loop_thread:
-            self._loop_thread.join(timeout=1)
-        if self.ib and self.ib.isConnected():
-            # Cancel all subscriptions
-            for ticker in self.tickers.values():
-                self.ib.cancelMktData(ticker.contract)
-
-            self.ib.disconnect()
-
-        self.is_connected = False
-        self.tickers.clear()
-        logger.info("Disconnected from IBKR market data")
-
-    def _subscribe_symbols(self) -> None:
-        """Subscribe to L2 data for all symbols"""
-        for symbol in self.symbols:
-            try:
-                contract = Stock(symbol, self.exchange, "USD")
-
-                # Request market depth (L2)
-                ticker = self.ib.reqMktDepth(
-                    contract, numRows=self.depth_levels, isSmartDepth=self.smart_depth
-                )
-
-                if ticker:
-                    self.contracts[symbol] = contract
-                    self.tickers[symbol] = ticker
-
-                    # Initialize feature engineer
-                    self.feature_engineers[symbol] = L2FeatureEngineer(self.config)
-
-                    # Initialize history
-                    self.history[symbol] = []
-
-                    logger.info(f"Subscribed to L2 data: {symbol}")
-                else:
-                    logger.error(f"Failed to subscribe to {symbol}")
-
-            except Exception as e:
-                logger.error(f"Error subscribing to {symbol}: {e}")
-
-    def _on_ticker_update(self, tickers: List[Ticker]) -> None:
-        """Handle ticker updates"""
-        for ticker in tickers:
-            if ticker.contract.symbol in self.symbols:
-                self._process_ticker_update(ticker)
-
-    def _process_ticker_update(self, ticker: Ticker) -> None:
-        """Process individual ticker update"""
-        symbol = ticker.contract.symbol
-
+    def disconnect(self):
+        """Disconnect from platform."""
         try:
-            # Extract L1 data
-            if not (ticker.bid and ticker.ask and ticker.bidSize and ticker.askSize):
-                return  # Skip incomplete data
+            self.client.unregister()
+            logger.info("Data feed disconnected from platform")
+        except Exception as e:
+            logger.error(f"Data feed disconnect error: {e}")
 
-            bid = float(ticker.bid)
-            ask = float(ticker.ask)
-            mid = (bid + ask) / 2
-            spread = ask - bid
-            bid_size = float(ticker.bidSize)
-            ask_size = float(ticker.askSize)
+    def subscribe_symbols(self, symbols: List[str]) -> bool:
+        """Subscribe to symbols."""
+        try:
+            self.symbols = symbols
 
-            # Calculate OBI at level 1
-            total_size = bid_size + ask_size
-            obi_1 = (bid_size - ask_size) / total_size if total_size > 0 else 0.0
+            # Get contract IDs for all symbols
+            for symbol in symbols:
+                contracts = self.client.search_contracts(symbol, "STK")
+                if contracts:
+                    self.contracts[symbol] = contracts[0].get("conid")
+                    logger.info(
+                        f"Subscribed to {symbol} (conid: {self.contracts[symbol]})"
+                    )
+                else:
+                    logger.warning(f"No contract found for {symbol}")
 
-            # Extract L2 depth data
-            depth_bid = 0.0
-            depth_ask = 0.0
-            obi_5 = 0.0
-
-            if hasattr(ticker, "domBids") and hasattr(ticker, "domAsks"):
-                dom_bids = ticker.domBids or []
-                dom_asks = ticker.domAsks or []
-
-                # Sum depth
-                for i in range(min(10, len(dom_bids))):
-                    if dom_bids[i].size:
-                        depth_bid += float(dom_bids[i].size)
-
-                for i in range(min(10, len(dom_asks))):
-                    if dom_asks[i].size:
-                        depth_ask += float(dom_asks[i].size)
-
-                # Calculate OBI at level 5
-                if len(dom_bids) >= 5 and len(dom_asks) >= 5:
-                    bid_5 = float(dom_bids[4].size) if dom_bids[4].size else 0.0
-                    ask_5 = float(dom_asks[4].size) if dom_asks[4].size else 0.0
-                    total_5 = bid_5 + ask_5
-                    obi_5 = (bid_5 - ask_5) / total_5 if total_5 > 0 else 0.0
-
-            pressure = depth_bid - depth_ask
-
-            # Create snapshot
-            snapshot = L2Snapshot(
-                symbol=symbol,
-                timestamp=time.time(),
-                bid=bid,
-                ask=ask,
-                mid=mid,
-                spread=spread,
-                bid_size=bid_size,
-                ask_size=ask_size,
-                obi_1=obi_1,
-                obi_5=obi_5,
-                depth_bid=depth_bid,
-                depth_ask=depth_ask,
-                pressure=pressure,
-            )
-
-            # Compute deltas if we have history
-            self._compute_deltas(snapshot)
-
-            # Store in history
-            self.history[symbol].append(snapshot)
-            if len(self.history[symbol]) > self.max_history:
-                self.history[symbol].pop(0)
-
-            # Notify callbacks
-            for callback in self.data_callbacks:
-                try:
-                    callback(snapshot)
-                except Exception as e:
-                    logger.error(f"Error in data callback: {e}")
+            return len(self.contracts) > 0
 
         except Exception as e:
-            logger.error(f"Error processing ticker update for {symbol}: {e}")
+            logger.error(f"Subscription error: {e}")
+            return False
 
-    def _compute_deltas(self, snapshot: L2Snapshot) -> None:
-        """Compute delta features from history"""
-        symbol = snapshot.symbol
-        history = self.history.get(symbol, [])
+    def get_snapshot(self, symbol: str) -> Optional[L2Snapshot]:
+        """Get L2 snapshot for symbol."""
+        try:
+            conid = self.contracts.get(symbol)
+            if not conid:
+                return None
 
-        if len(history) < 10:  # Need at least 10 points for 5s delta at 2Hz
-            return
+            # Get market data snapshot
+            # Fields: 31=bid, 84=ask, 85=bid_size, 86=ask_size, 31=last, 87=volume
+            data = self.client.get_market_snapshot(
+                [conid], ["31", "84", "85", "86", "87"]
+            )
 
-        # 5-second delta (10 points back at 2Hz)
-        if len(history) >= 10:
-            old_snapshot = history[-10]
-            snapshot.d_mid_5s = snapshot.mid - old_snapshot.mid
-            snapshot.d_obi_1_5s = snapshot.obi_1 - old_snapshot.obi_1
+            if not data:
+                return None
 
-    def _on_error(
-        self, reqId: int, errorCode: int, errorString: str, contract=None
-    ) -> None:
-        """Handle IBKR errors"""
-        logger.error(f"IBKR Data Error {errorCode}: {errorString}")
+            snapshot_data = data[0] if data else {}
 
-        # Handle critical errors
-        if errorCode in [1100, 1101, 1102]:
-            logger.critical("Critical data connection error, reconnecting...")
-            self.is_connected = False
-            threading.Thread(target=self._reconnect, daemon=True).start()
+            return L2Snapshot(
+                symbol=symbol,
+                timestamp=datetime.now(),
+                bid_price=snapshot_data.get("31"),
+                ask_price=snapshot_data.get("84"),
+                bid_size=snapshot_data.get("85"),
+                ask_size=snapshot_data.get("86"),
+                volume=snapshot_data.get("87"),
+            )
 
-    def _reconnect(self) -> None:
-        """Attempt to reconnect"""
-        time.sleep(5)
-        logger.info("Attempting to reconnect data feed...")
-        self.connect()
+        except Exception as e:
+            logger.error(f"Snapshot error for {symbol}: {e}")
+            return None
 
-    def add_data_callback(self, callback: Callable[[L2Snapshot], None]) -> None:
-        """Add callback for data updates"""
-        self.data_callbacks.append(callback)
+    def get_all_snapshots(self) -> List[L2Snapshot]:
+        """Get snapshots for all subscribed symbols."""
+        snapshots = []
 
-    def _run_loop(self) -> None:
-        """Run IBKR event loop"""
-        from ib_insync import util
+        for symbol in self.symbols:
+            snapshot = self.get_snapshot(symbol)
+            if snapshot:
+                snapshots.append(snapshot)
 
-        while self._running and self.ib and self.ib.isConnected():
-            try:
-                util.run(self.ib.sleep(0.1))
-            except Exception as e:
-                logger.error(f"Data feed loop error: {e}")
-                break
+        return snapshots
 
-    def get_latest_snapshot(self, symbol: str) -> Optional[L2Snapshot]:
-        """Get latest snapshot for symbol"""
-        history = self.history.get(symbol, [])
-        return history[-1] if history else None
-
-    def get_symbol_history(self, symbol: str, count: int = 10) -> List[L2Snapshot]:
-        """Get recent history for symbol"""
-        history = self.history.get(symbol, [])
-        return history[-count:] if len(history) >= count else history
-
-    def health_check(self) -> Dict[str, any]:
-        """Get data feed health status"""
-        return {
-            "connected": self.is_connected,
-            "subscribed_symbols": len(self.tickers),
-            "data_points": {symbol: len(hist) for symbol, hist in self.history.items()},
-            "timestamp": time.time(),
-        }
-
-
-# MockL2DataFeed REMOVED - Live trading system only uses real IBKR data
+    def heartbeat(self):
+        """Send heartbeat to platform."""
+        try:
+            self.client.heartbeat()
+        except Exception as e:
+            logger.error(f"Data feed heartbeat error: {e}")

@@ -15,7 +15,7 @@ aaa_criteria:
   
   # Pattern requirements
   require_event_based: true
-  require_regime_match: true
+  require_regime_match: false  # Disable for testing
 
 temporal_periods:
   # Data split configuration

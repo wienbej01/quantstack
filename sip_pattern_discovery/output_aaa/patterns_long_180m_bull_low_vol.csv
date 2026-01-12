@@ -1,0 +1,2 @@
+rule,direction,horizon,t_stat,p_value,expectancy,win_rate,avg_win,avg_loss,profit_factor,sharpe,n_samples,mean_ret,std_ret,aaa_score,regime
+session_range_pct_bin == 3 AND is_power_hour_bin == True,LONG,fwd_ret_180m,22.698815789319685,0.0,0.08902618287661566,0.536319126735693,0.5339543721903495,0.42560254500885586,1.451122361289595,1.6141053693197223,49836,0.08902618287661566,0.875560460457991,0.2266823980725833,bull_low_vol

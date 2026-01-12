@@ -7,17 +7,19 @@ from pathlib import Path
 # Add paths
 sys.path.insert(0, str(Path.home() / "transalpha" / "l2"))
 
+
 def check_ibkr_status():
     """Check IBKR connection and provide instructions."""
     print("🔍 Checking IBKR Connection Status...")
-    
+
     try:
         from ib_insync import IB
+
         ib = IB()
-        
+
         # Test connection
-        ib.connect('127.0.0.1', 7497, clientId=999, readonly=True, timeout=5)
-        
+        ib.connect("127.0.0.1", 7497, clientId=999, readonly=True, timeout=5)
+
         if ib.isConnected():
             accounts = ib.managedAccounts()
             print("✅ IBKR Connection: SUCCESS")
@@ -28,7 +30,7 @@ def check_ibkr_status():
         else:
             print("❌ IBKR Connection: FAILED")
             return False
-            
+
     except Exception as e:
         print("❌ IBKR Connection: FAILED")
         print(f"   Error: {e}")
@@ -45,6 +47,7 @@ def check_ibkr_status():
         print("🔧 Quick Test:")
         print("   python3 scripts/check_ibkr_status.py")
         return False
+
 
 if __name__ == "__main__":
     success = check_ibkr_status()
