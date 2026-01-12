@@ -41,6 +41,7 @@ LOOKBACK_DAYS = 5
 POSITION_SIZE = 100
 HORIZON_BARS = 180
 MAX_POSITIONS_PER_STRATEGY = 5  # Limit concurrent positions per strategy
+MAX_ENTRIES_PER_DAY_PER_STRATEGY = 2  # Limit new entries per day per strategy
 FEATURED_CACHE_FILE = (
     root / "pattern_backtest" / "cache" / f"featured_data_{START_DATE}_{END_DATE}.pkl"
 )
@@ -108,12 +109,23 @@ class TradeTracker:
         self.pending = set()  # symbols with pending orders
         self.completed_trades = []
         self.bar_index = 0  # Global bar index for exit timing
+        self.daily_entries = {}  # (date, strategy_id) -> count
+        self.current_date = None
 
     def get_strategy_position_count(self, strategy_id):
         """Get number of open positions for a strategy."""
         return sum(
             1 for pos in self.positions.values() if pos["strategy_id"] == strategy_id
         )
+
+    def get_daily_entry_count(self, date, strategy_id):
+        """Get number of entries today for a strategy."""
+        return self.daily_entries.get((date, strategy_id), 0)
+
+    def increment_daily_entry(self, date, strategy_id):
+        """Increment daily entry count."""
+        key = (date, strategy_id)
+        self.daily_entries[key] = self.daily_entries.get(key, 0) + 1
 
     def on_entry(self, symbol, bar_idx, price, strategy_id, quantity):
         """Record entry."""
@@ -165,6 +177,11 @@ def strategy_func(engine, bar):
     """Strategy function with 5 pattern strategies."""
     symbol = bar["symbol"]
 
+    # Track current date for daily limits
+    bar_date = pd.Timestamp(bar["ts"]).date()
+    if tracker.current_date != bar_date:
+        tracker.current_date = bar_date
+
     # Increment global bar index
     tracker.bar_index += 1
     current_bar_idx = tracker.bar_index
@@ -205,6 +222,13 @@ def strategy_func(engine, bar):
             ):
                 continue  # Skip if strategy already has max positions
 
+            # Check daily entry limit
+            if (
+                tracker.get_daily_entry_count(bar_date, strategy.method_id)
+                >= MAX_ENTRIES_PER_DAY_PER_STRATEGY
+            ):
+                continue  # Skip if strategy hit daily entry limit
+
             if evaluator.evaluate(bar):
                 # Enter with this strategy
                 side = OrderSide.BUY if strategy.direction == "LONG" else OrderSide.SELL
@@ -223,6 +247,7 @@ def strategy_func(engine, bar):
                     strategy.method_id,
                     POSITION_SIZE,
                 )
+                tracker.increment_daily_entry(bar_date, strategy.method_id)
                 break  # Only one entry per bar
 
 
