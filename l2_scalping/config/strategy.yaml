@@ -29,7 +29,7 @@ pattern_rules:
   
   # Rule 2: Bid depth + OBI change (lift=2.59x)
   rule2_enabled: true
-  rule2_depth_bid: 20000        # depth_bid threshold ($k)
+  rule2_depth_bid: 25000        # depth_bid threshold ($k) - UPDATED to match scanner validation
   rule2_d_obi_15s: 0.1          # d_obi_1_15s threshold
   
   # Rule 3: High OBI + depth (lift=2.29x)

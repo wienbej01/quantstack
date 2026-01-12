@@ -128,7 +128,7 @@ def compute_pattern_stats(returns: pd.Series, min_samples: int = 30) -> dict | N
         "avg_loss": avg_loss,
         "profit_factor": profit_factor,
         "sharpe": sharpe,
-        "n_trades": n,
+        "n_samples": n,  # Bar-level observations, not actual trades
         "mean_ret": mean_ret,
         "std_ret": std_ret,
     }

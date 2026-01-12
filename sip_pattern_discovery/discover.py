@@ -169,20 +169,83 @@ def main():
     # Step 4: Discover patterns
     print("\n[4/4] Discovering patterns...")
 
-    feature_cols = [
-        "ret_5m",
-        "ret_15m",
-        "ret_30m",
-        "ret_60m",
-        "price_vs_vwap_pct",
-        "price_vs_session_avwap_pct",
-        "rvol",
-        "atr_14",
+    # HIGH ALPHA EVENT features (actual entry signals)
+    high_alpha_events = [
+        # Cross-ticker relative strength (HIGHEST ALPHA)
+        "rel_underperform_extreme",  # Stock underperforming SPY by >1%
+        "rel_outperform_extreme",  # Stock outperforming SPY by >1%
+        # Volume-price divergence (HIGH ALPHA)
+        "price_up_vol_weak",  # Price up but volume weak = bearish
+        "price_down_vol_weak",  # Price down but volume weak = bullish
+        "price_up_vol_strong",  # Price up on strong volume = bullish
+        "price_down_vol_strong",  # Price down on strong volume = bearish
+        # Session range (MEDIUM ALPHA)
+        "at_session_high",  # At session high = potential reversal
+        "at_session_low",  # At session low = potential reversal
+        "new_session_high",  # Breaking session high = continuation
+        "new_session_low",  # Breaking session low = continuation
+        # VWAP crosses (MEDIUM ALPHA)
+        "vwap_cross_up",
+        "vwap_cross_down",
+        "avwap_cross_up",
+        "avwap_cross_down",
+    ]
+
+    # STATE features (for context, discretized)
+    state_features = [
+        "ret_60m",  # Recent momentum
+        "rel_strength_60m",  # Relative strength vs SPY
+        "session_range_pct",  # Position in session range
+        "rvol",  # Relative volume
+        "atr_14",  # Volatility
+        "price_vs_vwap_pct",  # Distance from VWAP
+    ]
+
+    # Time context (as filters, not entry signals)
+    time_context = [
         "is_first_hour",
         "is_power_hour",
-        "spy_above_sma20",
-        "spy_ret_60m",
     ]
+
+    # Build feature list from available columns
+    available_events = [f for f in high_alpha_events if f in df.columns]
+    available_states = [f for f in state_features if f in df.columns]
+    available_time = [f for f in time_context if f in df.columns]
+
+    print(f"\nFeature Summary:")
+    print(f"  High-alpha events: {len(available_events)}")
+    print(f"  State features: {len(available_states)}")
+    print(f"  Time context: {len(available_time)}")
+
+    feature_cols = available_events + available_states + available_time
+
+    # Define regimes (for data segmentation, not as features)
+    regimes = {
+        "bull": df["spy_above_sma20"] == True,
+        "bear": df["spy_above_sma20"] == False,
+    }
+
+    # Add volatility split if available
+    if "spy_high_vol" in df.columns:
+        regimes = {
+            "bull_low_vol": (df["spy_above_sma20"] == True)
+            & (df["spy_high_vol"] == False),
+            "bull_high_vol": (df["spy_above_sma20"] == True)
+            & (df["spy_high_vol"] == True),
+            "bear_low_vol": (df["spy_above_sma20"] == False)
+            & (df["spy_high_vol"] == False),
+            "bear_high_vol": (df["spy_above_sma20"] == False)
+            & (df["spy_high_vol"] == True),
+        }
+
+    # Print regime distribution
+    print("\n" + "=" * 80)
+    print("REGIME DISTRIBUTION")
+    print("=" * 80)
+    for regime_name, regime_mask in regimes.items():
+        n_samples = regime_mask.sum()
+        pct = n_samples / len(df) * 100
+        print(f"{regime_name:20s}: {n_samples:6,} samples ({pct:5.1f}%)")
 
     all_patterns = []
 
@@ -193,43 +256,61 @@ def main():
             print(f"  Skipping {horizon}m - no return column")
             continue
 
-        # LONG patterns (positive returns)
-        print(f"\nDiscovering LONG patterns for {horizon}m horizon...")
-        long_patterns = discover_patterns(
-            df,
-            feature_cols,
-            return_col,
-            direction="LONG",
-            min_t_stat=args.min_t_stat,
-            min_expectancy=args.min_expectancy,
-            min_trades=args.min_trades,
-            max_patterns=args.max_patterns,
-        )
+        # Discover patterns for each regime
+        for regime_name, regime_mask in regimes.items():
+            df_regime = df[regime_mask].copy()
 
-        if not long_patterns.empty:
-            long_file = output_dir / f"patterns_long_{horizon}m.csv"
-            long_patterns.to_csv(long_file, index=False)
-            print(f"  Saved {len(long_patterns)} LONG patterns to {long_file}")
-            all_patterns.append(long_patterns)
+            if len(df_regime) < args.min_trades * 2:
+                print(
+                    f"\n[{regime_name}] Skipping - insufficient samples ({len(df_regime)})"
+                )
+                continue
 
-        # SHORT patterns (negative returns)
-        print(f"\nDiscovering SHORT patterns for {horizon}m horizon...")
-        short_patterns = discover_patterns(
-            df,
-            feature_cols,
-            return_col,
-            direction="SHORT",
-            min_t_stat=args.min_t_stat,
-            min_expectancy=args.min_expectancy,
-            min_trades=args.min_trades,
-            max_patterns=args.max_patterns,
-        )
+            print(f"\n{'=' * 80}")
+            print(
+                f"REGIME: {regime_name.upper()} | HORIZON: {horizon}m | SAMPLES: {len(df_regime):,}"
+            )
+            print("=" * 80)
 
-        if not short_patterns.empty:
-            short_file = output_dir / f"patterns_short_{horizon}m.csv"
-            short_patterns.to_csv(short_file, index=False)
-            print(f"  Saved {len(short_patterns)} SHORT patterns to {short_file}")
-            all_patterns.append(short_patterns)
+            # LONG patterns
+            print(f"\nDiscovering LONG patterns...")
+            long_patterns = discover_patterns(
+                df_regime,
+                feature_cols,
+                return_col,
+                direction="LONG",
+                min_t_stat=args.min_t_stat,
+                min_expectancy=args.min_expectancy,
+                min_trades=args.min_trades,
+                max_patterns=args.max_patterns,
+            )
+
+            if not long_patterns.empty:
+                long_patterns["regime"] = regime_name
+                long_file = output_dir / f"patterns_long_{horizon}m_{regime_name}.csv"
+                long_patterns.to_csv(long_file, index=False)
+                print(f"  Saved {len(long_patterns)} LONG patterns to {long_file}")
+                all_patterns.append(long_patterns)
+
+            # SHORT patterns
+            print(f"\nDiscovering SHORT patterns...")
+            short_patterns = discover_patterns(
+                df_regime,
+                feature_cols,
+                return_col,
+                direction="SHORT",
+                min_t_stat=args.min_t_stat,
+                min_expectancy=args.min_expectancy,
+                min_trades=args.min_trades,
+                max_patterns=args.max_patterns,
+            )
+
+            if not short_patterns.empty:
+                short_patterns["regime"] = regime_name
+                short_file = output_dir / f"patterns_short_{horizon}m_{regime_name}.csv"
+                short_patterns.to_csv(short_file, index=False)
+                print(f"  Saved {len(short_patterns)} SHORT patterns to {short_file}")
+                all_patterns.append(short_patterns)
 
     # Combine all patterns
     if all_patterns:
@@ -254,34 +335,24 @@ def main():
             "expectancy",
             "win_rate",
             "profit_factor",
-            "n_trades",
+            "n_samples" if "n_samples" in combined.columns else "n_trades",
         ]
+        cols = [c for c in cols if c in combined.columns]
         print(combined[cols].head(10).to_string(index=False))
 
         # LLM analysis
         if not args.skip_llm:
-            print("\n[5/5] Running LLM analysis...")
+            from src.llm_analysis import analyze_consolidated_patterns
 
-            # Analyze top patterns per horizon/direction
-            for horizon in horizons:
-                for direction in ["LONG", "SHORT"]:
-                    patterns_subset = combined[
-                        (combined["horizon"] == f"fwd_ret_{horizon}m")
-                        & (combined["direction"] == direction)
-                    ]
+            print("\n[5/5] Running consolidated LLM analysis...")
 
-                    if not patterns_subset.empty:
-                        report_file = (
-                            output_dir
-                            / f"llm_analysis_{direction.lower()}_{horizon}m.md"
-                        )
-                        analyze_patterns_with_llm(
-                            patterns_subset,
-                            f"fwd_ret_{horizon}m",
-                            horizon,
-                            report_file,
-                            top_n=min(10, len(patterns_subset)),
-                        )
+            # Single consolidated analysis (recommended)
+            consolidated_file = output_dir / "llm_analysis_consolidated.md"
+            analyze_consolidated_patterns(
+                combined,
+                consolidated_file,
+                top_n=30,
+            )
         else:
             print("\n[5/5] Skipping LLM analysis")
     else:

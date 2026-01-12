@@ -17,7 +17,7 @@ cmd = [
     "--min-t-stat",
     "3.0",  # 99% confidence
     "--min-expectancy",
-    "0.2",  # 0.2% per trade minimum
+    "0.01",  # 0.01% per trade (realistic)
     "--min-trades",
     "50",  # Statistical validity
     "--max-patterns",

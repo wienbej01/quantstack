@@ -15,6 +15,130 @@ def compute_momentum_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
         ret = group["close"].pct_change(window)
         group[f"ret_{window}m"] = ret
 
+        # EVENT features: Momentum sign changes
+        positive = ret > 0
+        group[f"ret_{window}m_turned_positive"] = positive & ~positive.shift(1).fillna(
+            True
+        )
+        group[f"ret_{window}m_turned_negative"] = ~positive & positive.shift(1).fillna(
+            False
+        )
+
+    return group
+
+
+def compute_relative_strength_features(
+    df: pd.DataFrame, spy_df: pd.DataFrame
+) -> pd.DataFrame:
+    """Compute cross-ticker relative strength vs SPY.
+
+    This is a HIGH ALPHA feature - stocks that underperform SPY tend to catch up.
+    """
+    result = df.copy()
+
+    if spy_df.empty:
+        result["rel_strength_60m"] = 0.0
+        result["rel_strength_extreme"] = False
+        return result
+
+    # Compute SPY returns
+    spy = spy_df.sort_values("ts").copy()
+    spy["spy_ret_60m_pct"] = spy["close"].pct_change(60) * 100
+
+    # Merge SPY returns to main df
+    spy_rets = spy[["ts", "spy_ret_60m_pct"]].rename(columns={"ts": "spy_ts"})
+    result = result.sort_values("ts")
+    spy_rets = spy_rets.sort_values("spy_ts")
+
+    result = pd.merge_asof(
+        result,
+        spy_rets,
+        left_on="ts",
+        right_on="spy_ts",
+        direction="backward",
+    )
+
+    # Relative strength = stock return - SPY return
+    # Positive = outperforming, Negative = underperforming
+    result["rel_strength_60m"] = result["ret_60m"] * 100 - result[
+        "spy_ret_60m_pct"
+    ].fillna(0)
+
+    # EVENT: Extreme underperformance (>1% below SPY) = mean reversion opportunity
+    result["rel_underperform_extreme"] = result["rel_strength_60m"] < -1.0
+    result["rel_outperform_extreme"] = result["rel_strength_60m"] > 1.0
+
+    # Clean up
+    if "spy_ts" in result.columns:
+        result = result.drop(columns=["spy_ts", "spy_ret_60m_pct"])
+
+    return result
+
+
+def compute_volume_price_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
+    """Compute volume-price divergence features.
+
+    HIGH ALPHA: Price moves on low volume are weak, high volume are strong.
+    """
+    symbol, group = symbol_group
+    group = group.sort_values("ts").copy()
+
+    # Need rvol and ret_60m computed first
+    if "rvol" not in group.columns or "ret_60m" not in group.columns:
+        return group
+
+    # Volume-price divergence signals
+    # Price up but volume weak = bearish divergence
+    group["price_up_vol_weak"] = (group["ret_60m"] > 0.001) & (group["rvol"] < 0.7)
+    # Price down but volume weak = bullish divergence
+    group["price_down_vol_weak"] = (group["ret_60m"] < -0.001) & (group["rvol"] < 0.7)
+    # Price up on strong volume = bullish confirmation
+    group["price_up_vol_strong"] = (group["ret_60m"] > 0.001) & (group["rvol"] > 1.5)
+    # Price down on strong volume = bearish confirmation
+    group["price_down_vol_strong"] = (group["ret_60m"] < -0.001) & (group["rvol"] > 1.5)
+
+    return group
+
+
+def compute_session_range_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
+    """Compute intraday range position features.
+
+    MEDIUM ALPHA: Price at session extremes tends to mean-revert.
+    """
+    symbol, group = symbol_group
+    group = group.sort_values("ts").copy()
+
+    if "dt_et" not in group.columns:
+        group["dt"] = pd.to_datetime(group["ts"], unit="ns", utc=True)
+        group["dt_et"] = group["dt"].dt.tz_convert("America/New_York")
+
+    group["session_date"] = group["dt_et"].dt.date
+
+    for session_date, session_group in group.groupby("session_date"):
+        # Running session high/low
+        session_high = session_group["high"].expanding().max()
+        session_low = session_group["low"].expanding().min()
+        session_range = session_high - session_low
+
+        # Position in range (0 = at low, 1 = at high)
+        range_pct = (session_group["close"] - session_low) / session_range.replace(0, 1)
+
+        group.loc[session_group.index, "session_range_pct"] = range_pct
+
+        # EVENT: At session extremes
+        group.loc[session_group.index, "at_session_high"] = range_pct > 0.95
+        group.loc[session_group.index, "at_session_low"] = range_pct < 0.05
+
+        # EVENT: New session high/low
+        prev_high = session_high.shift(1)
+        prev_low = session_low.shift(1)
+        group.loc[session_group.index, "new_session_high"] = (
+            session_group["high"] > prev_high
+        )
+        group.loc[session_group.index, "new_session_low"] = (
+            session_group["low"] < prev_low
+        )
+
     return group
 
 
@@ -43,11 +167,16 @@ def compute_vwap_features_for_symbol(
     vol_sum = group["volume"].rolling(window, min_periods=1).sum()
     vwap = pv / vol_sum.replace(0, 1)
 
-    # Price vs VWAP
+    # Price vs VWAP (state feature)
     price_vs_vwap = (group["close"] - vwap) / vwap * 100
 
     group[f"vwap_{window}"] = vwap
     group["price_vs_vwap_pct"] = price_vs_vwap
+
+    # EVENT features: VWAP crosses
+    above_vwap = group["close"] > vwap
+    group["vwap_cross_up"] = above_vwap & ~above_vwap.shift(1).fillna(False)
+    group["vwap_cross_down"] = ~above_vwap & above_vwap.shift(1).fillna(True)
 
     return group
 
@@ -157,6 +286,15 @@ def compute_session_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
         group.loc[session_group.index, "session_avwap"] = session_avwap
         group.loc[session_group.index, "price_vs_session_avwap_pct"] = price_vs_avwap
 
+        # EVENT: Session AVWAP crosses
+        above_avwap = session_group["close"] > session_avwap
+        group.loc[session_group.index, "avwap_cross_up"] = (
+            above_avwap & ~above_avwap.shift(1).fillna(False)
+        )
+        group.loc[session_group.index, "avwap_cross_down"] = (
+            ~above_avwap & above_avwap.shift(1).fillna(True)
+        )
+
     return group
 
 
@@ -176,7 +314,7 @@ def compute_session_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFra
 
 
 def compute_time_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute time-of-day features."""
+    """Compute time-of-day features including events."""
     result = df.copy()
 
     if "dt_et" not in result.columns:
@@ -186,11 +324,19 @@ def compute_time_features(df: pd.DataFrame) -> pd.DataFrame:
     result["hour_et"] = result["dt_et"].dt.hour
     result["minute_et"] = result["dt_et"].dt.minute
 
-    # Kill zones
+    # State features (for regime filtering)
     result["is_first_hour"] = (
         (result["hour_et"] == 9) & (result["minute_et"] >= 30)
     ) | (result["hour_et"] == 10)
     result["is_power_hour"] = result["hour_et"] == 15
+
+    # EVENT features (actual entry signals)
+    # Power hour start: True only at 15:00
+    result["power_hour_start"] = (result["hour_et"] == 15) & (result["minute_et"] == 0)
+    # First hour start: True only at 9:30
+    result["first_hour_start"] = (result["hour_et"] == 9) & (result["minute_et"] == 30)
+    # Last 30 min start: True only at 15:30
+    result["last_30min_start"] = (result["hour_et"] == 15) & (result["minute_et"] == 30)
 
     return result
 
@@ -203,6 +349,7 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
         # No SPY data - add neutral defaults
         result["spy_above_sma20"] = True
         result["spy_ret_60m"] = 0.0
+        result["spy_high_vol"] = False
         return result
 
     # Compute SPY features
@@ -211,8 +358,19 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
     spy["spy_above_sma20"] = spy["close"] > spy["sma20"]
     spy["spy_ret_60m"] = spy["close"].pct_change(60)
 
+    # Volatility regime (ATR percentile)
+    high_low = spy["high"] - spy["low"]
+    high_close = abs(spy["high"] - spy["close"].shift(1))
+    low_close = abs(spy["low"] - spy["close"].shift(1))
+    tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
+    spy["atr_20"] = tr.rolling(20, min_periods=1).mean()
+    spy["atr_percentile"] = (
+        spy["atr_20"].rolling(252 * 60, min_periods=100).rank(pct=True)
+    )
+    spy["spy_high_vol"] = spy["atr_percentile"] > 0.7
+
     # Merge on ts (nearest match)
-    spy_features = spy[["ts", "spy_above_sma20", "spy_ret_60m"]].copy()
+    spy_features = spy[["ts", "spy_above_sma20", "spy_ret_60m", "spy_high_vol"]].copy()
     spy_features = spy_features.rename(columns={"ts": "spy_ts"})
 
     # Use merge_asof for time-based join
@@ -230,12 +388,41 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
     # Fill any missing values
     result["spy_above_sma20"] = result["spy_above_sma20"].fillna(True)
     result["spy_ret_60m"] = result["spy_ret_60m"].fillna(0.0)
+    result["spy_high_vol"] = result["spy_high_vol"].fillna(False)
 
     # Drop merge column
     if "spy_ts" in result.columns:
         result = result.drop(columns=["spy_ts"])
 
     return result
+
+
+def compute_volume_price_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFrame:
+    """Compute volume-price divergence features in parallel."""
+    symbols = df["symbol"].unique()
+    print(f"  Computing volume-price for {len(symbols)} symbols...")
+
+    symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
+
+    with Pool(n_workers) as pool:
+        results = pool.map(compute_volume_price_features_for_symbol, symbol_groups)
+
+    return pd.concat(results, ignore_index=True)
+
+
+def compute_session_range_features(
+    df: pd.DataFrame, n_workers: int = 6
+) -> pd.DataFrame:
+    """Compute session range features in parallel."""
+    symbols = df["symbol"].unique()
+    print(f"  Computing session range for {len(symbols)} symbols...")
+
+    symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
+
+    with Pool(n_workers) as pool:
+        results = pool.map(compute_session_range_features_for_symbol, symbol_groups)
+
+    return pd.concat(results, ignore_index=True)
 
 
 def compute_all_features(
@@ -272,8 +459,17 @@ def compute_all_features(
     print("Computing time features...")
     result = compute_time_features(result)
 
+    print("Computing session range features...")
+    result = compute_session_range_features(result, n_workers)
+
+    print("Computing volume-price divergence features...")
+    result = compute_volume_price_features(result, n_workers)
+
     if spy_df is not None and not spy_df.empty:
         print("Computing SPY regime features...")
         result = compute_spy_regime_features(result, spy_df)
+
+        print("Computing relative strength vs SPY...")
+        result = compute_relative_strength_features(result, spy_df)
 
     return result

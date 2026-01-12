@@ -9,17 +9,11 @@ import pandas as pd
 def format_patterns_for_llm(
     patterns_df: pd.DataFrame, target_name: str, top_n: int = 20
 ) -> str:
-    """Format discovered patterns for LLM analysis.
-
-    Args:
-        patterns_df: DataFrame with discovered patterns
-        target_name: Name of the target (e.g., "up_60m")
-        top_n: Number of top patterns to include
-
-    Returns:
-        Formatted string for LLM prompt
-    """
+    """Format discovered patterns for LLM analysis."""
     top_patterns = patterns_df.head(top_n)
+
+    # Handle both n_trades and n_samples column names
+    samples_col = "n_samples" if "n_samples" in patterns_df.columns else "n_trades"
 
     output = f"# Discovered Patterns for Target: {target_name}\n\n"
     output += f"Total patterns found: {len(patterns_df)}\n"
@@ -28,117 +22,150 @@ def format_patterns_for_llm(
     for idx, row in top_patterns.iterrows():
         output += f"## Pattern {idx + 1}\n"
         output += f"**Rule:** {row['rule']}\n"
-        output += f"**Lift:** {row['lift']:.2f}x\n"
-        output += (
-            f"**Support:** {row['support']:.2%} ({int(row['n_samples'])} samples)\n"
-        )
-        output += f"**P-value:** {row['p_value']:.2e}\n"
-        output += f"**Baseline rate:** {row['baseline_rate']:.2%}\n\n"
+        output += f"**Direction:** {row.get('direction', 'N/A')}\n"
+        output += f"**T-Statistic:** {row['t_stat']:.2f} (p={row['p_value']:.2e})\n"
+        output += f"**Expectancy:** {row['expectancy']:.4f}% per trade\n"
+        output += f"**Win Rate:** {row['win_rate']:.1%}\n"
+        output += f"**Profit Factor:** {row['profit_factor']:.2f}\n"
+        output += f"**Sharpe Ratio:** {row['sharpe']:.2f}\n"
+        output += f"**Avg Win:** {row['avg_win']:.4f}% | **Avg Loss:** {row['avg_loss']:.4f}%\n"
+        output += f"**Samples:** {int(row[samples_col]):,} bar observations\n\n"
 
     return output
 
 
-def generate_llm_prompt(patterns_text: str, target_name: str, horizon: int) -> str:
-    """Generate LLM prompt for pattern interpretation.
+def format_consolidated_patterns(patterns_df: pd.DataFrame, top_n: int = 30) -> str:
+    """Format all patterns consolidated by economic theme for LLM analysis."""
+    # Handle both n_trades and n_samples column names
+    samples_col = "n_samples" if "n_samples" in patterns_df.columns else "n_trades"
 
-    Args:
-        patterns_text: Formatted patterns text
-        target_name: Target name
-        horizon: Forward horizon in minutes
+    # Sort by t_stat and take top N
+    top_patterns = patterns_df.nlargest(top_n, "t_stat")
 
-    Returns:
-        LLM prompt string
-    """
-    prompt = f"""You are analyzing trading patterns discovered from 1-minute SIP-filtered stock data.
-These patterns predict {horizon}-minute forward returns.
+    # Group patterns by key features
+    themes = {
+        "power_hour": [],
+        "first_hour": [],
+        "spy_momentum": [],
+        "price_vs_vwap": [],
+        "atr_volatility": [],
+        "momentum_returns": [],
+        "other": [],
+    }
 
-Target: {target_name}
-Horizon: {horizon} minutes
-Discovery Period: June-July 2024 (training data)
+    for _, row in top_patterns.iterrows():
+        rule = row["rule"].lower()
+        if "power_hour" in rule:
+            themes["power_hour"].append(row)
+        elif "first_hour" in rule:
+            themes["first_hour"].append(row)
+        elif "spy_" in rule and "power_hour" not in rule and "first_hour" not in rule:
+            themes["spy_momentum"].append(row)
+        elif "vwap" in rule or "avwap" in rule:
+            themes["price_vs_vwap"].append(row)
+        elif "atr" in rule:
+            themes["atr_volatility"].append(row)
+        elif "ret_" in rule:
+            themes["momentum_returns"].append(row)
+        else:
+            themes["other"].append(row)
+
+    output = "# Consolidated Pattern Analysis\n\n"
+    output += f"Total patterns: {len(top_patterns)} (top by t-stat)\n"
+    output += f"Horizons: 30m, 60m, 90m, 180m\n"
+    output += f"Directions: LONG, SHORT\n\n"
+
+    theme_names = {
+        "power_hour": "Power Hour Patterns (3-4 PM)",
+        "first_hour": "First Hour Patterns (9:30-10:30 AM)",
+        "spy_momentum": "SPY Momentum Context",
+        "price_vs_vwap": "Price vs VWAP Patterns",
+        "atr_volatility": "Volatility (ATR) Patterns",
+        "momentum_returns": "Momentum/Return Patterns",
+        "other": "Other Patterns",
+    }
+
+    for theme_key, theme_label in theme_names.items():
+        patterns = themes[theme_key]
+        if not patterns:
+            continue
+
+        output += f"## {theme_label}\n\n"
+        output += f"*{len(patterns)} patterns in this category*\n\n"
+
+        for row in patterns:
+            horizon = row["horizon"].replace("fwd_ret_", "").replace("m", "")
+            output += f"### {row['direction']} {horizon}m: {row['rule']}\n"
+            output += f"- T-stat: {row['t_stat']:.1f} | Expectancy: {row['expectancy']:.3f}%\n"
+            output += f"- Win Rate: {row['win_rate']:.1%} | Profit Factor: {row['profit_factor']:.2f} | Sharpe: {row['sharpe']:.2f}\n"
+            output += f"- Samples: {int(row[samples_col]):,} observations\n\n"
+
+    return output
+
+
+def generate_consolidated_prompt(patterns_text: str) -> str:
+    """Generate LLM prompt for consolidated pattern analysis."""
+    prompt = f"""You are a senior quantitative researcher analyzing trading patterns discovered from 1-minute SIP-filtered stock data.
+
+The patterns are grouped by ECONOMIC THEME to help identify which market microstructure effects are most tradeable.
 
 {patterns_text}
 
-CRITICAL ANALYSIS REQUIRED FOR EACH PATTERN:
+ANALYSIS FRAMEWORK:
 
-1. **FALSE POSITIVE ANALYSIS**: During June-July 2024, estimate how often this pattern triggered but FAILED to deliver the expected move. Consider:
-   - How many times would this pattern have fired?
-   - What percentage were false positives?
-   - Is the success rate realistic or overfitted?
+1. **CROSS-HORIZON ANALYSIS**:
+   - For each theme, which horizon (30m, 60m, 90m, 180m) shows strongest edge?
+   - Does the pattern strengthen or decay with longer horizons?
+   - Is there an optimal holding period?
 
-2. **OVERTRADING RISK**: If deployed live, how many trades per day would this generate?
-   - Support rate × daily bars = daily trigger frequency
-   - Would this cause excessive trading costs?
+2. **LONG vs SHORT ASYMMETRY**:
+   - Are SHORT patterns stronger than LONG? Why?
+   - Does this reflect market microstructure (e.g., end-of-day selling)?
+   - Which direction is more tradeable?
 
-3. **REGIME ROBUSTNESS**: Would this pattern work in:
-   - Bear markets vs bull markets?
-   - High volatility vs low volatility periods?
-   - Different sector rotations?
+3. **THEME EVALUATION**:
+   For each theme category, assess:
+   - Economic rationale (why does this edge exist?)
+   - Regime robustness (bull/bear/sideways)
+   - Execution feasibility (slippage, capacity)
+   - Overall GO/NO-GO recommendation
 
-4. **ECONOMIC RATIONALE**: What market microstructure explains this pattern?
-   - Is there a logical reason institutions/algorithms would create this edge?
-   - Or is this likely a statistical artifact?
+4. **PORTFOLIO CONSTRUCTION**:
+   - Which 3-5 patterns would you combine for a diversified strategy?
+   - Are patterns correlated or independent?
+   - What's the expected combined Sharpe?
 
-5. **GO/NO-GO DECISION**: 
-   - GO: Only if lift ≥10x, support ≤0.2%, low false positive rate, clear economic rationale
-   - NO-GO: If any red flags for overtrading, overfitting, or lack of economic logic
+5. **CRITICAL THRESHOLDS**:
+   - Expectancy ≥ 0.02% after costs (0.5-1 bps slippage)
+   - Profit factor > 1.3 (realistic for intraday)
+   - Sharpe > 1.0 (sustainable edge)
+   - Clear economic rationale
 
-Be extremely skeptical. Reject 90% of patterns to prevent overtrading.
+DELIVERABLES:
+1. Rank the themes from most to least tradeable
+2. Identify the single best pattern per theme
+3. Recommend a 3-5 pattern portfolio
+4. Flag any patterns that are likely overfit or regime-dependent
 """
-
     return prompt
 
 
-def call_llm_api(prompt: str, api_key: str | None = None) -> str:
-    """Call LLM API for pattern analysis.
-
-    Args:
-        prompt: LLM prompt
-        api_key: Optional API key (reads from env if not provided)
-
-    Returns:
-        LLM response text
-    """
-    # Check for API key
-    if api_key is None:
-        api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get(
-            "OPENAI_API_KEY"
-        )
+def call_llm_api(prompt: str, system_prompt: str | None = None) -> str:
+    """Call LLM API for pattern analysis."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("OPENAI_API_KEY")
 
     if not api_key:
-        return "# LLM Analysis Skipped\n\nNo API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY environment variable."
+        return "# LLM Analysis Skipped\n\nNo API key found. Set ANTHROPIC_API_KEY or OPENAI_API_KEY."
 
-    system_prompt = """You are a senior quantitative researcher at a top-tier hedge fund. Your job is to REJECT 90% of proposed patterns to prevent overtrading and ensure only the most exceptional opportunities are traded.
+    if system_prompt is None:
+        system_prompt = """You are a senior quantitative researcher analyzing trading patterns.
+Focus on economic rationale, regime robustness, and practical tradability.
 
-CRITICAL ANTI-OVERTRADING MANDATE:
-- Target: Maximum 10 positions per day across ALL patterns
-- Reject ANY pattern that could cause frequent trading
-- Only approve patterns with 10x+ lift AND rare occurrence
-- Consider this a QUALITY OVER QUANTITY exercise
+APPROVAL CRITERIA:
+- T-stat ≥ 3.0, Expectancy ≥ 0.02%, Profit factor > 1.3, Clear economic rationale
 
-CONFIRMATION BIAS ANALYSIS REQUIRED:
-For each pattern, you MUST analyze:
-1. FALSE POSITIVES: How often did this pattern trigger but NOT deliver the expected move during the discovery period?
-2. OVERFITTING RISK: Does this pattern seem too specific to the training data?
-3. REGIME DEPENDENCY: Would this pattern fail in different market conditions?
-4. EXECUTION REALITY: Can this actually be traded profitably after slippage/commissions?
-
-REJECTION CRITERIA (Reject if ANY apply):
-- Lift < 10x (we need exceptional moves only)
-- Support > 0.5% (too frequent = overtrading)
-- Pattern seems overfit to specific market events
-- High false positive rate during discovery period
-- Relies on hard-to-execute timing
-- Would generate >5 trades per day if deployed
-
-APPROVAL CRITERIA (ALL must be met):
-- Lift ≥ 10x with high statistical significance
-- Support ≤ 0.2% (rare occurrence)
-- Clear economic rationale (not just statistical artifact)
-- Low false positive rate during discovery period
-- Robust across different market regimes
-- Executable with realistic slippage
-
-For each pattern, you must give a Go/No-go decision with specific analysis of false positives and overtrading risk."""
+REJECTION CRITERIA:
+- Expectancy < 0.01%, Profit factor < 1.2, No economic rationale, Regime-dependent"""
 
     # Try Anthropic first
     if "ANTHROPIC_API_KEY" in os.environ:
@@ -154,7 +181,7 @@ For each pattern, you must give a Go/No-go decision with specific analysis of fa
             )
             return message.content[0].text
         except Exception as e:
-            return f"# LLM Analysis Failed\n\nError calling Anthropic API: {e}"
+            return f"# LLM Analysis Failed\n\nError: {e}"
 
     # Try OpenAI
     if "OPENAI_API_KEY" in os.environ:
@@ -170,12 +197,9 @@ For each pattern, you must give a Go/No-go decision with specific analysis of fa
                 ],
                 max_tokens=4096,
             )
-            return (
-                response.choices[0].message.content
-                or "# LLM Analysis Failed\n\nEmpty response from API"
-            )
+            return response.choices[0].message.content or "Empty response"
         except Exception as e:
-            return f"# LLM Analysis Failed\n\nError calling OpenAI API: {e}"
+            return f"# LLM Analysis Failed\n\nError: {e}"
 
     return "# LLM Analysis Skipped\n\nNo compatible API key found."
 
@@ -187,29 +211,26 @@ def analyze_patterns_with_llm(
     output_path: Path,
     top_n: int = 20,
 ) -> str:
-    """Analyze patterns using LLM and save report.
-
-    Args:
-        patterns_df: DataFrame with discovered patterns
-        target_name: Target name
-        horizon: Forward horizon in minutes
-        output_path: Path to save markdown report
-        top_n: Number of top patterns to analyze
-
-    Returns:
-        LLM analysis text
-    """
+    """Analyze patterns using LLM and save report (per-horizon analysis)."""
     print(f"Formatting top {top_n} patterns for LLM analysis...")
     patterns_text = format_patterns_for_llm(patterns_df, target_name, top_n)
 
-    print("Generating LLM prompt...")
-    prompt = generate_llm_prompt(patterns_text, target_name, horizon)
+    prompt = f"""Analyze these {horizon}-minute forward return patterns:
+
+{patterns_text}
+
+For each pattern, provide GO/NO-GO with reasoning based on:
+- Statistical significance (t-stat ≥ 3.0)
+- Economic rationale
+- Expectancy after costs (≥ 0.02%)
+- Profit factor (> 1.3)
+"""
 
     print("Calling LLM API...")
     analysis = call_llm_api(prompt)
 
     # Save report
-    report = "# Pattern Analysis Report\n\n"
+    report = f"# Pattern Analysis Report\n\n"
     report += f"**Target:** {target_name}\n"
     report += f"**Horizon:** {horizon} minutes\n"
     report += f"**Patterns analyzed:** {min(top_n, len(patterns_df))}\n\n"
@@ -224,5 +245,38 @@ def analyze_patterns_with_llm(
         f.write(report)
 
     print(f"Report saved to {output_path}")
+    return analysis
 
+
+def analyze_consolidated_patterns(
+    patterns_df: pd.DataFrame,
+    output_path: Path,
+    top_n: int = 30,
+) -> str:
+    """Analyze all patterns consolidated by theme using LLM."""
+    print(f"Formatting top {top_n} patterns consolidated by theme...")
+    patterns_text = format_consolidated_patterns(patterns_df, top_n)
+
+    print("Generating consolidated LLM prompt...")
+    prompt = generate_consolidated_prompt(patterns_text)
+
+    print("Calling LLM API for consolidated analysis...")
+    analysis = call_llm_api(prompt)
+
+    # Save report
+    report = "# Consolidated Pattern Analysis Report\n\n"
+    report += f"**Patterns analyzed:** {min(top_n, len(patterns_df))}\n"
+    report += f"**Horizons:** 30m, 60m, 90m, 180m\n"
+    report += f"**Directions:** LONG, SHORT\n\n"
+    report += "---\n\n"
+    report += patterns_text
+    report += "\n---\n\n"
+    report += "# LLM Analysis\n\n"
+    report += analysis
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        f.write(report)
+
+    print(f"Consolidated report saved to {output_path}")
     return analysis

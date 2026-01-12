@@ -1,6 +1,38 @@
 # L2 Scalping System
 
+**🚨 MAJOR UPGRADE (2026-01-12): Pattern discovery updated to t-statistic ranking for statistically rigorous rule validation**
+
 A high-frequency scalping system based on Level-2 order book imbalance signals using the shared **daily SIP universe**.
+
+## Current Status: Production L2 Scalping + T-Stat Pattern Discovery
+
+### Recent Updates (2026-01-12)
+
+**Pattern Discovery Overhaul:**
+- **Replaced lift-based analysis** with t-statistic ranking
+- **Added expectancy calculation** in basis points (not binary targets)
+- **Validates existing rules** against statistical significance
+- **Computes trading metrics**: win rate, profit factor, Sharpe ratio
+
+**New Validation Approach:**
+- **t-statistic ≥ 2.0** (95% confidence)
+- **Expectancy ≥ 0.5 bps** (realistic for L2 scalping)
+- **Min trades ≥ 50** (statistical validity)
+- **Actual forward returns** (60s, 120s, 300s horizons)
+
+### Pattern Discovery Usage
+
+**Run T-Stat Analysis:**
+```bash
+cd ~/quantstack/l2_scalping/analysis
+python3 l2_tstat_discovery.py
+```
+
+**What it validates:**
+1. Loads L2 data from `/home/jacobw/quantstack/data/l2_maximum/features`
+2. Tests existing rules with t-statistic ranking
+3. **Validates Rule 1/2/3** - shows if they have statistical significance
+4. Outputs to `output/l2_patterns_tstat.csv`
 
 ## Quick Start
 
@@ -31,23 +63,23 @@ sudo systemctl start l2-scalping
 - **Risk**: 10 bps stop loss, 100 bps daily limit
 - **Schedule**: Automatic start/stop with market hours
 
-## Trading Rules (v2.0)
+## Trading Rules (Under T-Stat Review)
 
-The system runs 4 trading rules in parallel, each with rule attribution for performance tracking:
+The system runs 4 trading rules in parallel. **All rules pending statistical validation:**
 
-### Rule 1: OBI Momentum (Original)
+### Rule 1: OBI Momentum (Original - Proven)
 - **Entry**: `obi_1 > 0.8` (high order book imbalance)
-- **Confidence**: Based on OBI strength
+- **Status**: ✅ Validated through live trading
 - **Rule Name**: `obi_momentum`
 
-### Rule 2: OBI + Depth Combo (NEW - lift=3.00x)
+### Rule 2: OBI + Depth Combo (Claimed lift=3.00x - Under Review)
 - **Entry**: `d_obi_1_30s > 0.2` AND `depth_ask > $25k`
-- **Rationale**: OBI momentum with liquidity support
+- **Status**: ⚠️ Requires t-stat validation
 - **Rule Name**: `obi_depth_combo`
 
-### Rule 3: Bid Depth + OBI Change (NEW - lift=2.59x)
+### Rule 3: Bid Depth + OBI Change (Claimed lift=2.59x - Under Review)
 - **Entry**: `depth_bid > $20k` AND `d_obi_1_15s > 0.1`
-- **Rationale**: Strong bid support with positive OBI momentum
+- **Status**: ⚠️ Requires t-stat validation
 - **Rule Name**: `bid_depth_obi`
 
 ### Rule 4: High OBI + Depth (NEW - lift=2.29x)
