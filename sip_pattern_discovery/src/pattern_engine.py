@@ -38,7 +38,13 @@ def generate_candidate_rules(
     feature_cols: list[str],
     max_conditions: int = 2,
 ) -> list[tuple[str, pd.Series]]:
-    """Generate candidate rules from feature combinations."""
+    """Generate candidate rules from feature combinations.
+    
+    Only generates POSITIVE conditions with economic rationale:
+    - Binary features: Only test "== True" (not "== False")
+    - Binned features: Only test high bins (3, 4) for momentum/strength
+    - Avoids trivial "NOT X" patterns that aren't actionable
+    """
     rules = []
 
     # Single condition rules
@@ -46,9 +52,20 @@ def generate_candidate_rules(
         if col not in df.columns:
             continue
 
-        for val in df[col].dropna().unique():
-            mask = df[col] == val
-            rules.append((f"{col} == {val}", mask))
+        unique_vals = df[col].dropna().unique()
+        
+        # For binary features (True/False), only test True
+        if len(unique_vals) == 2 and True in unique_vals:
+            mask = df[col] == True
+            rules.append((f"{col} == True", mask))
+        
+        # For binned features (0-4), only test high bins (momentum/strength)
+        elif len(unique_vals) <= 5:
+            for val in unique_vals:
+                # Only high bins (3, 4) or extreme low (0) for mean reversion
+                if val in [0, 3, 4]:
+                    mask = df[col] == val
+                    rules.append((f"{col} == {val}", mask))
 
     # Two condition rules
     if max_conditions >= 2:
@@ -59,11 +76,24 @@ def generate_candidate_rules(
             vals1 = df[col1].dropna().unique()
             vals2 = df[col2].dropna().unique()
 
-            if len(vals1) * len(vals2) > 25:
+            # Filter to actionable values
+            actionable_vals1 = []
+            if len(vals1) == 2 and True in vals1:
+                actionable_vals1 = [True]
+            elif len(vals1) <= 5:
+                actionable_vals1 = [v for v in vals1 if v in [0, 3, 4]]
+            
+            actionable_vals2 = []
+            if len(vals2) == 2 and True in vals2:
+                actionable_vals2 = [True]
+            elif len(vals2) <= 5:
+                actionable_vals2 = [v for v in vals2 if v in [0, 3, 4]]
+
+            if len(actionable_vals1) * len(actionable_vals2) > 25:
                 continue
 
-            for v1 in vals1:
-                for v2 in vals2:
+            for v1 in actionable_vals1:
+                for v2 in actionable_vals2:
                     mask = (df[col1] == v1) & (df[col2] == v2)
                     rules.append((f"{col1} == {v1} AND {col2} == {v2}", mask))
 

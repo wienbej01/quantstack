@@ -111,41 +111,60 @@ The patterns are grouped by ECONOMIC THEME to help identify which market microst
 
 {patterns_text}
 
+CRITICAL: All patterns use POSITIVE conditions (event == True, high momentum bins). No "NOT X" patterns.
+
 ANALYSIS FRAMEWORK:
 
-1. **CROSS-HORIZON ANALYSIS**:
+1. **ECONOMIC RATIONALE (MOST IMPORTANT)**:
+   - WHY would this pattern exist?
+   - What market microstructure creates this edge?
+   - Is it exploiting:
+     * Cross-asset momentum (stock vs SPY)?
+     * Volume-price divergence (weak/strong volume)?
+     * Session range dynamics (breakouts, extremes)?
+     * Time-of-day effects (first hour, power hour)?
+   - Reject patterns without clear economic explanation
+
+2. **CROSS-HORIZON ANALYSIS**:
    - For each theme, which horizon (30m, 60m, 90m, 180m) shows strongest edge?
    - Does the pattern strengthen or decay with longer horizons?
    - Is there an optimal holding period?
 
-2. **LONG vs SHORT ASYMMETRY**:
+3. **LONG vs SHORT ASYMMETRY**:
    - Are SHORT patterns stronger than LONG? Why?
    - Does this reflect market microstructure (e.g., end-of-day selling)?
    - Which direction is more tradeable?
 
-3. **THEME EVALUATION**:
-   For each theme category, assess:
-   - Economic rationale (why does this edge exist?)
-   - Regime robustness (bull/bear/sideways)
-   - Execution feasibility (slippage, capacity)
-   - Overall GO/NO-GO recommendation
+4. **EXECUTION REALITY**:
+   - After 0.5-1 bps slippage/commissions, still profitable?
+   - Expectancy ≥ 0.02% after costs?
+   - Profit factor > 1.3?
+   - Sharpe > 1.0?
 
-4. **PORTFOLIO CONSTRUCTION**:
+5. **PORTFOLIO CONSTRUCTION**:
    - Which 3-5 patterns would you combine for a diversified strategy?
    - Are patterns correlated or independent?
    - What's the expected combined Sharpe?
 
-5. **CRITICAL THRESHOLDS**:
-   - Expectancy ≥ 0.02% after costs (0.5-1 bps slippage)
-   - Profit factor > 1.3 (realistic for intraday)
-   - Sharpe > 1.0 (sustainable edge)
-   - Clear economic rationale
+APPROVAL CRITERIA (ALL must apply):
+- Clear economic rationale (WHY does this work?)
+- Expectancy ≥ 0.02% after costs
+- Profit factor > 1.3
+- Sharpe > 1.0
+- Actionable entry signal (not "NOT X")
+
+REJECTION CRITERIA (ANY applies):
+- No economic rationale
+- Expectancy < 0.02%
+- Profit factor < 1.3
+- Sharpe < 1.0
+- Pattern is "NOT X" (negative condition)
 
 DELIVERABLES:
-1. Rank the themes from most to least tradeable
-2. Identify the single best pattern per theme
-3. Recommend a 3-5 pattern portfolio
-4. Flag any patterns that are likely overfit or regime-dependent
+1. Rank themes by economic rationale strength (not just t-stat)
+2. Identify the single best pattern per theme with clear WHY
+3. Recommend a 3-5 pattern portfolio with economic diversity
+4. Flag any patterns that lack economic rationale despite high t-stat
 """
     return prompt
 
