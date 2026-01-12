@@ -1,57 +1,44 @@
 strategies:
   strategy_1:
-    name: "Low_Volatility_180m"
-    rule: "atr_14_bin == 0"
+    name: "First_Hour_Momentum_180m"
+    rule: "ret_60m_bin == 4.0 AND is_first_hour_bin == True"
     direction: "LONG"
     horizon: "fwd_ret_180m"
-    t_stat: 49.03
-    expectancy: 0.0178
-    win_rate: 0.5026
-    profit_factor: 1.24
-    sharpe: 1.11
-    n_samples: 494261
-    regime: "bull_low_vol"
+    t_stat: 34.3
+    expectancy: 0.0542
+    win_rate: 0.526
+    profit_factor: 1.27
+    sharpe: 1.42
+    n_samples: 147738
+    regime: "bull_high_vol"
     
   strategy_2:
-    name: "Session_Range_High_180m"
-    rule: "session_range_pct_bin == 4"
-    direction: "LONG"
-    horizon: "fwd_ret_180m"
-    t_stat: 38.75
-    expectancy: 0.0215
-    win_rate: 0.5120
-    profit_factor: 1.21
-    sharpe: 0.88
-    n_samples: 494058
-    regime: "bull_low_vol"
+    name: "Volume_Price_Divergence_First_Hour_90m"
+    rule: "price_up_vol_weak_bin == True AND is_first_hour_bin == True"
+    direction: "SHORT"
+    horizon: "fwd_ret_90m"
+    t_stat: 25.9
+    expectancy: 0.0400
+    win_rate: 0.553
+    profit_factor: 1.50
+    sharpe: 2.38
+    n_samples: 29897
+    regime: "bear_low_vol"
     
   strategy_3:
-    name: "Low_Volume_180m"
-    rule: "rvol_bin == 0"
-    direction: "LONG"
-    horizon: "fwd_ret_180m"
-    t_stat: 38.66
-    expectancy: 0.0181
-    win_rate: 0.5057
-    profit_factor: 1.21
-    sharpe: 0.87
-    n_samples: 494000
-    regime: "bull_low_vol"
+    name: "VWAP_Extreme_First_Hour_90m"
+    rule: "price_vs_vwap_pct_bin == 4 AND is_first_hour_bin == True"
+    direction: "SHORT"
+    horizon: "fwd_ret_90m"
+    t_stat: 27.9
+    expectancy: 0.0339
+    win_rate: 0.544
+    profit_factor: 1.36
+    sharpe: 1.76
+    n_samples: 63258
+    regime: "bear_low_vol"
     
   strategy_4:
-    name: "Relative_Strength_Session_Range_180m"
-    rule: "rel_strength_60m_bin == 0.0 AND session_range_pct_bin == 4"
-    direction: "LONG"
-    horizon: "fwd_ret_180m"
-    t_stat: 35.86
-    expectancy: 0.0411
-    win_rate: 0.5492
-    profit_factor: 1.51
-    sharpe: 2.15
-    n_samples: 70106
-    regime: "bull_low_vol"
-    
-  strategy_5:
     name: "Extreme_Outperform_Low_Range_180m"
     rule: "rel_outperform_extreme_bin == True AND session_range_pct_bin == 0"
     direction: "LONG"
@@ -63,6 +50,19 @@ strategies:
     sharpe: 8.97
     n_samples: 3964
     regime: "bear_high_vol"
+    
+  strategy_5:
+    name: "Power_Hour_Short_30m"
+    rule: "is_power_hour_bin == True"
+    direction: "SHORT"
+    horizon: "fwd_ret_30m"
+    t_stat: 25.7
+    expectancy: 0.0110
+    win_rate: 0.460
+    profit_factor: 1.22
+    sharpe: 0.65
+    n_samples: 392051
+    regime: "bear_low_vol"
 
 backtest_config:
   initial_cash: 1000000
