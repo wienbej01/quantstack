@@ -15,6 +15,7 @@ class PatternRule:
     rule_string: str
     direction: str
     horizon: str
+    horizon_minutes: int
     t_stat: float
     p_value: float
     expectancy: float
@@ -102,6 +103,7 @@ def parse_strategies_yaml(yaml_path: Path) -> list[PatternRule]:
             rule_string=strategy_config["rule"],
             direction=strategy_config["direction"],
             horizon=strategy_config["horizon"],
+            horizon_minutes=strategy_config["horizon_minutes"],
             t_stat=strategy_config["t_stat"],
             p_value=0.0,  # Not provided in YAML
             expectancy=strategy_config["expectancy"],
