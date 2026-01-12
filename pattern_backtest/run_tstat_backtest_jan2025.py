@@ -40,6 +40,7 @@ END_DATE = "2025-01-31"
 LOOKBACK_DAYS = 5
 POSITION_SIZE = 100
 HORIZON_BARS = 180
+MAX_POSITIONS_PER_STRATEGY = 5  # Limit concurrent positions per strategy
 FEATURED_CACHE_FILE = (
     root / "pattern_backtest" / "cache" / f"featured_data_{START_DATE}_{END_DATE}.pkl"
 )
@@ -107,6 +108,12 @@ class TradeTracker:
         self.pending = set()  # symbols with pending orders
         self.completed_trades = []
         self.bar_index = 0  # Global bar index for exit timing
+
+    def get_strategy_position_count(self, strategy_id):
+        """Get number of open positions for a strategy."""
+        return sum(
+            1 for pos in self.positions.values() if pos["strategy_id"] == strategy_id
+        )
 
     def on_entry(self, symbol, bar_idx, price, strategy_id, quantity):
         """Record entry."""
@@ -190,6 +197,13 @@ def strategy_func(engine, bar):
         # Evaluate all 5 strategies
         for strategy in strategies:
             evaluator = evaluators[strategy.method_id]
+
+            # Check position limit for this strategy
+            if (
+                tracker.get_strategy_position_count(strategy.method_id)
+                >= MAX_POSITIONS_PER_STRATEGY
+            ):
+                continue  # Skip if strategy already has max positions
 
             if evaluator.evaluate(bar):
                 # Enter with this strategy
