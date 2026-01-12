@@ -1,0 +1,55 @@
+# AAA Pattern Discovery Configuration
+
+aaa_criteria:
+  # Overfitting thresholds
+  max_win_rate: 0.65
+  max_sharpe: 3.0
+  max_expectancy: 0.10
+  min_samples: 10000
+  
+  # Optimal ranges for AAA scoring
+  optimal_win_rate: 0.54
+  optimal_sharpe: 2.0
+  optimal_t_stat: 40.0
+  optimal_samples: 50000
+  
+  # Pattern requirements
+  require_event_based: true
+  require_regime_match: true
+
+temporal_periods:
+  # Data split configuration
+  scan_months: 7
+  validation_months: 2
+  oos_months: 1
+  
+  # Recalibration frequency
+  recalibration_frequency: "monthly"
+
+validation_gates:
+  # Degradation limits (scan → validation)
+  max_win_rate_drop: 0.10  # 10% absolute
+  max_expectancy_drop_pct: 0.50  # 50% relative
+  max_sharpe_drop_pct: 0.40  # 40% relative
+  min_validation_trades: 20
+
+regime_detection:
+  # SPY regime parameters
+  sma_period: 50
+  vol_threshold: 20.0  # Annualized vol %
+
+deployment:
+  # Production deployment limits
+  max_strategies: 3
+  min_aaa_score: 0.5
+  
+  # Position sizing
+  position_size_per_strategy: 100
+  max_positions_per_strategy: 5
+  max_entries_per_day_per_strategy: 2
+
+llm_analysis:
+  # LLM filtering parameters
+  max_patterns_to_analyze: 10
+  require_economic_rationale: true
+  max_overfit_risk_score: 1.0

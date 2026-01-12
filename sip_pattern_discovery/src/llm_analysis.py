@@ -9,7 +9,7 @@ import pandas as pd
 def format_patterns_for_llm(
     patterns_df: pd.DataFrame, target_name: str, top_n: int = 20
 ) -> str:
-    """Format discovered patterns for LLM analysis."""
+    """Format discovered patterns for LLM analysis with AAA overfitting checks."""
     top_patterns = patterns_df.head(top_n)
 
     # Handle both n_trades and n_samples column names
@@ -18,18 +18,44 @@ def format_patterns_for_llm(
     output = f"# Discovered Patterns for Target: {target_name}\n\n"
     output += f"Total patterns found: {len(patterns_df)}\n"
     output += f"Showing top {len(top_patterns)} patterns\n\n"
+    
+    # Add AAA criteria reminder
+    output += "## CRITICAL OVERFITTING CHECKS\n"
+    output += "You MUST flag patterns with:\n"
+    output += "- Win rate > 65% as **HIGH OVERFIT RISK**\n"
+    output += "- Sharpe > 3.0 as **EXTREME METRICS - SUSPECT**\n"
+    output += "- Expectancy > 0.10% as **UNREALISTIC EDGE**\n"
+    output += "- Samples < 10,000 as **INSUFFICIENT DATA**\n\n"
+    output += "## DEGRADATION RISK SCORE\n"
+    output += "Calculate: Risk = (win_rate - 0.50) * 2 + (sharpe - 1.5) * 0.5 + (expectancy - 0.03) * 10\n"
+    output += "If Risk > 1.0: **REJECT** pattern as likely overfit\n\n"
+    output += "## APPROVAL CRITERIA\n"
+    output += "Only approve patterns with:\n"
+    output += "- Moderate metrics (not extreme)\n"
+    output += "- Clear economic rationale with causal mechanism\n"
+    output += "- Regime alignment with current market\n"
+    output += "- Event-based conditions (time-constrained)\n\n"
+    output += "---\n\n"
 
     for idx, row in top_patterns.iterrows():
+        # Calculate overfit risk
+        wr_risk = max(0, row['win_rate'] - 0.50) * 2
+        sharpe_risk = max(0, row['sharpe'] - 1.5) * 0.5
+        exp_risk = max(0, row['expectancy'] - 0.03) * 10
+        overfit_risk = wr_risk + sharpe_risk + exp_risk
+        
         output += f"## Pattern {idx + 1}\n"
         output += f"**Rule:** {row['rule']}\n"
         output += f"**Direction:** {row.get('direction', 'N/A')}\n"
+        output += f"**Regime:** {row.get('regime', 'N/A')}\n"
         output += f"**T-Statistic:** {row['t_stat']:.2f} (p={row['p_value']:.2e})\n"
         output += f"**Expectancy:** {row['expectancy']:.4f}% per trade\n"
         output += f"**Win Rate:** {row['win_rate']:.1%}\n"
         output += f"**Profit Factor:** {row['profit_factor']:.2f}\n"
         output += f"**Sharpe Ratio:** {row['sharpe']:.2f}\n"
         output += f"**Avg Win:** {row['avg_win']:.4f}% | **Avg Loss:** {row['avg_loss']:.4f}%\n"
-        output += f"**Samples:** {int(row[samples_col]):,} bar observations\n\n"
+        output += f"**Samples:** {int(row[samples_col]):,} bar observations\n"
+        output += f"**OVERFIT RISK SCORE:** {overfit_risk:.2f} {'⚠️ REJECT' if overfit_risk > 1.0 else '✅ ACCEPTABLE'}\n\n"
 
     return output
 

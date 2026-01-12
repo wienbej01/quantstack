@@ -1,0 +1,18 @@
+[Unit]
+Description=IBKR Gateway Connection Manager
+After=ibkr-gateway.service
+Wants=ibkr-gateway.service
+
+[Service]
+Type=simple
+User=jacobw
+Environment=IBKR_GATEWAY_PORT=4001
+Environment=IBKR_HEALTH_INTERVAL=30
+Environment=IBKR_MAX_CONNECTIONS=8
+Environment=IBKR_MAX_FAILED_CHECKS=3
+ExecStart=/home/jacobw/quantstack/.venv/bin/python /home/jacobw/quantstack/scripts/ibkr_connection_manager.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

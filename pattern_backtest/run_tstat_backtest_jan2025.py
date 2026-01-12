@@ -105,10 +105,10 @@ class TradeTracker:
     def __init__(self):
         self.positions = (
             {}
-        )  # symbol -> {entry_bar_idx, entry_price, strategy_id, quantity}
+        )  # symbol -> {entry_bar_idx, entry_price, strategy_id, quantity, horizon_minutes}
         self.pending = set()  # symbols with pending orders
         self.completed_trades = []
-        self.bar_index = 0  # Global bar index for exit timing
+        self.symbol_bar_counts = {}  # symbol -> bar count (per-symbol, not global)
         self.daily_entries = {}  # (date, strategy_id) -> count
         self.current_date = None
 
@@ -178,14 +178,16 @@ def strategy_func(engine, bar):
     """Strategy function with 5 pattern strategies."""
     symbol = bar["symbol"]
 
+    # Track per-symbol bar count
+    if symbol not in tracker.symbol_bar_counts:
+        tracker.symbol_bar_counts[symbol] = 0
+    tracker.symbol_bar_counts[symbol] += 1
+    symbol_bar_idx = tracker.symbol_bar_counts[symbol]
+
     # Track current date for daily limits
     bar_date = pd.Timestamp(bar["ts"]).date()
     if tracker.current_date != bar_date:
         tracker.current_date = bar_date
-
-    # Increment global bar index
-    tracker.bar_index += 1
-    current_bar_idx = tracker.bar_index
 
     # Get position
     position = engine.get_position(symbol)
@@ -194,21 +196,22 @@ def strategy_func(engine, bar):
     # Check for exit (time-based)
     if has_position and symbol in tracker.positions:
         pos_info = tracker.positions[symbol]
-        bars_held = current_bar_idx - pos_info["entry_bar_idx"]
-        strategy_horizon = pos_info["horizon_minutes"]
+        bars_held = symbol_bar_idx - pos_info["entry_bar_idx"]
+        # horizon_minutes = bars since we have 1-minute bars
+        horizon_bars = pos_info["horizon_minutes"]
 
-        if bars_held >= strategy_horizon:
+        if bars_held >= horizon_bars:
             # Exit
             side = OrderSide.SELL if position.quantity > 0 else OrderSide.BUY
             order = Order(
-                order_id=f"exit_{symbol}_{current_bar_idx}",
+                order_id=f"exit_{symbol}_{symbol_bar_idx}",
                 symbol=symbol,
                 order_type=OrderType.MARKET,
                 side=side,
                 quantity=abs(position.quantity),
             )
             engine.submit_order(order)
-            tracker.on_exit(symbol, current_bar_idx, bar["close"])
+            tracker.on_exit(symbol, symbol_bar_idx, bar["close"])
             return
 
     # Check for entry (no position, no pending)
@@ -235,7 +238,7 @@ def strategy_func(engine, bar):
                 # Enter with this strategy
                 side = OrderSide.BUY if strategy.direction == "LONG" else OrderSide.SELL
                 order = Order(
-                    order_id=f"entry_{symbol}_{current_bar_idx}_{strategy.method_id}",
+                    order_id=f"entry_{symbol}_{symbol_bar_idx}_{strategy.method_id}",
                     symbol=symbol,
                     order_type=OrderType.MARKET,
                     side=side,
@@ -244,7 +247,7 @@ def strategy_func(engine, bar):
                 engine.submit_order(order)
                 tracker.on_entry(
                     symbol,
-                    current_bar_idx,
+                    symbol_bar_idx,
                     bar["close"],
                     strategy.method_id,
                     POSITION_SIZE,

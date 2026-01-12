@@ -206,8 +206,10 @@ def discover_patterns(
     max_conditions: int = 2,
     n_bins: int = 5,
     n_workers: int = 6,
+    use_aaa_scoring: bool = False,
+    current_regime: str = None,
 ) -> pd.DataFrame:
-    """Discover patterns ranked by t-statistic using parallel processing.
+    """Discover patterns ranked by t-statistic or AAA score using parallel processing.
 
     Args:
         df: DataFrame with features and forward returns
@@ -221,9 +223,11 @@ def discover_patterns(
         max_conditions: Maximum conditions per rule
         n_bins: Number of bins for discretization
         n_workers: Number of parallel workers (max 6)
+        use_aaa_scoring: If True, rank by AAA score instead of t-stat
+        current_regime: Current market regime for AAA scoring
 
     Returns:
-        DataFrame with discovered patterns ranked by t-stat
+        DataFrame with discovered patterns ranked by t-stat or AAA score
     """
     n_workers = min(n_workers, 6)  # Cap at 6 workers
 
@@ -272,7 +276,21 @@ def discover_patterns(
         return pd.DataFrame()
 
     patterns_df = pd.DataFrame(patterns)
-    patterns_df = patterns_df.sort_values("t_stat", ascending=False).head(max_patterns)
+    
+    # Rank by AAA score or t-stat
+    if use_aaa_scoring:
+        from .aaa_scorer import AAAScorer
+        scorer = AAAScorer()
+        patterns_df['aaa_score'] = patterns_df.apply(
+            lambda row: scorer.calculate_aaa_score(row.to_dict(), current_regime),
+            axis=1
+        )
+        patterns_df = patterns_df.sort_values("aaa_score", ascending=False).head(max_patterns)
+        print(f"  Ranked by AAA score (regime: {current_regime})")
+    else:
+        patterns_df = patterns_df.sort_values("t_stat", ascending=False).head(max_patterns)
+        print(f"  Ranked by t-statistic")
+    
     patterns_df = patterns_df.reset_index(drop=True)
 
     print(f"  Found {len(patterns_df)} patterns")
