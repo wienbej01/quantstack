@@ -127,7 +127,13 @@ python run_long_short_discovery.py
 
 [Previous content remains unchanged...]
 
-### Critical Fixes (2026-01-09)
+### Critical Fixes (2026-01-12)
+- **SIP Generation Separation**: Moved full SIP generation from orchestrator to dedicated intraday-sip service
+- **Timer Optimization**: Staggered service startup (SIP 09:10, L2 09:25-09:26, Paper 09:27 ET)
+- **Parameter Alignment**: Fixed config mismatch between orchestrator and paper trading systems
+- **Full Universe Processing**: intraday-sip now processes all 1,700+ tickers daily vs refresh-only
+- **Service Dependencies**: L2 scalping now has dedicated timer, proper startup sequence
+- **Monitoring Separation**: Orchestrator focuses on monitoring, SIP generation is independent
 - **Async Event Loop Bug**: Fixed `ib_insync` threading issue - wrapped async calls with `util.run()`
 - **Timezone Hell**: All trading services now use `TZ=America/New_York` in systemd units
 - **Pre-Flight Testing**: New timer at 20:00 Manila (7:00 AM ET) validates system before market prep
@@ -141,14 +147,15 @@ python run_long_short_discovery.py
 - **Client ID Conflict Fix**: Changed preflight to use unique client ID (998)
 - **Lessons Learned**: Comprehensive resilience guide at [LESSONS_LEARNED_2026-01-09.md](docs/LESSONS_LEARNED_2026-01-09.md)
 
-### Timer Schedule (Manila Time)
+### Timer Schedule (Manila Time) - Updated 2026-01-12
 | Timer | Manila | ET | Purpose | NTFY Behavior |
 |-------|--------|-----|---------|---------------|
 | **preflight-check** | **20:00** | **07:00 AM** | **Pre-flight validation** | **Alert on failure only** |
-| trading-orchestrator | 21:00 | 08:00 AM | SIP generation | Status updates |
-| intraday-sip | 21:45 | 08:45 AM | SIP refresh | - |
+| trading-orchestrator | 21:00 | 08:00 AM | **Monitoring only** | Status updates |
+| **intraday-sip** | **22:10** | **09:10 AM** | **Full SIP generation (1700+ tickers)** | **- |
 | l2-collector | 22:25 | 09:25 AM | Start L2 collection | - |
-| intraday-paper | 22:25 | 09:25 AM | Start paper trading | - |
+| l2-scalping | 22:26 | 09:26 AM | Start L2 scalping | - |
+| intraday-paper | 22:27 | 09:27 AM | Start paper trading | - |
 | system-health-monitor | Every 5min | Every 5min | Health checks | **Issues only (market hours)** |
 
 ### Validation Scripts
@@ -200,12 +207,19 @@ python scripts/validate_all_components.py
 | `l2-watchdog.service` | Service health monitoring | Running |
 | `intraday-paper.service` | Paper trading execution | Timer-triggered |
 
-### SIP Configuration
-- **Data Source**: Polygon (live delayed data)
-- **Score Floor**: 0.70 (targets ~20 tickers)
-- **Price Range**: $2-200
-- **Min Dollar Volume**: $5M
-- **Output**: `/home/jacobw/intraday_stack/data/daily_sip/date=YYYY-MM-DD/sip_universe.json`
+### SIP Generation System (2026-01-12)
+
+**Daily SIP Generation**: Automated full universe processing every weekday at 09:10 ET
+- **Service**: `intraday-sip.service` (runs `generate_daily_sip.sh`)
+- **Process**: Full analysis of 1,700+ Polygon tickers
+- **Parameters**: score_floor=0.70, price=$2-200, min_dv=$5M
+- **Output**: Fresh SIP universe for each trading day
+- **Logs**: `logs/sip_generation_YYYYMMDD.log`
+
+**Trading Orchestrator**: Separated from SIP generation (monitoring only)
+- **Service**: `trading-orchestrator.service` (08:00 ET)
+- **Purpose**: System health monitoring and alerts
+- **SIP**: No longer generates SIP (delegated to intraday-sip)
 
 ### Quick Start
 ```bash
