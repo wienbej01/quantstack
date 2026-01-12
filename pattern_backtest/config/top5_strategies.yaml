@@ -1,0 +1,73 @@
+strategies:
+  strategy_1:
+    name: "Low_Volatility_180m"
+    rule: "atr_14_bin == 0"
+    direction: "LONG"
+    horizon: "fwd_ret_180m"
+    t_stat: 49.03
+    expectancy: 0.0178
+    win_rate: 0.5026
+    profit_factor: 1.24
+    sharpe: 1.11
+    n_samples: 494261
+    regime: "bull_low_vol"
+    
+  strategy_2:
+    name: "Session_Range_High_180m"
+    rule: "session_range_pct_bin == 4"
+    direction: "LONG"
+    horizon: "fwd_ret_180m"
+    t_stat: 38.75
+    expectancy: 0.0215
+    win_rate: 0.5120
+    profit_factor: 1.21
+    sharpe: 0.88
+    n_samples: 494058
+    regime: "bull_low_vol"
+    
+  strategy_3:
+    name: "Low_Volume_180m"
+    rule: "rvol_bin == 0"
+    direction: "LONG"
+    horizon: "fwd_ret_180m"
+    t_stat: 38.66
+    expectancy: 0.0181
+    win_rate: 0.5057
+    profit_factor: 1.21
+    sharpe: 0.87
+    n_samples: 494000
+    regime: "bull_low_vol"
+    
+  strategy_4:
+    name: "Relative_Strength_Session_Range_180m"
+    rule: "rel_strength_60m_bin == 0.0 AND session_range_pct_bin == 4"
+    direction: "LONG"
+    horizon: "fwd_ret_180m"
+    t_stat: 35.86
+    expectancy: 0.0411
+    win_rate: 0.5492
+    profit_factor: 1.51
+    sharpe: 2.15
+    n_samples: 70106
+    regime: "bull_low_vol"
+    
+  strategy_5:
+    name: "Extreme_Outperform_Low_Range_180m"
+    rule: "rel_outperform_extreme_bin == True AND session_range_pct_bin == 0"
+    direction: "LONG"
+    horizon: "fwd_ret_180m"
+    t_stat: 35.56
+    expectancy: 0.3159
+    win_rate: 0.8093
+    profit_factor: 4.26
+    sharpe: 8.97
+    n_samples: 3964
+    regime: "bear_high_vol"
+
+backtest_config:
+  initial_cash: 1000000
+  position_size: 100
+  commission: 2.0
+  horizon_minutes: 180
+  start_date: "2025-01-01"
+  end_date: "2025-01-31"

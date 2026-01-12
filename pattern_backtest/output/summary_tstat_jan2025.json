@@ -1,0 +1,44 @@
+{
+  "period": "2025-01-01 to 2025-01-31",
+  "total_trades": 47,
+  "total_pnl": -5498.168815772044,
+  "win_rate": 0.46808510638297873,
+  "segregated_strategies": {
+    "Low_Volatility_180m": {
+      "trades": 22.0,
+      "total_pnl": -2565.116777384841,
+      "avg_pnl": -116.59621715385641,
+      "win_rate": 0.5454545454545454,
+      "avg_bars_held": 181.5,
+      "expected_expectancy": 0.0178,
+      "expected_win_rate": 0.5026
+    },
+    "Session_Range_High_180m": {
+      "trades": 10.0,
+      "total_pnl": -4080.068413076442,
+      "avg_pnl": -408.0068413076442,
+      "win_rate": 0.3,
+      "avg_bars_held": 181.5,
+      "expected_expectancy": 0.0215,
+      "expected_win_rate": 0.512
+    },
+    "Low_Volume_180m": {
+      "trades": 14.0,
+      "total_pnl": 2249.2169390043928,
+      "avg_pnl": 160.65835278602805,
+      "win_rate": 0.5,
+      "avg_bars_held": 181.42857142857142,
+      "expected_expectancy": 0.0181,
+      "expected_win_rate": 0.5057
+    },
+    "Extreme_Outperform_Low_Range_180m": {
+      "trades": 1.0,
+      "total_pnl": -1102.200564315153,
+      "avg_pnl": -1102.200564315153,
+      "win_rate": 0.0,
+      "avg_bars_held": 181.0,
+      "expected_expectancy": 0.3159,
+      "expected_win_rate": 0.8093
+    }
+  }
+}

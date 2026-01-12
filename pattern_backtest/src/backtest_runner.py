@@ -13,13 +13,12 @@ sip_discovery_dir = script_dir.parent / "sip_pattern_discovery"
 sys.path.insert(0, str(script_dir))
 sys.path.insert(0, str(sip_discovery_dir))
 
-# Import data loader from sip_pattern_discovery
 import src.data_loader as sip_data_loader
 
 # Import local modules
-import src.feature_pipeline as feature_pipeline
-import src.pattern_policy as pattern_policy
+from src import feature_pipeline, pattern_policy
 
+# Import data loader from sip_pattern_discovery
 from qx_backtest import BacktestConfig, BacktestEngine
 from qx_backtest.fill import DefaultFiller
 

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 
 @dataclass
@@ -12,20 +13,28 @@ class PatternRule:
 
     rule_id: int
     rule_string: str
-    lift: float
-    support: float
+    direction: str
+    horizon: str
+    t_stat: float
     p_value: float
-    baseline_rate: float
+    expectancy: float
+    win_rate: float
+    profit_factor: float
+    sharpe: float
     n_samples: int
     method_id: str = "pattern_discovery"  # Identifier for this method
+    # Legacy fields for backward compatibility
+    lift: float | None = None
+    support: float | None = None
+    baseline_rate: float | None = None
 
     def __repr__(self) -> str:
-        return f"PatternRule(id={self.rule_id}, method={self.method_id}, lift={self.lift:.2f}x, rule='{self.rule_string}')"
+        return f"PatternRule(id={self.rule_id}, method={self.method_id}, t_stat={self.t_stat:.2f}, expectancy={self.expectancy:.4f}, rule='{self.rule_string}')"
 
 
 def parse_patterns_csv(
     csv_path: Path,
-    min_lift: float = 2.0,
+    min_t_stat: float = 3.0,
     max_patterns: int | None = None,
     method_id: str = "pattern_discovery",
 ) -> list[PatternRule]:
@@ -33,8 +42,8 @@ def parse_patterns_csv(
 
     Args:
         csv_path: Path to patterns CSV file
-        min_lift: Minimum lift threshold
-        max_patterns: Maximum number of patterns to load (top N by lift)
+        min_t_stat: Minimum t-statistic threshold
+        max_patterns: Maximum number of patterns to load (top N by t_stat)
         method_id: Identifier for this method (for tracking performance)
 
     Returns:
@@ -42,11 +51,11 @@ def parse_patterns_csv(
     """
     df = pd.read_csv(csv_path)
 
-    # Filter by lift
-    df = df[df["lift"] >= min_lift]
+    # Filter by t_stat
+    df = df[df["t_stat"] >= min_t_stat]
 
-    # Sort by lift descending
-    df = df.sort_values("lift", ascending=False)
+    # Sort by t_stat descending
+    df = df.sort_values("t_stat", ascending=False)
 
     # Limit to top N
     if max_patterns is not None:
@@ -58,12 +67,49 @@ def parse_patterns_csv(
         rule = PatternRule(
             rule_id=idx,
             rule_string=row["rule"],
-            lift=row["lift"],
-            support=row["support"],
+            direction=row["direction"],
+            horizon=row["horizon"],
+            t_stat=row["t_stat"],
             p_value=row["p_value"],
-            baseline_rate=row["baseline_rate"],
+            expectancy=row["expectancy"],
+            win_rate=row["win_rate"],
+            profit_factor=row["profit_factor"],
+            sharpe=row["sharpe"],
             n_samples=int(row["n_samples"]),
             method_id=method_id,
+        )
+        rules.append(rule)
+
+    return rules
+
+
+def parse_strategies_yaml(yaml_path: Path) -> list[PatternRule]:
+    """Parse strategies YAML into PatternRule objects.
+
+    Args:
+        yaml_path: Path to strategies YAML file
+
+    Returns:
+        List of PatternRule objects
+    """
+    with open(yaml_path) as f:
+        config = yaml.safe_load(f)
+
+    rules = []
+    for strategy_id, strategy_config in config["strategies"].items():
+        rule = PatternRule(
+            rule_id=len(rules),
+            rule_string=strategy_config["rule"],
+            direction=strategy_config["direction"],
+            horizon=strategy_config["horizon"],
+            t_stat=strategy_config["t_stat"],
+            p_value=0.0,  # Not provided in YAML
+            expectancy=strategy_config["expectancy"],
+            win_rate=strategy_config["win_rate"],
+            profit_factor=strategy_config["profit_factor"],
+            sharpe=strategy_config["sharpe"],
+            n_samples=strategy_config["n_samples"],
+            method_id=strategy_config["name"],
         )
         rules.append(rule)
 

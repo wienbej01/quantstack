@@ -1,0 +1,2 @@
+symbol,strategy_id,entry_bar_idx,exit_bar_idx,bars_held,entry_price,exit_price,quantity,pnl_gross
+AAPL,Extreme_Outperform_Low_Range_180m,2259,2440,181,100.67725852055158,89.65525287740005,100,-1102.200564315153

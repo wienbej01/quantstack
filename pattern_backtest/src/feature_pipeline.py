@@ -6,36 +6,23 @@ from pathlib import Path
 import pandas as pd
 
 # Import feature computation from sip_pattern_discovery
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "sip_pattern_discovery"))
-from src.features import (
-    compute_atr_features,
-    compute_momentum_features,
-    compute_session_features,
-    compute_time_features,
-    compute_volume_features,
-    compute_vwap_features,
+sys.path.insert(
+    0, str(Path(__file__).parent.parent.parent / "sip_pattern_discovery" / "src")
 )
+from features import compute_all_features
 
 
-def compute_features(df: pd.DataFrame) -> pd.DataFrame:
+def compute_features(df: pd.DataFrame, spy_df: pd.DataFrame = None) -> pd.DataFrame:
     """Compute all features (same as discovery).
 
     Args:
         df: DataFrame with ts, symbol, OHLCV
+        spy_df: Optional SPY data for regime features
 
     Returns:
         DataFrame with features added
     """
-    result = df.copy()
-
-    result = compute_momentum_features(result)
-    result = compute_vwap_features(result)
-    result = compute_volume_features(result)
-    result = compute_atr_features(result)
-    result = compute_session_features(result)
-    result = compute_time_features(result)
-
-    return result
+    return compute_all_features(df, spy_df, n_workers=2)  # Reduce workers for backtest
 
 
 def discretize_feature(series: pd.Series, n_bins: int = 5) -> pd.Series:
@@ -94,21 +81,25 @@ def compute_and_discretize_features(df: pd.DataFrame, n_bins: int = 5) -> pd.Dat
     Returns:
         DataFrame with features and discretized features
     """
-    # Compute features
-    result = compute_features(df)
+    # Compute features (without SPY for now)
+    result = compute_features(df, spy_df=None)
 
-    # Discretize relevant features
+    # Discretize relevant features based on the patterns we're using
     feature_cols = [
-        "ret_5m",
-        "ret_15m",
-        "ret_30m",
+        "atr_14",
+        "session_range_pct",
+        "rvol",
+        "rel_strength_60m",
         "ret_60m",
         "price_vs_vwap_pct",
-        "price_vs_session_avwap_pct",
-        "rvol",
-        "atr_14",
         "is_first_hour",
         "is_power_hour",
+        "rel_outperform_extreme",
+        "rel_underperform_extreme",
+        "price_up_vol_weak",
+        "price_down_vol_weak",
+        "price_up_vol_strong",
+        "price_down_vol_strong",
     ]
 
     result = discretize_features(result, feature_cols, n_bins)
