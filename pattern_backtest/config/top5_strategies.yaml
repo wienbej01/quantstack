@@ -4,6 +4,7 @@ strategies:
     rule: "ret_60m_bin == 4.0 AND is_first_hour_bin == True"
     direction: "LONG"
     horizon: "fwd_ret_180m"
+    horizon_minutes: 180
     t_stat: 34.3
     expectancy: 0.0542
     win_rate: 0.526
@@ -17,6 +18,7 @@ strategies:
     rule: "price_up_vol_weak_bin == True AND is_first_hour_bin == True"
     direction: "SHORT"
     horizon: "fwd_ret_90m"
+    horizon_minutes: 90
     t_stat: 25.9
     expectancy: 0.0400
     win_rate: 0.553
@@ -30,6 +32,7 @@ strategies:
     rule: "price_vs_vwap_pct_bin == 4 AND is_first_hour_bin == True"
     direction: "SHORT"
     horizon: "fwd_ret_90m"
+    horizon_minutes: 90
     t_stat: 27.9
     expectancy: 0.0339
     win_rate: 0.544
@@ -43,6 +46,7 @@ strategies:
     rule: "rel_outperform_extreme_bin == True AND session_range_pct_bin == 0"
     direction: "LONG"
     horizon: "fwd_ret_180m"
+    horizon_minutes: 180
     t_stat: 35.56
     expectancy: 0.3159
     win_rate: 0.8093
@@ -56,6 +60,7 @@ strategies:
     rule: "is_power_hour_bin == True"
     direction: "SHORT"
     horizon: "fwd_ret_30m"
+    horizon_minutes: 30
     t_stat: 25.7
     expectancy: 0.0110
     win_rate: 0.460

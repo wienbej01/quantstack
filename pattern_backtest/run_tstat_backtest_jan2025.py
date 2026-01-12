@@ -127,13 +127,14 @@ class TradeTracker:
         key = (date, strategy_id)
         self.daily_entries[key] = self.daily_entries.get(key, 0) + 1
 
-    def on_entry(self, symbol, bar_idx, price, strategy_id, quantity):
+    def on_entry(self, symbol, bar_idx, price, strategy_id, quantity, horizon_minutes):
         """Record entry."""
         self.positions[symbol] = {
             "entry_bar_idx": bar_idx,
             "entry_price": price,
             "strategy_id": strategy_id,
             "quantity": quantity,
+            "horizon_minutes": horizon_minutes,
         }
         self.pending.add(symbol)
 
@@ -194,8 +195,9 @@ def strategy_func(engine, bar):
     if has_position and symbol in tracker.positions:
         pos_info = tracker.positions[symbol]
         bars_held = current_bar_idx - pos_info["entry_bar_idx"]
+        strategy_horizon = pos_info["horizon_minutes"]
 
-        if bars_held >= HORIZON_BARS:
+        if bars_held >= strategy_horizon:
             # Exit
             side = OrderSide.SELL if position.quantity > 0 else OrderSide.BUY
             order = Order(
@@ -246,6 +248,7 @@ def strategy_func(engine, bar):
                     bar["close"],
                     strategy.method_id,
                     POSITION_SIZE,
+                    strategy.horizon_minutes,
                 )
                 tracker.increment_daily_entry(bar_date, strategy.method_id)
                 break  # Only one entry per bar

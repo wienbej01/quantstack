@@ -1,44 +1,53 @@
 {
   "period": "2025-01-01 to 2025-01-31",
-  "total_trades": 47,
-  "total_pnl": -5498.168815772044,
-  "win_rate": 0.46808510638297873,
+  "total_trades": 238,
+  "total_pnl": 100.0967000000001,
+  "win_rate": 0.4411764705882353,
   "segregated_strategies": {
-    "Low_Volatility_180m": {
-      "trades": 22.0,
-      "total_pnl": -2565.116777384841,
-      "avg_pnl": -116.59621715385641,
-      "win_rate": 0.5454545454545454,
-      "avg_bars_held": 181.5,
-      "expected_expectancy": 0.0178,
-      "expected_win_rate": 0.5026
-    },
-    "Session_Range_High_180m": {
-      "trades": 10.0,
-      "total_pnl": -4080.068413076442,
-      "avg_pnl": -408.0068413076442,
-      "win_rate": 0.3,
-      "avg_bars_held": 181.5,
-      "expected_expectancy": 0.0215,
-      "expected_win_rate": 0.512
-    },
-    "Low_Volume_180m": {
-      "trades": 14.0,
-      "total_pnl": 2249.2169390043928,
-      "avg_pnl": 160.65835278602805,
+    "First_Hour_Momentum_180m": {
+      "trades": 52.0,
+      "total_pnl": 7.560000000000322,
+      "avg_pnl": 0.14538461538462158,
       "win_rate": 0.5,
-      "avg_bars_held": 181.42857142857142,
-      "expected_expectancy": 0.0181,
-      "expected_win_rate": 0.5057
+      "avg_bars_held": 357.6730769230769,
+      "expected_expectancy": 0.0542,
+      "expected_win_rate": 0.526
+    },
+    "Volume_Price_Divergence_First_Hour_90m": {
+      "trades": 52.0,
+      "total_pnl": 25.64000000000135,
+      "avg_pnl": 0.49307692307694906,
+      "win_rate": 0.46153846153846156,
+      "avg_bars_held": 352.1923076923077,
+      "expected_expectancy": 0.04,
+      "expected_win_rate": 0.553
+    },
+    "VWAP_Extreme_First_Hour_90m": {
+      "trades": 52.0,
+      "total_pnl": 60.58999999999858,
+      "avg_pnl": 1.1651923076922803,
+      "win_rate": 0.40384615384615385,
+      "avg_bars_held": 371.90384615384613,
+      "expected_expectancy": 0.0339,
+      "expected_win_rate": 0.544
     },
     "Extreme_Outperform_Low_Range_180m": {
-      "trades": 1.0,
-      "total_pnl": -1102.200564315153,
-      "avg_pnl": -1102.200564315153,
-      "win_rate": 0.0,
-      "avg_bars_held": 181.0,
+      "trades": 32.0,
+      "total_pnl": 38.08999999999969,
+      "avg_pnl": 1.1903124999999903,
+      "win_rate": 0.53125,
+      "avg_bars_held": 356.625,
       "expected_expectancy": 0.3159,
       "expected_win_rate": 0.8093
+    },
+    "Power_Hour_Short_30m": {
+      "trades": 50.0,
+      "total_pnl": -31.783299999999848,
+      "avg_pnl": -0.635665999999997,
+      "win_rate": 0.34,
+      "avg_bars_held": 392.12,
+      "expected_expectancy": 0.011,
+      "expected_win_rate": 0.46
     }
   }
 }
