@@ -44,7 +44,7 @@ CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # Load SIP-filtered data
 print("\n[1/3] Loading SIP-filtered data...")
-df, metadata = sip_data_loader.load_sip_filtered_data(
+df, spy_df, metadata = sip_data_loader.load_sip_filtered_data(
     START_DATE,
     END_DATE,
     LOOKBACK_DAYS,
@@ -60,7 +60,7 @@ print(f"✅ Loaded {len(df):,} bars across {metadata['unique_symbols']} symbols"
 
 # Compute features
 print("\n[2/3] Computing features...")
-df = compute_all_features(df, spy_df=None, n_workers=2)
+df = compute_all_features(df, spy_df=spy_df, n_workers=2)
 
 # Discretize features for pattern matching
 print("\n[3/3] Discretizing features...")
