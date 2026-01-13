@@ -342,7 +342,7 @@ l2-collect --config qx-l2/configs/maximum_l2.yaml --daemon
 
 **Data Storage**:
 ```
-/home/jacobw/quantstack/data/l2_maximum/features/
+/home/jacobw/quantstack/data/l2_maximum/raw/
 └── date=YYYY-MM-DD/
     └── symbol={TICKER}/
         └── {TIMESTAMP}.parquet
@@ -821,7 +821,7 @@ intraday-paper.service.d/
 
 **L2 Data**:
 ```
-/home/jacobw/quantstack/data/l2_maximum/features/
+/home/jacobw/quantstack/data/l2_maximum/raw/
 └── date=YYYY-MM-DD/
     └── symbol={TICKER}/
         └── {TIMESTAMP}.parquet
@@ -1147,8 +1147,8 @@ systemctl restart l2-watchdog.service
 
 ---
 
-**Last Updated**: 2026-01-13
-**Next Review**: 2026-02-13
+**Last Updated**: 2026-01-14
+**Next Review**: 2026-02-14
 
 ### Migration Benefits Achieved
 - ✅ **No More Stale Connections**: REST-based interface eliminates socket issues completely
@@ -1548,13 +1548,16 @@ journalctl -u intraday-paper.service -f
 systemctl status l2-collector.service
 curl -s http://127.0.0.1:8000/health | jq .services.l2_collector
 
-# Check data directory
-ls -la /home/jacobw/quantstack/data/l2_maximum/features/date=$(date +%F)/
+# Check data directory (CORRECTED PATH)
+ls -la /home/jacobw/quantstack/data/l2_maximum/raw/date=$(date +%F)/
+
+# Count collected files
+find /home/jacobw/quantstack/data/l2_maximum/raw/date=$(date +%F)/ -name "*.parquet" | wc -l
 
 # Test platform market data access
 curl -s http://127.0.0.1:8000/api/market-data/snapshot \
   -H "Content-Type: application/json" \
-  -d '{"conids": [265598]}'
+  -d '{"conids": [270639], "fields": ["31", "84", "85", "86", "88"]}'
 
 # Check service heartbeat
 curl -s http://127.0.0.1:8000/health | jq '.services.l2_collector.last_heartbeat'
@@ -1591,7 +1594,7 @@ curl -s http://127.0.0.1:8000/api/portfolio/DUN575068 | jq .
 ### Data Recovery ✅ **ENHANCED**
 ```bash
 # Check recent data
-ls -la /home/jacobw/quantstack/data/l2_maximum/features/
+ls -la /home/jacobw/quantstack/data/l2_maximum/raw/
 
 # Check platform service registration
 curl -s http://127.0.0.1:8000/health | jq .services
@@ -1621,7 +1624,7 @@ curl -s http://127.0.0.1:8000/health | jq .services.l2_collector
 curl -s http://127.0.0.1:8000/health | jq .
 
 # L2 collection stats
-ls -la /home/jacobw/quantstack/data/l2_maximum/features/date=$(date +%F)/ | wc -l
+find /home/jacobw/quantstack/data/l2_maximum/raw/date=$(date +%F)/ -name "*.parquet" | wc -l
 
 # Trading performance
 # (Custom reporting scripts as needed)
