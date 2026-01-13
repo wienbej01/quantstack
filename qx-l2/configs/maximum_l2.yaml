@@ -10,7 +10,7 @@ system:
 # IBKR connection
 ibkr:
   host: "127.0.0.1"
-  port: 7497
+  port: 8000  # IBKR Platform
   timeout: 30
 
 # Symbol selection - DYNAMIC FROM DAILY SIP

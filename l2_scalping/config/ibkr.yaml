@@ -3,7 +3,7 @@
 # Connection Settings
 ibkr:
   host: "127.0.0.1"
-  port: 7497                    # Paper trading port (7496 for live)
+  port: 8000                    # IBKR Platform port
   
   # Client ID ranges (100 IDs per service to avoid Gateway caching issues)
   # l2-collector: 1-99, intraday-paper: 100-199, l2-scalping: 200-299
