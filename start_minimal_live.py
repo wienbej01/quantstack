@@ -36,7 +36,7 @@ def main():
         # Configure L2 collection for opening and power hour
         config = CollectorConfig(
             host="127.0.0.1",
-            port=7497,
+            port=8000,  # IBKR Platform port
             client_id=300,
             symbols=symbols,
             levels=10,

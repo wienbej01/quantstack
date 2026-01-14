@@ -3,7 +3,11 @@
 import pandas as pd
 
 
-def generate_targets(df: pd.DataFrame, horizons: list[int]) -> pd.DataFrame:
+def generate_targets(
+    df: pd.DataFrame,
+    horizons: list[int],
+    inplace: bool = False,
+) -> pd.DataFrame:
     """Generate forward return targets for pattern discovery.
 
     Args:
@@ -13,7 +17,7 @@ def generate_targets(df: pd.DataFrame, horizons: list[int]) -> pd.DataFrame:
     Returns:
         DataFrame with fwd_ret_{horizon}m columns (actual % returns, not binary)
     """
-    result = df.copy()
+    result = df if inplace else df.copy()
 
     for symbol, group in result.groupby("symbol"):
         group = group.sort_values("ts")

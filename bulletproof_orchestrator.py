@@ -213,8 +213,9 @@ class GatewayManager:
     def _count_gateway_processes(self) -> tuple[int, list[str]]:
         """Count running ibgateway/TWS processes and return PIDs."""
         try:
+            # Only count the main Java processes, not shell wrappers
             result = subprocess.run(
-                ["pgrep", "-f", "ibgateway|tws"],
+                ["pgrep", "-f", "ibcalpha.ibc.IbcGateway|com.ib.tws"],
                 capture_output=True,
                 text=True,
                 timeout=5,

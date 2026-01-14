@@ -1,23 +1,188 @@
 #!/usr/bin/env python3
 """
 AAA Pattern Discovery - Integrated system with overfitting filters and 3-period validation
+
+STREAMED PIPELINE: Processes data month-by-month to avoid full-year memory pressure.
 """
 
 import argparse
+import gc
 import json
 import sys
+import tracemalloc
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import psutil
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.aaa_scorer import AAAScorer
-from src.data_loader import load_sip_filtered_data
+
+def log_memory(stage: str) -> None:
+    """Log current memory usage for debugging memory issues."""
+    process = psutil.Process()
+    mem_gb = process.memory_info().rss / 1e9
+    if tracemalloc.is_tracing():
+        current, peak = tracemalloc.get_traced_memory()
+        print(f"[MEMORY] {stage}: RSS={mem_gb:.2f}GB, Peak={peak / 1e9:.2f}GB")
+    else:
+        print(f"[MEMORY] {stage}: RSS={mem_gb:.2f}GB")
+
+
+def month_keys_for_range(start_date: date, end_date: date) -> list[str]:
+    """Return YYYY_MM month keys covering a date range."""
+    months = pd.period_range(start=start_date, end=end_date, freq="M")
+    return [month.strftime("%Y_%m") for month in months]
+
+
+def load_monthly_cache(
+    cache_dir: Path,
+    start_date: date,
+    end_date: date,
+    *,
+    columns: list[str] | None = None,
+    end_inclusive: bool = True,
+) -> pd.DataFrame:
+    """Load per-month cache files for a date range and filter by date."""
+    month_keys = month_keys_for_range(start_date, end_date)
+    dfs: list[pd.DataFrame] = []
+
+    for month_key in month_keys:
+        month_file = cache_dir / f"features_targets_{month_key}.parquet"
+        if not month_file.exists():
+            raise RuntimeError(f"Missing monthly cache file: {month_file}")
+        read_columns = columns
+        if columns is not None:
+            try:
+                import pyarrow.parquet as pq
+
+                available = set(pq.ParquetFile(month_file).schema.names)
+                read_columns = [col for col in columns if col in available]
+            except Exception:
+                read_columns = None
+
+        month_df = pd.read_parquet(month_file, columns=read_columns)
+        if "date" in month_df.columns:
+            if end_inclusive:
+                mask = (month_df["date"] >= start_date) & (month_df["date"] <= end_date)
+            else:
+                mask = (month_df["date"] >= start_date) & (month_df["date"] < end_date)
+            month_df = month_df.loc[mask]
+        dfs.append(month_df)
+
+    if not dfs:
+        raise RuntimeError("No monthly cache files loaded for the requested date range.")
+
+    return pd.concat(dfs, ignore_index=True)
+
+
+def load_volume_baseline_map(baseline_file: Path) -> dict[str, pd.Series]:
+    """Load per-symbol volume baseline into a dict of Series keyed by symbol."""
+    baseline_df = pd.read_parquet(baseline_file)
+    if baseline_df.empty:
+        return {}
+
+    baseline_map: dict[str, pd.Series] = {}
+    for symbol, group in baseline_df.groupby("symbol"):
+        baseline_map[symbol] = group.set_index("minute_of_day")["avg_volume"]
+
+    return baseline_map
+
+
+def build_monthly_feature_target_cache(
+    daily_cache_dir: Path,
+    sip_dir: Path,
+    spy_df: pd.DataFrame,
+    volume_baseline: dict[str, pd.Series],
+    start_date: str,
+    end_date: str,
+    horizons: list[int],
+    output_dir: Path,
+    keep_cols: list[str],
+    rebuild: bool = False,
+    warmup_days: int = 5,
+    lookahead_days: int = 3,
+) -> Path:
+    """Build per-month feature/target cache without loading full-year data."""
+    monthly_cache_dir = output_dir / "monthly_cache"
+    monthly_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    trading_days = get_trading_days(start_date, end_date, sip_dir)
+    if not trading_days:
+        raise RuntimeError("No trading days found for the requested range.")
+
+    day_to_idx = {day: idx for idx, day in enumerate(trading_days)}
+    month_keys = month_keys_for_range(
+        pd.to_datetime(start_date).date(),
+        pd.to_datetime(end_date).date(),
+    )
+
+    for month_key in month_keys:
+        month_file = monthly_cache_dir / f"features_targets_{month_key}.parquet"
+        if month_file.exists() and not rebuild:
+            continue
+
+        month_start = pd.Period(month_key).start_time.date()
+        month_end = pd.Period(month_key).end_time.date()
+
+        month_days = [
+            day for day in trading_days
+            if month_start <= pd.to_datetime(day).date() <= month_end
+        ]
+        if not month_days:
+            continue
+
+        start_idx = day_to_idx[month_days[0]]
+        end_idx = day_to_idx[month_days[-1]]
+        warmup_start = max(0, start_idx - warmup_days)
+        lookahead_end = min(len(trading_days) - 1, end_idx + lookahead_days)
+
+        load_start = trading_days[warmup_start]
+        load_end = trading_days[lookahead_end]
+
+        print(f"\nBuilding cache for {month_key} ({load_start} -> {load_end})...")
+        df = load_daily_cache_range(daily_cache_dir, load_start, load_end)
+        if df.empty:
+            print(f"  ⚠️ No data loaded for {month_key}")
+            continue
+
+        df = optimize_dataframe(df, exclude_cols={"ts"})
+        df = compute_all_features(
+            df,
+            spy_df=spy_df,
+            n_workers=1,
+            volume_baseline=volume_baseline,
+        )
+        df = generate_targets(df, horizons, inplace=True)
+
+        df["date"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.date
+        month_mask = (df["date"] >= month_start) & (df["date"] <= month_end)
+        available_cols = [col for col in keep_cols if col in df.columns]
+        df = df.loc[month_mask, available_cols]
+        df = optimize_dataframe(df, exclude_cols={"ts"})
+
+        df.to_parquet(month_file, index=False)
+        print(f"  ✅ Saved {month_file.name}")
+
+        del df
+        gc.collect()
+
+    return monthly_cache_dir
+
+
+from src.data_loader import (
+    build_daily_sip_cache,
+    compute_volume_baseline,
+    get_trading_days,
+    load_daily_cache_range,
+    load_symbol_bars_range,
+)
 from src.event_filter import EventFilter
 from src.features import compute_all_features
-from src.llm_analysis import analyze_patterns_with_llm, format_patterns_for_llm
+from src.llm_analysis import format_patterns_for_llm
+from src.memory_utils import optimize_dataframe
 
 # AAA filters
 from src.overfitting_filter import OverfittingFilter
@@ -53,9 +218,7 @@ def apply_aaa_filters(
 
     # Filter 1: Event-based only
     if require_event:
-        patterns_df = patterns_df[
-            patterns_df["rule"].apply(event_filter.is_event_based)
-        ].copy()
+        patterns_df = patterns_df[patterns_df["rule"].apply(event_filter.is_event_based)].copy()
         print(f"  After event filter: {len(patterns_df)}/{initial_count} patterns")
 
     # Filter 2: Overfitting check
@@ -64,9 +227,7 @@ def apply_aaa_filters(
             lambda row: overfit_filter.is_overfit(row.to_dict()), axis=1
         )
         patterns_df["is_overfit"] = patterns_df["overfit_check"].apply(lambda x: x[0])
-        patterns_df["overfit_reason"] = patterns_df["overfit_check"].apply(
-            lambda x: x[1]
-        )
+        patterns_df["overfit_reason"] = patterns_df["overfit_check"].apply(lambda x: x[1])
 
         rejected = patterns_df[patterns_df["is_overfit"]]
         if len(rejected) > 0:
@@ -75,14 +236,10 @@ def apply_aaa_filters(
                 print(f"    - {row['rule'][:50]}... : {row['overfit_reason']}")
 
         patterns_df = patterns_df[~patterns_df["is_overfit"]].copy()
-        patterns_df = patterns_df.drop(
-            columns=["overfit_check", "is_overfit", "overfit_reason"]
-        )
+        patterns_df = patterns_df.drop(columns=["overfit_check", "is_overfit", "overfit_reason"])
         print(f"  After overfit filter: {len(patterns_df)}/{initial_count} patterns")
     else:
-        print(
-            f"  After overfit filter: 0/{initial_count} patterns (no patterns to check)"
-        )
+        print(f"  After overfit filter: 0/{initial_count} patterns (no patterns to check)")
 
     # Filter 3: Regime match
     if require_regime_match and current_regime and len(patterns_df) > 0:
@@ -95,14 +252,16 @@ def apply_aaa_filters(
             f"  After regime filter: {len(patterns_df)}/{initial_count} patterns (no regime filter)"
         )
     else:
-        print(
-            f"  After regime filter: 0/{initial_count} patterns (no patterns to check)"
-        )
+        print(f"  After regime filter: 0/{initial_count} patterns (no patterns to check)")
 
     return patterns_df
 
 
 def main():
+    # Start memory tracking
+    tracemalloc.start()
+    log_memory("Start")
+
     parser = argparse.ArgumentParser(
         description="AAA Pattern Discovery with overfitting filters and 3-period validation"
     )
@@ -121,13 +280,27 @@ def main():
     )
     parser.add_argument("--output-dir", default="output_aaa", help="Output directory")
     parser.add_argument("--skip-llm", action="store_true", help="Skip LLM analysis")
-    parser.add_argument(
-        "--skip-validation", action="store_true", help="Skip 3-period validation"
-    )
+    parser.add_argument("--skip-validation", action="store_true", help="Skip 3-period validation")
     parser.add_argument(
         "--use-aaa-scoring",
         action="store_true",
         help="Rank by AAA score instead of t-stat",
+    )
+    parser.add_argument(
+        "--feature-workers",
+        type=int,
+        default=1,
+        help="Deprecated (streamed pipeline forces n_workers=1 for memory safety).",
+    )
+    parser.add_argument(
+        "--use-monthly-cache",
+        action="store_true",
+        help="Deprecated (streamed pipeline always uses monthly cache).",
+    )
+    parser.add_argument(
+        "--rebuild-monthly-cache",
+        action="store_true",
+        help="Rebuild per-month cache files from the current dataset.",
     )
     parser.add_argument(
         "--sip-dir",
@@ -143,6 +316,8 @@ def main():
     args = parser.parse_args()
 
     horizons = [int(h) for h in args.horizons.split(",")]
+    start_dt = pd.to_datetime(args.start_date).date()
+    end_dt = pd.to_datetime(args.end_date).date()
 
     # Load configuration
     config_path = Path(__file__).parent / args.config
@@ -155,6 +330,7 @@ def main():
 
     print("=" * 80)
     print("AAA PATTERN DISCOVERY (Overfitting Filters + 3-Period Validation)")
+    print("STREAMED PIPELINE (MONTH-BY-MONTH)")
     print("=" * 80)
     print(f"Date range: {args.start_date} to {args.end_date}")
     print(f"Horizons: {horizons} minutes")
@@ -194,93 +370,194 @@ def main():
     print("✅ AAA filters initialized")
 
     # Load data
-    print("\n[1/5] Loading SIP-filtered data...")
-    cache_file = output_dir / "cached_data.parquet"
-    spy_cache_file = output_dir / "cached_spy_data.parquet"
+    print("\n[1/7] Building daily SIP cache...")
     metadata_cache_file = output_dir / "cached_metadata.json"
+    daily_cache_dir, metadata = build_daily_sip_cache(
+        args.start_date,
+        args.end_date,
+        sip_dir,
+        gold_dir,
+        output_dir,
+    )
+    with open(metadata_cache_file, "w") as f:
+        json.dump(metadata, f, indent=2, default=str)
+    print(f"  ✅ Daily cache ready at {daily_cache_dir}")
 
-    if cache_file.exists() and spy_cache_file.exists():
-        print("  Loading from cache...")
-        df = pd.read_parquet(cache_file)
-        spy_df = pd.read_parquet(spy_cache_file)
-        with open(metadata_cache_file) as f:
-            metadata = json.load(f)
-        print(f"  ✅ Loaded {len(df):,} bars from cache")
+    print("\n[2/7] Loading SPY data for regime features...")
+    lookback_days = (
+        config["temporal_periods"]["scan_months"]
+        + config["temporal_periods"]["validation_months"]
+        + config["temporal_periods"]["oos_months"]
+        + 1
+    ) * 30
+    spy_start = (pd.to_datetime(args.start_date) - pd.Timedelta(days=lookback_days + 60)).date()
+    spy_df = load_symbol_bars_range(
+        "SPY",
+        spy_start.strftime("%Y-%m-%d"),
+        args.end_date,
+        gold_dir,
+    )
+    if spy_df.empty:
+        print("  ⚠️ No SPY data found")
     else:
-        print("  Loading from source (this may take 2-3 minutes)...")
-        lookback_days = (
-            config["temporal_periods"]["scan_months"]
-            + config["temporal_periods"]["validation_months"]
-            + 1
-        )
-        df, spy_df, metadata = load_sip_filtered_data(
-            args.start_date,
-            args.end_date,
-            lookback_days,
-            sip_dir,
-            gold_dir,
-        )
-        print(f"  Caching for future runs...")
-        df.to_parquet(cache_file)
-        spy_df.to_parquet(spy_cache_file)
-        with open(metadata_cache_file, "w") as f:
-            json.dump(metadata, f, indent=2, default=str)
-        print(f"  ✅ Loaded and cached {len(df):,} bars")
+        print(f"  ✅ Loaded {len(spy_df):,} SPY bars")
+    spy_df = optimize_dataframe(spy_df, exclude_cols={"ts"})
 
-    # Detect current regime
-    print("\n[2/5] Detecting current market regime...")
+    print("\n[3/7] Detecting current market regime...")
     current_regime = regime_filter.detect_regime(spy_df)
     print(f"✅ Current regime: {current_regime}")
 
-    # Compute features
-    print("\n[3/5] Computing features...")
-    features_cache_file = output_dir / "cached_features.parquet"
-    if features_cache_file.exists():
-        print("  Loading features from cache...")
-        df = pd.read_parquet(features_cache_file)
-        print(f"  ✅ Loaded {len(df):,} bars with features")
-    else:
-        print("  Computing features (this may take 1-2 minutes)...")
-        df = compute_all_features(df, spy_df)
-        print("  Caching features...")
-        df.to_parquet(features_cache_file)
-        print(f"  ✅ Computed and cached features")
+    print("\n[4/7] Building volume baseline...")
+    baseline_file = compute_volume_baseline(
+        daily_cache_dir,
+        args.start_date,
+        args.end_date,
+        output_dir,
+    )
+    volume_baseline = load_volume_baseline_map(baseline_file)
+    print(f"  ✅ Volume baseline ready at {baseline_file}")
 
-    # Generate targets
-    print("  Generating forward returns...")
-    targets_cache_file = output_dir / "cached_targets.parquet"
-    if targets_cache_file.exists():
-        print("  Loading targets from cache...")
-        df = pd.read_parquet(targets_cache_file)
-    else:
-        print("  Computing forward returns...")
-        df = generate_targets(df, horizons)
-        print("  Caching targets...")
-        df.to_parquet(targets_cache_file)
+    # Columns required for discovery/validation and cache loading.
+    required_features = [
+        "rel_underperform_extreme",
+        "rel_outperform_extreme",
+        "price_up_vol_weak",
+        "price_down_vol_weak",
+        "at_session_high",
+        "at_session_low",
+        "vwap_cross_up",
+        "vwap_cross_down",
+        "ret_60m",
+        "rel_strength_60m",
+        "session_range_pct",
+        "rvol",
+        "atr_14",
+        "price_vs_vwap_pct",
+        "is_first_hour",
+        "is_power_hour",
+    ]
+    return_cols = [f"fwd_ret_{h}m" for h in horizons]
+    keep_cols = {
+        "ts",
+        "symbol",
+        "date",
+        "spy_above_sma20",
+        "spy_high_vol",
+        *required_features,
+        *return_cols,
+    }
+    keep_cols_list = list(keep_cols)
+    print("\n[5/7] Building per-month feature/target cache...")
+    monthly_cache_dir = build_monthly_feature_target_cache(
+        daily_cache_dir,
+        sip_dir,
+        spy_df,
+        volume_baseline,
+        args.start_date,
+        args.end_date,
+        horizons,
+        output_dir,
+        keep_cols_list,
+        rebuild=args.rebuild_monthly_cache,
+        warmup_days=5,
+        lookahead_days=3,
+    )
+    log_memory("After monthly cache build")
 
-    print(f"✅ Features and targets ready ({len(df):,} bars)")
+    # Split data for validation (load per-month cache)
+    val_df_path = None
+    oos_df_path = None
 
-    # Split data for validation
     if not args.skip_validation:
-        print("\n[4/5] Splitting data for 3-period validation...")
-        scan_df, val_df, oos_df = temporal_split.split_data(df, args.end_date)
-        period_info = temporal_split.get_period_info(df, args.end_date)
+        print("\n[6/7] Splitting data for 3-period validation...")
+        boundaries = temporal_split.get_boundaries(args.end_date)
+        scan_df = load_monthly_cache(
+            monthly_cache_dir,
+            boundaries["scan_start"],
+            boundaries["val_start"],
+            columns=keep_cols_list,
+            end_inclusive=False,
+        )
+        val_df = load_monthly_cache(
+            monthly_cache_dir,
+            boundaries["val_start"],
+            boundaries["oos_start"],
+            columns=keep_cols_list,
+            end_inclusive=False,
+        )
+        oos_df = load_monthly_cache(
+            monthly_cache_dir,
+            boundaries["oos_start"],
+            boundaries["end_date"],
+            columns=keep_cols_list,
+            end_inclusive=True,
+        )
+        period_info = {
+            "scan": {
+                "start": scan_df["date"].min(),
+                "end": scan_df["date"].max(),
+                "days": len(scan_df["date"].unique()),
+                "bars": len(scan_df),
+            },
+            "validation": {
+                "start": val_df["date"].min(),
+                "end": val_df["date"].max(),
+                "days": len(val_df["date"].unique()),
+                "bars": len(val_df),
+            },
+            "oos": {
+                "start": oos_df["date"].min(),
+                "end": oos_df["date"].max(),
+                "days": len(oos_df["date"].unique()),
+                "bars": len(oos_df),
+            },
+        }
+        for split_df in (scan_df, val_df, oos_df):
+            if "date" in split_df.columns:
+                split_df.drop(columns=["date"], inplace=True)
 
         print(
-            f"  Scan period: {period_info['scan']['start']} to {period_info['scan']['end']} ({period_info['scan']['days']} days)"
+            "  Scan period: "
+            f"{period_info['scan']['start']} to {period_info['scan']['end']} "
+            f"({period_info['scan']['days']} days)"
         )
         print(
-            f"  Validation period: {period_info['validation']['start']} to {period_info['validation']['end']} ({period_info['validation']['days']} days)"
+            "  Validation period: "
+            f"{period_info['validation']['start']} to {period_info['validation']['end']} "
+            f"({period_info['validation']['days']} days)"
         )
         print(
-            f"  OOS period: {period_info['oos']['start']} to {period_info['oos']['end']} ({period_info['oos']['days']} days)"
+            "  OOS period: "
+            f"{period_info['oos']['start']} to {period_info['oos']['end']} "
+            f"({period_info['oos']['days']} days)"
         )
+
+        # MEMORY-OPTIMIZED: Write val_df and oos_df to disk, free memory
+        print("  Writing validation data to disk to free memory...")
+        val_df_path = output_dir / "temp_validation.parquet"
+        val_df.to_parquet(val_df_path, index=False)
+        del val_df  # Free memory
+
+        oos_df_path = output_dir / "temp_oos.parquet"
+        oos_df.to_parquet(oos_df_path, index=False)
+        del oos_df  # Free memory
+
+        gc.collect()
+        log_memory("After temporal split (val/oos written to disk)")
     else:
-        scan_df = df
-        print("\n[4/5] Skipping validation split (using full dataset)")
+        scan_df = load_monthly_cache(
+            monthly_cache_dir,
+            start_dt,
+            end_dt,
+            columns=keep_cols_list,
+            end_inclusive=True,
+        )
+        print("\n[6/7] Skipping validation split (using full dataset)")
+        log_memory("After temporal split (no validation)")
 
     # Discover patterns
-    print("\n[5/5] Discovering patterns with AAA filters...")
+    print("\n[7/7] Discovering patterns with AAA filters...")
+    log_memory("Before pattern discovery")
 
     # Feature columns
     high_alpha_events = [
@@ -304,21 +581,20 @@ def main():
     time_context = ["is_first_hour", "is_power_hour"]
 
     feature_cols = [
-        f
-        for f in high_alpha_events + state_features + time_context
-        if f in scan_df.columns
+        f for f in high_alpha_events + state_features + time_context if f in scan_df.columns
     ]
 
-    # Define regimes
+    # Define regimes from scan_df (memory-efficient: avoid keeping full df in memory)
+    # After temporal split, we only work with scan_df for pattern discovery
     regimes = {
-        "bull_low_vol": (df["spy_above_sma20"] == True)
-        & (df.get("spy_high_vol", False) == False),
-        "bull_high_vol": (df["spy_above_sma20"] == True)
-        & (df.get("spy_high_vol", False) == True),
-        "bear_low_vol": (df["spy_above_sma20"] == False)
-        & (df.get("spy_high_vol", False) == False),
-        "bear_high_vol": (df["spy_above_sma20"] == False)
-        & (df.get("spy_high_vol", False) == True),
+        "bull_low_vol": (scan_df["spy_above_sma20"] == True)
+        & (scan_df.get("spy_high_vol", False) == False),
+        "bull_high_vol": (scan_df["spy_above_sma20"] == True)
+        & (scan_df.get("spy_high_vol", False) == True),
+        "bear_low_vol": (scan_df["spy_above_sma20"] == False)
+        & (scan_df.get("spy_high_vol", False) == False),
+        "bear_high_vol": (scan_df["spy_above_sma20"] == False)
+        & (scan_df.get("spy_high_vol", False) == True),
     }
 
     all_patterns = []
@@ -329,15 +605,32 @@ def main():
             continue
 
         for regime_name, regime_mask in regimes.items():
-            # Apply regime mask to scan_df
-            scan_regime_mask = regime_mask.loc[scan_df.index]
-            df_regime = scan_df[scan_regime_mask].copy()
+            # Apply regime mask to scan_df (no index lookup needed now)
+            df_regime = scan_df[regime_mask].copy()
 
-            # Apply regime mask to val_df
-            val_regime_mask = regime_mask.loc[val_df.index]
-            val_df_regime = val_df[val_regime_mask].copy()
+            # Apply regime mask to val_df (load from disk if needed)
+            val_df_regime = None
+            if val_df_path is not None:
+                # MEMORY-OPTIMIZED: Load only needed columns and filter by regime
+                val_cols = ["ts", "symbol", return_col, "spy_above_sma20", "spy_high_vol"]
+                val_cols += feature_cols
+                val_cols = [col for col in val_cols if col in scan_df.columns]
+                val_df_full = pd.read_parquet(val_df_path, columns=val_cols)
+                val_spy_above = val_df_full.get("spy_above_sma20", True)
+                val_spy_high_vol = val_df_full.get("spy_high_vol", False)
+                val_regime_mask = {
+                    "bull_low_vol": (val_spy_above == True) & (val_spy_high_vol == False),
+                    "bull_high_vol": (val_spy_above == True) & (val_spy_high_vol == True),
+                    "bear_low_vol": (val_spy_above == False) & (val_spy_high_vol == False),
+                    "bear_high_vol": (val_spy_above == False) & (val_spy_high_vol == True),
+                }[regime_name]
+                val_df_regime = val_df_full[val_regime_mask].copy()
+                del val_df_full  # Free immediately
+                gc.collect()
 
             if len(df_regime) < config["aaa_criteria"]["min_samples"]:
+                if val_df_regime is not None:
+                    del val_df_regime
                 continue
 
             print(f"\n{'=' * 60}")
@@ -348,7 +641,7 @@ def main():
             print("=" * 60)
 
             # Discover LONG patterns
-            print(f"\nDiscovering LONG patterns...")
+            print("\nDiscovering LONG patterns...")
             long_patterns = discover_patterns(
                 df_regime,
                 feature_cols,
@@ -377,10 +670,8 @@ def main():
                 )
 
                 # Validate on holdout period
-                if not long_patterns.empty and not args.skip_validation:
-                    print(
-                        f"\n  Validating {len(long_patterns)} LONG patterns on holdout period..."
-                    )
+                if not long_patterns.empty and val_df_regime is not None:
+                    print(f"\n  Validating {len(long_patterns)} LONG patterns on holdout period...")
                     long_patterns_list = long_patterns.to_dict("records")
                     validated = validate_patterns(
                         long_patterns_list,
@@ -391,23 +682,19 @@ def main():
 
                     if validated:
                         long_patterns = pd.DataFrame(validated)
-                        print(
-                            f"  ✅ {len(long_patterns)} LONG patterns passed validation"
-                        )
+                        print(f"  ✅ {len(long_patterns)} LONG patterns passed validation")
                     else:
-                        print(f"  ⚠️ No LONG patterns passed validation")
+                        print("  ⚠️ No LONG patterns passed validation")
                         long_patterns = pd.DataFrame()
 
                 if not long_patterns.empty:
-                    long_file = (
-                        output_dir / f"patterns_long_{horizon}m_{regime_name}.csv"
-                    )
+                    long_file = output_dir / f"patterns_long_{horizon}m_{regime_name}.csv"
                     long_patterns.to_csv(long_file, index=False)
                     print(f"✅ Saved {len(long_patterns)} validated AAA LONG patterns")
                     all_patterns.append(long_patterns)
 
             # Discover SHORT patterns
-            print(f"\nDiscovering SHORT patterns...")
+            print("\nDiscovering SHORT patterns...")
             short_patterns = discover_patterns(
                 df_regime,
                 feature_cols,
@@ -435,7 +722,7 @@ def main():
                 )
 
                 # Validate on holdout period
-                if not short_patterns.empty and not args.skip_validation:
+                if not short_patterns.empty and val_df_regime is not None:
                     print(
                         f"\n  Validating {len(short_patterns)} SHORT patterns on holdout period..."
                     )
@@ -449,22 +736,23 @@ def main():
 
                     if validated:
                         short_patterns = pd.DataFrame(validated)
-                        print(
-                            f"  ✅ {len(short_patterns)} SHORT patterns passed validation"
-                        )
+                        print(f"  ✅ {len(short_patterns)} SHORT patterns passed validation")
                     else:
-                        print(f"  ⚠️ No SHORT patterns passed validation")
+                        print("  ⚠️ No SHORT patterns passed validation")
                         short_patterns = pd.DataFrame()
 
                 if not short_patterns.empty:
-                    short_file = (
-                        output_dir / f"patterns_short_{horizon}m_{regime_name}.csv"
-                    )
+                    short_file = output_dir / f"patterns_short_{horizon}m_{regime_name}.csv"
                     short_patterns.to_csv(short_file, index=False)
-                    print(
-                        f"✅ Saved {len(short_patterns)} validated AAA SHORT patterns"
-                    )
+                    print(f"✅ Saved {len(short_patterns)} validated AAA SHORT patterns")
                     all_patterns.append(short_patterns)
+
+            # MEMORY-OPTIMIZED: Explicit cleanup before next iteration
+            del df_regime, long_patterns, short_patterns
+            if val_df_regime is not None:
+                del val_df_regime
+            gc.collect()
+            log_memory(f"After {regime_name}/{horizon}m")
 
     # Consolidate and rank
     if all_patterns:
@@ -487,9 +775,7 @@ def main():
         # LLM analysis
         if not args.skip_llm:
             print("\nRunning LLM analysis on top patterns...")
-            top_patterns = all_patterns_df.head(
-                config["llm_analysis"]["max_patterns_to_analyze"]
-            )
+            top_patterns = all_patterns_df.head(config["llm_analysis"]["max_patterns_to_analyze"])
             llm_output = format_patterns_for_llm(
                 top_patterns, "AAA Patterns", top_n=len(top_patterns)
             )
@@ -500,6 +786,17 @@ def main():
             print(f"✅ LLM analysis saved to {llm_file}")
     else:
         print("\n⚠️ No patterns passed AAA filters")
+
+    # Cleanup temp files
+    if val_df_path is not None and val_df_path.exists():
+        val_df_path.unlink()
+        print("Cleaned up temporary validation file")
+    if oos_df_path is not None and oos_df_path.exists():
+        oos_df_path.unlink()
+        print("Cleaned up temporary OOS file")
+
+    log_memory("Final (before exit)")
+    tracemalloc.stop()
 
     return 0
 

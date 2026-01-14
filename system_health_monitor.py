@@ -1,278 +1,197 @@
 #!/usr/bin/env python3
 """
-System Health Monitor - Resilient Version
+Enhanced Platform Health Monitor with Recovery Notifications
 
-Features:
-- Market hours + pre-market monitoring
-- Gateway health checks with API validation
-- Service failure detection
-- CRITICAL error detection in logs
-- Robust NTFY notifications (encoding-safe)
-- Fallback logging when NTFY fails
+Monitors:
+- IBKR API Platform health and authentication
+- Service status and recovery
+- Connection re-establishment after outages
+- Comprehensive NTFY alerts
 """
 
 import json
 import logging
 import os
-import socket
 import subprocess
 import sys
 from datetime import datetime, time
-from pathlib import Path
 
-import pytz
+import requests
 
 os.environ["TZ"] = "America/New_York"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-ET = pytz.timezone("America/New_York")
+# Monitoring window (ET)
+MONITOR_START = time(7, 0)   # 07:00 ET
+MONITOR_END = time(16, 30)   # 16:30 ET
 
-# Extended monitoring window (pre-market + market hours)
-MONITOR_START = time(8, 0)  # Start monitoring at 08:00 ET
-MONITOR_END = time(16, 30)  # End at 16:30 ET
-
-# Critical services to monitor
-CRITICAL_SERVICES = ["ibkr-gateway", "l2-collector", "l2-scalping", "intraday-paper"]
-TRADING_SERVICES = ["l2-collector", "l2-scalping", "intraday-paper"]
+# Services to monitor
+CRITICAL_SERVICES = ["ibkr-platform", "l2-collector", "l2-scalping"]
 
 # NTFY channels
 NTFY_ALERTS = "https://ntfy.sh/jacobw-trading-alerts"
 NTFY_STATUS = "https://ntfy.sh/jacobw-trading-status"
 
+# State file for tracking recovery
+STATE_FILE = "/tmp/platform_health_state.json"
+
+
+def load_state() -> dict:
+    """Load previous state."""
+    try:
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except:
+        return {"platform_healthy": True, "services": {}}
+
+
+def save_state(state: dict):
+    """Save current state."""
+    try:
+        with open(STATE_FILE, 'w') as f:
+            json.dump(state, f)
+    except Exception as e:
+        logger.error(f"Failed to save state: {e}")
+
 
 def is_monitoring_hours() -> bool:
     """Check if within monitoring hours (ET)."""
-    now = datetime.now(ET)
-    if now.weekday() > 4:  # Weekend
+    now = datetime.now()
+    current_time = now.time()
+    # Skip weekends
+    if now.weekday() >= 5:
         return False
-    return MONITOR_START <= now.time() <= MONITOR_END
+    return MONITOR_START <= current_time <= MONITOR_END
 
 
-def send_ntfy(
-    channel: str,
-    title: str,
-    message: str,
-    priority: str = "high",
-    tags: str = "warning",
-) -> bool:
-    """Send NTFY notification with robust encoding handling."""
-    import urllib.error
-    import urllib.request
-
+def check_platform_health() -> dict:
+    """Check IBKR API Platform health and account availability."""
     try:
-        # Sanitize message - remove emojis and non-ASCII for headers
-        safe_title = title.encode("ascii", "replace").decode("ascii")
+        # Check platform health
+        resp = requests.get("http://127.0.0.1:8000/health", timeout=5)
+        if resp.status_code != 200:
+            return {"status": "error", "http_code": resp.status_code}
+        
+        health = resp.json()
+        
+        # Check accounts availability
+        accounts_resp = requests.get("http://127.0.0.1:8000/api/accounts", timeout=5)
+        if accounts_resp.status_code == 200:
+            accounts_data = accounts_resp.json()
+            health["accounts_available"] = len(accounts_data.get("accounts", [])) > 0
+            health["account_count"] = len(accounts_data.get("accounts", []))
+        else:
+            health["accounts_available"] = False
+            health["account_count"] = 0
+            
+        return health
+    except requests.exceptions.ConnectionError:
+        return {"status": "unreachable", "error": "Cannot connect to platform"}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
 
-        # Message body can have UTF-8
-        msg_bytes = message.encode("utf-8")
 
-        req = urllib.request.Request(
-            channel,
-            data=msg_bytes,
-            headers={
-                "Title": safe_title,
-                "Priority": priority,
-                "Tags": tags,
-                "Content-Type": "text/plain; charset=utf-8",
-            },
+def check_service_status(service: str) -> bool:
+    """Check if systemd service is active."""
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", service],
+            capture_output=True, text=True, timeout=5
         )
-        urllib.request.urlopen(req, timeout=10)
-        logger.info(f"NTFY sent: {safe_title}")
-        return True
-    except urllib.error.URLError as e:
-        logger.error(f"NTFY network error: {e}")
+        return result.stdout.strip() == "active"
+    except Exception:
         return False
+
+
+def send_ntfy(channel: str, title: str, message: str, priority: int = 3, tags: str = "info"):
+    """Send NTFY notification."""
+    try:
+        requests.post(
+            channel,
+            data=message.encode("utf-8"),
+            headers={
+                "Title": title,
+                "Priority": str(priority),
+                "Tags": tags
+            },
+            timeout=10
+        )
+        logger.info(f"NTFY sent to {channel.split('/')[-1]}: {title}")
     except Exception as e:
         logger.error(f"NTFY failed: {e}")
-        return False
-
-
-def send_alert(title: str, message: str, priority: str = "high") -> bool:
-    """Send alert with fallback logging."""
-    success = send_ntfy(NTFY_ALERTS, title, message, priority, "warning")
-    if not success:
-        # Fallback: log to file for later review
-        fallback_log = Path("/home/jacobw/quantstack/logs/alert_fallback.log")
-        fallback_log.parent.mkdir(exist_ok=True)
-        with open(fallback_log, "a") as f:
-            f.write(f"\n{'='*60}\n")
-            f.write(f"TIME: {datetime.now(ET)}\n")
-            f.write(f"TITLE: {title}\n")
-            f.write(f"MESSAGE: {message}\n")
-        logger.warning(f"Alert logged to fallback: {fallback_log}")
-    return success
-
-
-def check_service(name: str) -> tuple[bool, str]:
-    """Check if service is active."""
-    try:
-        result = subprocess.run(
-            ["systemctl", "is-active", name], capture_output=True, text=True, timeout=5
-        )
-        status = result.stdout.strip()
-        return status == "active", status
-    except subprocess.TimeoutExpired:
-        return False, "timeout"
-    except Exception as e:
-        return False, str(e)
-
-
-def check_gateway_port() -> bool:
-    """Check if Gateway port is listening."""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(2)
-        result = sock.connect_ex(("127.0.0.1", 7497))
-        sock.close()
-        return result == 0
-    except:
-        return False
-
-
-def check_gateway_api() -> tuple[bool, str]:
-    """Check if Gateway API is responsive (not just port)."""
-    # First check port
-    if not check_gateway_port():
-        return False, "port not listening"
-
-    # Check service status
-    active, status = check_service("ibkr-gateway")
-    if not active:
-        return False, f"service {status}"
-
-    # Check for recent connection errors in logs
-    try:
-        result = subprocess.run(
-            [
-                "journalctl",
-                "-u",
-                "ibkr-gateway",
-                "--since",
-                "2 minutes ago",
-                "--no-pager",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if "API connection failed" in result.stdout or "TimeoutError" in result.stdout:
-            return False, "API connection errors"
-    except:
-        pass
-
-    return True, "healthy"
-
-
-def check_service_errors(service: str, minutes: int = 5) -> list[str]:
-    """Check for critical errors in service logs."""
-    issues = []
-    try:
-        result = subprocess.run(
-            [
-                "journalctl",
-                "-u",
-                service,
-                "--since",
-                f"{minutes} minutes ago",
-                "--no-pager",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        log = result.stdout
-
-        # Check for critical patterns
-        critical_patterns = [
-            ("CRITICAL", "CRITICAL error"),
-            ("Failed to connect", "connection failure"),
-            ("API connection failed", "API failure"),
-            ("TimeoutError", "timeout"),
-            ("exit-code", "service crashed"),
-        ]
-
-        for pattern, desc in critical_patterns:
-            if pattern in log:
-                issues.append(f"{service}: {desc}")
-
-    except subprocess.TimeoutExpired:
-        issues.append(f"{service}: log check timeout")
-    except Exception as e:
-        logger.warning(f"Error checking {service} logs: {e}")
-
-    return issues
 
 
 def main():
-    now = datetime.now(ET)
-
-    # Skip if outside monitoring hours
+    """Main health check with recovery detection."""
     if not is_monitoring_hours():
         logger.info("Outside monitoring hours - skipping")
         return 0
 
-    logger.info(f"Health check at {now.strftime('%H:%M ET')}")
-
+    now_et = datetime.now().strftime("%H:%M ET")
+    prev_state = load_state()
+    current_state = {"platform_healthy": True, "services": {}}
+    
     issues = []
-    critical_issues = []
+    recoveries = []
 
-    # 1. Check Gateway (most critical)
-    gw_ok, gw_status = check_gateway_api()
-    if not gw_ok:
-        critical_issues.append(f"GATEWAY DOWN: {gw_status}")
-        logger.error(f"Gateway issue: {gw_status}")
+    # Check platform health
+    health = check_platform_health()
+    platform_healthy = (health.get("status") == "healthy" and 
+                        health.get("authenticated") and 
+                        health.get("accounts_available", False))
+    current_state["platform_healthy"] = platform_healthy
+    
+    if not platform_healthy:
+        if health.get("status") == "unreachable":
+            issues.append("🔴 Platform unreachable - service may be down")
+        elif not health.get("authenticated"):
+            issues.append("🔑 Platform not authenticated - login required at https://localhost:5000")
+        elif not health.get("accounts_available"):
+            issues.append(f"💳 No IBKR accounts available - check Client Portal Gateway")
+        else:
+            issues.append(f"⚠️ Platform unhealthy: {health}")
+    elif not prev_state.get("platform_healthy", True):
+        # Platform recovered
+        recoveries.append("✅ Platform recovered and authenticated with accounts")
 
-    # 2. Check trading services (only during market hours 09:25+)
-    market_time = now.time() >= time(9, 25)
-    if market_time:
-        for svc in TRADING_SERVICES:
-            active, status = check_service(svc)
-            if not active:
-                issues.append(f"{svc}: {status}")
-                logger.error(f"{svc} not active: {status}")
+    # Check services
+    for service in CRITICAL_SERVICES:
+        service_active = check_service_status(service)
+        current_state["services"][service] = service_active
+        
+        if not service_active:
+            issues.append(f"🔴 Service down: {service}")
+        elif not prev_state.get("services", {}).get(service, True):
+            # Service recovered
+            recoveries.append(f"✅ Service recovered: {service}")
 
-    # 3. Check for critical errors in logs
-    for svc in CRITICAL_SERVICES:
-        errors = check_service_errors(svc, minutes=5)
-        for err in errors:
-            if "CRITICAL" in err or "crashed" in err:
-                critical_issues.append(err)
-            else:
-                issues.append(err)
-
-    # 4. Send alerts based on severity
-    if critical_issues:
-        msg = f"CRITICAL at {now.strftime('%H:%M ET')}:\n" + "\n".join(critical_issues)
-        if issues:
-            msg += f"\n\nOther issues:\n" + "\n".join(issues)
-        send_alert("CRITICAL: Trading System Failure", msg, priority="urgent")
-        logger.error(f"CRITICAL alert sent: {len(critical_issues)} issues")
-        return 2
-
+    # Send notifications
     if issues:
-        msg = f"Issues at {now.strftime('%H:%M ET')}:\n" + "\n".join(issues)
-        send_alert("Warning: Trading System Issues", msg, priority="high")
-        logger.warning(f"Warning alert sent: {len(issues)} issues")
-        return 1
+        message = f"Time: {now_et}\n\n" + "\n".join(issues)
+        
+        # Critical platform issues get max priority
+        if not platform_healthy:
+            send_ntfy(NTFY_ALERTS, "🚨 CRITICAL: IBKR Platform Down", message, priority=5, tags="rotating_light")
+        else:
+            send_ntfy(NTFY_ALERTS, "Trading System Alert", message, priority=4, tags="warning")
+        
+        logger.warning(f"Issues found: {issues}")
+    
+    if recoveries:
+        message = f"Time: {now_et}\n\n" + "\n".join(recoveries)
+        send_ntfy(NTFY_STATUS, "System Recovery", message, priority=3, tags="white_check_mark")
+        logger.info(f"Recoveries detected: {recoveries}")
+    
+    if not issues and not recoveries:
+        logger.info("All systems healthy")
 
-    logger.info("All systems healthy")
-    return 0
+    # Save current state
+    save_state(current_state)
+    
+    return 1 if issues else 0
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except Exception as e:
-        # Last resort - try to send alert about monitor failure
-        logger.critical(f"Health monitor crashed: {e}")
-        try:
-            send_alert("CRITICAL: Health Monitor Crashed", str(e), priority="urgent")
-        except:
-            pass
-        sys.exit(3)
+    sys.exit(main())

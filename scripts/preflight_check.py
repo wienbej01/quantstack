@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 os.chdir("/home/jacobw/quantstack")
+sys.path.insert(0, "/home/jacobw/quantstack")
 sys.path.insert(0, "/home/jacobw/quantstack/l2_scalping/src")
 
 ERRORS = []
@@ -24,10 +25,11 @@ def send_ntfy(title: str, message: str, priority: str = "high", tags: str = "war
     import urllib.request
 
     try:
+        safe_title = title.encode("ascii", "ignore").decode("ascii") or "Pre-Flight"
         req = urllib.request.Request(
             "https://ntfy.sh/jacobw-trading-alerts",
-            data=message.encode(),
-            headers={"Title": title, "Priority": priority, "Tags": tags},
+            data=message.encode("utf-8"),
+            headers={"Title": safe_title, "Priority": priority, "Tags": tags},
         )
         urllib.request.urlopen(req, timeout=10)
     except Exception as e:

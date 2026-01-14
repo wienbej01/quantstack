@@ -19,11 +19,11 @@ def main():
         "python3",
         str(script_path),
         "--start-date",
-        "2024-10-01",  # Smaller date range for testing
+        "2024-01-01",  # Full year for robust patterns
         "--end-date",
         "2024-12-31",
         "--horizons",
-        "30,60,90,120",
+        "30,60,90,120,180",
         "--config",
         "config/aaa_config.yaml",
         "--output-dir",

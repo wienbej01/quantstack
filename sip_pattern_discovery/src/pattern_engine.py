@@ -12,34 +12,39 @@ from scipy import stats
 def discretize_features(
     df: pd.DataFrame, feature_cols: list[str], n_bins: int = 5
 ) -> pd.DataFrame:
-    """Discretize continuous features into bins."""
-    result = df.copy()
+    """Discretize continuous features into bins (MEMORY-OPTIMIZED: in-place).
 
+    Modifies df in-place instead of creating a copy to save memory.
+    """
     for col in feature_cols:
         if col not in df.columns:
             continue
 
         if df[col].nunique() <= 2:
-            result[f"{col}_bin"] = df[col]
+            df[f"{col}_bin"] = df[col].values  # Use values to avoid copy
             continue
 
         try:
-            result[f"{col}_bin"] = pd.qcut(
+            df[f"{col}_bin"] = pd.qcut(
                 df[col], q=n_bins, labels=False, duplicates="drop"
             )
         except Exception:
-            result[f"{col}_bin"] = pd.cut(df[col], bins=n_bins, labels=False)
+            df[f"{col}_bin"] = pd.cut(df[col], bins=n_bins, labels=False)
 
-    return result
+    return df  # Return same object, modified in-place
 
 
 def generate_candidate_rules(
     df: pd.DataFrame,
     feature_cols: list[str],
     max_conditions: int = 2,
-) -> list[tuple[str, pd.Series]]:
-    """Generate candidate rules from feature combinations.
-    
+) -> list[dict]:
+    """Generate candidate rule DESCRIPTORS from feature combinations (MEMORY-OPTIMIZED).
+
+    Returns dict descriptors instead of (desc, mask) tuples to avoid storing
+    millions of boolean Series in memory. Masks are created on-the-fly during
+    evaluation instead.
+
     Only generates POSITIVE conditions with economic rationale:
     - Binary features: Only test "== True" (not "== False")
     - Binned features: Only test high bins (3, 4) for momentum/strength
@@ -53,19 +58,27 @@ def generate_candidate_rules(
             continue
 
         unique_vals = df[col].dropna().unique()
-        
+
         # For binary features (True/False), only test True
         if len(unique_vals) == 2 and True in unique_vals:
-            mask = df[col] == True
-            rules.append((f"{col} == True", mask))
-        
+            rules.append({
+                "type": "single",
+                "col": col,
+                "val": True,
+                "desc": f"{col} == True"
+            })
+
         # For binned features (0-4), only test high bins (momentum/strength)
         elif len(unique_vals) <= 5:
             for val in unique_vals:
                 # Only high bins (3, 4) or extreme low (0) for mean reversion
                 if val in [0, 3, 4]:
-                    mask = df[col] == val
-                    rules.append((f"{col} == {val}", mask))
+                    rules.append({
+                        "type": "single",
+                        "col": col,
+                        "val": val,
+                        "desc": f"{col} == {val}"
+                    })
 
     # Two condition rules
     if max_conditions >= 2:
@@ -82,7 +95,7 @@ def generate_candidate_rules(
                 actionable_vals1 = [True]
             elif len(vals1) <= 5:
                 actionable_vals1 = [v for v in vals1 if v in [0, 3, 4]]
-            
+
             actionable_vals2 = []
             if len(vals2) == 2 and True in vals2:
                 actionable_vals2 = [True]
@@ -94,8 +107,14 @@ def generate_candidate_rules(
 
             for v1 in actionable_vals1:
                 for v2 in actionable_vals2:
-                    mask = (df[col1] == v1) & (df[col2] == v2)
-                    rules.append((f"{col1} == {v1} AND {col2} == {v2}", mask))
+                    rules.append({
+                        "type": "double",
+                        "col1": col1,
+                        "val1": v1,
+                        "col2": col2,
+                        "val2": v2,
+                        "desc": f"{col1} == {v1} AND {col2} == {v2}"
+                    })
 
     return rules
 
@@ -165,17 +184,28 @@ def compute_pattern_stats(returns: pd.Series, min_samples: int = 30) -> dict | N
 
 
 def evaluate_single_rule(
-    rule_data: tuple,
+    rule_desc: dict,
     df_binned: pd.DataFrame,
     return_col: str,
     direction: str,
     min_samples: int,
 ) -> dict | None:
-    """Evaluate a single rule for pattern discovery."""
-    rule_desc, rule_mask = rule_data
+    """Evaluate a single rule for pattern discovery (MEMORY-OPTIMIZED).
+
+    Creates mask on-the-fly from descriptor, computes stats, then discards mask
+    immediately to avoid memory accumulation.
+    """
+    # Create mask on-the-fly from descriptor
+    if rule_desc["type"] == "single":
+        mask = df_binned[rule_desc["col"]] == rule_desc["val"]
+    else:  # double
+        mask = (
+            (df_binned[rule_desc["col1"]] == rule_desc["val1"])
+            & (df_binned[rule_desc["col2"]] == rule_desc["val2"])
+        )
 
     # Get returns for this pattern
-    returns = df_binned.loc[rule_mask, return_col]
+    returns = df_binned.loc[mask, return_col]
 
     # For SHORT, we want negative returns (flip sign for stats)
     if direction == "SHORT":
@@ -183,11 +213,14 @@ def evaluate_single_rule(
 
     pattern_stats = compute_pattern_stats(returns, min_samples=min_samples)
 
+    # Explicit cleanup to free memory immediately
+    del mask, returns
+
     if pattern_stats is None:
         return None
 
     return {
-        "rule": rule_desc,
+        "rule": rule_desc["desc"],
         "direction": direction,
         "horizon": return_col,
         **pattern_stats,
@@ -205,11 +238,18 @@ def discover_patterns(
     max_patterns: int = 10,
     max_conditions: int = 2,
     n_bins: int = 5,
-    n_workers: int = 6,
+    n_workers: int = 1,  # MEMORY-OPTIMIZED: default to 1 to avoid worker duplication
     use_aaa_scoring: bool = False,
     current_regime: str = None,
 ) -> pd.DataFrame:
-    """Discover patterns ranked by t-statistic or AAA score using parallel processing.
+    """Discover patterns ranked by t-statistic or AAA score (MEMORY-OPTIMIZED).
+
+    MEMORY OPTIMIZATIONS:
+    - Discretization is done in-place (no DataFrame copy)
+    - Rule generation returns descriptors, not mask Series
+    - Masks are created on-the-fly during evaluation
+    - Default n_workers=1 to avoid memory duplication across workers
+    - Use n_workers>1 only if you have abundant memory (>48GB)
 
     Args:
         df: DataFrame with features and forward returns
@@ -222,7 +262,7 @@ def discover_patterns(
         max_patterns: Maximum patterns to return
         max_conditions: Maximum conditions per rule
         n_bins: Number of bins for discretization
-        n_workers: Number of parallel workers (max 6)
+        n_workers: Number of parallel workers (default 1 for memory safety, max 6)
         use_aaa_scoring: If True, rank by AAA score instead of t-stat
         current_regime: Current market regime for AAA scoring
 
@@ -231,7 +271,7 @@ def discover_patterns(
     """
     n_workers = min(n_workers, 6)  # Cap at 6 workers
 
-    print(f"Discretizing {len(feature_cols)} features into {n_bins} bins...")
+    print(f"Discretizing {len(feature_cols)} features into {n_bins} bins (in-place)...")
     df_binned = discretize_features(df, feature_cols, n_bins)
 
     bin_cols = [
@@ -240,10 +280,10 @@ def discover_patterns(
 
     print(f"Generating candidate rules (max {max_conditions} conditions)...")
     candidate_rules = generate_candidate_rules(df_binned, bin_cols, max_conditions)
-    print(f"Generated {len(candidate_rules)} candidate rules")
+    print(f"Generated {len(candidate_rules)} candidate rule descriptors")
 
     print(
-        f"Computing t-statistics for {direction} patterns using {n_workers} workers..."
+        f"Computing t-statistics for {direction} patterns using {n_workers} worker(s)..."
     )
 
     # Prepare evaluation function
@@ -255,9 +295,14 @@ def discover_patterns(
         min_samples=min_trades,
     )
 
-    # Parallel evaluation
-    with Pool(n_workers) as pool:
-        results = pool.map(eval_func, candidate_rules)
+    # Sequential or parallel evaluation based on n_workers
+    if n_workers == 1:
+        # Sequential evaluation (memory-safe)
+        results = [eval_func(rule) for rule in candidate_rules]
+    else:
+        # Parallel evaluation (may duplicate memory across workers)
+        with Pool(n_workers) as pool:
+            results = pool.map(eval_func, candidate_rules)
 
     # Filter out None results and apply thresholds
     patterns = []
@@ -276,7 +321,7 @@ def discover_patterns(
         return pd.DataFrame()
 
     patterns_df = pd.DataFrame(patterns)
-    
+
     # Rank by AAA score or t-stat
     if use_aaa_scoring:
         from .aaa_scorer import AAAScorer
@@ -290,7 +335,7 @@ def discover_patterns(
     else:
         patterns_df = patterns_df.sort_values("t_stat", ascending=False).head(max_patterns)
         print(f"  Ranked by t-statistic")
-    
+
     patterns_df = patterns_df.reset_index(drop=True)
 
     print(f"  Found {len(patterns_df)} patterns")

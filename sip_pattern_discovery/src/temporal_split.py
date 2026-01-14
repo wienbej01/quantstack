@@ -24,6 +24,7 @@ class TemporalSplit:
         self,
         df: pd.DataFrame,
         end_date: str = None,
+        copy_df: bool = True,
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Split data into scan/validation/OOS periods.
@@ -35,8 +36,10 @@ class TemporalSplit:
         Returns:
             (scan_df, validation_df, oos_df)
         """
-        df = df.copy()
-        df['date'] = pd.to_datetime(df['ts']).dt.date
+        if copy_df:
+            df = df.copy()
+        if "date" not in df.columns:
+            df["date"] = pd.to_datetime(df["ts"]).dt.date
         
         if end_date is None:
             end_date = df['date'].max()
@@ -54,6 +57,23 @@ class TemporalSplit:
         oos_df = df[(df['date'] >= oos_start) & (df['date'] <= end_date)]
         
         return scan_df, val_df, oos_df
+
+    def get_boundaries(self, end_date: str) -> dict:
+        """Return scan/validation/OOS boundaries for a given end date."""
+        if end_date is None:
+            raise ValueError("end_date is required to compute temporal boundaries.")
+
+        end_dt = pd.to_datetime(end_date).date()
+        oos_start = end_dt - timedelta(days=30 * self.oos_months)
+        val_start = oos_start - timedelta(days=30 * self.validation_months)
+        scan_start = val_start - timedelta(days=30 * self.scan_months)
+
+        return {
+            "scan_start": scan_start,
+            "val_start": val_start,
+            "oos_start": oos_start,
+            "end_date": end_dt,
+        }
     
     def get_period_info(self, df: pd.DataFrame, end_date: str = None) -> dict:
         """Get information about the split periods."""

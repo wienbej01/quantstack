@@ -1,150 +1,199 @@
-"""
-L2 Collector - Platform-based implementation.
-
-Replaces socket-based ib_insync with IBKR API Platform client.
-"""
+"""L2 Collector - Platform-based implementation."""
 
 import logging
 import time
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Optional
 
 from cpapi.platform_client import IBKRPlatformClient
+from qx_l2.journal import L2Journal
+from qx_l2.scheduler import L2Scheduler
+from qx_l2.storage import L2Storage
+from qx_l2.symbols import L2SymbolSelector
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CollectorState:
+    """State for a single symbol."""
+    symbol: str
+    conid: Optional[int] = None
+    last_snapshot_ts: float = 0.0
 
 
 class L2Collector:
     """L2 data collector using IBKR API Platform."""
 
-    def __init__(self, config: Dict):
+    SYSTEM_NAME = "L2COLLECT"
+
+    def __init__(self, config: dict):
         self.config = config
-        self.client = IBKRPlatformClient("l2-collector", "L2 Data Collector")
-        self.symbols = []
-        self.running = False
+
+        # System identification
+        system_cfg = config.get("system", {})
+        self.system_name = system_cfg.get("name", self.SYSTEM_NAME)
+        self.client_id = system_cfg.get("client_id", 500)
+        self.system_tag = f"{self.system_name}_{self.client_id}"
+
+        # Collection parameters
+        coll_cfg = config.get("collection", {})
+        self.snapshot_interval_ms = coll_cfg.get("snapshot_interval_ms", 1000)
+        self.rotate_seconds = coll_cfg.get("rotate_seconds", 300)
+
+        # Components
+        self.symbol_selector = L2SymbolSelector(config)
+        self.scheduler = L2Scheduler(config)
+        self.storage = L2Storage(config)
+        self.journal = L2Journal(config)
+
+        # Platform client
+        self.client = IBKRPlatformClient(f"l2-collector-{self.client_id}", "L2 Data Collector")
+
+        # State
+        self._states: dict[str, CollectorState] = {}
+        self._running = False
 
     def connect(self) -> bool:
         """Connect to IBKR API Platform."""
         try:
             success = self.client.register(["market-data"])
             if success:
-                logger.info("Connected to IBKR API Platform")
+                logger.info(f"[{self.system_tag}] Connected to IBKR API Platform")
                 return True
             else:
-                logger.error("Failed to register with platform")
+                logger.error(f"[{self.system_tag}] Failed to register with platform")
                 return False
         except Exception as e:
-            logger.error(f"Connection failed: {e}")
+            logger.error(f"[{self.system_tag}] Connection failed: {e}")
             return False
 
     def disconnect(self):
         """Disconnect from platform."""
         try:
             self.client.unregister()
-            logger.info("Disconnected from platform")
+            logger.info(f"[{self.system_tag}] Disconnected from platform")
         except Exception as e:
-            logger.error(f"Disconnect error: {e}")
+            logger.error(f"[{self.system_tag}] Disconnect error: {e}")
 
-    def start_collection(self, symbols: List[str]):
-        """Start L2 data collection."""
-        self.symbols = symbols
-        self.running = True
-
-        logger.info(f"Starting L2 collection for {len(symbols)} symbols")
-
-        while self.running:
-            try:
-                # Send heartbeat
-                self.client.heartbeat()
-
-                # Collect data for each symbol
-                for symbol in symbols:
-                    if not self.running:
-                        break
-                    self._collect_symbol_data(symbol)
-
-                time.sleep(1)  # 1 second between cycles
-
-            except Exception as e:
-                logger.error(f"Collection error: {e}")
-                time.sleep(5)
-
-    def _collect_symbol_data(self, symbol: str):
-        """Collect L2 data for a symbol."""
+    def _resolve_contract(self, symbol: str) -> Optional[int]:
+        """Resolve symbol to contract ID."""
         try:
-            # Search for contract
             contracts = self.client.search_contracts(symbol, "STK")
-            if not contracts:
-                logger.warning(f"No contract found for {symbol}")
-                return
-
-            conid = contracts[0].get("conid")
-            if not conid:
-                return
-
-            # Get market data snapshot
-            data = self.client.get_market_snapshot(
-                [conid], ["31", "84", "85", "86", "88"]
-            )
-            if data:
-                logger.debug(f"Collected data for {symbol}: {len(data)} fields")
-
+            if contracts and len(contracts) > 0:
+                conid = contracts[0].get("conid")
+                logger.info(f"[{self.system_tag}] Resolved {symbol} -> conid {conid}")
+                return conid
+            else:
+                logger.warning(f"[{self.system_tag}] No contract found for {symbol}")
+                return None
         except Exception as e:
-            logger.error(f"Error collecting {symbol}: {e}")
+            logger.error(f"[{self.system_tag}] Contract resolution failed for {symbol}: {e}")
+            return None
 
-    def stop(self):
-        """Stop collection."""
-        self.running = False
-        self.disconnect()
+    def _subscribe_symbols(self, symbols: list[str]) -> int:
+        """Subscribe to symbols and return count of successful subscriptions."""
+        count = 0
+        for symbol in symbols:
+            conid = self._resolve_contract(symbol)
+            if conid:
+                self._states[symbol] = CollectorState(symbol=symbol, conid=conid)
+                count += 1
+                logger.info(f"[{self.system_tag}] Subscribed to {symbol}")
+        return count
 
+    def _collect_snapshot(self, symbol: str) -> Optional[dict]:
+        """Collect market data snapshot for symbol."""
+        state = self._states.get(symbol)
+        if not state or not state.conid:
+            return None
 
-def main():
-    """Main entry point for l2-collect command."""
-    import argparse
+        try:
+            # Get market data snapshot
+            data = self.client.get_market_snapshot([state.conid])
+            if data and len(data) > 0:
+                snapshot = data[0]
+                snapshot["symbol"] = symbol
+                snapshot["ts"] = datetime.now().isoformat()
+                state.last_snapshot_ts = time.time()
+                return snapshot
+        except Exception as e:
+            logger.error(f"[{self.system_tag}] Snapshot failed for {symbol}: {e}")
+        return None
 
-    import yaml
+    def _collection_cycle(self):
+        """Run one collection cycle for all subscribed symbols."""
+        for symbol in list(self._states.keys()):
+            if not self._running:
+                break
+            snapshot = self._collect_snapshot(symbol)
+            if snapshot:
+                self.storage.write_batch([snapshot])
+        
+        # Send heartbeat
+        self.client.heartbeat()
 
-    parser = argparse.ArgumentParser(description="L2 Data Collector")
-    parser.add_argument("--config", required=True, help="Config file path")
-    parser.add_argument("--daemon", action="store_true", help="Run as daemon")
-    args = parser.parse_args()
+    def run_daemon(self):
+        """Run as daemon, collecting during scheduled windows."""
+        logger.info(f"[{self.system_tag}] Starting daemon mode")
+        
+        if not self.connect():
+            logger.error(f"[{self.system_tag}] Failed to connect")
+            return
 
-    # Load config
-    with open(args.config) as f:
-        config = yaml.safe_load(f)
+        self._running = True
+        
+        try:
+            while self._running:
+                # Check if in collection window
+                if self.scheduler.is_collection_time():
+                    # Get symbols for this window
+                    symbols = self.symbol_selector.get_symbols()
+                    
+                    if symbols and not self._states:
+                        # Subscribe to symbols
+                        count = self._subscribe_symbols(symbols)
+                        logger.info(f"[{self.system_tag}] Subscribed to {count} symbols")
+                    
+                    # Collect data
+                    self._collection_cycle()
+                    
+                    # Sleep for snapshot interval
+                    time.sleep(self.snapshot_interval_ms / 1000.0)
+                else:
+                    # Outside collection window
+                    self._states.clear()
+                    # Use short sleeps to allow quick shutdown
+                    for _ in range(60):
+                        if not self._running:
+                            break
+                        time.sleep(1)
+                    
+        except KeyboardInterrupt:
+            logger.info(f"[{self.system_tag}] Interrupted")
+        finally:
+            self._running = False
+            self.disconnect()
 
-    # Setup logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    )
+    def run_once(self):
+        """Run single collection cycle."""
+        logger.info(f"[{self.system_tag}] Running single collection")
+        
+        if not self.connect():
+            logger.error(f"[{self.system_tag}] Failed to connect")
+            return
 
-    # Create collector
-    collector = L2Collector(config)
+        try:
+            symbols = self.symbol_selector.get_symbols()
+            if symbols:
+                self._subscribe_symbols(symbols)
+                self._running = True
+                self._collection_cycle()
+        finally:
+            self._running = False
+            self.disconnect()
 
-    try:
-        if not collector.connect():
-            logger.error("Failed to connect to platform")
-            return 1
-
-        # Get symbols from config or default list
-        symbols = config.get("symbols", ["AAPL", "MSFT", "GOOGL"])
-
-        # Start collection
-        collector.start_collection(symbols)
-
-    except KeyboardInterrupt:
-        logger.info("Received interrupt signal")
-    except Exception as e:
-        logger.error(f"Collector error: {e}")
-        return 1
-    finally:
-        collector.stop()
-
-    return 0
-
-
-if __name__ == "__main__":
-    import sys
-
-    sys.exit(main())
+    def run_interactive(self):
+        """Run in interactive mode."""
+        self.run_once()

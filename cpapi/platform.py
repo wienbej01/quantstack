@@ -5,23 +5,21 @@ Provides unified HTTP API for all trading services, eliminating direct ib_insync
 Built on Client Portal Gateway (port 5000) for reliability.
 """
 
-import asyncio
-import json
 import logging
 import threading
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
 
 import uvicorn
-from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from cpapi.audit_logger import EventType, Severity, get_audit_logger
 from cpapi.client import CPAPIClient, CPAPIConfig
 
 logger = logging.getLogger(__name__)
+audit = get_audit_logger("ibkr-platform")
 
 
 @dataclass
@@ -32,7 +30,7 @@ class ServiceRegistration:
     name: str
     registered_at: datetime
     last_heartbeat: datetime
-    endpoints: List[str]
+    endpoints: list[str]
 
 
 class ServiceRegisterRequest(BaseModel):
@@ -40,15 +38,15 @@ class ServiceRegisterRequest(BaseModel):
 
     service_id: str
     name: str
-    endpoints: List[str]
+    endpoints: list[str]
 
 
 @dataclass
 class MarketDataRequest:
     """Market data request."""
 
-    conids: List[int]
-    fields: Optional[List[str]] = None
+    conids: list[int]
+    fields: list[str] | None = None
 
 
 @dataclass
@@ -60,7 +58,7 @@ class OrderRequest:
     quantity: int
     side: str  # BUY/SELL
     order_type: str  # MKT/LMT
-    price: Optional[float] = None
+    price: float | None = None
 
 
 class IBKRPlatform:
@@ -69,7 +67,7 @@ class IBKRPlatform:
     def __init__(self, config: CPAPIConfig = None):
         self.config = config or CPAPIConfig()
         self.client = CPAPIClient(self.config, "platform")
-        self.services: Dict[str, ServiceRegistration] = {}
+        self.services: dict[str, ServiceRegistration] = {}
         self.app = FastAPI(title="IBKR API Platform", version="1.0.0")
         self._setup_routes()
         self._setup_middleware()
@@ -191,7 +189,7 @@ class IBKRPlatform:
             conid: int,
             period: str = "1d",
             bar: str = "1min",
-            exchange: Optional[str] = None,
+            exchange: str | None = None,
             outside_rth: bool = False,
         ):
             """Get historical market data."""
@@ -213,7 +211,7 @@ class IBKRPlatform:
             return {"contract": info, "conid": conid}
 
         @self.app.get("/api/orders")
-        async def get_orders(filters: Optional[str] = None, force: bool = False):
+        async def get_orders(filters: str | None = None, force: bool = False):
             """Get live orders."""
             filter_list = filters.split(",") if filters else None
             orders = self.client.get_live_orders(filter_list, force)
@@ -325,13 +323,22 @@ def main():
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
 
+    audit.service_start(context={"host": "0.0.0.0", "port": 8000})
+
     platform = IBKRPlatform()
     try:
+        audit.service_ready()
         platform.start()
     except KeyboardInterrupt:
         logger.info("Received interrupt signal")
+        audit.log_event(EventType.INFO, "Received interrupt signal", Severity.WARNING)
+    except Exception as e:
+        logger.error(f"Platform error: {e}", exc_info=True)
+        audit.service_error(str(e), context={"exception": type(e).__name__})
+        raise
     finally:
         platform.stop()
+        audit.service_stop(exit_code=0)
 
 
 if __name__ == "__main__":
