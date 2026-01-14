@@ -1,0 +1,2 @@
+rule,direction,horizon,t_stat,p_value,expectancy,win_rate,avg_win,avg_loss,profit_factor,sharpe,n_samples,mean_ret,std_ret,aaa_score,regime
+is_power_hour_bin == True,SHORT,fwd_ret_30m,19.231365309775946,0.0,0.08750598739611097,0.5295451901826218,0.40877700839013964,0.2741175317225231,1.6785518580551084,2.3282088019751077,17194,0.08750598739611097,0.5966451480198574,0.08106554682662498,bull_high_vol

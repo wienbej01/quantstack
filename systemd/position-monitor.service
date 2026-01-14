@@ -1,0 +1,23 @@
+[Unit]
+Description=Position Monitor (writes /tmp/positions.json)
+After=ibkr-platform.service
+Requires=ibkr-platform.service
+
+[Service]
+Type=simple
+User=jacobw
+Group=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment="PYTHONPATH=/home/jacobw/quantstack"
+Environment="TZ=America/New_York"
+Environment="PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/jacobw/quantstack/.venv/bin/python -m position_monitor.main
+Restart=on-failure
+RestartSec=10
+StandardOutput=append:/home/jacobw/quantstack/logs/position_monitor.log
+StandardError=append:/home/jacobw/quantstack/logs/position_monitor.log
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

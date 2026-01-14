@@ -1,11 +1,61 @@
 # Complete System Guide
 
 **Quantstack Trading System - Production Operations Manual**
-**Version**: 3.1 (IBKR Platform Migration Complete)
-**Date**: 2026-01-13
-**Status**: ✅ **PRODUCTION** - Platform-Based Architecture
+**Version**: 3.2 (Market Hours Enforcement + Audit Logging)
+**Date**: 2026-01-14
+**Status**: ✅ **PRODUCTION** - Platform-Based Architecture with Market Hours Guards
 
-## Latest: IBKR API Platform Migration Complete (2026-01-13)
+## Latest: Market Hours Enforcement + Audit Logging (2026-01-14)
+
+**🔧 SYSTEM HARDENING: Added market hours guards and comprehensive audit logging**
+**✅ FIXES: Eliminated early awakening, service failure loops, and NTFY encoding bugs**
+
+### Changes in v3.2
+
+**Market Hours Enforcement:**
+- **l2-scalping**: Exits if before 09:25 ET or missing SIP file
+- **intraday-paper**: Exits if before 09:27 ET
+- **health-monitor**: Only runs 07:00-16:30 ET
+- **All services**: Graceful exit outside market hours (no failure loops)
+
+**Audit Logging System:**
+- **Structured logging**: JSONL + human-readable parallel output
+- **Event tracking**: Service lifecycle, errors, resource metrics
+- **Query tools**: `query_audit.py` for searching logs
+- **Failure analysis**: `analyze_failures.py` for pattern detection
+- **See**: [AUDIT_LOGGING.md](AUDIT_LOGGING.md) and [AUDIT_QUICK_REF.md](AUDIT_QUICK_REF.md)
+
+**Bug Fixes:**
+- **NTFY encoding**: Fixed UTF-8 emoji support (💳, 🚨, ✅)
+- **L2 scalping loop**: Disabled auto-restart timer, manual start only
+- **SIP dependency**: Services check for SIP file before starting
+- **Gateway monitoring**: Enhanced recovery detection
+
+**Timer Schedule (Manila / ET):**
+```
+Pre-Market:
+  20:00 Manila / 07:00 ET - preflight-check
+  21:00 Manila / 08:00 ET - trading-orchestrator
+
+Market Prep:
+  22:10 Manila / 09:10 ET - intraday-sip (SIP generation)
+  22:25 Manila / 09:25 ET - l2-collector
+  22:28 Manila / 09:27 ET - intraday-paper
+
+Market Close:
+  06:00 Manila / 16:00 ET - l2-collector-stop
+  06:01 Manila / 16:01 ET - l2-scalping-stop
+  06:02 Manila / 16:02 ET - intraday-paper-stop
+
+Monitoring:
+  Every 5 min (07:00-16:30 ET only) - system-health-monitor
+```
+
+**L2 Scalping**: Manual start only after SIP ready (no timer)
+
+---
+
+## Previous: IBKR API Platform Migration Complete (2026-01-13)
 
 **🚨 MAJOR UPGRADE: Completed migration from socket-based ib_insync (port 7497) to centralized IBKR API Platform (ports 5000/8000)**
 **✅ NEW ARCHITECTURE: All services now connect through REST-based platform, eliminating connection issues**
@@ -388,10 +438,20 @@ features:
 
 ### 3.1 L2 Scalping System
 **Service**: `l2-scalping.service`
-**Status**: ⚠️ **AUTO-RESTART** (connection issues)
+**Status**: ✅ **MANUAL START** (market hours enforced)
 **Location**: `/home/jacobw/quantstack/l2_scalping/`
 
 **Entry Point**: `start_scalping.sh` → `src/main.py`
+
+**Market Hours Guard** ✨ **NEW**:
+```bash
+# Exits gracefully if:
+# - Before 09:25 ET
+# - After 16:00 ET
+# - SIP universe file missing
+```
+
+**Timer**: ❌ **DISABLED** - Manual start only after SIP generation
 
 **Key Files**:
 | File | Purpose |
@@ -411,8 +471,11 @@ features:
 ```
 l2-scalping.service (systemd)
   ↓
-start_scalping.sh → src/main.py
-  ↓
+start_scalping.sh
+  ├→ Market hours check (09:25-16:00 ET) ✨ NEW
+  ├→ SIP dependency check ✨ NEW
+  └→ src/main.py
+      ↓
 Load config (strategy, risk, ibkr)
   ↓
 IBKRPlatformClient (register "l2_scalping")
@@ -466,8 +529,15 @@ context_gates:
 
 ### 3.2 Intraday Paper Trading
 **Service**: `intraday-paper.service`
-**Status**: ❌ **FAILED** (preflight check failing)
+**Status**: ✅ **TIMER-BASED** (market hours enforced)
 **Location**: `/home/jacobw/intraday_stack/`
+
+**Market Hours Guard** ✨ **NEW**:
+```bash
+# Exits gracefully if:
+# - Before 09:27 ET
+# - After 16:00 ET
+```
 
 **Entry Point**: `scripts/start_paper_trading.sh` → `scripts/paper_trade_platform.py`
 
@@ -568,7 +638,75 @@ Persistent=false
 
 ## 5. MONITORING & ALERTING
 
-### 5.1 Health Monitor
+### 5.1 Audit Logging System ✨ **NEW**
+
+**Purpose**: Comprehensive audit trail for overnight trading operations with timeline reconstruction and failure analysis
+
+**Components**:
+- **Core Library**: `cpapi/audit_logger.py` - Structured JSONL + human-readable logging
+- **Service Wrapper**: `scripts/audit_wrapper.sh` - Lifecycle tracking, resource metrics
+- **Query Tool**: `scripts/query_audit.py` - Search and filter audit logs
+- **Failure Analyzer**: `scripts/analyze_failures.py` - Aggregate failure statistics
+
+**Log Files**: `/home/jacobw/quantstack/logs/audit/`
+- `audit_YYYY-MM-DD.jsonl` - Structured JSON Lines format
+- `audit_YYYY-MM-DD.log` - Human-readable timeline
+
+**Quick Reference**:
+```bash
+# Today's logs
+python3 scripts/query_audit.py
+
+# Specific date
+python3 scripts/query_audit.py --date 2026-01-14
+
+# Errors only
+python3 scripts/query_audit.py --severity ERROR
+
+# Specific service
+python3 scripts/query_audit.py --service intraday-sip
+
+# Failure analysis
+python3 scripts/analyze_failures.py --date 2026-01-14
+python3 scripts/analyze_failures.py --last 7d
+```
+
+**Python Integration**:
+```python
+from cpapi.audit_logger import get_audit_logger, EventType, Severity
+
+audit = get_audit_logger("my-service")
+
+# Lifecycle events
+audit.service_start(context={"config": "production"})
+audit.service_ready(duration_ms=1234)
+audit.service_stop(exit_code=0)
+
+# Custom events
+audit.log_event(EventType.INFO, "Message", metrics={"count": 100})
+audit.service_error("Error message", context={"detail": "info"})
+
+# Specialized events
+audit.sip_complete(symbol_count=40, duration_ms=125000)
+audit.resource_alert("memory", value=85.5, threshold=80.0)
+```
+
+**Systemd Integration**:
+```ini
+# Wrap service command with audit wrapper
+ExecStart=/home/jacobw/quantstack/scripts/audit_wrapper.sh service-name /path/to/command
+```
+
+**Event Types**:
+- `TIMER_ACTIVATE`, `SERVICE_START`, `SERVICE_READY`, `SERVICE_ERROR`, `SERVICE_STOP`
+- `GATEWAY_AUTH`, `PLATFORM_HEALTH`, `SIP_COMPLETE`, `TRADE_SIGNAL`
+- `RESOURCE_ALERT`, `DEPENDENCY_FAIL`, `INFO`, `WARNING`, `ERROR`
+
+**Documentation**: See [AUDIT_LOGGING.md](AUDIT_LOGGING.md) and [AUDIT_QUICK_REF.md](AUDIT_QUICK_REF.md)
+
+---
+
+### 5.2 Health Monitor
 **Service**: `system-health-monitor.service`
 **Script**: `/home/jacobw/quantstack/system_health_monitor.py`
 
@@ -580,9 +718,13 @@ Persistent=false
 
 **State File**: `/tmp/platform_health_state.json`
 
-**Monitoring Window**: 07:00 - 16:30 ET (weekdays only)
+**Monitoring Window**: 07:00 - 16:30 ET (weekdays only) ✨ **ENFORCED**
 
-### 5.2 L2 Watchdog
+**NTFY Encoding**: ✅ **FIXED** - UTF-8 support for emoji characters
+
+---
+
+### 5.3 L2 Watchdog
 **Service**: `l2-watchdog.service`
 **Script**: `/home/jacobw/quantstack/scripts/l2_watchdog.py`
 
@@ -603,7 +745,9 @@ fatal_patterns = [
 ]
 ```
 
-### 5.3 NTFY Notifications
+---
+
+### 5.4 NTFY Notifications
 
 **Channels**:
 | Channel | Purpose |
@@ -1056,6 +1200,25 @@ curl -s http://127.0.0.1:8000/health | jq .services
 systemctl restart l2-collector.service
 ```
 
+**Problem**: Gateway process not running ✨ **NEW**
+```bash
+# Check if gateway is running
+ps aux | grep -E "clientportal|gateway" | grep -v grep
+
+# Start gateway
+cd /home/jacobw/quantstack/cpapi/gateway
+nohup bin/run.sh root/conf.yaml > gateway_startup.log 2>&1 &
+
+# Wait and verify
+sleep 30
+curl -k https://localhost:5000/v1/api/iserver/auth/status
+
+# Authenticate via browser
+firefox https://localhost:5000
+```
+
+---
+
 ### 8.2 Service Failures
 
 **L2 Collector**:
@@ -1082,7 +1245,10 @@ systemctl status l2-scalping.service
 tail -f /home/jacobw/quantstack/l2_scalping/logs/scalping_system.log
 
 # Check SIP symbols
-cat /home/jacobw/quantstack/data/daily_sip/sip_universe_$(date +%Y-%m-%d).txt
+cat /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/sip_universe.json
+
+# Manual start (after SIP ready)
+sudo systemctl start l2-scalping.service
 ```
 
 **Intraday Paper**:
@@ -1095,7 +1261,88 @@ cat /home/jacobw/quantstack/data/daily_sip/sip_universe_$(date +%Y-%m-%d).txt
 tail -f /home/jacobw/intraday_stack/logs/paper_$(date +%Y%m%d).log
 
 # Check SIP universe
-cat /home/jacobw/intraday_stack/data/daily_sip/sip_universe_$(date +%Y-%m-%d).txt
+cat /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/sip_universe.json
+```
+
+---
+
+### 8.3 Early Awakening / Failure Loops ✨ **NEW**
+
+**Problem**: Services failing outside market hours
+```bash
+# Check current ET time
+TZ=America/New_York date
+
+# Services should be dormant if:
+# - Before 07:00 ET (preflight)
+# - Before 09:25 ET (l2-collector, l2-scalping)
+# - Before 09:27 ET (intraday-paper)
+# - After 16:00 ET (market close)
+
+# Stop any running services outside hours
+sudo systemctl stop l2-collector.service l2-scalping.service intraday-paper.service
+
+# Check timer schedule
+systemctl list-timers --all | grep -E "(l2-|intraday-|trading-|preflight)"
+```
+
+**Problem**: L2 scalping in restart loop
+```bash
+# Check restart counter
+systemctl status l2-scalping.service | grep "restart counter"
+
+# Stop the loop
+sudo systemctl stop l2-scalping.service l2-scalping.timer
+
+# Check for SIP file (required dependency)
+ls -la /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/sip_universe.json
+
+# Wait for SIP generation (09:10 ET) before manual start
+```
+
+**Problem**: Missing SIP universe
+```bash
+# Check if SIP file exists
+ls -la /home/jacobw/intraday_stack/data/daily_sip/date=$(date +%F)/
+
+# SIP generation runs at 09:10 ET via timer
+systemctl status intraday-sip.timer
+
+# Manual SIP generation (if needed)
+cd /home/jacobw/intraday_stack
+./scripts/generate_daily_sip.sh
+```
+
+**Problem**: NTFY encoding errors (emoji)
+```bash
+# Check health monitor logs for encoding errors
+journalctl -u system-health-monitor.service -n 50 | grep "codec"
+
+# Fixed in v3.2 - UTF-8 encoding now properly handled
+# Verify fix:
+grep "Content-Type.*utf-8" /home/jacobw/quantstack/system_health_monitor.py
+```
+
+---
+
+### 8.4 Audit Log Analysis ✨ **NEW**
+
+**Problem**: Need to investigate overnight failures
+```bash
+# Query today's errors
+python3 scripts/query_audit.py --severity ERROR --date $(date +%F)
+
+# Analyze failure patterns
+python3 scripts/analyze_failures.py --date $(date +%F)
+
+# Service timeline
+python3 scripts/query_audit.py --service l2-scalping --date $(date +%F)
+
+# Last 24 hours
+python3 scripts/query_audit.py --last 24h
+
+# Specific event type
+python3 scripts/query_audit.py --event-type SERVICE_ERROR
 ```
 
 ---
@@ -1795,6 +2042,7 @@ systemctl restart intraday-paper.service
 - `/home/jacobw/quantstack/data/l2_maximum/features/` - L2 parquet data
 - `/home/jacobw/intraday_stack/data/journal/events.db` - Trade journal
 - `/home/jacobw/intraday_stack/data/daily_sip/` - SIP universe files
+- `/home/jacobw/quantstack/logs/audit/` - Audit logs (JSONL + human-readable) ✨ **NEW**
 - `/tmp/platform_health_state.json` - Health tracking state
 
 **12. NTFY Channels**
@@ -1802,8 +2050,44 @@ systemctl restart intraday-paper.service
 - `jacobw-trading-status` - Status updates
 - `jacobw-trading-trades` - Trade notifications
 
+**13. Documentation** ✨ **NEW**
+- [COMPLETE_SYSTEM_GUIDE.md](COMPLETE_SYSTEM_GUIDE.md) - This document
+- [AUDIT_LOGGING.md](AUDIT_LOGGING.md) - Audit logging system usage guide
+- [AUDIT_QUICK_REF.md](AUDIT_QUICK_REF.md) - Quick reference for audit queries
+- [SYSTEM_FAILURE_ANALYSIS_2026-01-14.md](../SYSTEM_FAILURE_ANALYSIS_2026-01-14.md) - Recent failure analysis
+
 ---
 
-**Document Version**: 3.0 (Complete System Documentation)
-**Last Updated**: 2026-01-13
-**Next Review**: 2026-02-13
+## Summary of v3.2 Changes (2026-01-14)
+
+### Problems Fixed
+1. **Early Awakening**: Services starting outside market hours causing failure loops
+2. **Missing Dependencies**: L2 scalping starting before SIP generation
+3. **NTFY Encoding**: Emoji characters causing alert failures
+4. **No Audit Trail**: Difficult to diagnose overnight failures
+
+### Solutions Implemented
+1. **Market Hours Guards**: All services check time and exit gracefully if outside hours
+2. **SIP Dependency Check**: L2 scalping verifies SIP file exists before starting
+3. **UTF-8 Encoding**: Fixed NTFY to properly handle emoji characters
+4. **Audit Logging**: Comprehensive structured logging with query and analysis tools
+5. **Timer Optimization**: Disabled l2-scalping auto-timer, manual start only
+
+### System Behavior Now
+- **Outside Market Hours**: All services dormant, no failure loops
+- **Pre-Market (07:00 ET)**: Preflight check runs
+- **Market Prep (09:10 ET)**: SIP generation runs
+- **Market Open (09:25-09:27 ET)**: Services start via timers
+- **Market Close (16:00 ET)**: Services stop via timers
+- **Monitoring**: Health monitor only runs 07:00-16:30 ET
+
+### Manual Operations Required
+1. **Gateway Authentication**: Browser login at https://localhost:5000 (daily)
+2. **L2 Scalping Start**: Manual start after SIP ready (no auto-timer)
+3. **Audit Review**: Query logs for overnight issues
+
+---
+
+**Document Version**: 3.2 (Market Hours Enforcement + Audit Logging)
+**Last Updated**: 2026-01-14
+**Next Review**: 2026-02-14

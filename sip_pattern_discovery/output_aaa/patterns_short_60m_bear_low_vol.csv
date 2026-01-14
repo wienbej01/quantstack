@@ -1,0 +1,2 @@
+rule,direction,horizon,t_stat,p_value,expectancy,win_rate,avg_win,avg_loss,profit_factor,sharpe,n_samples,mean_ret,std_ret,aaa_score,regime
+is_first_hour_bin == True,SHORT,fwd_ret_60m,24.576585439866857,0.0,0.026366342507069977,0.5331555412965451,0.18898920092724497,0.15935563939027703,1.3544134899447768,1.7470195938629198,49871,0.026366342507069977,0.2395810058494355,0.2642637399085179,bear_low_vol

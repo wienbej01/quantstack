@@ -1,0 +1,22 @@
+[Unit]
+Description=Conky Position Display
+After=position-monitor.service graph-session.target
+Wants=graph-session.target
+
+[Service]
+Type=simple
+User=jacobw
+Group=jacobw
+Environment="TZ=America/New_York"
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/jacobw/.Xauthority"
+ExecStart=/usr/bin/conky -c /home/jacobw/.config/conky/positions.conf
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target
