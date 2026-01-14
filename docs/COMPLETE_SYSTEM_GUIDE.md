@@ -1,11 +1,51 @@
 # Complete System Guide
 
 **Quantstack Trading System - Production Operations Manual**
-**Version**: 3.2 (Market Hours Enforcement + Audit Logging)
+**Version**: 3.3 (Gateway Auto-Startup + Authentication Reminders)
 **Date**: 2026-01-14
-**Status**: ✅ **PRODUCTION** - Platform-Based Architecture with Market Hours Guards
+**Status**: ✅ **PRODUCTION** - Automated Gateway Startup with Daily Authentication
 
-## Latest: Market Hours Enforcement + Audit Logging (2026-01-14)
+## Latest: Gateway Auto-Startup + Authentication Reminders (2026-01-14)
+
+**🔐 CRITICAL FIX: Automated Gateway startup at 06:00 ET daily with authentication reminders**
+**✅ NEW FEATURES: NTFY alerts + visual terminal reminders for authentication**
+
+### Changes in v3.3
+
+**Gateway Automation**:
+- **ibkr-gateway-startup.timer**: Starts Gateway daily at 06:00 ET (19:00 Manila)
+- **ibkr-gateway-startup.service**: Launches Gateway process automatically
+- **Platform dependency**: Platform waits for Gateway before starting services
+- **First in startup sequence**: Gateway → Platform → All Services
+
+**Authentication Reminders**:
+- **NTFY alert**: Urgent notification when Gateway starts (sent to phone)
+- **Visual reminder**: Terminal script shows persistent warning until authenticated
+- **Desktop notifications**: Every 5 minutes if DISPLAY available
+- **Auto-exit**: Script exits when authentication detected
+
+**Simplified Preflight**:
+- **Moved to 09:00 ET**: Right before SIP generation (was 07:00 ET)
+- **Checks only**: Gateway process, Platform auth, Polygon API
+- **Removed**: Service checks, SIP file check, config validation
+
+**New Timer Schedule**:
+```
+19:00 Manila / 06:00 ET - ibkr-gateway-startup ⭐ FIRST
+22:00 Manila / 09:00 ET - preflight-check (moved from 07:00)
+22:10 Manila / 09:10 ET - intraday-sip
+22:25 Manila / 09:25 ET - l2-collector
+22:28 Manila / 09:27 ET - intraday-paper
+```
+
+**Three-Stage Startup Process**:
+1. **Automated**: Gateway starts at 06:00 ET
+2. **Manual**: Browser authentication (IBKR 2FA required)
+3. **Automated**: Platform connects when Gateway authenticated
+
+---
+
+## Previous: Market Hours Enforcement + Audit Logging (2026-01-14)
 
 **🔧 SYSTEM HARDENING: Added market hours guards and comprehensive audit logging**
 **✅ FIXES: Eliminated early awakening, service failure loops, and NTFY encoding bugs**
@@ -591,32 +631,36 @@ NTFY notifications
 
 ## 4. SCHEDULING & AUTOMATION
 
-### 4.1 Timer Schedule (Manila/ET)
+### 4.1 Timer Schedule (Manila/ET) ✨ **UPDATED v3.3**
 
 | Manila Time | ET Time | Timer | Service | Purpose |
 |-------------|---------|-------|---------|---------|
-| 20:00 | 07:00 AM | `preflight-check.timer` | preflight-check | Pre-market validation |
-| 21:00 | 08:00 AM | `trading-orchestrator.timer` | trading-orchestrator | System monitoring |
+| **19:00** | **06:00 AM** | **`ibkr-gateway-startup.timer`** | **ibkr-gateway-startup** | **⭐ Gateway auto-start (FIRST)** |
+| 22:00 | 09:00 AM | `preflight-check.timer` | preflight-check | Infrastructure validation |
 | 22:10 | 09:10 AM | `intraday-sip.timer` | intraday-sip | Daily SIP generation |
-| Every 5min | Every 5min | `system-health-monitor.timer` | system-health-monitor | Health checks |
+| 22:25 | 09:25 AM | `l2-collector.timer` | l2-collector | L2 data collection |
+| 22:28 | 09:27 AM | `intraday-paper.timer` | intraday-paper | Paper trading |
+| Every 5min | Every 5min | `system-health-monitor.timer` | system-health-monitor | Health checks (07:00-16:30 ET only) |
 
-**Timer Configuration**:
+**Timer Configuration** ✨ **UPDATED v3.3**:
 
-**A. Pre-flight Check** (`preflight-check.timer`):
+**A. Gateway Auto-Startup** (`ibkr-gateway-startup.timer`) ⭐ **NEW**:
 ```ini
 [Timer]
-OnCalendar=Mon..Fri 07:00:00 America/New_York
+OnCalendar=Mon..Fri 06:00:00 America/New_York
 Persistent=true
 ```
-**Script**: `/home/jacobw/quantstack/scripts/preflight_check.py`
+**Service**: `ibkr-gateway-startup.service`  
+**Action**: Starts Gateway, sends NTFY alert, requires browser authentication
 
-**B. Trading Orchestrator** (`trading-orchestrator.timer`):
+**B. Pre-flight Check** (`preflight-check.timer`):
 ```ini
 [Timer]
-OnCalendar=Mon..Fri 08:00:00 America/New_York
+OnCalendar=Mon..Fri 09:00:00 America/New_York
 Persistent=true
 ```
-**Script**: `/home/jacobw/quantstack/bulletproof_orchestrator.py`
+**Script**: `/home/jacobw/quantstack/scripts/preflight_check.py`  
+**Checks**: Gateway process, Platform auth, Polygon API
 
 **C. Daily SIP** (`intraday-sip.timer`):
 ```ini
@@ -632,7 +676,8 @@ Persistent=true
 OnCalendar=*:0/5  # Every 5 minutes
 Persistent=false
 ```
-**Script**: `/home/jacobw/quantstack/system_health_monitor.py`
+**Script**: `/home/jacobw/quantstack/system_health_monitor.py`  
+**Window**: 07:00-16:30 ET only
 
 ---
 
@@ -2088,6 +2133,6 @@ systemctl restart intraday-paper.service
 
 ---
 
-**Document Version**: 3.2 (Market Hours Enforcement + Audit Logging)
+**Document Version**: 3.3 (Gateway Auto-Startup + Authentication Reminders)
 **Last Updated**: 2026-01-14
 **Next Review**: 2026-02-14
