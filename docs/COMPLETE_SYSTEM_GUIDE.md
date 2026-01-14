@@ -638,8 +638,9 @@ NTFY notifications
 | **19:00** | **06:00 AM** | **`ibkr-gateway-startup.timer`** | **ibkr-gateway-startup** | **⭐ Gateway auto-start (FIRST)** |
 | 22:00 | 09:00 AM | `preflight-check.timer` | preflight-check | Infrastructure validation |
 | 22:10 | 09:10 AM | `intraday-sip.timer` | intraday-sip | Daily SIP generation |
-| 22:25 | 09:25 AM | `l2-collector.timer` | l2-collector | L2 data collection |
-| 22:28 | 09:27 AM | `intraday-paper.timer` | intraday-paper | Paper trading |
+| 22:26 | 09:26 AM | `l2-collector.timer` | l2-collector | L2 data collection (after SIP) |
+| 22:26 | 09:26 AM | `l2-scalping.timer` | l2-scalping | L2 scalping (after SIP ready) |
+| 22:28 | 09:28 AM | `intraday-paper.timer` | intraday-paper | Paper trading |
 | Every 5min | Every 5min | `system-health-monitor.timer` | system-health-monitor | Health checks (07:00-16:30 ET only) |
 
 **Timer Configuration** ✨ **UPDATED v3.3**:
@@ -2133,6 +2134,6 @@ systemctl restart intraday-paper.service
 
 ---
 
-**Document Version**: 3.3 (Gateway Auto-Startup + Authentication Reminders)
+**Document Version**: 3.3 (Gateway Auto-Startup + Authentication Reminders + L2 Scalping Timer Fix)
 **Last Updated**: 2026-01-14
 **Next Review**: 2026-02-14
