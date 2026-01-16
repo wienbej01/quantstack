@@ -590,7 +590,7 @@ Key reuse points:
 
 ## 14. Paper-Test Readiness Checklist (Day-of-run)
 
-1) Confirm IBKR Gateway/TWS paper is up (`127.0.0.1:7497`) and stable.
+1) Confirm IBKR Gateway/TWS paper is up (`127.0.0.1:7494`) and stable.
 2) Run daily SIP selection and verify outputs in `data/daily_sip/`.
 3) Confirm L2 symbols are NYSE depth-supported (no repeated depth errors in journal).
 4) Confirm “no-mock” checks are clean (see §11.4).
