@@ -3,7 +3,7 @@ name = "qx-data"
 version = "0.1.0"
 description = "DataClient for GCS Parquet via DuckDB/Arrow"
 requires-python = ">=3.11"
-dependencies = ["qx-core", "duckdb", "pyarrow", "pandas"]
+dependencies = ["qx-broker", "qx-core", "duckdb", "pyarrow", "pandas"]
 [build-system]
 requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"

@@ -1,0 +1,69 @@
+
+============================================================
+TRADE DATABASE V2 HEALTH CHECK
+============================================================
+Time: 2026-02-04 09:59:41.679255
+============================================================
+
+============================================================
+CHECKING SCHEMA
+============================================================
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+✅ Table 'executions': EXISTS
+✅ Table 'trades_v2': EXISTS
+✅ Table 'positions': EXISTS
+✅ Table 'trade_order_links': EXISTS
+
+============================================================
+FILL CAPTURE RATE (Last 24 Hours)
+============================================================
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+  CALLBACK       :  1311 fills ( 68.8%)
+  POLL           :   595 fills ( 31.2%)
+
+============================================================
+UNLINKED FILLS
+============================================================
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+⚠️ Unlinked fills (last 24h): 1906
+
+  Recent unlinked fills:
+    PYPL BUY 100@41.50 at 2026-02-03 18:40:45.119141+08:00
+    PYPL BUY 100@41.51 at 2026-02-03 18:24:03.182622+08:00
+    PYPL BUY 100@41.50 at 2026-02-03 18:21:00.093586+08:00
+    PYPL BUY 100@41.63 at 2026-02-03 18:19:17.637632+08:00
+    PYPL BUY 100@41.64 at 2026-02-03 18:18:11.986116+08:00
+
+============================================================
+POSITION RECONCILIATION
+============================================================
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+✅ Position discrepancies: 0
+
+============================================================
+RECENT TRADES (Last 24 Hours)
+============================================================
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+  No trades in last 24 hours
+
+============================================================
+WRITE-AHEAD LOG (WAL)
+============================================================
+  WAL files: 2
+  Latest: fills_20260204.jsonl
+  Size: 356,521,310 bytes
+  Modified: 2026-02-04 08:26:24.394202
+
+============================================================
+HEALTH CHECK COMPLETE
+============================================================

@@ -33,14 +33,20 @@
 
 **Output Metrics Per Pattern (Regime-Segmented):**
 ```
-rule                              direction  horizon  regime         t_stat  expectancy  win_rate  profit_factor  n_trades
-ret_60m_bin == 4 AND spy_ret...   LONG       60m      bull_low_vol   5.12    0.052%      55.8%     1.95           342
-ret_30m_bin == 0 AND is_first...  SHORT      30m      bear_high_vol  4.87    0.048%      53.2%     1.78           156
+rule                              direction  horizon  regime         t_stat
+                                 expectancy  win_rate  profit_factor  n_trades
+ret_60m_bin == 4 AND spy_ret...   LONG       60m      bull_low_vol   5.12
+                                 expectancy  win_rate  profit_factor  n_trades
+                                 0.052%      55.8%     1.95           342
+ret_30m_bin == 0 AND is_first...  SHORT      30m      bear_high_vol  4.87
+                                 expectancy  win_rate  profit_factor  n_trades
+                                 0.048%      53.2%     1.78           156
 ```
 
 ## Regime-Segmented Discovery (NEW)
 
-**Key Innovation**: Patterns are discovered separately for each market regime, not averaged across regimes.
+**Key Innovation**: Patterns are discovered separately for each market regime, not averaged
+across regimes.
 
 **Regimes Defined:**
 - **Bull**: SPY above 20-period SMA
@@ -95,10 +101,19 @@ bear_high_vol  - Trending down, volatile markets
 
 ### Usage
 
-**Run System:**
+**Run AAA Discovery:**
 ```bash
 cd ~/quantstack/sip_pattern_discovery
-python3 run_long_short_discovery.py
+python3 run_aaa_discovery_wrapper.py --start-date 2024-01-01 --end-date 2024-12-31
+```
+
+**Backtest Top-10 LLM-Selected Patterns:**
+```bash
+# Uses monthly cache by default
+python3 backtest_top10.py
+
+# Or specify custom paths
+python3 backtest_top10.py output_aaa/monthly_cache output_aaa/backtest_results.csv
 ```
 
 **Parameters:**
@@ -112,6 +127,46 @@ python3 run_long_short_discovery.py
 - Each with t-stat > 3.0, expectancy > 0.01%
 - Full trading metrics for each pattern
 - LLM analysis of top patterns
+- Backtest results with pattern identifiers for trade reporting
+
+### AAA Discovery (Overfit Filters + 3-Period Validation)
+
+**Run AAA Discovery:**
+```bash
+python3 run_aaa_discovery_wrapper.py --start-date 2024-01-01 --end-date 2024-12-31
+```
+
+**Backtest Top-10 Patterns:**
+```bash
+python3 backtest_top10.py
+```
+
+**Rebuild monthly cache after feature/config changes:**
+```bash
+python3 run_aaa_discovery_wrapper.py \
+  --start-date 2024-01-01 \
+  --end-date 2024-12-31 \
+  --rebuild-monthly-cache
+```
+
+**AAA Outputs:**
+- `output_aaa/patterns_all_aaa.csv` - Consolidated patterns (ranked by AAA score or t-stat)
+- `output_aaa/llm_analysis_aaa.md` - LLM prompt text for top patterns (no API call)
+- `output_aaa/backtest_top10_results.csv` - Top-10 backtest with pattern IDs
+- `output_aaa/diagnostics/report.md` - Filter/validation summary
+- `output_aaa/diagnostics/segments/*candidates.csv` - Per-segment diagnostics
+
+**Top-10 Pattern Identifiers:**
+- `P130_VWAP_ATR_120m` - VWAP cross + low ATR (2hr hold)
+- `P131_RET15M_ATR_120m` - 15m momentum + low ATR (2hr)
+- `P132_RET5M_ATR_120m` - 5m momentum + low ATR (2hr)
+- `P221_VWAP_RVOL_180m` - VWAP cross + low rvol (3hr)
+- `P222_RET30M_RVOL_180m` - 30m momentum + low rvol (3hr)
+- `P223_RET15M_RVOL_180m` - 15m momentum + low rvol (3hr)
+- `P224_RET5M_RVOL_180m` - 5m momentum + low rvol (3hr)
+- `P225_RET15M_RET15MBIN_180m` - 15m turn + momentum bin (3hr)
+- `P226_VWAP_RET15MBIN_180m` - VWAP + 15m momentum bin (3hr)
+- `P227_VWAP_RET5MBIN_180m` - VWAP + 5m momentum bin (3hr)
 
 ### Key Advantages
 
@@ -127,20 +182,25 @@ python3 run_long_short_discovery.py
 
 ```
 sip_pattern_discovery/
-├── run_long_short_discovery.py    # UPDATED: t-stat parameters
-├── discover.py                    # REWRITTEN: t-stat ranking + caching
+├── run_aaa_discovery_wrapper.py   # AAA discovery entry point
+├── discover_aaa.py                # AAA discovery engine
+├── backtest_top10.py              # Backtest LLM-selected top-10 patterns
 ├── src/
-│   ├── pattern_engine.py          # REWRITTEN: t-stat + trading metrics
-│   ├── targets.py                 # SIMPLIFIED: actual returns only
-│   ├── features.py                # ENHANCED: parallel + SPY regime
-│   ├── data_loader.py             # ENHANCED: SPY data loading
-│   └── llm_analysis.py            # RETAINED: analyzes t-stat patterns
-└── output_tstat/                  # NEW: t-stat results + cache
-    ├── patterns_long_30m.csv      # Patterns by horizon/direction
-    ├── patterns_short_60m.csv
-    ├── patterns_all.csv           # Combined ranked by t-stat
-    ├── cached_*.parquet           # Performance cache
-    └── llm_analysis_*.md          # LLM insights on top patterns
+│   ├── pattern_engine.py          # Pattern discovery + t-stat metrics
+│   ├── validation_backtest.py     # OOS backtesting engine
+│   ├── event_filter.py            # Event-based pattern filter
+│   ├── overfitting_filter.py      # Overfit detection
+│   ├── validation_gate.py         # Scan vs validation degradation check
+│   ├── features.py                # High-alpha feature computation
+│   ├── targets.py                 # Forward return computation
+│   ├── data_loader.py             # SIP + SPY data loading
+│   └── llm_analysis.py            # LLM pattern analysis
+└── output_aaa/                    # AAA results + cache
+    ├── patterns_all_aaa.csv       # All validated patterns
+    ├── llm_analysis_aaa.md        # Top-10 LLM selections
+    ├── backtest_top10_results.csv # Top-10 backtest results
+    ├── cached_data.parquet        # Performance cache
+    └── diagnostics/               # Filter/validation diagnostics
 ```
 
 ### Expectancy vs Sharpe Analysis
@@ -154,4 +214,5 @@ sip_pattern_discovery/
 
 *Assumptions: 10 trades/day, std=0.27% per trade*
 
-The previous 0.2% threshold demanded hedge fund god-tier performance. 0.01% is realistic for systematic strategies.
+The previous 0.2% threshold demanded hedge fund god-tier performance. 0.01% is realistic
+for systematic strategies.

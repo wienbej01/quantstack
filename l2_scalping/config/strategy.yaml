@@ -37,6 +37,36 @@ pattern_rules:
   rule3_obi_1: 0.1              # obi_1 threshold
   rule3_depth_ask: 30000        # depth_ask threshold ($k)
 
+# Size Signal (Large Order Detection) - from statistical analysis Jan 2026
+# Large bid depth → LONG (informed buying), Large ask depth → SHORT (informed selling)
+size_signal:
+  enabled: true
+  percentile: 99                # Dynamic threshold: 99th percentile (validated by analysis)
+  min_depth_k: 5                # Minimum absolute threshold ($5k - lower is better)
+  warmup_depth_k: 25            # Base threshold during warmup ($25k, scaled by price)
+  warmup_samples: 120           # Samples needed before using percentile (~2 min)
+  lookback: 300                 # Rolling window for percentile calc (5 min)
+  cooldown_sec: 30              # Minimum seconds between signals per symbol
+
+# Resistance Signal (AAA Quality Trades) - from statistical analysis Jan 2026
+# Price rejection at institutional distribution zones → SHORT only
+# Expected: +12 bps @ 300s, 5-20 signals/day (vs 50-100 for size signal)
+resistance_signal:
+  enabled: true
+  
+  # Level qualification (strict criteria for AAA quality)
+  min_touches: 20               # Minimum touches to qualify as level
+  min_large_order_ratio: 0.50   # 50%+ touches must have large orders
+  min_recent_touches: 3         # Must have 3+ touches in last hour
+  price_tolerance: 0.005        # ±0.5% price clustering
+  lookback_hours: 4             # Look back 4 hours for level detection
+  
+  # Signal qualification (strict)
+  approach_tolerance: 0.002     # Must be within 0.2% below level
+  min_imbalance: -0.2           # Require ask-heavy book (selling pressure)
+  cooldown_sec: 300             # 5 min cooldown per level
+  tod_filter: "closing"         # Only trade during closing (15:30-16:00 ET)
+
 # Context-Aware Filtering (from correlation analysis)
 # Hard gates DOUBLE profit: $201 -> $402, win rate 58% -> 85%
 context_gates:
@@ -73,3 +103,4 @@ schedule:
   auto_start: true             # Automatically start/stop with market hours
   pre_market_buffer_minutes: 5 # Start 5 minutes before market open
   post_market_buffer_minutes: 5 # Stop 5 minutes after market close
+  eod_flatten_time: "15:55"    # Force flatten positions at 3:55 PM ET

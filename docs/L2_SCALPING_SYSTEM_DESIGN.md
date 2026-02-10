@@ -1,8 +1,8 @@
 # L2 Scalping Trading System Design (SIP + IBKR)
 
-**Doc version**: 0.2  
-**Date**: 2025-12-20  
-**Scope**: Paper trading first (IBKR paper), NYSE L2 focus, 2 Hz decision cadence
+**Doc version**: 0.4
+**Date**: 2026-01-29
+**Scope**: Paper trading (IBKR paper), NYSE L2 focus, 2 Hz decision cadence, PostgreSQL event store
 
 This document specifies a scalping trading system design built on the L2 analysis in:
 - `docs/L2_SCALPING_SYSTEM_FOUNDATION.md`
@@ -18,6 +18,7 @@ Hard safety constraints for the initial paper pilot:
 - **Max size**: ≤ **100 shares** (testing cap).
 - **No mock feeds in production code paths**. Mock data/code may be used only during
   development and must be removed before paper testing.
+- **Overnight position protection**: 5-layer safeguard system ensures no positions remain open past market close.
 
 ---
 
@@ -596,3 +597,248 @@ Key reuse points:
 4) Confirm “no-mock” checks are clean (see §11.4).
 5) Start services (collector + scalper) with unique client IDs and system tags.
 6) Monitor logs for 10 minutes before enabling order submission.
+
+
+---
+
+## 15. Overnight Position Safeguards (v0.3)
+
+**Problem**: Positions remaining open past market close (16:00 ET) due to system crashes or exit logic failures.
+
+**Solution**: 5-layer protection system ensures no positions remain open overnight.
+
+### Protection Layers
+
+1. **Bracket Orders at Entry**
+   - Automatic stop-loss (10 bps) and profit-target (15 bps) attached to every entry
+   - Parent-child order relationship via IBKR
+   - Orders remain active even if system crashes
+   - Implementation: `src/execution/order_manager.py::_place_bracket_order()`
+
+2. **Entry Curfew**
+   - Blocks new entries if insufficient time before market close
+   - Check: `current_time + max_hold_seconds + 60s buffer < market_close`
+   - Example: With 600s (10 min) max hold, blocks entries after 15:49 ET
+   - Implementation: `src/scheduler.py::can_open_new_position()`
+
+3. **Force Exit at Max Duration**
+   - Market order exit when max_hold_seconds (600s) exceeded
+   - Priority 1 in exit logic (highest priority)
+   - Ensures immediate exit regardless of price
+   - Implementation: `src/main.py::_check_position_exits()` with `force_market=True`
+
+4. **Polling Loop Backup**
+   - Continuous monitoring every 10ms for exit conditions
+   - Exit priority: max_hold (force) > scheduled_exit > profit_target > stop_loss
+   - Redundant layer if bracket orders fail
+   - Implementation: `src/main.py::_check_position_exits()`
+
+5. **Emergency EOD Close**
+   - Systemd timer force-closes all positions at 15:55 ET
+   - Final safety net before market close
+   - Script: `/home/jacobw/quantstack/scripts/emergency_eod_close.py`
+
+### Configuration
+
+**strategy.yaml**:
+```yaml
+default_hold_seconds: 300  # 5-minute scheduled exit
+max_hold_seconds: 600      # 10-minute force exit
+```
+
+**risk.yaml**:
+```yaml
+per_trade:
+  max_loss_bps: 10         # Stop-loss at 10 bps
+  profit_target_bps: 15    # Profit target at 15 bps
+```
+
+### Monitoring
+
+Check logs for:
+- `"Entry blocked by curfew"` - Entry curfew working
+- `"Bracket order placed"` - Bracket orders active
+- `"FORCE EXIT"` - Max hold time exceeded
+- `"Exit order placed (MARKET)"` - Force market order used
+
+**Documentation**: See `l2_scalping/docs/OVERNIGHT_POSITION_SAFEGUARDS.md` for complete details.
+
+---
+
+## 16. Database Migration (v0.3)
+
+**Migration**: SQLite → PostgreSQL for all production systems.
+
+**Database**: `trading`, User: `jacobw`, Auth: peer (local)
+
+**Tables**:
+- `trades` - Trade entries and exits
+- `decisions` - Trading decisions
+- `orders` - Order history
+- `fills` - Fill executions
+- `signals` - Signal history
+
+**Connection**:
+```python
+EventStore(use_postgres=True, pg_config={'database': 'trading', 'user': 'jacobw'})
+```
+
+**Migration Stats**:
+- 68 trades migrated
+- 250,225 decisions migrated
+- 75 orders migrated
+- 41 fills migrated
+
+**Documentation**: See `docs/POSTGRESQL_MIGRATION.md` for complete details.
+
+---
+
+## 17. NTFY Notification System (v0.4)
+
+**Purpose**: Real-time alerts for trading operations, system lifecycle events, and failures.
+
+### 17.1 Notification Channels
+
+| Channel | Topic | Purpose |
+|---------|-------|---------|
+| Trades | `jacobw-trading-trades` | Position open/close notifications |
+| Status | `jacobw-trading-status` | System lifecycle, startup, recovery |
+| Alerts | `jacobw-trading-alerts` | Failures, gateway issues, crashes |
+
+### 17.2 Trade Notifications
+
+**Position Open** (via `qx_broker.notify.send_trade_notification`):
+```
+Title: Opening {symbol} position [{position_id}]
+Body:
+  Time: {HH:MM:SS ET}
+  Strategy: l2-scalping {rule_name}
+  Side: BUY/SELL
+  Quantity: {qty}
+  Price: ${price}
+  Value: ${value}
+```
+
+**Position Close**:
+```
+Title: Closing position {position_id} ${pnl}
+Body:
+  Time: {HH:MM:SS ET}
+  Symbol: {symbol}
+  Strategy: l2-scalping {rule_name}
+  Exit Price: ${price}
+  Quantity: {qty}
+  PnL: ${pnl}
+  Reason: {exit_reason}
+```
+
+### 17.3 System Lifecycle Notifications
+
+| Event | Title | Priority | Tags |
+|-------|-------|----------|------|
+| Scheduled startup (09:26 ET) | "l2-scalping Starting" | 3 | white_check_mark |
+| Recovery from crash | "l2-scalping Recovered" | 4 | rotating_light |
+| Gateway reconnected | "Gateway Reconnected" | 4 | warning |
+| Gateway API timeout | "Gateway API Timeout - Retrying" | 4 | warning |
+| Orderly EOD shutdown | (no alert) | - | - |
+| Service crash | "Service Crashed: {service}" | 5 (urgent) | rotating_light |
+
+### 17.4 Startup vs Recovery Detection
+
+**System Health Monitor** (`system_health_monitor.py`) distinguishes:
+
+1. **Scheduled Startup**: Service starts within 5 minutes of scheduled start time
+   - Detection: `is_within_startup_window(service, current_time)`
+   - Notification: `{service} Starting`
+   - Example: 09:26-09:31 ET for l2-scalping
+
+2. **Recovery from Failure**: Service starts outside startup window
+   - Detection: Previous state was inactive, current is active, not in startup window
+   - Notification: `{service} Recovered`
+   - Implies unexpected failure occurred
+
+3. **Gateway Recovery**: Gateway reconnects after being down
+   - Gateway is expected to always be running
+   - Any transition from down→up is treated as recovery
+   - Notification: `Gateway Reconnected and authenticated`
+
+### 17.5 Service Failure Alert Behavior
+
+**Script**: `scripts/service_failure_alert.sh`
+
+Called by systemd `OnFailure=` directive. Smart filtering:
+
+| Condition | Alert? | Reason |
+|-----------|--------|--------|
+| Weekend (Sat/Sun) | No | Expected maintenance |
+| After 16:00 ET | No | Expected EOD shutdown |
+| Before 09:00 ET | No | Pre-market (outside trading hours) |
+| During 09:00-16:00 ET | Yes | Unexpected crash |
+
+Logs to `/var/log/service_failures.log` for debugging.
+
+### 17.6 Implementation
+
+**Core Module**: `qx-broker/src/qx_broker/notify/ntfy.py`
+
+```python
+# Trade notifications
+send_trade_notification(
+    action="ENTRY" or "EXIT",
+    symbol=symbol,
+    strategy="l2-scalping:{rule_name}",
+    direction=side,  # ENTRY only
+    price=price,
+    quantity=qty,
+    pnl=pnl,  # EXIT only
+    exit_reason=reason,  # EXIT only
+    position_id=trade_id[:8],  # First 8 chars
+)
+
+# System lifecycle
+send_system_start("l2-scalping")  # Scheduled startup
+send_system_recovery("l2-scalping")  # Recovery from crash
+send_system_end("l2-scalping", reason)  # Orderly shutdown
+send_api_event("Gateway Reconnected", details, priority)
+```
+
+**Usage in Trade Journal** (`l2_scalping/src/reporting/trade_journal.py`):
+
+```python
+# After opening trade in event store, send notification with position_id
+send_trade_notification(
+    action="ENTRY",
+    symbol=symbol,
+    strategy=system_tag,  # "l2-scalping:obi_momentum"
+    direction=side,
+    price=entry_price,
+    quantity=quantity,
+    position_id=trade_id[:8] if trade_id else None,
+)
+```
+
+### 17.7 Configuration
+
+**Environment Variables**:
+```bash
+NTFY_TRADES="https://ntfy.sh/jacobw-trading-trades"
+NTFY_STATUS="https://ntfy.sh/jacobw-trading-status"
+NTFY_ALERTS="https://ntfy.sh/jacobw-trading-alerts"
+```
+
+**Startup Window** (`system_health_monitor.py`):
+```python
+STARTUP_WINDOW_MINUTES = 5  # Services starting within this window are "starting", not "recovering"
+```
+
+**Service Schedules**:
+```python
+SERVICE_SCHEDULES = {
+    "ibkr-gateway": {"start": time(6, 0), "end": time(23, 59)},
+    "l2-collector": {"start": time(9, 26), "end": time(16, 0)},
+    "l2-scalping": {"start": time(9, 26), "end": time(16, 1)},
+    "intraday-paper": {"start": time(9, 28), "end": time(16, 2)},
+}
+```
+
+---

@@ -119,48 +119,41 @@ class RiskManager:
         account_value: float,
         price: float,
     ) -> int:
-        """Calculate optimal position size"""
+        """Calculate optimal position size using 2% equity risk"""
         self.account_value = account_value
 
-        # Risk-at-stop sizing using max loss bps
+        # 2% equity risk per position
+        risk_per_trade = account_value * 0.02
+        
+        # Stop distance (use max_trade_loss_bps as stop %)
         stop_dist = price * (self.max_trade_loss_bps / 10000)
-        risk_budget = account_value * self.max_position_pct
-        qty_risk = int(risk_budget / stop_dist) if stop_dist > 0 else 0
+        
+        # Calculate shares: risk / stop_distance
+        qty_risk = int(risk_per_trade / stop_dist) if stop_dist > 0 else 0
 
-        # Scale by signal strength (0.3-1.0 → 0.5-1.5x)
-        strength_multiplier = 0.5 + signal_strength
-
-        # Scale by confidence (0.0-1.0 → 0.5-1.0x)
+        # Apply confidence scaling (0.5x to 1.0x)
         confidence_multiplier = 0.5 + 0.5 * confidence
 
-        # Apply risk scaling if we're in drawdown
+        # Apply drawdown scaling
         drawdown_multiplier = 1.0
         if self.daily_pnl < 0:
-            # Reduce size by 50% if in significant drawdown
-            drawdown_pct = abs(self.daily_pnl) / max(
-                1.0, account_value * self.max_daily_loss_bps / 10000
-            )
+            drawdown_pct = abs(self.daily_pnl) / max(1.0, account_value * 0.02)
             if drawdown_pct > 0.5:
                 drawdown_multiplier = 0.5
 
-        final_shares = int(
-            qty_risk * strength_multiplier * confidence_multiplier * drawdown_multiplier
-        )
+        final_shares = int(qty_risk * confidence_multiplier * drawdown_multiplier)
 
         # Ensure minimum viable size
         min_shares = max(1, int(self.min_position_value / price))
         final_shares = max(min_shares, final_shares)
-        max_notional_shares = int((account_value * self.max_position_pct) / price)
-        final_shares = min(
-            final_shares,
-            qty_risk,
-            self.max_shares,
-            max_notional_shares,
-        )
+        
+        # Cap at 2% of account value in notional
+        max_notional_shares = int((account_value * 0.02) / price)
+        final_shares = min(final_shares, max_notional_shares, self.max_shares)
 
         logger.debug(
             f"Position sizing for {symbol}: risk_qty={qty_risk}, "
-            f"strength={strength_multiplier:.2f}, confidence={confidence_multiplier:.2f}, "
+            f"confidence={confidence_multiplier:.2f}, "
             f"drawdown={drawdown_multiplier:.2f}, final={final_shares}"
         )
 
@@ -178,6 +171,26 @@ class RiskManager:
         self.daily_trades += 1
 
         logger.info(f"Added position: {symbol} {quantity}@{price:.4f}")
+
+    def upsert_position(self, symbol: str, quantity: int, price: float) -> None:
+        """Create or update position with weighted average price."""
+        if symbol not in self.positions:
+            self.add_position(symbol, quantity, price)
+            return
+
+        position = self.positions[symbol]
+        total_qty = position.quantity + quantity
+        if total_qty == 0:
+            self.positions.pop(symbol, None)
+            return
+
+        # Weighted average based on existing and new quantity
+        weighted_price = (
+            (position.avg_price * position.quantity) + (price * quantity)
+        ) / total_qty
+        position.quantity = total_qty
+        position.avg_price = weighted_price
+        position.timestamp = time.time()
 
     def update_position_pnl(self, symbol: str, current_price: float) -> None:
         """Update unrealized P&L for position"""
@@ -222,6 +235,54 @@ class RiskManager:
         )
 
         # Check risk status after trade
+        self._update_risk_status()
+
+        return realized_pnl
+
+    def reduce_position(self, symbol: str, quantity: int, exit_price: float) -> float:
+        """Reduce an open position without recalculating average entry price."""
+        if symbol not in self.positions:
+            logger.warning(f"Attempted to reduce non-existent position: {symbol}")
+            return 0.0
+
+        position = self.positions[symbol]
+        close_qty = min(abs(position.quantity), int(quantity))
+        if close_qty <= 0:
+            return 0.0
+
+        sign = 1 if position.quantity > 0 else -1
+        realized_pnl = (exit_price - position.avg_price) * close_qty * sign
+
+        now = time.time()
+        hold_time = now - position.timestamp
+        position.quantity -= sign * close_qty
+        position.timestamp = now
+        self.daily_pnl += realized_pnl
+
+        self.trade_history.append(
+            {
+                "symbol": symbol,
+                "quantity": close_qty * sign,
+                "entry_price": position.avg_price,
+                "exit_price": exit_price,
+                "pnl": realized_pnl,
+                "hold_time": hold_time,
+                "timestamp": now,
+                "partial": True,
+            }
+        )
+
+        if position.quantity == 0:
+            self.positions.pop(symbol, None)
+
+        logger.info(
+            "Reduced position: %s qty=%s pnl=%.2f remaining=%s",
+            symbol,
+            close_qty * sign,
+            realized_pnl,
+            position.quantity if symbol in self.positions else 0,
+        )
+
         self._update_risk_status()
 
         return realized_pnl

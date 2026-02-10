@@ -854,12 +854,10 @@ class IntradayMLLabeler:
         minutes_since_open = (ts - session_start).total_seconds() / 60.0
         minutes_before_close = (session_end - ts).total_seconds() / 60.0
 
-        if minutes_since_open < self.min_minutes_after_open:
-            return False
-        if minutes_before_close < self.max_minutes_before_close:
-            return False
-
-        return True
+        return (
+            minutes_since_open >= self.min_minutes_after_open
+            and minutes_before_close >= self.max_minutes_before_close
+        )
 
     def _meets_realized_return(self, fwd_return: float) -> bool:
         """Ensure realized forward move satisfies configured minimum."""

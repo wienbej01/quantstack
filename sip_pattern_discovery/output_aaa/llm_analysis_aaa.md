@@ -23,133 +23,133 @@ Only approve patterns with:
 
 ---
 
-## Pattern 11
-**Rule:** price_vs_vwap_pct_bin == 0 AND is_power_hour_bin == True
+## Pattern 130
+**Rule:** vwap_cross_up_bin == True AND atr_14_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 29.74 (p=0.00e+00)
-**Expectancy:** 0.0990% per trade
-**Win Rate:** 50.4%
-**Profit Factor:** 1.88
-**Sharpe Ratio:** 2.33
-**Avg Win:** 0.4195% | **Avg Loss:** 0.2271%
-**Samples:** 40,932 bar observations
-**OVERFIT RISK SCORE:** 1.12 ⚠️ REJECT
+**T-Statistic:** 38.98 (p=0.00e+00)
+**Expectancy:** 0.0854% per trade
+**Win Rate:** 53.9%
+**Profit Factor:** 1.40
+**Sharpe Ratio:** 1.71
+**Avg Win:** 0.5517% | **Avg Loss:** 0.4590%
+**Samples:** 130,213 bar observations
+**OVERFIT RISK SCORE:** 0.74 ✅ ACCEPTABLE
 
-## Pattern 1
-**Rule:** rel_strength_60m_bin == 0.0 AND is_power_hour_bin == True
+## Pattern 131
+**Rule:** ret_15m_turned_positive_bin == True AND atr_14_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 25.27 (p=0.00e+00)
-**Expectancy:** 0.0624% per trade
-**Win Rate:** 48.3%
-**Profit Factor:** 1.90
-**Sharpe Ratio:** 1.93
-**Avg Win:** 0.2736% | **Avg Loss:** 0.1347%
-**Samples:** 43,057 bar observations
-**OVERFIT RISK SCORE:** 0.54 ✅ ACCEPTABLE
+**T-Statistic:** 37.04 (p=0.00e+00)
+**Expectancy:** 0.0852% per trade
+**Win Rate:** 53.7%
+**Profit Factor:** 1.40
+**Sharpe Ratio:** 1.70
+**Avg Win:** 0.5526% | **Avg Loss:** 0.4574%
+**Samples:** 119,497 bar observations
+**OVERFIT RISK SCORE:** 0.73 ✅ ACCEPTABLE
 
-## Pattern 2
-**Rule:** ret_60m_bin == 0.0 AND is_power_hour_bin == True
+## Pattern 132
+**Rule:** ret_5m_turned_positive_bin == True AND atr_14_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 25.27 (p=0.00e+00)
-**Expectancy:** 0.0624% per trade
-**Win Rate:** 48.3%
-**Profit Factor:** 1.90
-**Sharpe Ratio:** 1.93
-**Avg Win:** 0.2736% | **Avg Loss:** 0.1347%
-**Samples:** 43,057 bar observations
-**OVERFIT RISK SCORE:** 0.54 ✅ ACCEPTABLE
+**T-Statistic:** 34.06 (p=0.00e+00)
+**Expectancy:** 0.0826% per trade
+**Win Rate:** 53.5%
+**Profit Factor:** 1.39
+**Sharpe Ratio:** 1.66
+**Avg Win:** 0.5495% | **Avg Loss:** 0.4537%
+**Samples:** 105,784 bar observations
+**OVERFIT RISK SCORE:** 0.68 ✅ ACCEPTABLE
 
-## Pattern 33
-**Rule:** session_range_pct_bin == 3 AND is_power_hour_bin == True
+## Pattern 221
+**Rule:** vwap_cross_up_bin == True AND rvol_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 22.70 (p=0.00e+00)
-**Expectancy:** 0.0890% per trade
-**Win Rate:** 53.6%
-**Profit Factor:** 1.45
-**Sharpe Ratio:** 1.61
-**Avg Win:** 0.5340% | **Avg Loss:** 0.4256%
-**Samples:** 49,836 bar observations
-**OVERFIT RISK SCORE:** 0.72 ✅ ACCEPTABLE
+**T-Statistic:** 33.86 (p=0.00e+00)
+**Expectancy:** 0.0986% per trade
+**Win Rate:** 53.5%
+**Profit Factor:** 1.33
+**Sharpe Ratio:** 1.51
+**Avg Win:** 0.7481% | **Avg Loss:** 0.6492%
+**Samples:** 127,550 bar observations
+**OVERFIT RISK SCORE:** 0.76 ✅ ACCEPTABLE
 
-## Pattern 22
-**Rule:** rvol_bin == 4 AND is_power_hour_bin == True
+## Pattern 222
+**Rule:** ret_30m_turned_positive_bin == True AND rvol_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 20.41 (p=0.00e+00)
-**Expectancy:** 0.0664% per trade
-**Win Rate:** 49.5%
-**Profit Factor:** 1.48
-**Sharpe Ratio:** 1.50
-**Avg Win:** 0.4111% | **Avg Loss:** 0.2721%
-**Samples:** 46,965 bar observations
-**OVERFIT RISK SCORE:** 0.36 ✅ ACCEPTABLE
-
-## Pattern 34
-**Rule:** session_range_pct_bin == 4 AND is_power_hour_bin == True
-**Direction:** SHORT
-**Regime:** bull_low_vol
-**T-Statistic:** 20.27 (p=0.00e+00)
-**Expectancy:** 0.0909% per trade
-**Win Rate:** 50.1%
-**Profit Factor:** 1.47
-**Sharpe Ratio:** 1.68
-**Avg Win:** 0.5714% | **Avg Loss:** 0.3912%
-**Samples:** 36,885 bar observations
-**OVERFIT RISK SCORE:** 0.70 ✅ ACCEPTABLE
-
-## Pattern 23
-**Rule:** is_power_hour_bin == True
-**Direction:** LONG
-**Regime:** bull_low_vol
-**T-Statistic:** 27.35 (p=0.00e+00)
-**Expectancy:** 0.0368% per trade
-**Win Rate:** 48.6%
-**Profit Factor:** 1.27
-**Sharpe Ratio:** 0.90
-**Avg Win:** 0.3533% | **Avg Loss:** 0.2628%
-**Samples:** 230,334 bar observations
-**OVERFIT RISK SCORE:** 0.07 ✅ ACCEPTABLE
-
-## Pattern 12
-**Rule:** is_power_hour_bin == True
-**Direction:** LONG
-**Regime:** bull_low_vol
-**T-Statistic:** 27.42 (p=0.00e+00)
-**Expectancy:** 0.0302% per trade
-**Win Rate:** 48.1%
-**Profit Factor:** 1.30
-**Sharpe Ratio:** 0.91
-**Avg Win:** 0.2720% | **Avg Loss:** 0.1935%
-**Samples:** 230,334 bar observations
-**OVERFIT RISK SCORE:** 0.00 ✅ ACCEPTABLE
-
-## Pattern 3
-**Rule:** price_vs_vwap_pct_bin == 0 AND is_power_hour_bin == True
-**Direction:** LONG
-**Regime:** bull_low_vol
-**T-Statistic:** 19.04 (p=0.00e+00)
-**Expectancy:** 0.0409% per trade
-**Win Rate:** 48.7%
-**Profit Factor:** 1.55
+**T-Statistic:** 32.62 (p=0.00e+00)
+**Expectancy:** 0.0975% per trade
+**Win Rate:** 53.4%
+**Profit Factor:** 1.32
 **Sharpe Ratio:** 1.49
-**Avg Win:** 0.2358% | **Avg Loss:** 0.1441%
-**Samples:** 40,932 bar observations
-**OVERFIT RISK SCORE:** 0.11 ✅ ACCEPTABLE
+**Avg Win:** 0.7470% | **Avg Loss:** 0.6462%
+**Samples:** 120,304 bar observations
+**OVERFIT RISK SCORE:** 0.74 ✅ ACCEPTABLE
 
-## Pattern 13
-**Rule:** rvol_bin == 4 AND is_power_hour_bin == True
+## Pattern 223
+**Rule:** ret_15m_turned_positive_bin == True AND rvol_bin == 0
 **Direction:** LONG
 **Regime:** bull_low_vol
-**T-Statistic:** 17.87 (p=0.00e+00)
-**Expectancy:** 0.0480% per trade
-**Win Rate:** 49.4%
-**Profit Factor:** 1.45
-**Sharpe Ratio:** 1.31
-**Avg Win:** 0.3112% | **Avg Loss:** 0.2093%
-**Samples:** 46,965 bar observations
-**OVERFIT RISK SCORE:** 0.18 ✅ ACCEPTABLE
+**T-Statistic:** 32.23 (p=0.00e+00)
+**Expectancy:** 0.0967% per trade
+**Win Rate:** 53.5%
+**Profit Factor:** 1.32
+**Sharpe Ratio:** 1.48
+**Avg Win:** 0.7460% | **Avg Loss:** 0.6502%
+**Samples:** 120,132 bar observations
+**OVERFIT RISK SCORE:** 0.74 ✅ ACCEPTABLE
+
+## Pattern 224
+**Rule:** ret_5m_turned_positive_bin == True AND rvol_bin == 0
+**Direction:** LONG
+**Regime:** bull_low_vol
+**T-Statistic:** 30.44 (p=0.00e+00)
+**Expectancy:** 0.0961% per trade
+**Win Rate:** 53.4%
+**Profit Factor:** 1.32
+**Sharpe Ratio:** 1.47
+**Avg Win:** 0.7455% | **Avg Loss:** 0.6492%
+**Samples:** 108,318 bar observations
+**OVERFIT RISK SCORE:** 0.73 ✅ ACCEPTABLE
+
+## Pattern 225
+**Rule:** ret_15m_turned_positive_bin == True AND ret_15m_bin == 2.0
+**Direction:** LONG
+**Regime:** bull_low_vol
+**T-Statistic:** 33.78 (p=0.00e+00)
+**Expectancy:** 0.0905% per trade
+**Win Rate:** 53.9%
+**Profit Factor:** 1.28
+**Sharpe Ratio:** 1.29
+**Avg Win:** 0.7778% | **Avg Loss:** 0.7143%
+**Samples:** 173,606 bar observations
+**OVERFIT RISK SCORE:** 0.68 ✅ ACCEPTABLE
+
+## Pattern 226
+**Rule:** vwap_cross_up_bin == True AND ret_15m_bin == 2.0
+**Direction:** LONG
+**Regime:** bull_low_vol
+**T-Statistic:** 30.39 (p=0.00e+00)
+**Expectancy:** 0.0949% per trade
+**Win Rate:** 54.2%
+**Profit Factor:** 1.29
+**Sharpe Ratio:** 1.35
+**Avg Win:** 0.7806% | **Avg Loss:** 0.7165%
+**Samples:** 128,450 bar observations
+**OVERFIT RISK SCORE:** 0.73 ✅ ACCEPTABLE
+
+## Pattern 227
+**Rule:** vwap_cross_up_bin == True AND ret_5m_bin == 2.0
+**Direction:** LONG
+**Regime:** bull_low_vol
+**T-Statistic:** 29.38 (p=0.00e+00)
+**Expectancy:** 0.0909% per trade
+**Win Rate:** 53.7%
+**Profit Factor:** 1.27
+**Sharpe Ratio:** 1.27
+**Avg Win:** 0.7860% | **Avg Loss:** 0.7151%
+**Samples:** 135,703 bar observations
+**OVERFIT RISK SCORE:** 0.68 ✅ ACCEPTABLE
 

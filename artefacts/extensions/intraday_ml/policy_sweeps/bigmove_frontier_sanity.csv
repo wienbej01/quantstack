@@ -1,4 +1,0 @@
-sweep_id,entries,rejections,trades_per_day,avg_r_multiple,hit_rate,metric_total_return,metric_annualized_return,metric_volatility,metric_sharpe_ratio,metric_max_drawdown,metric_max_drawdown_duration,metric_total_commissions,metric_total_slippage,metric_fill_rate,metric_total_trades,metric_win_rate,metric_profit_factor,metric_winning_trades,metric_losing_trades,param_param_prob_threshold_long,param_param_score_margin,param_param_bigmove_policy.probability_threshold,param_param_max_open_positions_global
-0,0,18017,0.0,,,0.0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0,0.0,0.0,0,0,0.5,-0.1,0.0,2
-1,0,18017,0.0,,,0.0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0,0.0,0.0,0,0,0.5,-0.05,0.0,2
-2,0,18017,0.0,,,0.0,0.0,0.0,0.0,0.0,0,0.0,0.0,0.0,0,0.0,0.0,0,0,0.5,0.0,0.0,2

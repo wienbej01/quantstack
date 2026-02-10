@@ -1,0 +1,51 @@
+# L2 VWAP Mean Reversion Strategy Configuration
+# Based on: quantresearch/projects/l2_vwap_spy_corr/research/analysis_summary.md
+
+strategy:
+  name: "L2_VWAP_Mean_Reversion"
+  version: "1.0"
+  variant: "spread_off"  # Best: expectancy 15.32, win rate 67.5%
+
+# VWAP parameters
+vwap:
+  deviation_long: 0.995   # Entry: close <= VWAP * 0.995
+  deviation_short: 1.005  # Entry: close >= VWAP * 1.005
+
+# L2 filter parameters (spread_off variant)
+l2_filter:
+  enabled: true
+  ratio_long: 1.165       # depth_bid/depth_ask >= 1.165 for LONG
+  ratio_short: 0.858      # depth_bid/depth_ask <= 0.858 for SHORT
+  depth_level: 1          # Use level 1 depth
+
+# Exit parameters
+exits:
+  mean_reversion: true    # Exit when price crosses VWAP
+  take_profit_long: 1.005   # +0.5%
+  take_profit_short: 0.995  # -0.5%
+  stop_loss_long: 0.9925    # -0.75%
+  stop_loss_short: 1.0075   # +0.75%
+
+# Timing (America/New_York)
+timing:
+  entry_start: "09:35"
+  entry_end: "15:30"
+  forced_exit: "15:55"
+  timezone: "America/New_York"
+
+# Risk parameters
+risk:
+  position_size: 100      # shares per trade (fallback cap)
+  max_positions: 1        # one position at a time
+  max_position_pct: 0.02  # 2% of account per trade
+  account_equity: 817000  # fallback if IBKR fetch fails
+  cost_bps: 1             # 1 bp per side
+
+# Universe - uses same SIP symbols as l2-scalping
+universe:
+  max_symbols: 3  # Same limit as l2-scalping (IBKR depth subscription limit)
+  # Symbols loaded dynamically from /home/jacobw/intraday_stack/data/daily_sip/
+
+# L2 data source
+l2_data:
+  features_path: "/home/jacobw/quantstack/data/l2/l2_maximum/features"

@@ -172,7 +172,7 @@ def test_profitable_trade_is_allowed_to_run_past_flat_hold_limit():
     assert len(orders) == 1
     assert not rejections.empty
     assert "holding_long" in set(rejections["reason"])
-    assert "RUN" in policy.position_state
+    assert any(key[0] == "RUN" for key in policy.position_state)
 
 
 def test_time_stop_triggers_for_losing_trade_at_flat_hold_limit():

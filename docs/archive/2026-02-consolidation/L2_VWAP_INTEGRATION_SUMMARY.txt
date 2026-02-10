@@ -1,0 +1,93 @@
+# L2 VWAP INTEGRATION SUMMARY
+Date: 2026-01-30
+
+## DOCUMENTATION CREATED
+
+1. ~/quantstack/docs/L2_VWAP_SYSTEM.md
+   - Complete system documentation
+   - Installation instructions
+   - Configuration details
+   - Integration points (PostgreSQL, NTFY, Audit, EOD)
+   - Monitoring and troubleshooting
+   - Performance tracking
+
+2. ~/quantstack/docs/L2_VWAP_INTEGRATION_CHECKLIST.md
+   - 22-section comprehensive checklist
+   - Pre-installation verification
+   - Installation steps
+   - Integration verification
+   - Functional testing
+   - Monitoring setup
+   - Sign-off procedures
+
+3. ~/quantstack/docs/INDEX.md (UPDATED)
+   - Added L2 VWAP to active systems table
+   - Added L2_VWAP_SYSTEM.md to core guides
+   - Added Jan 30 investigation to recent investigations
+   - Added quick reference section with action items
+
+## VERIFICATION COMPLETED
+
+✅ L2 Data Path: /home/jacobw/quantstack/data/l2 (CORRECT)
+✅ PostgreSQL Integration: Uses shared EventStore (CORRECT)
+✅ NTFY Integration: Sends notifications with real data (CORRECT)
+✅ Audit Logging: Enabled and configured (CORRECT)
+✅ EOD Reporting: Automatically included (CORRECT)
+✅ Trade Recording: Calls open_trade() and close_trade() (CORRECT)
+
+## KEY FINDINGS
+
+1. L2 VWAP does NOT need trade recording fixes (unlike L2 Scalping)
+2. L2 VWAP has correct architecture - signal-driven, not order-driven
+3. Service files exist but are NOT installed in systemd
+4. Timer is set for WRONG time (2:26 PM ET instead of 9:20 AM ET)
+5. All integration points are already correctly implemented
+
+## REQUIRED ACTIONS
+
+CRITICAL - Install Service:
+  cp ~/quantstack/systemd/l2-vwap-reversion.* ~/.config/systemd/user/
+  systemctl --user daemon-reload
+  systemctl --user enable l2-vwap-reversion.timer
+  systemctl --user start l2-vwap-reversion.timer
+
+CRITICAL - Fix Timer Schedule:
+  Edit ~/.config/systemd/user/l2-vwap-reversion.timer
+  Change: OnCalendar=Mon-Fri 22:26:00 → OnCalendar=Mon-Fri 22:20:00
+
+HIGH - Test End-to-End:
+  Follow L2_VWAP_INTEGRATION_CHECKLIST.md sections 11-15
+
+## INTEGRATION STATUS
+
+Database:     ✅ Ready (no changes needed)
+NTFY:         ✅ Ready (no changes needed)
+Audit:        ✅ Ready (no changes needed)
+EOD Report:   ✅ Ready (no changes needed)
+L2 Data:      ✅ Ready (correct path configured)
+Service:      ❌ NOT INSTALLED (action required)
+Timer:        ❌ WRONG SCHEDULE (action required)
+
+## NEXT STEPS
+
+1. Review L2_VWAP_SYSTEM.md
+2. Follow L2_VWAP_INTEGRATION_CHECKLIST.md
+3. Install service and fix timer
+4. Test during next market session
+5. Verify trades appear in EOD report
+
+## DOCUMENTATION LOCATIONS
+
+Main Guide:       ~/quantstack/docs/L2_VWAP_SYSTEM.md
+Checklist:        ~/quantstack/docs/L2_VWAP_INTEGRATION_CHECKLIST.md
+Index:            ~/quantstack/docs/INDEX.md
+Strategy Design:  ~/quantstack/l2_vwap_reversion/docs/STRATEGY_DESIGN.md
+Config:           ~/quantstack/l2_vwap_reversion/config/strategy.yaml
+
+## RELATED REPORTS
+
+Trade Issues:     ~/quantstack/reports/jan29_trade_issues_report.md
+Not Operational:  ~/quantstack/reports/l2_vwap_not_operational.md
+Trade Recording:  ~/quantstack/reports/l2_vwap_trade_recording_analysis.md
+Fix Plan:         ~/quantstack/scripts/fix_trade_recording_plan.md
+

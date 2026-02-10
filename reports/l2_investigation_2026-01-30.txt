@@ -1,0 +1,238 @@
+================================================================================
+L2 TRADING SYSTEMS INVESTIGATION - 2026-01-30
+================================================================================
+Generated: Sat Jan 31 10:35:42 PST 2026
+
+================================================================================
+1. TRADE VOLUME ANALYSIS
+================================================================================
+
+--- Historical Baseline (Last 10 Days) ---
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+    date    |   system    | trades | total_pnl 
+------------+-------------+--------+-----------
+ 2026-01-30 | l2-scalping |      4 |      0.00
+ 2026-01-28 | l2-scalping |      4 |     -2.10
+(2 rows)
+
+
+--- Jan 30 Trade Details ---
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+ERROR:  function to_char(text, unknown) does not exist
+LINE 1: SELECT system, symbol, TO_CHAR(entry_time, 'HH24:MI:SS') as ...
+                               ^
+HINT:  No function matches the given name and argument types. You might need to add explicit type casts.
+
+================================================================================
+2. SERVICE STATUS
+================================================================================
+
+--- Current Status ---
+× l2-scalping.service - L2 Scalping Trading System with Enhanced Position Tracking
+     Loaded: loaded (/etc/systemd/system/l2-scalping.service; enabled; preset: enabled)
+    Drop-In: /etc/systemd/system/l2-scalping.service.d
+             └─alerts.conf, platform-dependency.conf, restart-policy.conf
+     Active: failed (Result: exit-code) since Sat 2026-01-31 06:02:30 PST; 4h 33min ago
+   Duration: 7h 34min 45.173s
+ Invocation: be70bfed48904da59d2eff80ce110c56
+TriggeredBy: ○ l2-scalping.timer
+    Process: 1612157 ExecStart=/home/jacobw/quantstack/scripts/audit_wrapper.sh l2-scalping /home/jacobw/quantstack/l2_scalping/start_scalping_enhanced.sh (code=exited, status=143)
+    Process: 2225853 ExecStopPost=/home/jacobw/quantstack/scripts/service_failure_alert.sh l2-scalping (code=exited, status=0/SUCCESS)
+   Main PID: 1612157 (code=exited, status=143)
+   Mem peak: 893.7M
+        CPU: 8min 43.773s
+
+Jan 31 06:01:07 jacob-20nks0qn06 audit_wrapper.sh[1612170]: /home/jacobw/quantstack/qx-broker/src/qx_broker/ibkr/connection.py:146: RuntimeWarning: coroutine '_IBKREventLoop.call.<locals>._call' was never awaited
+Jan 31 06:01:07 jacob-20nks0qn06 audit_wrapper.sh[1612170]:   return False
+Jan 31 06:01:07 jacob-20nks0qn06 audit_wrapper.sh[1612170]: RuntimeWarning: Enable tracemalloc to get the object allocation traceback
+Jan 31 06:01:07 jacob-20nks0qn06 audit_wrapper.sh[1612170]: 2026-01-30 17:01:07,319 - __main__ - INFO - System Health - P&L: $0.00, Trades: 1, Positions: 1, Risk: normal, Data: False, Fresh: 0/0, Orders: False
+Jan 31 06:02:30 jacob-20nks0qn06 systemd[1]: l2-scalping.service: State 'final-sigterm' timed out. Killing.
+Jan 31 06:02:30 jacob-20nks0qn06 systemd[1]: l2-scalping.service: Killing process 1612170 (python) with signal SIGKILL.
+
+○ l2-vwap-reversion.service - L2 VWAP Mean Reversion Paper Trading
+     Loaded: loaded (/etc/systemd/system/l2-vwap-reversion.service; disabled; preset: enabled)
+     Active: inactive (dead) since Sat 2026-01-31 05:05:00 PST; 5h 30min ago
+   Duration: 4h 54min 51.858s
+ Invocation: 446b40f43430438c9f0e24a31726b482
+TriggeredBy: ● l2-vwap-reversion.timer
+    Process: 1760989 ExecStart=/home/jacobw/quantstack/.venv/bin/python src/main.py --config config (code=exited, status=0/SUCCESS)
+   Main PID: 1760989 (code=exited, status=0/SUCCESS)
+   Mem peak: 210.4M
+        CPU: 1h 21.027s
+
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,248 [WARNING] qx_broker.ibkr.connection: IBKR disconnected
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,248 [INFO] ib_insync.client: Disconnected.
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,249 [INFO] ib_insync.ib: Disconnecting from 127.0.0.1:7494, 12.7 kB sent in 283 messages, 470 kB received in 4102 messages, session time 17.7 ks.
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,249 [INFO] ib_insync.client: Disconnecting
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,249 [WARNING] qx_broker.ibkr.connection: IBKR disconnected
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,249 [INFO] ib_insync.client: Disconnected.
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,250 [INFO] __main__: Disconnected from IBKR gateway
+Jan 31 05:05:00 jacob-20nks0qn06 python[1760989]: 2026-01-31 05:05:00,250 [INFO] __main__: System shutdown complete
+Jan 31 05:05:00 jacob-20nks0qn06 systemd[1]: l2-vwap-reversion.service: Deactivated successfully.
+
+● l2-collector.service - L2 Data Collector (Daily Daemon)
+     Loaded: loaded (/etc/systemd/system/l2-collector.service; disabled; preset: enabled)
+    Drop-In: /etc/systemd/system/l2-collector.service.d
+             └─platform-dependency.conf
+     Active: active (running) since Thu 2026-01-29 23:44:44 PST; 1 day 10h ago
+ Invocation: 6494ad7d8809447e97654688c74471da
+   Main PID: 124709 (audit_wrapper.s)
+      Tasks: 11 (limit: 35719)
+     Memory: 178.4M (peak: 182.3M)
+        CPU: 1min 46.818s
+     CGroup: /system.slice/l2-collector.service
+             ├─124709 /bin/bash /home/jacobw/quantstack/scripts/audit_wrapper.sh l2-collector /home/jacobw/.local/bin/l2-collect --config qx-l2/configs/maximum_l2.yaml --daemon
+             └─124727 /usr/bin/python3 /home/jacobw/.local/bin/l2-collect --config qx-l2/configs/maximum_l2.yaml --daemon
+
+Jan 31 04:59:53 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:53,310 - qx_l2.symbols - INFO - Loaded 5 SIP symbols from /home/jacobw/intraday_stack/data/daily_sip/date=2026-01-30/sip_universe.json
+Jan 31 04:59:53 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:53,310 - qx_l2.symbols - INFO - NYSE filter: 5 -> 3 symbols (excluded ARCA: ['SLV', 'UNG'])
+Jan 31 04:59:54 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:54,770 - qx_l2.symbols - INFO - Loaded 5 SIP symbols from /home/jacobw/intraday_stack/data/daily_sip/date=2026-01-30/sip_universe.json
+Jan 31 04:59:54 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:54,771 - qx_l2.symbols - INFO - NYSE filter: 5 -> 3 symbols (excluded ARCA: ['SLV', 'UNG'])
+Jan 31 04:59:56 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:56,260 - qx_l2.symbols - INFO - Loaded 5 SIP symbols from /home/jacobw/intraday_stack/data/daily_sip/date=2026-01-30/sip_universe.json
+Jan 31 04:59:56 jacob-20nks0qn06 audit_wrapper.sh[124727]: 2026-01-30 15:59:56,261 - qx_l2.symbols - INFO - NYSE filter: 5 -> 3 symbols (excluded ARCA: ['SLV', 'UNG'])
+
+--- Service Restarts/Failures on 2026-01-30 ---
+
+================================================================================
+3. ERROR ANALYSIS
+================================================================================
+
+--- L2 Scalping Errors ---
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,744 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,745 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,855 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,856 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,857 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,967 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,968 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:30 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:30,968 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,079 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,079 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,080 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,190 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,191 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,191 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,302 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,302 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,303 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,413 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,414 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,414 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,525 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,526 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,526 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,637 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,637 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,638 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,749 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,750 - execution.order_manager - ERROR - Order placement error: Not connected
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,750 - __main__ - ERROR - Failed to exit position: FCX
+Jan 30 05:20:31 jacob-20nks0qn06 audit_wrapper.sh[125596]: 2026-01-29 16:20:31,861 - execution.order_manager - ERROR - OCA exit order placement error: Not connected
+
+--- L2 VWAP Errors ---
+Jan 30 22:26:16 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:16,990 [INFO] qx_broker.ibkr.connection: ib_insync connectAsync missing raiseSyncErrors; retrying without it
+Jan 30 22:26:17 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:17,122 [ERROR] ib_insync.wrapper: Error 326, reqId -1: Unable to connect as the client id is already in use. Retry with a unique client id.
+Jan 30 22:26:17 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:17,122 [WARNING] qx_broker.ibkr.connection: Client ID in use: IBKR error 326: Unable to connect as the client id is already in use. Retry with a unique client id. (-1)
+Jan 30 22:26:17 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:17,640 [ERROR] ib_insync.client: Peer closed connection. clientId 350 already in use?
+Jan 30 22:26:47 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:47,022 [ERROR] ib_insync.client: API connection failed: TimeoutError()
+Jan 30 22:26:47 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:47,023 [WARNING] qx_broker.ibkr.connection: IBKR connect attempt 1 failed:
+Jan 30 22:26:49 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:49,023 [INFO] qx_broker.ibkr.connection: ib_insync connectAsync missing raiseSyncErrors; retrying without it
+Jan 30 22:26:49 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:49,070 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2104: Market data farm connection is OK:usfarm (-1)
+Jan 30 22:26:49 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:49,071 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2106: HMDS data farm connection is OK:ushmds (-1)
+Jan 30 22:26:49 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:26:49,071 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2158: Sec-def data farm connection is OK:secdefnj (-1)
+Jan 30 22:27:09 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:09,101 [INFO] qx_broker.ibkr.connection: ib_insync connectAsync missing raiseSyncErrors; retrying without it
+Jan 30 22:27:09 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:09,108 [ERROR] ib_insync.wrapper: Error 326, reqId -1: Unable to connect as the client id is already in use. Retry with a unique client id.
+Jan 30 22:27:09 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:09,108 [WARNING] qx_broker.ibkr.connection: Client ID in use: IBKR error 326: Unable to connect as the client id is already in use. Retry with a unique client id. (-1)
+Jan 30 22:27:09 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:09,641 [ERROR] ib_insync.client: Peer closed connection. clientId 300 already in use?
+Jan 30 22:27:39 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:39,133 [ERROR] ib_insync.client: API connection failed: TimeoutError()
+Jan 30 22:27:39 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:39,133 [WARNING] qx_broker.ibkr.connection: IBKR connect attempt 1 failed:
+Jan 30 22:27:41 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:41,134 [INFO] qx_broker.ibkr.connection: ib_insync connectAsync missing raiseSyncErrors; retrying without it
+Jan 30 22:27:41 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:41,181 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2104: Market data farm connection is OK:usfarm (-1)
+Jan 30 22:27:41 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:41,181 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2106: HMDS data farm connection is OK:ushmds (-1)
+Jan 30 22:27:41 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:27:41,182 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2158: Sec-def data farm connection is OK:secdefnj (-1)
+Jan 30 22:43:47 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:47,174 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2105: HMDS data farm connection is broken:ushmds (-1)
+Jan 30 22:43:47 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:47,175 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2105: HMDS data farm connection is broken:ushmds (-1)
+Jan 30 22:43:53 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:53,505 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2103: Market data farm connection is broken:usfarm (-1)
+Jan 30 22:43:53 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:53,507 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2103: Market data farm connection is broken:usfarm (-1)
+Jan 30 22:43:54 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:54,862 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2157: Sec-def data farm connection is broken:secdefnj (-1)
+Jan 30 22:43:54 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:43:54,865 [INFO] qx_broker.ibkr.connection: IBKR message: IBKR error 2157: Sec-def data farm connection is broken:secdefnj (-1)
+Jan 30 22:49:24 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:49:24,442 [ERROR] ib_insync.wrapper: Error 1100, reqId -1: Connectivity between IBKR and Trader Workstation has been lost.
+Jan 30 22:49:24 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:49:24,442 [ERROR] qx_broker.ibkr.connection: Connection error: IBKR error 1100: Connectivity between IBKR and Trader Workstation has been lost. (-1)
+Jan 30 22:49:24 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:49:24,442 [ERROR] ib_insync.wrapper: Error 1100, reqId -1: Connectivity between IBKR and Trader Workstation has been lost.
+Jan 30 22:49:24 jacob-20nks0qn06 python[1612158]: 2026-01-30 22:49:24,443 [ERROR] qx_broker.ibkr.connection: Connection error: IBKR error 1100: Connectivity between IBKR and Trader Workstation has been lost. (-1)
+
+================================================================================
+4. SIGNAL GENERATION CHECK
+================================================================================
+
+--- L2 Scalping Signal Count ---
+Signals/Opportunities: 0
+
+--- L2 VWAP Signal Count ---
+Signals/Opportunities: 0
+
+================================================================================
+5. RISK LIMIT ANALYSIS
+================================================================================
+
+--- Risk Limit Messages ---
+
+================================================================================
+6. MARKET DATA CHECK
+================================================================================
+
+--- L2 Data Files for 2026-01-30 ---
+ERROR: No L2 data directory found for 2026-01-30
+
+--- L2 Collector Logs ---
+
+================================================================================
+7. CONNECTIVITY CHECK
+================================================================================
+
+--- IBKR Disconnections ---
+
+--- API Errors ---
+
+================================================================================
+8. CONFIGURATION CHECK
+================================================================================
+
+--- Service File Modification Times ---
+Modify: 2026-01-29 09:36:47.991510402 +0800
+Modify: 2026-01-24 20:23:11.586220290 +0800
+
+--- Config File Modification Times ---
+
+================================================================================
+9. FIRST 50 LOG LINES (L2 Scalping)
+================================================================================
+
+-- No entries --
+
+================================================================================
+10. FIRST 50 LOG LINES (L2 VWAP)
+================================================================================
+
+-- No entries --
+
+================================================================================
+INVESTIGATION COMPLETE
+================================================================================
+
+Summary:
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+- L2 Scalping trades:      4
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+- L2 VWAP trades:      0
+- L2 Scalping signals: 0
+- L2 VWAP signals: 0
+

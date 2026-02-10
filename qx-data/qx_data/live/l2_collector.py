@@ -1,6 +1,7 @@
 """L2 data collector integrated from transalpha/l2."""
 
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -30,12 +31,15 @@ class QuantstackL2Collector:
         collector_cfg = CollectorConfig(
             host=config.get("host", "127.0.0.1"),
             port=config.get("port", 7497),
-            client_id=config.get("client_id", 100),  # Avoid conflicts
+            client_id=config.get("client_id", 310),  # qx-data L2 range: 300-399
             symbols=symbols,
             levels=config.get("levels", 10),
             max_depth_symbols=config.get("max_symbols", 3),
             rotate_every_sec=config.get("rotate_seconds", 300),  # 5min rotation
-            out_dir=config.get("output_dir", "./data/live_l2"),
+            out_dir=config.get(
+                "output_dir",
+                f"{os.environ.get('L2_DATA_ROOT', '/home/jacobw/quantstack/data/l2')}/live_l2",
+            ),
             run_id=config.get("run_id", "quantstack_live"),
             session_windows_et=parse_windows(config.get("windows", ["09:30-16:00"])),
         )

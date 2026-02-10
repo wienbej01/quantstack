@@ -1,0 +1,583 @@
+{
+  "run_id": "2026-01-23_l2_impact_105017",
+  "mode": "falsification",
+  "placebo": false,
+  "falsification": "shift_30m",
+  "config": {
+    "seed": 42,
+    "baseline_window_minutes": 60,
+    "baseline_min_periods": 600,
+    "cooldown_seconds": 300,
+    "forward_minutes": 5,
+    "pre_minutes": 5,
+    "session_start": "09:30:00",
+    "session_end": "16:00:00",
+    "exclude_first_minutes": 5,
+    "exclude_last_minutes": 6,
+    "deep_level_min": 5,
+    "deep_level_max": 20,
+    "near_level_max": 4,
+    "min_events_target": 500,
+    "bootstrap_reps": 1000,
+    "thresholds": [
+      0.99
+    ],
+    "fallback_threshold": 0.97,
+    "use_robust_z": true,
+    "robust_z_threshold": 3.0,
+    "polygon": {
+      "adjusted": true,
+      "limit": 50000
+    },
+    "definitions": {
+      "def_a": {
+        "name": "Definition A",
+        "percentile": 0.99,
+        "persistence_seconds": 30
+      },
+      "def_b": {
+        "name": "Definition B",
+        "percentile_ratio": 0.99,
+        "percentile_deep": 0.9,
+        "persistence_seconds": 20
+      }
+    },
+    "controls": {
+      "use_volume_30m": true,
+      "use_hl_range": true
+    }
+  },
+  "seed": 42,
+  "l2_root": "/home/jacobw/quantstack/data",
+  "ohlcv_source": "polygon",
+  "timezone": "America/New_York",
+  "start_date": null,
+  "end_date": null,
+  "symbols": null,
+  "l2_groups": 80,
+  "l2_meta": [
+    {
+      "symbol": "A",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "AA",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "AAM",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "AAMI",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "AAP",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "AAT",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "CMG",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "FCX",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "HPE",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "PFE",
+      "date": "2025-12-16",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "ACHR",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "CRGY",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "HAL",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "LUV",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "MOS",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "PFE",
+      "date": "2025-12-17",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "HAL",
+      "date": "2025-12-19",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "LUV",
+      "date": "2025-12-19",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "PFE",
+      "date": "2025-12-19",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "SLB",
+      "date": "2025-12-19",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "XOM",
+      "date": "2025-12-19",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "HAL",
+      "date": "2025-12-23",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "LUV",
+      "date": "2025-12-23",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "PFE",
+      "date": "2025-12-23",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "HAL",
+      "date": "2026-01-07",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "KMI",
+      "date": "2026-01-07",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "NCLH",
+      "date": "2026-01-07",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "ACHR",
+      "date": "2026-01-08",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "BE",
+      "date": "2026-01-08",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "F",
+      "date": "2026-01-08",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "SMR",
+      "date": "2026-01-09",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "VST",
+      "date": "2026-01-09",
+      "max_level": 10,
+      "deep_min": 5,
+      "deep_max": 10,
+      "near_max": 4
+    },
+    {
+      "symbol": "RIOT",
+      "date": "2026-01-16",
+      "max_level": 5,
+      "deep_min": 5,
+      "deep_max": 5,
+      "near_max": 4
+    },
+    {
+      "symbol": "SLV",
+      "date": "2026-01-16",
+      "max_level": 5,
+      "deep_min": 5,
+      "deep_max": 5,
+      "near_max": 4
+    },
+    {
+      "symbol": "INTC",
+      "date": "2026-01-20",
+      "max_level": 5,
+      "deep_min": 5,
+      "deep_max": 5,
+      "near_max": 4
+    },
+    {
+      "symbol": "NVTS",
+      "date": "2026-01-20",
+      "max_level": 5,
+      "deep_min": 5,
+      "deep_max": 5,
+      "near_max": 4
+    },
+    {
+      "symbol": "INTC",
+      "date": "2026-01-22",
+      "max_level": 5,
+      "deep_min": 5,
+      "deep_max": 5,
+      "near_max": 4
+    }
+  ],
+  "skipped_l2_groups": [
+    {
+      "symbol": "T",
+      "date": "2025-12-16",
+      "reason": "No L2 snapshots in session for T on 2025-12-16"
+    },
+    {
+      "symbol": "VZ",
+      "date": "2025-12-16",
+      "reason": "No L2 snapshots in session for VZ on 2025-12-16"
+    },
+    {
+      "symbol": "ABBV",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for ABBV on 2025-12-19"
+    },
+    {
+      "symbol": "AXP",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for AXP on 2025-12-19"
+    },
+    {
+      "symbol": "BA",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for BA on 2025-12-19"
+    },
+    {
+      "symbol": "BAC",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for BAC on 2025-12-19"
+    },
+    {
+      "symbol": "BLK",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for BLK on 2025-12-19"
+    },
+    {
+      "symbol": "BMY",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for BMY on 2025-12-19"
+    },
+    {
+      "symbol": "C",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for C on 2025-12-19"
+    },
+    {
+      "symbol": "CAT",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for CAT on 2025-12-19"
+    },
+    {
+      "symbol": "CI",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for CI on 2025-12-19"
+    },
+    {
+      "symbol": "COF",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for COF on 2025-12-19"
+    },
+    {
+      "symbol": "COP",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for COP on 2025-12-19"
+    },
+    {
+      "symbol": "CVS",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for CVS on 2025-12-19"
+    },
+    {
+      "symbol": "CVX",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for CVX on 2025-12-19"
+    },
+    {
+      "symbol": "DE",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for DE on 2025-12-19"
+    },
+    {
+      "symbol": "DIS",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for DIS on 2025-12-19"
+    },
+    {
+      "symbol": "DVN",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for DVN on 2025-12-19"
+    },
+    {
+      "symbol": "EOG",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for EOG on 2025-12-19"
+    },
+    {
+      "symbol": "FDX",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for FDX on 2025-12-19"
+    },
+    {
+      "symbol": "GE",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for GE on 2025-12-19"
+    },
+    {
+      "symbol": "GS",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for GS on 2025-12-19"
+    },
+    {
+      "symbol": "HD",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for HD on 2025-12-19"
+    },
+    {
+      "symbol": "HUM",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for HUM on 2025-12-19"
+    },
+    {
+      "symbol": "JNJ",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for JNJ on 2025-12-19"
+    },
+    {
+      "symbol": "JPM",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for JPM on 2025-12-19"
+    },
+    {
+      "symbol": "KO",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for KO on 2025-12-19"
+    },
+    {
+      "symbol": "LLY",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for LLY on 2025-12-19"
+    },
+    {
+      "symbol": "LMT",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for LMT on 2025-12-19"
+    },
+    {
+      "symbol": "LOW",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for LOW on 2025-12-19"
+    },
+    {
+      "symbol": "MCD",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for MCD on 2025-12-19"
+    },
+    {
+      "symbol": "MMM",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for MMM on 2025-12-19"
+    },
+    {
+      "symbol": "MRK",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for MRK on 2025-12-19"
+    },
+    {
+      "symbol": "MS",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for MS on 2025-12-19"
+    },
+    {
+      "symbol": "NKE",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for NKE on 2025-12-19"
+    },
+    {
+      "symbol": "OXY",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for OXY on 2025-12-19"
+    },
+    {
+      "symbol": "RTX",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for RTX on 2025-12-19"
+    },
+    {
+      "symbol": "SCHW",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for SCHW on 2025-12-19"
+    },
+    {
+      "symbol": "TGT",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for TGT on 2025-12-19"
+    },
+    {
+      "symbol": "UNH",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for UNH on 2025-12-19"
+    },
+    {
+      "symbol": "UPS",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for UPS on 2025-12-19"
+    },
+    {
+      "symbol": "WFC",
+      "date": "2025-12-19",
+      "reason": "No L2 snapshots in session for WFC on 2025-12-19"
+    },
+    {
+      "symbol": "GLSI",
+      "date": "2026-01-22",
+      "reason": "Insufficient depth levels (max 2) in L2 data for GLSI"
+    }
+  ],
+  "dropped_events": {
+    "def_a": 0,
+    "def_b": 0
+  },
+  "thresholds": [
+    0.99,
+    0.97
+  ],
+  "fallback_threshold_used": true,
+  "timestamp": "2026-01-23T08:12:43.155011Z"
+}

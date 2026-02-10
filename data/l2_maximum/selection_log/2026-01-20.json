@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-20",
+  "timestamp": "2026-01-20T15:59:59.718810",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "INTC",
+    "NVTS",
+    "NVAX"
+  ],
+  "core": [],
+  "rotating": [
+    "INTC",
+    "NVTS",
+    "NVAX"
+  ]
+}

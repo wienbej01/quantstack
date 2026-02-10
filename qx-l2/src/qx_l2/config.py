@@ -6,10 +6,12 @@ from typing import Any
 
 import yaml
 
+L2_DATA_ROOT = Path(os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")).expanduser()
+
 DEFAULT_CONFIG = {
     "system": {
         "name": "L2COLLECT",
-        "client_id": 500,
+        "client_id": 10,
     },
     "ibkr": {
         "host": "127.0.0.1",
@@ -40,7 +42,7 @@ DEFAULT_CONFIG = {
         "holidays": [],
     },
     "storage": {
-        "base_dir": "./data/l2",
+        "base_dir": str(L2_DATA_ROOT / "l2"),
         "format": "parquet",
         "compression": "snappy",
         "flush_rows": 300,
@@ -53,7 +55,7 @@ DEFAULT_CONFIG = {
     },
     "journal": {
         "enabled": True,
-        "db_path": "./data/l2/journal.db",
+        "db_path": str(L2_DATA_ROOT / "l2" / "journal.db"),
     },
 }
 

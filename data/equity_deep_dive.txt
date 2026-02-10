@@ -1,0 +1,1064 @@
+=== PLS.AX FULL INFO ===
+  52WeekChange: 0.8727273
+  SandP52WeekChange: 0.14272952
+  address1: 146 Colin Street
+  address2: Level 2
+  allTimeHigh: 5.66
+  allTimeLow: 0.007452
+  ask: 4.17
+  askSize: 0
+  auditRisk: 4
+  averageAnalystRating: 2.6 - Hold
+  averageDailyVolume10Day: 38279458
+  averageDailyVolume3Month: 30104654
+  averageVolume: 30104654
+  averageVolume10days: 38279458
+  beta: 0.661
+  bid: 4.15
+  bidSize: 0
+  boardRisk: 1
+  bookValue: 1.097
+  city: West Perth
+  companyOfficers: [{'maxAge': 1, 'name': 'Mr. Dale Robert Henderson B Eng (Civil)', 'title': 'MD, CEO & Executive Director', 'fiscalYear': 2025, 'totalPay': 2939262, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Flavio Lino Garofalo CPA', 'title': 'Interim Chief Financial Officer', 'fiscalYear': 2025, 'totalPay': 768553, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Brett  McFadgen', 'title': 'Chief Operating Officer', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. James  Fuller', 'title': 'Manager of IR', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Sandra  McInnes', 'title': 'Chief People & Sustainability Officer', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. John  Stanning', 'title': 'Chief Development Officer', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Danielle  Webber AGIA, B.A.', 'title': 'Company Secretary', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}]
+  compensationAsOfEpochDate: 1767139200
+  compensationRisk: 7
+  corporateActions: []
+  country: Australia
+  cryptoTradeable: False
+  currency: AUD
+  currentPrice: 4.17
+  currentRatio: 4.349
+  customPriceAlertConfidence: LOW
+  dayHigh: 4.24
+  dayLow: 4.07
+  debtToEquity: 19.318
+  earningsCallTimestampEnd: 1771452000
+  earningsCallTimestampStart: 1771452000
+  earningsTimestamp: 1771477920
+  earningsTimestampEnd: 1771477920
+  earningsTimestampStart: 1771477920
+  ebitda: 21321000
+  ebitdaMargins: 0.02773
+  enterpriseToEbitda: 608.138
+  enterpriseToRevenue: 16.864
+  enterpriseValue: 12966108160
+  epsCurrentYear: 0.14625
+  epsForward: 0.25276
+  epsTrailingTwelveMonths: -0.06
+  esgPopulated: False
+  exDividendDate: 1693872000
+  exchange: ASX
+  exchangeDataDelayedBy: 20
+  exchangeTimezoneName: Australia/Sydney
+  exchangeTimezoneShortName: AEDT
+  executiveTeam: []
+  fax: 61 8 6266 6288
+  fiftyDayAverage: 4.3852
+  fiftyDayAverageChange: -0.21519995
+  fiftyDayAverageChangePercent: -0.049074147
+  fiftyTwoWeekChangePercent: 87.27273
+  fiftyTwoWeekHigh: 5.16
+  fiftyTwoWeekHighChange: -0.9899998
+  fiftyTwoWeekHighChangePercent: -0.19186042
+  fiftyTwoWeekLow: 1.07
+  fiftyTwoWeekLowChange: 3.1
+  fiftyTwoWeekLowChangePercent: 2.897196
+  fiftyTwoWeekRange: 1.07 - 5.16
+  financialCurrency: AUD
+  firstTradeDateMilliseconds: 1190160000000
+  floatShares: 2994512615
+  forwardEps: 0.25276
+  forwardPE: 16.497864
+  freeCashflow: -518733120
+  fullExchangeName: ASX
+  fullTimeEmployees: 950
+  gmtOffSetMilliseconds: 39600000
+  governanceEpochDate: 1769904000
+  grossMargins: -0.01054
+  grossProfits: -8100000
+  hasPrePostMarketData: False
+  heldPercentInsiders: 0.110810004
+  heldPercentInstitutions: 0.48457
+  impliedSharesOutstanding: 3220868985
+  industry: Other Industrial Metals & Mining
+  industryDisp: Other Industrial Metals & Mining
+  industryKey: other-industrial-metals-mining
+  isEarningsDateEstimate: False
+  language: en-US
+  lastDividendDate: 1693872000
+  lastDividendValue: 0.14
+  lastFiscalYearEnd: 1751241600
+  lastSplitDate: 1206921600
+  lastSplitFactor: 1:5
+  longBusinessSummary: PLS Group Limited engages in the exploration, development, and operation of mineral resources in Australia. The company primarily explores for lithium. Its flagship projects is the 100% owned Pilgangoora project located in the Pilbara region of Western Australia. The company was formerly known as Pilbara Minerals Limited and changed its name to PLS Group Limited in November 2025. The company was incorporated in 2005 and is based in West Perth, Australia.
+  longName: PLS Group Limited
+  market: au_market
+  marketCap: 13431023616
+  marketState: POSTPOST
+  maxAge: 86400
+  messageBoardId: finmb_222394811
+  mostRecentQuarter: 1751241600
+  nameChangeDate: 2026-02-09
+  netIncomeToCommon: -195766000
+  nextFiscalYearEnd: 1782777600
+  numberOfAnalystOpinions: 17
+  open: 4.24
+  operatingCashflow: 146215008
+  operatingMargins: -0.30726
+  overallRisk: 2
+  payoutRatio: 0.0
+  phone: 61 8 6266 6266
+  prevName: Pilbara Minerals Limited
+  previousClose: 4.12
+  priceEpsCurrentYear: 28.512821
+  priceHint: 4
+  priceToBook: 3.8012762
+  priceToSalesTrailing12Months: 17.468979
+  profitMargins: -0.25462
+  quickRatio: 3.722
+  quoteSourceName: Delayed Quote
+  quoteType: EQUITY
+  recommendationKey: hold
+  recommendationMean: 2.58824
+  region: US
+  regularMarketChange: 0.05000019
+  regularMarketChangePercent: 1.2135968
+  regularMarketDayHigh: 4.24
+  regularMarketDayLow: 4.07
+  regularMarketDayRange: 4.07 - 4.24
+  regularMarketOpen: 4.24
+  regularMarketPreviousClose: 4.12
+  regularMarketPrice: 4.17
+  regularMarketTime: 1770613864
+  regularMarketVolume: 20841401
+  returnOnAssets: -0.02039
+  returnOnEquity: -0.057789996
+  revenueGrowth: -0.309
+  revenuePerShare: 0.248
+  sector: Basic Materials
+  sectorDisp: Basic Materials
+  sectorKey: basic-materials
+  shareHolderRightsRisk: 1
+  sharesOutstanding: 3220868985
+  shortName: PLSGROUP FPO [PLS]
+  sourceInterval: 20
+  state: WA
+  symbol: PLS.AX
+  targetHighPrice: 5.6
+  targetLowPrice: 2.5
+  targetMeanPrice: 4.49118
+  targetMedianPrice: 5.0
+  totalCash: 974417024
+  totalCashPerShare: 0.303
+  totalDebt: 682211008
+  totalRevenue: 768849984
+  tradeable: False
+  trailingAnnualDividendRate: 0.0
+  trailingAnnualDividendYield: 0.0
+  trailingEps: -0.06
+  trailingPegRatio: None
+  triggerable: False
+  twoHundredDayAverage: 2.719725
+  twoHundredDayAverageChange: 1.4502752
+  twoHundredDayAverageChangePercent: 0.53324336
+  typeDisp: Equity
+  volume: 20841401
+  website: https://www.pls.com
+  zip: 6005
+
+=== PLS.AX MAJOR HOLDERS ===
+Breakdown                         Value
+insidersPercentHeld             0.11081
+institutionsPercentHeld         0.48457
+institutionsFloatPercentHeld    0.54496
+institutionsCount             171.00000
+
+=== PLS.AX INSTITUTIONAL HOLDERS ===
+  Date Reported                                          Holder  pctHeld  Shares  Value  pctChange
+0    2025-12-31  Nbc Securities, Inc.                                0.0    1000   4170        0.0
+
+=== PLS.AX FINANCIALS ===
+                                                              2025-06-30    2024-06-30    2023-06-30    2022-06-30
+Tax Effect Of Unusual Items                                 0.000000e+00  0.000000e+00  0.000000e+00  0.000000e+00
+Tax Rate For Calcs                                          1.146140e-01  3.625640e-01  2.907940e-01  2.250890e-01
+Normalized EBITDA                                           7.530700e+07  6.449080e+08  3.501521e+09  8.222860e+08
+Net Income From Continuing Operation Net Minority Interest -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Reconciled Depreciation                                     2.212890e+08  1.503770e+08  1.058390e+08  4.488300e+07
+Reconciled Cost Of Revenue                                  5.586480e+08  5.787120e+08  6.719380e+08  3.367180e+08
+EBITDA                                                      7.530700e+07  6.449080e+08  3.501521e+09  8.222860e+08
+EBIT                                                       -1.459820e+08  4.945310e+08  3.395682e+09  7.774030e+08
+Net Interest Income                                        -3.067300e+07  1.582700e+07  1.602490e+08 -4.426100e+07
+Interest Expense                                            7.512600e+07  9.153700e+07  2.411600e+07  5.238400e+07
+Interest Income                                             5.672500e+07  1.181680e+08  1.910910e+08  1.133000e+07
+Normalized Income                                          -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Net Income From Continuing And Discontinued Operation      -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Diluted Average Shares                                      3.094022e+09  3.040036e+09  3.029437e+09  3.041825e+09
+Basic Average Shares                                        3.094022e+09  3.007854e+09  2.992158e+09  2.960016e+09
+Diluted EPS                                                -6.330000e-02  8.450000e-02  7.893000e-01  1.847000e-01
+Basic EPS                                                  -6.330000e-02  8.540000e-02  7.991000e-01  1.898000e-01
+Net Income Common Stockholders                             -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Net Income                                                 -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Net Income Including Noncontrolling Interests              -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Net Income Continuous Operations                           -1.957660e+08  2.568830e+08  2.391135e+09  5.618250e+08
+Tax Provision                                              -2.534200e+07  1.461110e+08  9.804310e+08  1.631940e+08
+Pretax Income                                              -2.211080e+08  4.029940e+08  3.371566e+09  7.250190e+08
+Other Income Expense                                       -1.680130e+08 -5.494110e+08 -2.522030e+08  2.866800e+07
+Other Non Operating Income Expenses                        -1.213570e+08 -5.388590e+08 -2.515970e+08  2.846000e+07
+Earnings From Equity Interest                              -4.665600e+07 -1.055200e+07 -6.060000e+05  2.080000e+05
+Net Non Operating Interest Income Expense                  -3.067300e+07  1.582700e+07  1.602490e+08 -4.426100e+07
+Total Other Finance Cost                                    1.227200e+07  1.080400e+07  6.726000e+06  3.207000e+06
+Interest Expense Non Operating                              7.512600e+07  9.153700e+07  2.411600e+07  5.238400e+07
+Interest Income Non Operating                               5.672500e+07  1.181680e+08  1.910910e+08  1.133000e+07
+Operating Income                                           -2.242200e+07  9.365780e+08  3.463520e+09  7.406120e+08
+Operating Expense                                           3.539810e+08  2.776870e+08  1.800750e+08  8.490500e+07
+Other Operating Expenses                                    5.757700e+07  4.575700e+07  1.974000e+07  1.391500e+07
+Depreciation Amortization Depletion Income Statement        2.212890e+08  1.503770e+08  1.058390e+08  4.488300e+07
+Depreciation And Amortization In Income Statement           2.212890e+08  1.503770e+08  1.058390e+08  4.488300e+07
+Depreciation Income Statement                               2.212890e+08  1.503770e+08  1.058390e+08  4.488300e+07
+Selling General And Administration                          7.511500e+07  8.155300e+07  5.449600e+07  2.610700e+07
+General And Administrative Expense                          7.511500e+07  8.155300e+07  5.449600e+07  2.610700e+07
+Other Gand A                                                6.390300e+07  6.577300e+07  4.168800e+07  2.092900e+07
+Salaries And Wages                                          1.121200e+07  1.578000e+07  1.280800e+07  5.178000e+06
+Gross Profit                                                3.315590e+08  1.214265e+09  3.643595e+09  8.255170e+08
+Cost Of Revenue                                             5.586480e+08  5.787120e+08  6.719380e+08  3.367180e+08
+Total Revenue                                               8.902070e+08  1.792977e+09  4.315533e+09  1.162235e+09
+Operating Revenue                                           8.902070e+08  1.792977e+09  4.315533e+09  1.162235e+09
+
+=== PLS.AX BALANCE SHEET ===
+                                                              2025-06-30    2024-06-30    2023-06-30    2022-06-30   2021-06-30
+Ordinary Shares Number                                      3.217930e+09  3.009721e+09  2.998187e+09  2.976848e+09          NaN
+Share Issued                                                3.217930e+09  3.009721e+09  2.998187e+09  2.976848e+09          NaN
+Net Debt                                                             NaN           NaN           NaN           NaN   41496000.0
+Total Debt                                                  6.822110e+08  5.557430e+08  4.719490e+08  2.919640e+08          NaN
+Tangible Book Value                                         3.531404e+09  3.244169e+09  3.390022e+09  1.292026e+09          NaN
+Invested Capital                                            3.987559e+09  3.691037e+09  3.722882e+09  1.526736e+09          NaN
+Working Capital                                             9.597560e+08  1.515143e+09  2.273854e+09  6.228440e+08          NaN
+Net Tangible Assets                                         3.531404e+09  3.244169e+09  3.390022e+09  1.292026e+09          NaN
+Capital Lease Obligations                                   2.260560e+08  1.088750e+08  1.390890e+08  5.725400e+07          NaN
+Common Stock Equity                                         3.531404e+09  3.244169e+09  3.390022e+09  1.292026e+09          NaN
+Total Capitalization                                        3.987559e+09  3.630603e+09  3.662479e+09  1.496253e+09          NaN
+Total Equity Gross Minority Interest                        3.531404e+09  3.244169e+09  3.390022e+09  1.292026e+09          NaN
+Stockholders Equity                                         3.531404e+09  3.244169e+09  3.390022e+09  1.292026e+09          NaN
+Gains Losses Not Affecting Retained Earnings                1.279900e+07  6.654000e+06  1.452900e+07  9.558000e+06          NaN
+Other Equity Adjustments                                    1.279900e+07  6.654000e+06  1.246800e+07  9.558000e+06          NaN
+Fixed Assets Revaluation Reserve                                     NaN           NaN -9.920000e+05           NaN          NaN
+Foreign Currency Translation Adjustments                             NaN           NaN  3.053000e+06           NaN          NaN
+Retained Earnings                                           2.080811e+09  2.270567e+09  2.409263e+09  3.173900e+08          NaN
+Capital Stock                                               1.437794e+09  9.669480e+08  9.662300e+08  9.650780e+08          NaN
+Common Stock                                                1.437794e+09  9.669480e+08  9.662300e+08  9.650780e+08          NaN
+Total Liabilities Net Minority Interest                     1.135991e+09  1.065076e+09  1.808813e+09  6.863620e+08          NaN
+Total Non Current Liabilities Net Minority Interest         8.494530e+08  6.346240e+08  5.147360e+08  3.490150e+08          NaN
+Employee Benefits                                           2.004000e+06  1.057000e+06  1.108000e+06           NaN     326000.0
+Non Current Pension And Other Postretirement Benefit Plans  2.004000e+06  1.057000e+06  1.108000e+06           NaN     326000.0
+Tradeand Other Payables Non Current                                  NaN           NaN  3.880000e+06  1.092900e+07   16454000.0
+Non Current Deferred Liabilities                            1.308740e+08  1.575040e+08  1.213690e+08  6.364000e+07          NaN
+Non Current Deferred Taxes Liabilities                      1.308740e+08  1.575040e+08  1.213690e+08  6.364000e+07          NaN
+Long Term Debt And Capital Lease Obligation                 6.436740e+08  4.199700e+08  3.476180e+08  2.361960e+08          NaN
+Long Term Capital Lease Obligation                          1.875190e+08  3.353600e+07  7.516100e+07  3.196900e+07          NaN
+Long Term Debt                                              4.561550e+08  3.864340e+08  2.724570e+08  2.042270e+08          NaN
+Long Term Provisions                                        7.290100e+07  5.609300e+07  4.076100e+07  3.825000e+07          NaN
+Current Liabilities                                         2.865380e+08  4.304520e+08  1.294077e+09  3.373470e+08          NaN
+Other Current Liabilities                                            NaN           NaN           NaN           NaN  100004000.0
+Current Deferred Liabilities                                         NaN           NaN  7.733470e+08  9.014800e+07          NaN
+Current Deferred Taxes Liabilities                                   NaN           NaN  7.733470e+08  9.014800e+07          NaN
+Current Debt And Capital Lease Obligation                   3.853700e+07  1.357730e+08  1.243310e+08  5.576800e+07          NaN
+Current Capital Lease Obligation                            3.853700e+07  7.533900e+07  6.392800e+07  2.528500e+07          NaN
+Current Debt                                                         NaN  6.043400e+07  6.040300e+07  3.048300e+07          NaN
+Other Current Borrowings                                             NaN  6.043400e+07  6.040300e+07  3.048300e+07          NaN
+Pensionand Other Post Retirement Benefit Plans Current      1.120500e+07  9.271000e+06  6.203000e+06  3.494000e+06          NaN
+Current Provisions                                                   NaN           NaN  2.984000e+06  3.782000e+06          NaN
+Payables And Accrued Expenses                               2.367960e+08  2.854080e+08  3.872120e+08  1.841550e+08          NaN
+Payables                                                    2.367960e+08  2.854080e+08  3.872120e+08  1.841550e+08          NaN
+Other Payable                                               1.824150e+08  2.605770e+08  3.575750e+08  1.394390e+08          NaN
+Accounts Payable                                            5.438100e+07  2.483100e+07  2.963700e+07  4.471600e+07          NaN
+Total Assets                                                4.667395e+09  4.309245e+09  5.198835e+09  1.978388e+09          NaN
+Total Non Current Assets                                    3.421101e+09  2.363650e+09  1.630904e+09  1.018197e+09          NaN
+Other Non Current Assets                                    1.167710e+08  8.238700e+07  2.912100e+07           NaN          NaN
+Financial Assets                                            1.598900e+07  5.548900e+07  1.167770e+08  1.953000e+06          NaN
+Investments And Advances                                    6.436200e+07  7.261400e+07  1.004720e+08  7.759400e+07          NaN
+Other Investments                                                    NaN           NaN  2.110000e+05  1.953000e+06          NaN
+Investmentin Financial Assets                               3.795000e+06  7.025000e+06  2.133200e+07           NaN          NaN
+Trading Securities                                          3.795000e+06  7.025000e+06  2.133200e+07           NaN          NaN
+Long Term Equity Investment                                 6.056700e+07  6.558900e+07  7.892900e+07  7.759400e+07          NaN
+Investmentsin Associatesat Cost                             6.056700e+07  6.558900e+07  7.892900e+07  7.759400e+07          NaN
+Net PPE                                                     3.223979e+09  2.153160e+09  1.384534e+09  9.386500e+08          NaN
+Accumulated Depreciation                                   -4.461640e+08 -3.115110e+08 -1.637630e+08 -7.429800e+07          NaN
+Gross PPE                                                   3.670143e+09  2.464671e+09  1.548297e+09  1.012948e+09          NaN
+Other Properties                                            1.032848e+09  4.273110e+08  4.096510e+08  2.788830e+08          NaN
+Machinery Furniture Equipment                               8.466000e+06  7.014000e+06  5.136000e+06  1.813000e+06          NaN
+Land And Improvements                                       5.969000e+06           NaN           NaN           NaN          NaN
+Properties                                                  2.622860e+09  2.030346e+09  1.133510e+09  7.322520e+08          NaN
+Current Assets                                              1.246294e+09  1.945595e+09  3.567931e+09  9.601910e+08          NaN
+Hedging Assets Current                                      5.194000e+06  2.031000e+06  8.800000e+04           NaN          NaN
+Current Deferred Assets                                     6.871800e+07  1.067780e+08           NaN           NaN          NaN
+Current Deferred Taxes Assets                               6.871800e+07  1.067780e+08           NaN           NaN          NaN
+Prepaid Assets                                              1.494100e+07           NaN           NaN  3.652000e+06    1415000.0
+Inventory                                                   1.596200e+08  1.322300e+08  9.725100e+07  6.930700e+07          NaN
+Finished Goods                                              1.113670e+08  9.942600e+07  7.953400e+07  4.822000e+07          NaN
+Work In Process                                             4.825300e+07  3.280400e+07  1.771700e+07  2.108700e+07          NaN
+Receivables                                                 2.328500e+07  7.808000e+07  1.320390e+08  2.954930e+08          NaN
+Other Receivables                                           1.792200e+07  3.567300e+07  4.998200e+07  6.978000e+06          NaN
+Accounts Receivable                                         5.363000e+06  4.240700e+07  8.205700e+07  2.885150e+08          NaN
+Cash Cash Equivalents And Short Term Investments            9.745360e+08  1.626476e+09  3.338553e+09  5.917390e+08          NaN
+Cash And Cash Equivalents                                   9.745360e+08  1.626476e+09  3.338553e+09  5.917390e+08          NaN
+Cash Equivalents                                            8.315600e+08  1.551232e+09  3.010674e+09  5.069180e+08          NaN
+Cash Financial                                              1.429760e+08  7.524400e+07  3.278790e+08  8.482100e+07          NaN
+
+=== PLS.AX CASHFLOW ===
+                                                    2025-06-30    2024-06-30    2023-06-30   2022-06-30   2021-06-30
+Free Cash Flow                                   -5.081300e+08 -1.250225e+09  3.071153e+09  519280000.0          NaN
+Repurchase Of Capital Stock                                NaN           NaN           NaN          NaN   -8300000.0
+Repayment Of Debt                                -3.681940e+08 -3.369700e+07 -1.938160e+08  -52396000.0          NaN
+Issuance Of Debt                                  3.750000e+08  1.422640e+08  2.771650e+08  107254000.0          NaN
+Issuance Of Capital Stock                         2.040000e+05  7.180000e+05  1.152000e+06    3564000.0          NaN
+Capital Expenditure                              -6.543450e+08 -8.100010e+08 -3.855400e+08 -128327000.0          NaN
+Income Tax Paid Supplemental Data                -3.570300e+07  9.727990e+08  2.094840e+08          NaN          NaN
+End Cash Position                                 9.744170e+08  1.626476e+09  3.338553e+09  591739000.0          NaN
+Beginning Cash Position                           1.626476e+09  3.338553e+09  5.917390e+08   99712000.0          NaN
+Effect Of Exchange Rate Changes                  -2.112000e+06 -1.078800e+07  1.320400e+07    3407000.0          NaN
+Changes In Cash                                  -6.499470e+08 -1.701289e+09  2.733610e+09  488620000.0          NaN
+Financing Cash Flow                              -9.805500e+07 -4.335530e+08 -3.151250e+08   45538000.0          NaN
+Cash Flow From Continuing Financing Activities   -9.805500e+07 -4.335530e+08 -3.151250e+08   45538000.0          NaN
+Net Other Financing Charges                      -6.941800e+07 -8.100100e+07 -4.891700e+07   -1253000.0          NaN
+Interest Paid Cff                                -3.564700e+07 -4.081600e+07 -2.092800e+07  -11631000.0          NaN
+Cash Dividends Paid                                        NaN -4.210210e+08 -3.297810e+08          NaN          NaN
+Common Stock Dividend Paid                                 NaN -4.210210e+08 -3.297810e+08          NaN          NaN
+Net Common Stock Issuance                         2.040000e+05  7.180000e+05  1.152000e+06    3564000.0          NaN
+Common Stock Payments                                      NaN           NaN           NaN          NaN   -8300000.0
+Common Stock Issuance                             2.040000e+05  7.180000e+05  1.152000e+06    3564000.0          NaN
+Net Issuance Payments Of Debt                     6.806000e+06  1.085670e+08  8.334900e+07   54858000.0          NaN
+Net Long Term Debt Issuance                       6.806000e+06  1.085670e+08  8.334900e+07   54858000.0          NaN
+Long Term Debt Payments                          -3.681940e+08 -3.369700e+07 -1.938160e+08  -52396000.0          NaN
+Long Term Debt Issuance                           3.750000e+08  1.422640e+08  2.771650e+08  107254000.0          NaN
+Investing Cash Flow                              -6.981070e+08 -8.275120e+08 -4.079580e+08 -204525000.0          NaN
+Cash Flow From Continuing Investing Activities   -6.981070e+08 -8.275120e+08 -4.079580e+08 -204525000.0          NaN
+Net Other Investing Changes                      -3.581000e+06           NaN           NaN          NaN          NaN
+Net Investment Purchase And Sale                 -4.018100e+07 -4.848000e+06 -2.241800e+07  -76198000.0          NaN
+Sale Of Investment                                         NaN  8.029200e+07           NaN          NaN          NaN
+Purchase Of Investment                           -4.018100e+07 -8.514000e+07 -2.241800e+07  -76198000.0          NaN
+Net Business Purchase And Sale                             NaN -1.266300e+07 -7.600000e+04  -76198000.0 -210302000.0
+Purchase Of Business                                       NaN -1.266300e+07 -7.600000e+04  -76198000.0 -210302000.0
+Net PPE Purchase And Sale                        -6.347200e+08 -8.100010e+08 -3.855400e+08 -128327000.0          NaN
+Purchase Of PPE                                  -6.347200e+08 -8.100010e+08 -3.855400e+08 -128327000.0          NaN
+Capital Expenditure Reported                     -1.962500e+07           NaN           NaN          NaN          NaN
+Cash Flowsfromusedin Operating Activities Direct  1.462150e+08 -4.402240e+08  3.456693e+09  647607000.0          NaN
+Taxes Refund Paid Direct                          3.570300e+07 -9.727990e+08 -2.094840e+08          NaN          NaN
+Interest Received Direct                          6.138700e+07  1.175630e+08  5.960900e+07     321000.0          NaN
+Classesof Cash Payments                          -7.917830e+08 -7.634210e+08 -7.805440e+08 -320803000.0          NaN
+Other Cash Paymentsfrom Operating Activities     -8.314400e+07 -4.241500e+07 -1.794000e+07   -9919000.0          NaN
+Paymentsto Suppliersfor Goodsand Services        -7.086390e+08 -7.210060e+08 -7.626040e+08 -310884000.0          NaN
+Classesof Cash Receiptsfrom Operating Activities  8.409080e+08  1.178433e+09  4.387112e+09  968089000.0          NaN
+Other Cash Receiptsfrom Operating Activities      9.000000e+06  5.613000e+06  1.490000e+05          NaN          NaN
+Receiptsfrom Customers                            8.319080e+08  1.172820e+09  4.386963e+09  968089000.0          NaN
+
+=== PLS.AX RECOMMENDATIONS ===
+  period  strongBuy  buy  hold  sell  strongSell
+0     0m          4    4     6     2           1
+1    -1m          4    2     7     3           1
+2    -2m          3    1    10     3           0
+3    -3m          3    1     9     4           0
+
+================================================================================
+=== NIC.AX FULL INFO ===
+  52WeekChange: 0.18666661
+  SandP52WeekChange: 0.14272952
+  address1: 66 Hunter Street
+  address2: Level 2
+  allTimeHigh: 1.79
+  allTimeLow: 0.211182
+  ask: 0.935
+  askSize: 0
+  auditRisk: 8
+  averageAnalystRating: 1.3 - Strong Buy
+  averageDailyVolume10Day: 21086181
+  averageDailyVolume3Month: 13263143
+  averageVolume: 13263143
+  averageVolume10days: 21086181
+  beta: 0.891
+  bid: 0.925
+  bidSize: 0
+  boardRisk: 10
+  bookValue: 0.69309753
+  city: Sydney
+  companyOfficers: [{'maxAge': 1, 'name': 'Mr. Norman Alfred Seckold BEcon', 'age': 77, 'title': 'Executive Chairman', 'yearBorn': 1948, 'fiscalYear': 2024, 'totalPay': 400000, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Justin Charles Werner', 'age': 51, 'title': 'MD & Director', 'yearBorn': 1974, 'fiscalYear': 2024, 'totalPay': 941506, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Christopher Leslie Shepherd', 'title': 'CFO & Executive Director', 'fiscalYear': 2024, 'totalPay': 1332742, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Tony  Green', 'title': 'Chief Operating Officer', 'fiscalYear': 2024, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Fanfan  Zhao', 'title': 'Chief Development Officer', 'fiscalYear': 2024, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. .  Muchtazar', 'title': 'Sustainability Manager', 'fiscalYear': 2024, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Vijay  Nair', 'title': 'CFO Mining Operations', 'fiscalYear': 2024, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Richard James Edwards BCom, CPA, FGIA, SA Fin', 'title': 'Company Secretary', 'fiscalYear': 2024, 'exercisedValue': 0, 'unexercisedValue': 0}]
+  compensationAsOfEpochDate: 1735603200
+  compensationRisk: 7
+  corporateActions: []
+  country: Australia
+  cryptoTradeable: False
+  currency: AUD
+  currentPrice: 0.93
+  currentRatio: 1.6
+  customPriceAlertConfidence: LOW
+  dayHigh: 0.94
+  dayLow: 0.905
+  debtToEquity: 41.035
+  dividendRate: 0.04
+  dividendYield: 4.3
+  earningsCallTimestampEnd: 1756342800
+  earningsCallTimestampStart: 1756342800
+  earningsGrowth: 1.17
+  earningsQuarterlyGrowth: 1.193
+  earningsTimestampEnd: 1756361520
+  earningsTimestampStart: 1756361520
+  ebitda: 281672704
+  ebitdaMargins: 0.16273001
+  enterpriseToEbitda: 18.501
+  enterpriseToRevenue: 3.011
+  enterpriseValue: 5211230208
+  epsCurrentYear: 0.00758
+  epsForward: 0.07304
+  epsTrailingTwelveMonths: -0.05
+  esgPopulated: False
+  exDividendDate: 1740614400
+  exchange: ASX
+  exchangeDataDelayedBy: 20
+  exchangeTimezoneName: Australia/Sydney
+  exchangeTimezoneShortName: AEDT
+  executiveTeam: []
+  fax: 61 2 9221 6333
+  fiftyDayAverage: 0.8531
+  fiftyDayAverageChange: 0.076900005
+  fiftyDayAverageChangePercent: 0.09014184
+  fiftyTwoWeekChangePercent: 18.66666
+  fiftyTwoWeekHigh: 1.04
+  fiftyTwoWeekHighChange: -0.109999955
+  fiftyTwoWeekHighChangePercent: -0.105769195
+  fiftyTwoWeekLow: 0.42
+  fiftyTwoWeekLowChange: 0.51
+  fiftyTwoWeekLowChangePercent: 1.2142857
+  fiftyTwoWeekRange: 0.42 - 1.04
+  financialCurrency: USD
+  firstTradeDateMilliseconds: 1534723200000
+  fiveYearAvgDividendYield: 4.37
+  floatShares: 2032435370
+  forwardEps: 0.07304
+  forwardPE: 12.732749
+  freeCashflow: 72990256
+  fullExchangeName: ASX
+  gmtOffSetMilliseconds: 39600000
+  governanceEpochDate: 1769904000
+  grossMargins: 0.18882
+  grossProfits: 326817408
+  hasPrePostMarketData: False
+  heldPercentInsiders: 0.54105
+  heldPercentInstitutions: 0.21564
+  impliedSharesOutstanding: 4340935876
+  industry: Other Industrial Metals & Mining
+  industryDisp: Other Industrial Metals & Mining
+  industryKey: other-industrial-metals-mining
+  isEarningsDateEstimate: False
+  language: en-US
+  lastDividendDate: 1740528000
+  lastDividendValue: 0.015
+  lastFiscalYearEnd: 1735603200
+  longBusinessSummary: Nickel Industries Limited engages in nickel ore mining, nickel pig iron, cobalt, and nickel matte production activities. It is also involved in the production of mixed hydroxide precipitate for use in the electric vehicle supply chain. The company was formerly known as Nickel Mines Limited and changed its name to Nickel Industries Limited in June 2022. The company was incorporated in 2007 and is based in Sydney, Australia.
+  longName: Nickel Industries Limited
+  market: au_market
+  marketCap: 4037070336
+  marketState: POSTPOST
+  maxAge: 86400
+  messageBoardId: finmb_228606631
+  mostRecentQuarter: 1751241600
+  nameChangeDate: 2026-02-09
+  netIncomeToCommon: -162460304
+  nextFiscalYearEnd: 1767139200
+  numberOfAnalystOpinions: 7
+  open: 0.91
+  operatingCashflow: 159482496
+  operatingMargins: 0.10904
+  overallRisk: 10
+  payoutRatio: 1.0722001
+  phone: 61 2 9300 3311
+  prevName: Nickel Mines Limited
+  previousClose: 0.89
+  priceEpsCurrentYear: 122.69129
+  priceHint: 4
+  priceToBook: 1.3418025
+  priceToSalesTrailing12Months: 2.3323867
+  profitMargins: -0.09386
+  quickRatio: 0.896
+  quoteSourceName: Delayed Quote
+  quoteType: EQUITY
+  recommendationKey: strong_buy
+  recommendationMean: 1.28571
+  region: US
+  regularMarketChange: 0.04000002
+  regularMarketChangePercent: 4.494385
+  regularMarketDayHigh: 0.94
+  regularMarketDayLow: 0.905
+  regularMarketDayRange: 0.905 - 0.94
+  regularMarketOpen: 0.91
+  regularMarketPreviousClose: 0.89
+  regularMarketPrice: 0.93
+  regularMarketTime: 1770613810
+  regularMarketVolume: 15330219
+  returnOnAssets: 0.02587
+  returnOnEquity: -0.06652
+  revenueGrowth: -0.016
+  revenuePerShare: 0.402
+  sector: Basic Materials
+  sectorDisp: Basic Materials
+  sectorKey: basic-materials
+  shareHolderRightsRisk: 1
+  sharesOutstanding: 4340935875
+  shortName: NICKLINDUS FPO [NIC]
+  sourceInterval: 20
+  state: NSW
+  symbol: NIC.AX
+  targetHighPrice: 2.1
+  targetLowPrice: 0.65
+  targetMeanPrice: 1.16957
+  targetMedianPrice: 1.1
+  totalCash: 112089032
+  totalCashPerShare: 0.026
+  totalDebt: 1039197824
+  totalRevenue: 1730875264
+  tradeable: False
+  trailingAnnualDividendRate: 0.008
+  trailingAnnualDividendYield: 0.008988765
+  trailingEps: -0.05
+  trailingPegRatio: None
+  triggerable: False
+  twoHundredDayAverage: 0.750525
+  twoHundredDayAverageChange: 0.17947501
+  twoHundredDayAverageChangePercent: 0.23913263
+  typeDisp: Equity
+  volume: 15330219
+  website: https://www.nickelindustries.com
+  zip: 2000
+
+=== NIC.AX MAJOR HOLDERS ===
+Breakdown                        Value
+insidersPercentHeld            0.54105
+institutionsPercentHeld        0.21564
+institutionsFloatPercentHeld   0.46985
+institutionsCount             65.00000
+
+=== NIC.AX INSTITUTIONAL HOLDERS ===
+  Date Reported                         Holder  pctHeld   Shares    Value  pctChange
+0    2022-09-30  Legato Capital Management LLC   0.0005  1363062  1267647        0.0
+
+=== NIC.AX FINANCIALS ===
+                                                              2024-12-31    2023-12-31    2022-12-31    2021-12-31
+Tax Effect Of Unusual Items                                -7.097469e+07  0.000000e+00  0.000000e+00  0.000000e+00
+Tax Rate For Calcs                                          3.000000e-01  1.332460e-01  3.537600e-02  2.796400e-02
+Normalized EBITDA                                           2.992997e+08  4.058450e+08  3.174119e+08  2.300617e+08
+Total Unusual Items                                        -2.365823e+08           NaN           NaN           NaN
+Total Unusual Items Excluding Goodwill                     -2.365823e+08           NaN           NaN           NaN
+Net Income From Continuing Operation Net Minority Interest -1.685891e+08  1.215976e+08  1.589790e+08  1.379389e+08
+Reconciled Depreciation                                     1.279782e+08  1.116564e+08  6.659820e+07  3.597730e+07
+Reconciled Cost Of Revenue                                  1.429798e+09  1.430421e+09  8.566178e+08  3.932033e+08
+EBITDA                                                      6.271739e+07  4.058450e+08  3.174119e+08  2.300617e+08
+EBIT                                                       -6.526079e+07  2.941886e+08  2.508137e+08  1.940844e+08
+Net Interest Income                                        -9.499650e+07 -7.737681e+07 -3.276030e+07 -1.270893e+07
+Interest Expense                                            1.081990e+08  9.089742e+07  3.376781e+07  1.304491e+07
+Interest Income                                             1.320248e+07  1.352061e+07  1.007513e+06  3.359850e+05
+Normalized Income                                          -2.981524e+06  1.215976e+08  1.589790e+08  1.379389e+08
+Net Income From Continuing And Discontinued Operation      -1.685891e+08  1.215976e+08  1.589790e+08  1.379389e+08
+Diluted Average Shares                                      4.286936e+09  3.407122e+09  2.681508e+09  2.515029e+09
+Basic Average Shares                                        4.286936e+09  3.407122e+09  2.681508e+09  2.515029e+09
+Diluted EPS                                                -3.930000e-02  3.570000e-02  5.930000e-02  5.480000e-02
+Basic EPS                                                  -3.930000e-02  3.570000e-02  5.930000e-02  5.480000e-02
+Net Income Common Stockholders                             -1.685891e+08  1.215976e+08  1.589790e+08  1.379389e+08
+Net Income                                                 -1.685891e+08  1.215976e+08  1.589790e+08  1.379389e+08
+Minority Interests                                          2.120723e+07 -5.460581e+07 -5.038863e+07 -3.803807e+07
+Net Income Including Noncontrolling Interests              -1.897964e+08  1.762034e+08  2.093676e+08  1.759770e+08
+Net Income Continuous Operations                           -1.897964e+08  1.762034e+08  2.093676e+08  1.759770e+08
+Tax Provision                                               1.633660e+07  2.708783e+07  7.678323e+06  5.062549e+06
+Pretax Income                                              -1.734598e+08  2.032912e+08  2.170459e+08  1.810395e+08
+Other Income Expense                                       -2.293468e+08 -2.560590e+06 -8.671422e+06 -3.183790e+05
+Other Non Operating Income Expenses                                  NaN           NaN -9.076234e+06 -2.678970e+05
+Special Income Charges                                     -2.365823e+08           NaN           NaN           NaN
+Impairment Of Capital Assets                                2.365823e+08           NaN           NaN           NaN
+Earnings From Equity Interest                               7.235507e+06 -2.560590e+06  4.048120e+05 -5.048200e+04
+Net Non Operating Interest Income Expense                  -9.499650e+07 -7.737681e+07 -3.276030e+07 -1.270893e+07
+Interest Expense Non Operating                              1.081990e+08  9.089742e+07  3.376781e+07  1.304491e+07
+Interest Income Non Operating                               1.320248e+07  1.352061e+07  1.007513e+06  3.359850e+05
+Operating Income                                            1.508835e+08  2.832286e+08  2.584777e+08  1.940668e+08
+Operating Expense                                           1.637709e+08  1.664551e+08  1.019464e+08  5.866552e+07
+Other Operating Expenses                                    2.044230e+07  4.235505e+07  2.605902e+07  1.325574e+07
+Depreciation Amortization Depletion Income Statement        1.279782e+08  1.116564e+08  6.659820e+07  3.597730e+07
+Depreciation And Amortization In Income Statement           1.279782e+08  1.116564e+08  6.659820e+07  3.597730e+07
+Amortization                                                4.679426e+06  1.754785e+06           NaN           NaN
+Amortization Of Intangibles Income Statement                4.679426e+06  1.754785e+06           NaN           NaN
+Depreciation Income Statement                               1.232988e+08  1.099016e+08  6.659820e+07  3.597730e+07
+Selling General And Administration                          1.535038e+07  1.244364e+07  9.289162e+06  9.432472e+06
+General And Administrative Expense                          1.535038e+07  1.244364e+07  9.289162e+06  9.432472e+06
+Other Gand A                                                         NaN           NaN           NaN  3.404010e+05
+Salaries And Wages                                          1.535038e+07  1.244364e+07  9.289162e+06  9.432472e+06
+Gross Profit                                                3.146544e+08  4.496837e+08  3.604240e+08  2.527324e+08
+Cost Of Revenue                                             1.429798e+09  1.430421e+09  8.566178e+08  3.932033e+08
+Total Revenue                                               1.744453e+09  1.880105e+09  1.217042e+09  6.459356e+08
+Operating Revenue                                           1.744453e+09  1.880105e+09  1.217042e+09  6.459356e+08
+
+=== NIC.AX BALANCE SHEET ===
+                                                       2024-12-31    2023-12-31    2022-12-31    2021-12-31
+Ordinary Shares Number                               4.289810e+09  4.285810e+09  2.681508e+09  2.515029e+09
+Share Issued                                         4.289810e+09  4.285810e+09  2.681508e+09  2.515029e+09
+Net Debt                                             8.436088e+08  5.609699e+08  4.150458e+08  1.897446e+08
+Total Debt                                           1.054562e+09  8.450234e+08  5.592881e+08  3.276065e+08
+Tangible Book Value                                  1.993608e+09  2.242559e+09  1.195871e+09  9.504636e+08
+Invested Capital                                     3.170580e+09  3.270076e+09  1.857907e+09  1.356052e+09
+Working Capital                                      3.889446e+08  8.667899e+08  4.251222e+08  3.113322e+08
+Net Tangible Assets                                  1.993608e+09  2.242559e+09  1.195871e+09  9.504636e+08
+Common Stock Equity                                  2.116017e+09  2.425053e+09  1.298619e+09  1.028446e+09
+Total Capitalization                                 3.034198e+09  3.012807e+09  1.850135e+09  1.346768e+09
+Total Equity Gross Minority Interest                 2.548230e+09  2.906642e+09  1.814544e+09  1.329912e+09
+Minority Interest                                    4.322124e+08  4.815885e+08  5.159251e+08  3.014663e+08
+Stockholders Equity                                  2.116017e+09  2.425053e+09  1.298619e+09  1.028446e+09
+Gains Losses Not Affecting Retained Earnings         1.905035e+07  1.906594e+07  1.914496e+07  4.473930e+07
+Other Equity Adjustments                             1.905035e+07  1.906594e+07  1.914496e+07  4.473930e+07
+Retained Earnings                                    6.173954e+07  3.730601e+08  3.370316e+08  2.507773e+08
+Capital Stock                                        2.035227e+09  2.032927e+09  9.424428e+08  7.329291e+08
+Common Stock                                         2.035227e+09  2.032927e+09  9.424428e+08  7.329291e+08
+Total Liabilities Net Minority Interest              1.348019e+09  1.164704e+09  8.579753e+08  4.727068e+08
+Total Non Current Liabilities Net Minority Interest  9.930410e+08  6.868218e+08  6.505985e+08  3.988776e+08
+Other Non Current Liabilities                        9.726283e+06  1.122739e+06  9.483630e+05  6.175350e+05
+Non Current Deferred Liabilities                     6.421259e+07  9.609982e+07  9.609982e+07  7.798216e+07
+Non Current Deferred Taxes Liabilities               6.421259e+07  9.609982e+07  9.609982e+07  7.798216e+07
+Long Term Debt And Capital Lease Obligation          9.181806e+08  5.877540e+08  5.515154e+08  3.183223e+08
+Long Term Debt                                       9.181806e+08  5.877540e+08  5.515154e+08  3.183223e+08
+Long Term Provisions                                 9.215220e+05  1.845273e+06  2.034921e+06  1.955576e+06
+Current Liabilities                                  3.549776e+08  4.778824e+08  2.073767e+08  7.382922e+07
+Current Deferred Liabilities                         2.157119e+07  2.609225e+07  2.124464e+07  7.647688e+06
+Current Deferred Taxes Liabilities                   2.157119e+07  2.609225e+07  2.124464e+07  7.647688e+06
+Current Debt And Capital Lease Obligation            1.363818e+08  2.572694e+08  7.772688e+06  9.284264e+06
+Current Debt                                         1.363818e+08  2.572694e+08  7.772688e+06  9.284264e+06
+Other Current Borrowings                             8.363181e+07  1.939110e+05  7.772688e+06  9.284264e+06
+Current Notes Payable                                5.275000e+07  2.570755e+08           NaN           NaN
+Current Provisions                                   2.256151e+06  1.761767e+06  1.174237e+06  1.159184e+06
+Payables And Accrued Expenses                        1.947684e+08  1.927589e+08  1.771852e+08  5.573809e+07
+Payables                                             1.947684e+08  1.927589e+08  1.771852e+08  5.573809e+07
+Other Payable                                        1.273040e+07  1.713189e+07  7.116191e+06  5.978662e+06
+Accounts Payable                                     1.820380e+08  1.756270e+08  1.700690e+08  4.975943e+07
+Total Assets                                         3.896248e+09  4.071346e+09  2.672520e+09  1.802619e+09
+Total Non Current Assets                             3.152326e+09  2.726673e+09  2.040021e+09  1.417457e+09
+Other Non Current Assets                             9.817509e+07  4.140966e+07  9.662987e+06  3.969340e+07
+Non Current Accounts Receivable                      7.260260e+07  1.138748e+08  5.500000e+06  3.500000e+06
+Investments And Advances                             1.230275e+09  5.272394e+08           NaN           NaN
+Long Term Equity Investment                          1.230275e+09  5.272394e+08           NaN           NaN
+Investmentsin Associatesat Cost                      1.230275e+09  5.272394e+08           NaN           NaN
+Goodwill And Other Intangible Assets                 1.224093e+08  1.824936e+08  1.027484e+08  7.798216e+07
+Other Intangible Assets                              7.506579e+07  7.974522e+07           NaN           NaN
+Goodwill                                             4.734351e+07  1.027484e+08  1.027484e+08  7.798216e+07
+Net PPE                                              1.628864e+09  1.861656e+09  1.922109e+09  1.296282e+09
+Accumulated Depreciation                            -3.981336e+08 -2.762294e+08 -1.664358e+08 -9.935952e+07
+Gross PPE                                            2.026998e+09  2.137885e+09  2.088545e+09  1.395641e+09
+Construction In Progress                             3.922473e+06  2.177590e+05  7.127570e+08  7.252576e+08
+Other Properties                                     5.687869e+07  2.551259e+07  5.987940e+05  1.034996e+07
+Machinery Furniture Equipment                        1.527754e+09  1.683692e+09  1.125946e+09  5.624431e+08
+Land And Improvements                                3.698968e+08  3.600466e+08  2.096614e+08  6.624789e+07
+Properties                                           6.854573e+07  6.841662e+07  3.958210e+07  3.134285e+07
+Current Assets                                       7.439221e+08  1.344672e+09  6.324989e+08  3.851614e+08
+Other Current Assets                                 1.257827e+07  5.942859e+06  4.779353e+07           NaN
+Prepaid Assets                                       3.493901e+07  3.580795e+07           NaN  1.520823e+07
+Inventory                                            1.398187e+08  1.994485e+08  2.048453e+08  1.069972e+08
+Other Inventories                                             NaN           NaN           NaN  3.858039e+06
+Raw Materials                                                 NaN           NaN           NaN  1.031391e+08
+Receivables                                          3.456325e+08  3.285058e+08  2.356177e+08  1.250941e+08
+Other Receivables                                    1.195269e+08  4.117591e+07  6.528183e+07  4.801775e+07
+Accounts Receivable                                  2.261056e+08  2.873299e+08  1.703359e+08  7.707636e+07
+Cash Cash Equivalents And Short Term Investments     2.109536e+08  7.749672e+08  1.442424e+08  1.378620e+08
+Other Short Term Investments                                  NaN  4.909137e+08           NaN           NaN
+Cash And Cash Equivalents                            2.109536e+08  2.840535e+08  1.442424e+08  1.378620e+08
+Cash Financial                                       2.109536e+08  2.840535e+08  1.442424e+08  1.378620e+08
+
+=== NIC.AX CASHFLOW ===
+                                                    2024-12-31    2023-12-31    2022-12-31   2021-12-31
+Free Cash Flow                                    2.087897e+08  1.707613e+08  5.365008e+07  182526236.0
+Repurchase Of Capital Stock                                NaN -8.445651e+06 -2.486308e+06          NaN
+Repayment Of Debt                                -2.527180e+08 -3.154820e+08 -5.600000e+06  -51340658.0
+Issuance Of Debt                                  4.547620e+08  5.805303e+08  2.302966e+08  320844143.0
+Issuance Of Capital Stock                                  NaN  8.289298e+08  1.060000e+08          NaN
+Capital Expenditure                              -7.260360e+07 -5.899454e+07 -9.393090e+06   -6494484.0
+Income Tax Paid Supplemental Data                 5.529332e+07  5.635956e+07  5.816549e+07    8195616.0
+End Cash Position                                 2.109536e+08  2.840535e+08  1.442424e+08  137861958.0
+Beginning Cash Position                           2.840535e+08  1.442424e+08  1.946750e+05   -2039734.0
+Effect Of Exchange Rate Changes                  -1.576750e+06  1.974639e+06  1.378620e+08  351445322.0
+Changes In Cash                                  -7.152312e+07  1.378365e+08  6.185724e+06 -211543630.0
+Financing Cash Flow                              -6.401120e+07  1.061169e+09  3.731543e+08  197291179.0
+Cash Flow From Continuing Financing Activities   -6.401120e+07  1.061169e+09  3.731543e+08  197291179.0
+Net Other Financing Charges                      -7.675026e+06  1.122137e+08  1.458000e+08    2876401.0
+Interest Paid Cff                                -8.425394e+07 -5.100807e+07           NaN          NaN
+Cash Dividends Paid                              -1.741262e+08 -8.556905e+07 -1.008560e+08  -75088707.0
+Common Stock Dividend Paid                       -1.741262e+08 -8.556905e+07 -1.008560e+08  -75088707.0
+Net Common Stock Issuance                                  NaN  8.204842e+08  1.035137e+08          NaN
+Common Stock Payments                                      NaN -8.445651e+06 -2.486308e+06          NaN
+Common Stock Issuance                                      NaN  8.289298e+08  1.060000e+08          NaN
+Net Issuance Payments Of Debt                     2.020440e+08  2.650483e+08  2.246966e+08  269503485.0
+Net Long Term Debt Issuance                       2.020440e+08  2.650483e+08  2.246966e+08  269503485.0
+Long Term Debt Payments                          -2.527180e+08 -3.154820e+08 -5.600000e+06  -51340658.0
+Long Term Debt Issuance                           4.547620e+08  5.805303e+08  2.302966e+08  320844143.0
+Investing Cash Flow                              -2.889053e+08 -1.153088e+09 -4.300117e+08 -597855529.0
+Cash Flow From Continuing Investing Activities   -2.889053e+08 -1.153088e+09 -4.300117e+08 -597855529.0
+Net Other Investing Changes                      -1.141534e+07 -1.868803e+08 -1.856186e+08  -63761045.0
+Net Investment Purchase And Sale                 -2.048863e+08 -8.322137e+08           NaN          NaN
+Sale Of Investment                                4.909137e+08           NaN           NaN          NaN
+Purchase Of Investment                           -6.958000e+08 -8.322137e+08           NaN          NaN
+Net Business Purchase And Sale                             NaN -7.500000e+07 -2.350000e+08 -527600000.0
+Purchase Of Business                                       NaN -7.500000e+07 -2.350000e+08 -527600000.0
+Net Intangibles Purchase And Sale                          NaN -1.500000e+07           NaN          NaN
+Purchase Of Intangibles                                    NaN -1.500000e+07           NaN          NaN
+Net PPE Purchase And Sale                        -5.418894e+07 -1.910962e+07 -9.393090e+06   -6494484.0
+Purchase Of PPE                                  -5.418894e+07 -1.910962e+07 -9.393090e+06   -6494484.0
+Capital Expenditure Reported                     -1.841467e+07 -2.488492e+07           NaN          NaN
+Cash Flowsfromusedin Operating Activities Direct  2.813933e+08  2.297559e+08  6.304317e+07  189020720.0
+Taxes Refund Paid Direct                         -5.529332e+07 -5.635956e+07 -5.816549e+07   -8195616.0
+Interest Received Direct                          1.423248e+07  1.172942e+07  1.007513e+06     335985.0
+Classesof Cash Payments                          -1.483223e+09 -1.488725e+09 -1.083112e+09 -463987522.0
+Other Cash Paymentsfrom Operating Activities     -1.463231e+06 -3.483240e+06 -3.348413e+06          NaN
+Paymentsto Suppliersfor Goodsand Services        -1.481760e+09 -1.485242e+09 -1.079763e+09 -463987522.0
+Classesof Cash Receiptsfrom Operating Activities  1.805677e+09  1.763111e+09  1.203313e+09  660867873.0
+Receiptsfrom Customers                            1.805677e+09  1.763111e+09  1.203313e+09  660867873.0
+
+=== NIC.AX RECOMMENDATIONS ===
+  period  strongBuy  buy  hold  sell  strongSell
+0     0m          0    6     1     0           0
+1    -1m          0    6     1     0           0
+2    -2m          0    5     2     0           0
+3    -3m          0    4     3     0           0
+
+================================================================================
+=== LYC.AX FULL INFO ===
+  52WeekChange: 1.0212464
+  SandP52WeekChange: 0.14272952
+  address1: 1 Howard Street
+  address2: Level 4
+  allTimeHigh: 26.631393
+  allTimeLow: 0.295904
+  ask: 14.82
+  askSize: 0
+  auditRisk: 3
+  averageAnalystRating: 2.5 - Buy
+  averageDailyVolume10Day: 8772936
+  averageDailyVolume3Month: 9216284
+  averageVolume: 9216284
+  averageVolume10days: 8772936
+  beta: 0.689
+  bid: 14.77
+  bidSize: 0
+  boardRisk: 3
+  bookValue: 2.515
+  city: Perth
+  companyOfficers: [{'maxAge': 1, 'name': 'Ms. Amanda M. Lacaze ATCL, B.A., M.A.I.C.D.', 'age': 65, 'title': 'MD, CEO & Director', 'yearBorn': 1960, 'fiscalYear': 2025, 'totalPay': 1980133, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Gaudenz  Sturzenegger', 'title': 'Chief Financial Officer', 'fiscalYear': 2025, 'totalPay': 793136, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Pol  Le Roux', 'title': 'Chief Operating Officer', 'fiscalYear': 2025, 'totalPay': 1285655, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Sarah  Leonard', 'title': 'General Counsel & Company Secretary', 'fiscalYear': 2025, 'totalPay': 657802, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Chris  Jenney', 'title': 'Vice President Sales & Market Development', 'fiscalYear': 2025, 'totalPay': 959368, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Mashal  Ahmad Bsc', 'title': 'Vice President of Malaysia', 'fiscalYear': 2025, 'totalPay': 621893, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Daniel  Havas', 'title': 'Vice President of Strategy & Investor Relations', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Mimi Afzan Afza', 'title': 'Vice President of People & Culture', 'fiscalYear': 2025, 'totalPay': 472505, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Mr. Ivo John Polovineo P.N.A., N.I.A., FIPA', 'age': 74, 'title': 'Consultant', 'yearBorn': 1951, 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}, {'maxAge': 1, 'name': 'Ms. Jennifer  Parker', 'title': 'Vice President of Corporate Affairs', 'fiscalYear': 2025, 'exercisedValue': 0, 'unexercisedValue': 0}]
+  compensationAsOfEpochDate: 1767139200
+  compensationRisk: 2
+  corporateActions: []
+  country: Australia
+  cryptoTradeable: False
+  currency: AUD
+  currentPrice: 14.82
+  currentRatio: 2.831
+  customPriceAlertConfidence: LOW
+  dayHigh: 15.07
+  dayLow: 14.65
+  debtToEquity: 8.588
+  earningsCallTimestampEnd: 1756342800
+  earningsCallTimestampStart: 1756342800
+  earningsGrowth: -0.952
+  earningsQuarterlyGrowth: -0.952
+  earningsTimestampEnd: 1756361520
+  earningsTimestampStart: 1756361520
+  ebitda: 45543000
+  ebitdaMargins: 0.08184
+  enterpriseToEbitda: 293.885
+  enterpriseToRevenue: 24.05
+  enterpriseValue: 13384382464
+  epsCurrentYear: 0.32231
+  epsForward: 0.55544
+  epsTrailingTwelveMonths: 0.01
+  esgPopulated: False
+  exchange: ASX
+  exchangeDataDelayedBy: 20
+  exchangeTimezoneName: Australia/Sydney
+  exchangeTimezoneShortName: AEDT
+  executiveTeam: []
+  fax: 61 8 9225 6842
+  fiftyDayAverage: 14.1218
+  fiftyDayAverageChange: 0.6981993
+  fiftyDayAverageChangePercent: 0.049441237
+  fiftyTwoWeekChangePercent: 102.12464
+  fiftyTwoWeekHigh: 21.96
+  fiftyTwoWeekHighChange: -7.1399994
+  fiftyTwoWeekHighChangePercent: -0.3251366
+  fiftyTwoWeekLow: 6.565
+  fiftyTwoWeekLowChange: 8.254999
+  fiftyTwoWeekLowChangePercent: 1.2574255
+  fiftyTwoWeekRange: 6.565 - 21.96
+  financialCurrency: AUD
+  firstTradeDateMilliseconds: 928972800000
+  floatShares: 830012654
+  forwardEps: 0.55544
+  forwardPE: 26.68155
+  freeCashflow: -466491488
+  fullExchangeName: ASX
+  gmtOffSetMilliseconds: 39600000
+  governanceEpochDate: 1769904000
+  grossMargins: 0.23326999
+  grossProfits: 129816000
+  hasPrePostMarketData: False
+  heldPercentInsiders: 0.11271
+  heldPercentInstitutions: 0.50383997
+  impliedSharesOutstanding: 1006502578
+  industry: Other Industrial Metals & Mining
+  industryDisp: Other Industrial Metals & Mining
+  industryKey: other-industrial-metals-mining
+  isEarningsDateEstimate: False
+  language: en-US
+  lastFiscalYearEnd: 1751241600
+  lastSplitDate: 1512000000
+  lastSplitFactor: 1:10
+  longBusinessSummary: Lynas Rare Earths Limited, together with its subsidiaries, engages in the exploration, development, mining, extraction, and processing of rare earth minerals in Australia and Malaysia. The company holds interests in the Mt Weld rare earths mine and concentration plant near Laverton in Western Australia; a rare earths processing facility in Kalgoorlie, Western Australia; and an advanced materials plant in Gebeng, Malaysia. It also offers light rare earths, including lanthanum, cerium, praseodymium, and neodymium; and heavy rare earth, comprising of samarium, europium, gadolinium, terbium, and dysprosium. In addition, the company develops and operates advanced material processing and concentration plants, as well as offers corporate services. The company was formerly known as Lynas Corporation Limited and changed its name to Lynas Corporation Limited in November 2020. Lynas Rare Earths Limited was incorporated in 1983 and is headquartered in Perth, Australia.
+  longName: Lynas Rare Earths Limited
+  market: au_market
+  marketCap: 14916368384
+  marketState: POSTPOST
+  maxAge: 86400
+  messageBoardId: finmb_6521087
+  mostRecentQuarter: 1751241600
+  netIncomeToCommon: 7990000
+  nextFiscalYearEnd: 1782777600
+  numberOfAnalystOpinions: 15
+  open: 15.0
+  operatingCashflow: 104167000
+  operatingMargins: -0.010779999
+  overallRisk: 1
+  payoutRatio: 0.0
+  phone: 61 8 6241 3800
+  previousClose: 14.27
+  priceEpsCurrentYear: 45.980576
+  priceHint: 2
+  priceToBook: 5.892644
+  priceToSalesTrailing12Months: 26.803318
+  profitMargins: 0.014359999
+  quickRatio: 1.578
+  quoteSourceName: Delayed Quote
+  quoteType: EQUITY
+  recommendationKey: buy
+  recommendationMean: 2.5
+  region: US
+  regularMarketChange: 0.54999924
+  regularMarketChangePercent: 3.8542342
+  regularMarketDayHigh: 15.07
+  regularMarketDayLow: 14.65
+  regularMarketDayRange: 14.65 - 15.07
+  regularMarketOpen: 15.0
+  regularMarketPreviousClose: 14.27
+  regularMarketPrice: 14.82
+  regularMarketTime: 1770614485
+  regularMarketVolume: 4917621
+  returnOnAssets: 0.00217
+  returnOnEquity: 0.00348
+  revenueGrowth: 0.323
+  revenuePerShare: 0.595
+  sector: Basic Materials
+  sectorDisp: Basic Materials
+  sectorKey: basic-materials
+  shareHolderRightsRisk: 5
+  sharesOutstanding: 1006502578
+  shortName: LYNAS FPO [LYC]
+  sourceInterval: 20
+  state: WA
+  symbol: LYC.AX
+  targetHighPrice: 29.5
+  targetLowPrice: 7.0
+  targetMeanPrice: 15.87
+  targetMedianPrice: 17.5
+  totalCash: 166490000
+  totalCashPerShare: 0.178
+  totalDebt: 202046000
+  totalRevenue: 556512000
+  tradeable: False
+  trailingAnnualDividendRate: 0.0
+  trailingAnnualDividendYield: 0.0
+  trailingEps: 0.01
+  trailingPE: 1482.0
+  trailingPegRatio: None
+  triggerable: False
+  twoHundredDayAverage: 13.02715
+  twoHundredDayAverageChange: 1.7928495
+  twoHundredDayAverageChangePercent: 0.13762408
+  typeDisp: Equity
+  volume: 4917621
+  website: https://lynasrareearths.com
+  zip: 6000
+
+=== LYC.AX MAJOR HOLDERS ===
+Breakdown                         Value
+insidersPercentHeld             0.11271
+institutionsPercentHeld         0.50384
+institutionsFloatPercentHeld    0.56785
+institutionsCount             251.00000
+
+=== LYC.AX INSTITUTIONAL HOLDERS ===
+Empty DataFrame
+Columns: []
+Index: []
+
+=== LYC.AX FINANCIALS ===
+                                                              2025-06-30    2024-06-30    2023-06-30    2022-06-30
+Tax Effect Of Unusual Items                                 0.000000e+00  0.000000e+00  0.000000e+00  0.000000e+00
+Tax Rate For Calcs                                          1.795870e-01  1.989190e-01  1.068580e-01  3.000000e-01
+Normalized EBITDA                                           1.163040e+08  1.711680e+08  4.135690e+08  6.056040e+08
+Net Income From Continuing Operation Net Minority Interest  7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Reconciled Depreciation                                     9.499500e+07  5.689800e+07  6.218100e+07  6.055100e+07
+Reconciled Cost Of Revenue                                  3.634580e+08  2.799890e+08  3.461770e+08  2.918970e+08
+EBITDA                                                      1.163040e+08  1.711680e+08  4.135690e+08  6.056040e+08
+EBIT                                                        2.130900e+07  1.142700e+08  3.513880e+08  5.450530e+08
+Net Interest Income                                         3.548000e+06  3.026600e+07  3.233100e+07 -4.884000e+06
+Interest Expense                                            1.157000e+07  8.770000e+06  3.553000e+06  9.297000e+06
+Interest Income                                             1.737800e+07  3.984600e+07  3.635500e+07  4.636000e+06
+Normalized Income                                           7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Net Income From Continuing And Discontinued Operation       7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Diluted Average Shares                                      9.350800e+08  9.380022e+08  9.158785e+08  9.059028e+08
+Basic Average Shares                                        9.350800e+08  9.343740e+08  9.123500e+08  9.021680e+08
+Diluted EPS                                                 8.500000e-03  9.010000e-02  3.392000e-01  5.970000e-01
+Basic EPS                                                   8.500000e-03  9.040000e-02  3.405000e-01  5.995000e-01
+Net Income Common Stockholders                              7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Net Income                                                  7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Net Income Including Noncontrolling Interests               7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Net Income Continuous Operations                            7.990000e+06  8.451400e+07  3.106660e+08  5.408240e+08
+Tax Provision                                               1.749000e+06  2.098600e+07  3.716900e+07 -5.068000e+06
+Pretax Income                                               9.739000e+06  1.055000e+08  3.478350e+08  5.357560e+08
+Other Income Expense                                       -1.154000e+06  3.827000e+06 -1.566100e+07  3.878600e+07
+Other Non Operating Income Expenses                        -1.154000e+06  3.827000e+06 -1.566100e+07  3.878600e+07
+Net Non Operating Interest Income Expense                   3.548000e+06  3.026600e+07  3.233100e+07 -4.884000e+06
+Total Other Finance Cost                                    2.260000e+06  8.100000e+05  4.710000e+05  2.230000e+05
+Interest Expense Non Operating                              1.157000e+07  8.770000e+06  3.553000e+06  9.297000e+06
+Interest Income Non Operating                               1.737800e+07  3.984600e+07  3.635500e+07  4.636000e+06
+Operating Income                                            7.345000e+06  7.140700e+07  3.311650e+08  5.018540e+08
+Operating Expense                                           1.718620e+08  1.130500e+08  1.097810e+08  9.941100e+07
+Other Operating Expenses                                    2.027000e+06  1.008000e+06  1.821000e+06           NaN
+Depreciation Amortization Depletion Income Statement        9.499500e+07  5.689800e+07  6.218100e+07  6.055100e+07
+Depreciation And Amortization In Income Statement           9.499500e+07  5.689800e+07  6.218100e+07  6.055100e+07
+Depreciation Income Statement                               9.499500e+07  5.689800e+07  6.218100e+07  6.055100e+07
+Selling General And Administration                          7.484000e+07  5.514400e+07  4.577900e+07  3.886000e+07
+General And Administrative Expense                          7.484000e+07  5.514400e+07  4.577900e+07  3.886000e+07
+Other Gand A                                                4.166400e+07  2.967400e+07  2.670700e+07  2.620800e+07
+Salaries And Wages                                          3.317600e+07  2.547000e+07  1.907200e+07  1.265200e+07
+Gross Profit                                                1.792070e+08  1.844570e+08  4.409460e+08  6.012650e+08
+Cost Of Revenue                                             3.634580e+08  2.799890e+08  3.461770e+08  2.918970e+08
+Total Revenue                                               5.426650e+08  4.644460e+08  7.871230e+08  8.931620e+08
+Operating Revenue                                           5.426650e+08  4.644460e+08  7.871230e+08  8.931620e+08
+
+=== LYC.AX BALANCE SHEET ===
+                                                              2025-06-30    2024-06-30    2023-06-30    2022-06-30   2021-06-30
+Ordinary Shares Number                                      9.354470e+08  9.347180e+08  9.338150e+08  9.024120e+08          NaN
+Share Issued                                                9.354470e+08  9.347180e+08  9.338150e+08  9.024120e+08          NaN
+Total Debt                                                  2.020460e+08  1.839780e+08  1.906200e+08  1.921360e+08          NaN
+Tangible Book Value                                         2.350897e+09  2.241538e+09  2.162003e+09  1.644877e+09          NaN
+Invested Capital                                            2.503963e+09  2.414643e+09  2.341048e+09  1.834088e+09          NaN
+Working Capital                                             2.780700e+08  5.379370e+08  1.021597e+09  1.039999e+09          NaN
+Net Tangible Assets                                         2.350897e+09  2.241538e+09  2.162003e+09  1.644877e+09          NaN
+Capital Lease Obligations                                   5.078800e+07  1.214000e+07  1.297600e+07  3.662000e+06          NaN
+Common Stock Equity                                         2.352705e+09  2.242805e+09  2.163404e+09  1.645614e+09          NaN
+Total Capitalization                                        2.474797e+09  2.386099e+09  2.330779e+09  1.810512e+09          NaN
+Total Equity Gross Minority Interest                        2.352705e+09  2.242805e+09  2.163404e+09  1.645614e+09          NaN
+Stockholders Equity                                         2.352705e+09  2.242805e+09  2.163404e+09  1.645614e+09          NaN
+Gains Losses Not Affecting Retained Earnings                3.321600e+07 -6.869400e+07 -6.358100e+07 -3.921400e+07          NaN
+Other Equity Adjustments                                    1.019090e+08  9.473200e+07  8.756600e+07  8.035600e+07          NaN
+Foreign Currency Translation Adjustments                   -6.869300e+07 -1.634260e+08 -1.511470e+08 -1.195700e+08          NaN
+Retained Earnings                                           2.284000e+08  2.204100e+08  1.358960e+08 -1.747700e+08          NaN
+Capital Stock                                               2.091089e+09  2.091089e+09  2.091089e+09  1.859598e+09          NaN
+Common Stock                                                2.091089e+09  2.091089e+09  2.091089e+09  1.859598e+09          NaN
+Total Liabilities Net Minority Interest                     5.915130e+08  5.621160e+08  4.752710e+08  4.160170e+08          NaN
+Total Non Current Liabilities Net Minority Interest         4.396720e+08  3.927690e+08  3.102900e+08  2.923920e+08          NaN
+Employee Benefits                                           8.500000e+05  4.680000e+05  1.414000e+06  9.780000e+05          NaN
+Non Current Pension And Other Postretirement Benefit Plans  8.500000e+05  4.680000e+05  1.414000e+06  9.780000e+05          NaN
+Long Term Debt And Capital Lease Obligation                 1.682570e+08  1.504820e+08  1.758370e+08  1.670290e+08          NaN
+Long Term Capital Lease Obligation                          4.616500e+07  7.188000e+06  8.462000e+06  2.131000e+06          NaN
+Long Term Debt                                              1.220920e+08  1.432940e+08  1.673750e+08  1.648980e+08          NaN
+Long Term Provisions                                        2.705650e+08  2.418190e+08  1.330390e+08  1.243850e+08          NaN
+Current Liabilities                                         1.518410e+08  1.693470e+08  1.649810e+08  1.236250e+08          NaN
+Current Deferred Liabilities                                         NaN           NaN  2.584600e+07  5.685000e+06      84000.0
+Current Deferred Taxes Liabilities                                   NaN           NaN  2.584600e+07  5.685000e+06      84000.0
+Current Debt And Capital Lease Obligation                   3.378900e+07  3.349600e+07  1.478300e+07  2.510700e+07          NaN
+Current Capital Lease Obligation                            4.623000e+06  4.952000e+06  4.514000e+06  1.531000e+06          NaN
+Current Debt                                                2.916600e+07  2.854400e+07  1.026900e+07  2.357600e+07          NaN
+Other Current Borrowings                                    2.916600e+07  2.854400e+07  1.026900e+07  2.357600e+07          NaN
+Pensionand Other Post Retirement Benefit Plans Current      7.176000e+06  6.033000e+06  5.084000e+06  4.206000e+06          NaN
+Current Provisions                                          2.735500e+07  3.746200e+07  3.726400e+07  2.369500e+07          NaN
+Payables And Accrued Expenses                               8.352100e+07  9.235600e+07  8.200400e+07  6.493200e+07          NaN
+Payables                                                    8.352100e+07  9.235600e+07  8.200400e+07  6.493200e+07          NaN
+Other Payable                                               4.450500e+07  5.302400e+07  4.118300e+07  5.054400e+07          NaN
+Accounts Payable                                            3.901600e+07  3.933200e+07  4.082100e+07  1.438800e+07          NaN
+Total Assets                                                2.944218e+09  2.804921e+09  2.638675e+09  2.061631e+09          NaN
+Total Non Current Assets                                    2.514307e+09  2.097637e+09  1.452097e+09  8.980070e+08          NaN
+Other Non Current Assets                                    1.202100e+07  1.117000e+07  1.288200e+07  8.500000e+05          NaN
+Non Current Deferred Assets                                 6.457000e+06  5.889000e+06  8.959000e+06  1.134400e+07          NaN
+Non Current Deferred Taxes Assets                           6.457000e+06  5.889000e+06  8.959000e+06  1.134400e+07          NaN
+Investments And Advances                                    9.704200e+07  8.514800e+07  8.465100e+07  7.873400e+07          NaN
+Other Investments                                           9.704200e+07  8.514800e+07  8.465100e+07  7.873400e+07          NaN
+Goodwill And Other Intangible Assets                        1.808000e+06  1.267000e+06  1.401000e+06  7.370000e+05          NaN
+Other Intangible Assets                                     1.808000e+06  1.267000e+06  1.401000e+06  7.370000e+05          NaN
+Net PPE                                                     2.396979e+09  1.994163e+09  1.344204e+09  8.063420e+08          NaN
+Accumulated Depreciation                                   -6.152980e+08 -5.314020e+08 -6.760240e+08           NaN -366852000.0
+Gross PPE                                                   3.012277e+09  2.525565e+09  2.020228e+09  8.063420e+08          NaN
+Leases                                                      1.573800e+07  1.394800e+07  2.122600e+07           NaN   12636000.0
+Construction In Progress                                             NaN  1.287896e+09  7.535340e+08           NaN   50650000.0
+Other Properties                                            1.060258e+09  4.523600e+08  2.973520e+08  4.899600e+07          NaN
+Machinery Furniture Equipment                               1.904622e+09  7.435870e+08  9.198350e+08  7.573460e+08          NaN
+Land And Improvements                                       3.165900e+07  2.777400e+07  2.828100e+07           NaN  726615000.0
+Current Assets                                              4.299110e+08  7.072840e+08  1.186578e+09  1.163624e+09          NaN
+Current Deferred Assets                                     2.413700e+07  7.025000e+06           NaN           NaN          NaN
+Current Deferred Taxes Assets                               2.413700e+07  7.025000e+06           NaN           NaN          NaN
+Prepaid Assets                                              1.416100e+07  6.195000e+06  3.899000e+06  6.712000e+06          NaN
+Inventory                                                   1.761210e+08  1.205760e+08  1.118930e+08  8.146200e+07          NaN
+Other Inventories                                                    NaN           NaN           NaN           NaN   62888000.0
+Receivables                                                 4.900200e+07  4.965000e+07  5.957400e+07  1.098660e+08          NaN
+Other Receivables                                           4.271000e+06  7.026000e+06  1.038200e+07  4.484000e+06          NaN
+Accounts Receivable                                         4.473100e+07  4.262400e+07  4.919200e+07  1.053820e+08          NaN
+Cash Cash Equivalents And Short Term Investments            1.664900e+08  5.238380e+08  1.011212e+09  9.655840e+08          NaN
+Other Short Term Investments                                         NaN           NaN           NaN           NaN  100000000.0
+Cash And Cash Equivalents                                   1.664900e+08  5.238380e+08  1.011212e+09  9.655840e+08          NaN
+Cash Equivalents                                            6.474600e+07  3.216410e+08           NaN           NaN  100000000.0
+Cash Financial                                              1.017440e+08  2.021970e+08  1.011212e+09  9.655840e+08          NaN
+
+=== LYC.AX CASHFLOW ===
+                                                   2025-06-30    2024-06-30    2023-06-30   2022-06-30   2021-06-30
+Free Cash Flow                                   -326656000.0 -5.443750e+08 -2.087620e+08  273770000.0          NaN
+Repurchase Of Capital Stock                               NaN           NaN           NaN          NaN  -11458000.0
+Repayment Of Debt                                 -31390000.0 -1.042800e+07 -5.955000e+06   -5666000.0          NaN
+Issuance Of Capital Stock                                 NaN           NaN  2.143520e+08          NaN  425324000.0
+Capital Expenditure                              -430823000.0 -5.793390e+08 -5.955160e+08 -186302000.0          NaN
+Income Tax Paid Supplemental Data                  20498000.0  5.076800e+07  1.460900e+07     682000.0          NaN
+End Cash Position                                 166490000.0  5.238380e+08  1.011212e+09  965584000.0          NaN
+Beginning Cash Position                           523838000.0  1.011212e+09  9.655840e+08  580827000.0          NaN
+Effect Of Exchange Rate Changes                   -10025000.0  7.418000e+06  1.437400e+07   22098000.0          NaN
+Changes In Cash                                  -347323000.0 -4.947920e+08  3.125400e+07  362659000.0          NaN
+Financing Cash Flow                               -45300000.0 -2.253800e+07  1.990020e+08  -13812000.0          NaN
+Cash Flow From Continuing Financing Activities    -45300000.0 -2.253800e+07  1.990020e+08  -13812000.0          NaN
+Net Other Financing Charges                        -7569000.0 -5.734000e+06 -3.151000e+06   -3180000.0          NaN
+Interest Paid Cff                                  -6341000.0 -6.376000e+06 -6.244000e+06   -6556000.0          NaN
+Net Common Stock Issuance                                 NaN           NaN  2.143520e+08          NaN  413866000.0
+Common Stock Payments                                     NaN           NaN           NaN          NaN  -11458000.0
+Common Stock Issuance                                     NaN           NaN  2.143520e+08          NaN  425324000.0
+Net Issuance Payments Of Debt                     -31390000.0 -1.042800e+07 -5.955000e+06   -5666000.0          NaN
+Net Long Term Debt Issuance                       -31390000.0 -1.042800e+07 -5.955000e+06   -5666000.0          NaN
+Long Term Debt Payments                           -31390000.0 -1.042800e+07 -5.955000e+06   -5666000.0          NaN
+Investing Cash Flow                              -406190000.0 -5.072180e+08 -5.545020e+08  -83601000.0          NaN
+Cash Flow From Continuing Investing Activities   -406190000.0 -5.072180e+08 -5.545020e+08  -83601000.0          NaN
+Net Other Investing Changes                         5500000.0  3.257500e+07  1.537800e+07    6826000.0          NaN
+Interest Received Cfi                              19241000.0  4.014800e+07  3.135800e+07    3943000.0          NaN
+Net Investment Purchase And Sale                    -108000.0 -6.020000e+05 -5.722000e+06   91932000.0          NaN
+Sale Of Investment                                    34000.0  1.889000e+06  1.220000e+05      10000.0          NaN
+Purchase Of Investment                              -142000.0 -2.491000e+06 -5.844000e+06   91922000.0          NaN
+Net PPE Purchase And Sale                        -430823000.0 -5.793390e+08 -5.955160e+08 -186302000.0          NaN
+Purchase Of PPE                                  -430823000.0 -5.793390e+08 -5.955160e+08 -186302000.0          NaN
+Cash Flowsfromusedin Operating Activities Direct  104167000.0  3.496400e+07  3.867540e+08  460072000.0          NaN
+Taxes Refund Paid Direct                          -20498000.0 -5.076800e+07 -1.460900e+07    -682000.0          NaN
+Classesof Cash Payments                          -389636000.0 -3.400360e+08 -3.971700e+08 -319887000.0          NaN
+Paymentsto Suppliersfor Goodsand Services        -389636000.0 -3.400360e+08 -3.971700e+08 -319887000.0          NaN
+Classesof Cash Receiptsfrom Operating Activities  514301000.0  4.257680e+08  7.985330e+08  780641000.0          NaN
+Other Cash Receiptsfrom Operating Activities      -36438000.0 -3.507500e+07 -2.230400e+07  -74371000.0          NaN
+Receiptsfrom Customers                            550739000.0  4.608430e+08  8.208370e+08  855012000.0          NaN
+
+=== LYC.AX RECOMMENDATIONS ===
+  period  strongBuy  buy  hold  sell  strongSell
+0     0m          2    7     3     4           0
+1    -1m          2    7     3     4           0
+2    -2m          1    6     4     4           0
+3    -3m          1    6     4     3           0
+
+================================================================================

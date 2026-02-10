@@ -1,0 +1,12 @@
+[Unit]
+Description=L2 Data Collector Daily Timer
+Requires=l2-collector.service
+
+[Timer]
+# Start daily at 9:25 AM ET (NYSE) - 5 minutes before market open
+OnCalendar=Mon..Fri 09:25:00 America/New_York
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

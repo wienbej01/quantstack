@@ -1,0 +1,6 @@
+[Unit]
+Description=Stop Vitals Monitor Service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl stop vitals-monitor.service

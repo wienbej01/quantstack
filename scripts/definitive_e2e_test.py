@@ -203,9 +203,11 @@ def test_load_config():
 def test_ibkr_config():
     ibkr = CONFIG.get("ibkr", {})
     assert ibkr.get("host") == "127.0.0.1", "Wrong IBKR host"
-    assert ibkr.get("port") == 7497, "Wrong IBKR port"
-    assert ibkr.get("order_client_id") is not None, "Missing order_client_id"
-    assert ibkr.get("data_client_id") is not None, "Missing data_client_id"
+    assert ibkr.get("port") == 7494, "Wrong IBKR port"
+    order_client_id = ibkr.get("order_client_id_base", ibkr.get("order_client_id"))
+    data_client_id = ibkr.get("data_client_id_base", ibkr.get("data_client_id"))
+    assert order_client_id is not None, "Missing order_client_id"
+    assert data_client_id is not None, "Missing data_client_id"
 
 
 @test("Config has required risk settings")
@@ -282,15 +284,16 @@ def test_init_feed():
         {"ibkr": CONFIG.get("ibkr", {}), "symbols": SYMBOLS, "depth_levels": 5}
     )
     assert feed.host == "127.0.0.1"
-    assert feed.port == 7497
+    assert feed.port == 7494
 
 
 @test("IBKROrderManager initializes")
 def test_init_order_manager():
     om = IBKROrderManager(CONFIG)
     assert om.host == "127.0.0.1"
-    assert om.port == 7497
-    assert om.client_id == CONFIG["ibkr"]["order_client_id"]
+    assert om.port == 7494
+    expected_id = CONFIG["ibkr"].get("order_client_id_base", CONFIG["ibkr"].get("order_client_id"))
+    assert om.client_id == expected_id
 
 
 @test("L2SignalGenerator initializes")

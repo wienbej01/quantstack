@@ -14,14 +14,22 @@ from datetime import date
 from pathlib import Path
 
 import pandas as pd
-import psutil
 import yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+try:
+    import psutil
+except ModuleNotFoundError:
+    psutil = None
+
 
 def log_memory(stage: str) -> None:
     """Log current memory usage for debugging memory issues."""
+    if psutil is None:
+        print(f"[MEMORY] {stage}: psutil not available")
+        return
+
     process = psutil.Process()
     mem_gb = process.memory_info().rss / 1e9
     if tracemalloc.is_tracing():
@@ -119,13 +127,32 @@ def build_monthly_feature_target_cache(
         pd.to_datetime(end_date).date(),
     )
 
+    def missing_columns(month_file: Path, required_cols: list[str]) -> list[str] | None:
+        try:
+            import pyarrow.parquet as pq
+        except Exception:
+            return None
+
+        try:
+            available = set(pq.ParquetFile(month_file).schema.names)
+        except Exception:
+            return None
+
+        return [col for col in required_cols if col not in available]
+
     for month_key in month_keys:
         month_file = monthly_cache_dir / f"features_targets_{month_key}.parquet"
         if month_file.exists() and not rebuild:
-            continue
+            missing = missing_columns(month_file, keep_cols)
+            if missing is None or not missing:
+                continue
+            print(
+                f"  ⚠️ {month_file.name} missing {len(missing)} columns; rebuilding"
+            )
 
-        month_start = pd.Period(month_key).start_time.date()
-        month_end = pd.Period(month_key).end_time.date()
+        month_period = pd.Period(month_key.replace("_", "-"), freq="M")
+        month_start = month_period.start_time.date()
+        month_end = month_period.end_time.date()
 
         month_days = [
             day for day in trading_days
@@ -186,11 +213,11 @@ from src.memory_utils import optimize_dataframe
 
 # AAA filters
 from src.overfitting_filter import OverfittingFilter
-from src.pattern_engine import discover_patterns
+from src.pattern_engine import discover_patterns, discretize_features
 from src.regime_filter import RegimeFilter
 from src.targets import generate_targets
 from src.temporal_split import TemporalSplit
-from src.validation_backtest import validate_patterns
+from src.validation_backtest import validate_patterns_with_diagnostics
 from src.validation_gate import ValidationGate
 
 
@@ -204,57 +231,81 @@ def apply_aaa_filters(
     patterns_df: pd.DataFrame,
     overfit_filter: OverfittingFilter,
     event_filter: EventFilter,
-    regime_filter: RegimeFilter,
+    _regime_filter: RegimeFilter,
     current_regime: str,
     require_event: bool = True,
     require_regime_match: bool = True,
+    overfit_policy: str = "reject",
+    min_aaa_score: float | None = None,
+    filter_out: bool = True,
 ) -> pd.DataFrame:
     """Apply AAA filters to discovered patterns."""
 
     if patterns_df.empty:
         return patterns_df
 
+    patterns_df = patterns_df.copy()
     initial_count = len(patterns_df)
 
-    # Filter 1: Event-based only
+    patterns_df["is_event_based"] = patterns_df["rule"].apply(event_filter.is_event_based)
+    patterns_df["passes_event_filter"] = True
     if require_event:
-        patterns_df = patterns_df[patterns_df["rule"].apply(event_filter.is_event_based)].copy()
-        print(f"  After event filter: {len(patterns_df)}/{initial_count} patterns")
+        patterns_df["passes_event_filter"] = patterns_df["is_event_based"]
 
-    # Filter 2: Overfitting check
-    if len(patterns_df) > 0:  # Only if patterns remain
-        patterns_df["overfit_check"] = patterns_df.apply(
-            lambda row: overfit_filter.is_overfit(row.to_dict()), axis=1
+    # Overfitting check (always computed for diagnostics)
+    patterns_df["overfit_check"] = patterns_df.apply(
+        lambda row: overfit_filter.is_overfit(row.to_dict()), axis=1
+    )
+    patterns_df["is_overfit"] = patterns_df["overfit_check"].apply(lambda x: x[0])
+    patterns_df["overfit_reason"] = patterns_df["overfit_check"].apply(lambda x: x[1])
+    patterns_df["overfit_risk"] = patterns_df.apply(
+        lambda row: overfit_filter.calculate_overfit_risk(row.to_dict()), axis=1
+    )
+    patterns_df["passes_overfit_filter"] = ~patterns_df["is_overfit"]
+
+    patterns_df["passes_regime_filter"] = True
+    if require_regime_match and current_regime:
+        patterns_df["passes_regime_filter"] = patterns_df.get("regime") == current_regime
+
+    patterns_df["passes_aaa_score"] = True
+    if min_aaa_score is not None:
+        if "aaa_score" in patterns_df.columns:
+            patterns_df["passes_aaa_score"] = patterns_df["aaa_score"] >= min_aaa_score
+        else:
+            print("  ⚠️ min_aaa_score set but aaa_score missing; skipping filter")
+
+    overfit_policy_normalized = str(overfit_policy).strip().lower()
+    if overfit_policy_normalized not in {"reject", "score_only"}:
+        raise ValueError(
+            f"Invalid overfit_policy={overfit_policy!r}. Expected 'reject' or 'score_only'."
         )
-        patterns_df["is_overfit"] = patterns_df["overfit_check"].apply(lambda x: x[0])
-        patterns_df["overfit_reason"] = patterns_df["overfit_check"].apply(lambda x: x[1])
 
-        rejected = patterns_df[patterns_df["is_overfit"]]
-        if len(rejected) > 0:
-            print(f"  Rejected {len(rejected)} overfit patterns:")
-            for _, row in rejected.iterrows():
-                print(f"    - {row['rule'][:50]}... : {row['overfit_reason']}")
+    # Apply filters (but keep diagnostics columns).
+    mask = (
+        patterns_df["passes_event_filter"]
+        & patterns_df["passes_regime_filter"]
+        & patterns_df["passes_aaa_score"]
+    )
+    if overfit_policy_normalized == "reject":
+        mask = mask & patterns_df["passes_overfit_filter"]
 
-        patterns_df = patterns_df[~patterns_df["is_overfit"]].copy()
-        patterns_df = patterns_df.drop(columns=["overfit_check", "is_overfit", "overfit_reason"])
-        print(f"  After overfit filter: {len(patterns_df)}/{initial_count} patterns")
-    else:
-        print(f"  After overfit filter: 0/{initial_count} patterns (no patterns to check)")
+    patterns_df["passes_aaa_filters"] = mask
+    filtered = patterns_df[mask].copy() if filter_out else patterns_df.copy()
 
-    # Filter 3: Regime match
-    if require_regime_match and current_regime and len(patterns_df) > 0:
-        patterns_df = patterns_df[patterns_df["regime"] == current_regime]
-        print(
-            f"  After regime filter: {len(patterns_df)}/{initial_count} patterns (regime: {current_regime})"
-        )
-    elif len(patterns_df) > 0:
-        print(
-            f"  After regime filter: {len(patterns_df)}/{initial_count} patterns (no regime filter)"
-        )
-    else:
-        print(f"  After regime filter: 0/{initial_count} patterns (no patterns to check)")
+    print(f"  Event filter: {patterns_df['passes_event_filter'].sum()}/{initial_count} pass")
+    print(
+        f"  Overfit filter ({overfit_policy_normalized}): "
+        f"{patterns_df['passes_overfit_filter'].sum()}/{initial_count} pass"
+    )
+    print(
+        f"  Regime filter: {patterns_df['passes_regime_filter'].sum()}/{initial_count} pass"
+    )
+    print(
+        f"  AAA score filter: {patterns_df['passes_aaa_score'].sum()}/{initial_count} pass"
+    )
+    print(f"✅ {int(mask.sum())}/{initial_count} patterns passed AAA filters")
 
-    return patterns_df
+    return filtered
 
 
 def main():
@@ -328,6 +379,27 @@ def main():
     output_dir = Path(__file__).parent / args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    diagnostics_cfg = config.get("diagnostics", {})
+    diagnostics_enabled = bool(diagnostics_cfg.get("enabled", True))
+    diagnostics_dir = output_dir / "diagnostics"
+    segments_dir = diagnostics_dir / "segments"
+    if diagnostics_enabled:
+        segments_dir.mkdir(parents=True, exist_ok=True)
+        run_config_file = diagnostics_dir / "run_config.json"
+        with open(run_config_file, "w") as f:
+            json.dump(
+                {
+                    "start_date": args.start_date,
+                    "end_date": args.end_date,
+                    "horizons": horizons,
+                    "config_path": str(config_path),
+                    "config": config,
+                },
+                f,
+                indent=2,
+                default=str,
+            )
+
     print("=" * 80)
     print("AAA PATTERN DISCOVERY (Overfitting Filters + 3-Period Validation)")
     print("STREAMED PIPELINE (MONTH-BY-MONTH)")
@@ -352,7 +424,16 @@ def main():
         vol_threshold=config["regime_detection"]["vol_threshold"],
     )
 
-    event_filter = EventFilter()
+    event_filter_cfg = config.get("event_filter", {})
+    event_keywords = event_filter_cfg.get("keywords") or config.get("aaa_criteria", {}).get(
+        "event_keywords"
+    )
+    event_filter = EventFilter(
+        event_keywords=event_keywords,
+        trigger_keywords=event_filter_cfg.get("trigger_keywords"),
+        context_keywords=event_filter_cfg.get("context_keywords"),
+        require_trigger=bool(event_filter_cfg.get("require_trigger", True)),
+    )
 
     temporal_split = TemporalSplit(
         scan_months=config["temporal_periods"]["scan_months"],
@@ -360,12 +441,33 @@ def main():
         oos_months=config["temporal_periods"]["oos_months"],
     )
 
+    validation_gates_cfg = config.get("validation_gates", {})
     validation_gate = ValidationGate(
-        max_win_rate_drop=config["validation_gates"]["max_win_rate_drop"],
-        max_expectancy_drop_pct=config["validation_gates"]["max_expectancy_drop_pct"],
-        max_sharpe_drop_pct=config["validation_gates"]["max_sharpe_drop_pct"],
-        min_validation_trades=config["validation_gates"]["min_validation_trades"],
+        max_win_rate_drop=validation_gates_cfg["max_win_rate_drop"],
+        max_expectancy_drop_pct=validation_gates_cfg["max_expectancy_drop_pct"],
+        max_sharpe_drop_pct=validation_gates_cfg["max_sharpe_drop_pct"],
+        min_validation_trades=validation_gates_cfg["min_validation_trades"],
+        cost_bps=float(validation_gates_cfg.get("cost_bps", 0.0)),
+        min_net_expectancy_bps=validation_gates_cfg.get("min_net_expectancy_bps"),
     )
+    dedupe_by_symbol_day = bool(validation_gates_cfg.get("dedupe_by_symbol_day", False))
+    dedupe_policy = str(validation_gates_cfg.get("dedupe_policy", "first"))
+    if dedupe_policy not in {"first", "last"}:
+        raise ValueError(
+            "validation_gates.dedupe_policy must be 'first' or 'last', "
+            f"got {dedupe_policy!r}"
+        )
+
+    min_aaa_score = config.get("deployment", {}).get("min_aaa_score")
+    if min_aaa_score is not None:
+        try:
+            min_aaa_score = float(min_aaa_score)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"deployment.min_aaa_score must be numeric, got {min_aaa_score!r}"
+            ) from exc
+        if min_aaa_score <= 0:
+            min_aaa_score = None
 
     print("✅ AAA filters initialized")
 
@@ -423,11 +525,28 @@ def main():
         "rel_outperform_extreme",
         "price_up_vol_weak",
         "price_down_vol_weak",
+        "price_up_vol_strong",
+        "price_down_vol_strong",
         "at_session_high",
         "at_session_low",
+        "new_session_high",
+        "new_session_low",
         "vwap_cross_up",
         "vwap_cross_down",
+        "avwap_cross_up",
+        "avwap_cross_down",
+        "ret_5m",
+        "ret_15m",
+        "ret_30m",
         "ret_60m",
+        "ret_5m_turned_positive",
+        "ret_5m_turned_negative",
+        "ret_15m_turned_positive",
+        "ret_15m_turned_negative",
+        "ret_30m_turned_positive",
+        "ret_30m_turned_negative",
+        "ret_60m_turned_positive",
+        "ret_60m_turned_negative",
         "rel_strength_60m",
         "session_range_pct",
         "rvol",
@@ -435,6 +554,9 @@ def main():
         "price_vs_vwap_pct",
         "is_first_hour",
         "is_power_hour",
+        "first_hour_start",
+        "power_hour_start",
+        "last_30min_start",
     ]
     return_cols = [f"fwd_ret_{h}m" for h in horizons]
     keep_cols = {
@@ -565,12 +687,29 @@ def main():
         "rel_outperform_extreme",
         "price_up_vol_weak",
         "price_down_vol_weak",
+        "price_up_vol_strong",
+        "price_down_vol_strong",
         "at_session_high",
         "at_session_low",
+        "new_session_high",
+        "new_session_low",
         "vwap_cross_up",
         "vwap_cross_down",
+        "avwap_cross_up",
+        "avwap_cross_down",
+        "ret_5m_turned_positive",
+        "ret_5m_turned_negative",
+        "ret_15m_turned_positive",
+        "ret_15m_turned_negative",
+        "ret_30m_turned_positive",
+        "ret_30m_turned_negative",
+        "ret_60m_turned_positive",
+        "ret_60m_turned_negative",
     ]
     state_features = [
+        "ret_5m",
+        "ret_15m",
+        "ret_30m",
         "ret_60m",
         "rel_strength_60m",
         "session_range_pct",
@@ -578,7 +717,13 @@ def main():
         "atr_14",
         "price_vs_vwap_pct",
     ]
-    time_context = ["is_first_hour", "is_power_hour"]
+    time_context = [
+        "is_first_hour",
+        "is_power_hour",
+        "first_hour_start",
+        "power_hour_start",
+        "last_30min_start",
+    ]
 
     feature_cols = [
         f for f in high_alpha_events + state_features + time_context if f in scan_df.columns
@@ -597,7 +742,30 @@ def main():
         & (scan_df.get("spy_high_vol", False) == True),
     }
 
-    all_patterns = []
+    discovery_cfg = config.get("discovery", {})
+    n_bins = int(discovery_cfg.get("n_bins", 5))
+    max_conditions = int(discovery_cfg.get("max_conditions", 2))
+    min_t_stat = float(discovery_cfg.get("min_t_stat", 3.0))
+    min_expectancy = float(discovery_cfg.get("min_expectancy", 0.005))
+    discovery_min_samples = int(
+        discovery_cfg.get("min_samples", config["aaa_criteria"]["min_samples"])
+    )
+    max_patterns_pre_filter = int(
+        discovery_cfg.get(
+            "max_patterns_pre_filter",
+            config["deployment"]["max_strategies"] * 25,
+        )
+    )
+    actionable_bin_values = discovery_cfg.get("actionable_bin_values")
+    include_false_for_binary = bool(discovery_cfg.get("include_false_for_binary", False))
+    max_candidate_rules = discovery_cfg.get("max_candidate_rules")
+    if max_candidate_rules is not None:
+        max_candidate_rules = int(max_candidate_rules)
+
+    overfit_policy = config.get("aaa_criteria", {}).get("overfit_policy", "reject")
+
+    segment_summaries: list[dict] = []
+    all_patterns: list[pd.DataFrame] = []
 
     for horizon in horizons:
         return_col = f"fwd_ret_{horizon}m"
@@ -628,7 +796,7 @@ def main():
                 del val_df_full  # Free immediately
                 gc.collect()
 
-            if len(df_regime) < config["aaa_criteria"]["min_samples"]:
+            if len(df_regime) < discovery_min_samples:
                 if val_df_regime is not None:
                     del val_df_regime
                 continue
@@ -636,125 +804,396 @@ def main():
             print(f"\n{'=' * 60}")
             print(f"REGIME: {regime_name} | HORIZON: {horizon}m")
             print(
-                f"SAMPLES: {len(df_regime):,} | MIN_REQUIRED: {config['aaa_criteria']['min_samples']:,}"
+                f"SAMPLES: {len(df_regime):,} | MIN_REQUIRED: {discovery_min_samples:,}"
             )
             print("=" * 60)
 
+            segment_key_base = f"{regime_name}__{horizon}m"
+            bin_edges: dict[str, list[float] | None] | None = None
+
             # Discover LONG patterns
             print("\nDiscovering LONG patterns...")
-            long_patterns = discover_patterns(
+            long_raw, bin_edges = discover_patterns(
                 df_regime,
                 feature_cols,
                 return_col,
                 direction="LONG",
-                min_t_stat=3.0,  # Lower threshold for testing
-                min_expectancy=0.005,  # Lower threshold (0.5% vs 2%)
-                min_trades=config["aaa_criteria"]["min_samples"],
-                max_patterns=config["deployment"]["max_strategies"] * 3,
+                min_t_stat=min_t_stat,
+                min_expectancy=min_expectancy,
+                min_trades=discovery_min_samples,
+                max_patterns=max_patterns_pre_filter,
+                max_conditions=max_conditions,
+                n_bins=n_bins,
                 use_aaa_scoring=args.use_aaa_scoring,
                 current_regime=current_regime,
+                actionable_bin_values=actionable_bin_values,
+                include_false_for_binary=include_false_for_binary,
+                max_candidate_rules=max_candidate_rules,
+                return_bin_edges=True,
             )
+            if not long_raw.empty:
+                long_raw["regime"] = regime_name
 
-            if not long_patterns.empty:
-                long_patterns["regime"] = regime_name
+            if diagnostics_enabled and bin_edges is not None:
+                edges_file = segments_dir / f"{segment_key_base}__bin_edges.json"
+                with open(edges_file, "w") as f:
+                    json.dump(bin_edges, f, indent=2, default=str)
 
-                # Apply AAA filters
-                long_patterns = apply_aaa_filters(
-                    long_patterns,
+            # Prepare validation binning (must match scan bin edges).
+            if bin_edges is not None and val_df_regime is not None:
+                val_df_regime, _ = discretize_features(
+                    val_df_regime,
+                    feature_cols,
+                    n_bins,
+                    bin_edges=bin_edges,
+                )
+
+            long_candidates = long_raw
+            if not long_candidates.empty:
+                long_candidates = apply_aaa_filters(
+                    long_candidates,
                     overfit_filter,
                     event_filter,
                     regime_filter,
                     current_regime,
                     require_event=config["aaa_criteria"]["require_event_based"],
                     require_regime_match=config["aaa_criteria"]["require_regime_match"],
+                    overfit_policy=overfit_policy,
+                    min_aaa_score=min_aaa_score,
+                    filter_out=False,
                 )
 
-                # Validate on holdout period
-                if not long_patterns.empty and val_df_regime is not None:
-                    print(f"\n  Validating {len(long_patterns)} LONG patterns on holdout period...")
-                    long_patterns_list = long_patterns.to_dict("records")
-                    validated = validate_patterns(
-                        long_patterns_list,
+            long_validation_df = pd.DataFrame()
+            long_validation_diag_df = pd.DataFrame()
+            if (
+                not args.skip_validation
+                and val_df_regime is not None
+                and not long_candidates.empty
+            ):
+                to_validate = long_candidates[long_candidates["passes_aaa_filters"]].copy()
+                if not to_validate.empty:
+                    print(
+                        f"\n  Validating {len(to_validate)} LONG patterns on holdout period..."
+                    )
+                    validated, diagnostics = validate_patterns_with_diagnostics(
+                        to_validate.to_dict("records"),
                         df_regime,
                         val_df_regime,
                         validation_gate,
+                        dedupe_by_symbol_day=dedupe_by_symbol_day,
+                        dedupe_policy=dedupe_policy,
+                        recompute_scan_metrics=dedupe_by_symbol_day,
                     )
-
+                    long_validation_diag_df = pd.DataFrame(diagnostics)
                     if validated:
-                        long_patterns = pd.DataFrame(validated)
-                        print(f"  ✅ {len(long_patterns)} LONG patterns passed validation")
-                    else:
-                        print("  ⚠️ No LONG patterns passed validation")
-                        long_patterns = pd.DataFrame()
+                        long_validation_df = pd.DataFrame(validated)
 
-                if not long_patterns.empty:
-                    long_file = output_dir / f"patterns_long_{horizon}m_{regime_name}.csv"
-                    long_patterns.to_csv(long_file, index=False)
-                    print(f"✅ Saved {len(long_patterns)} validated AAA LONG patterns")
-                    all_patterns.append(long_patterns)
+            if not long_candidates.empty and not long_validation_diag_df.empty:
+                long_candidates = long_candidates.merge(
+                    long_validation_diag_df,
+                    on=["rule", "direction", "horizon"],
+                    how="left",
+                )
+
+            long_final = long_candidates
+            if not long_final.empty:
+                final_mask = long_final["passes_aaa_filters"]
+                if not args.skip_validation and val_df_regime is not None:
+                    if "validation_passed" not in long_final.columns:
+                        long_final["validation_passed"] = False
+                    final_mask = final_mask & (long_final["validation_passed"] == True)
+                long_final = long_final[final_mask].copy()
+
+            if diagnostics_enabled:
+                candidates_file = segments_dir / f"{segment_key_base}__long_candidates.csv"
+                long_candidates.to_csv(candidates_file, index=False)
+
+            long_summary: dict = {
+                "regime": regime_name,
+                "horizon_m": horizon,
+                "direction": "LONG",
+                "return_col": return_col,
+                "n_rows_scan": int(len(df_regime)),
+                "n_rows_val": int(len(val_df_regime)) if val_df_regime is not None else 0,
+                "n_patterns_raw": int(len(long_raw)),
+                "n_pass_event_filter": int(long_candidates["passes_event_filter"].sum())
+                if not long_candidates.empty
+                else 0,
+                "n_pass_overfit_filter": int(long_candidates["passes_overfit_filter"].sum())
+                if not long_candidates.empty
+                else 0,
+                "n_pass_regime_filter": int(long_candidates["passes_regime_filter"].sum())
+                if not long_candidates.empty
+                else 0,
+                "n_pass_aaa_score": int(long_candidates["passes_aaa_score"].sum())
+                if (not long_candidates.empty and "passes_aaa_score" in long_candidates)
+                else 0,
+                "n_pass_aaa_filters": int(long_candidates["passes_aaa_filters"].sum())
+                if not long_candidates.empty
+                else 0,
+                "n_pass_validation": int(long_final["validation_passed"].sum())
+                if (
+                    not args.skip_validation
+                    and val_df_regime is not None
+                    and not long_final.empty
+                )
+                else (int(len(long_final)) if not long_final.empty else 0),
+            }
+            if (
+                diagnostics_enabled
+                and not long_candidates.empty
+                and "overfit_reason" in long_candidates
+            ):
+                rejected = long_candidates[long_candidates["is_overfit"]]
+                long_summary["top_overfit_reasons"] = (
+                    rejected["overfit_reason"].value_counts().head(10).to_dict()
+                    if not rejected.empty
+                    else {}
+                )
+            if (
+                diagnostics_enabled
+                and not long_validation_diag_df.empty
+                and "validation_reason" in long_validation_diag_df
+            ):
+                long_summary["top_validation_reasons"] = (
+                    long_validation_diag_df["validation_reason"].value_counts().head(10).to_dict()
+                )
+
+            segment_summaries.append(long_summary)
+
+            if diagnostics_enabled:
+                summary_file = diagnostics_dir / "summary.json"
+                with open(summary_file, "w") as f:
+                    json.dump(segment_summaries, f, indent=2, default=str)
+
+            if not long_final.empty:
+                long_file = output_dir / f"patterns_long_{horizon}m_{regime_name}.csv"
+                long_final.to_csv(long_file, index=False)
+                print(f"✅ Saved {len(long_final)} validated AAA LONG patterns")
+                all_patterns.append(long_final)
 
             # Discover SHORT patterns
             print("\nDiscovering SHORT patterns...")
-            short_patterns = discover_patterns(
+            short_raw = discover_patterns(
                 df_regime,
                 feature_cols,
                 return_col,
                 direction="SHORT",
-                min_t_stat=3.0,
-                min_expectancy=0.005,
-                min_trades=config["aaa_criteria"]["min_samples"],
-                max_patterns=config["deployment"]["max_strategies"] * 3,
+                min_t_stat=min_t_stat,
+                min_expectancy=min_expectancy,
+                min_trades=discovery_min_samples,
+                max_patterns=max_patterns_pre_filter,
+                max_conditions=max_conditions,
+                n_bins=n_bins,
                 use_aaa_scoring=args.use_aaa_scoring,
                 current_regime=current_regime,
+                actionable_bin_values=actionable_bin_values,
+                include_false_for_binary=include_false_for_binary,
+                max_candidate_rules=max_candidate_rules,
+                bin_edges=bin_edges,
             )
 
-            if not short_patterns.empty:
-                short_patterns["regime"] = regime_name
+            if not short_raw.empty:
+                short_raw["regime"] = regime_name
 
-                short_patterns = apply_aaa_filters(
-                    short_patterns,
+            short_candidates = short_raw
+            if not short_candidates.empty:
+                short_candidates = apply_aaa_filters(
+                    short_candidates,
                     overfit_filter,
                     event_filter,
                     regime_filter,
                     current_regime,
                     require_event=config["aaa_criteria"]["require_event_based"],
                     require_regime_match=config["aaa_criteria"]["require_regime_match"],
+                    overfit_policy=overfit_policy,
+                    min_aaa_score=min_aaa_score,
+                    filter_out=False,
                 )
 
-                # Validate on holdout period
-                if not short_patterns.empty and val_df_regime is not None:
+            short_validation_diag_df = pd.DataFrame()
+            if (
+                not args.skip_validation
+                and val_df_regime is not None
+                and not short_candidates.empty
+            ):
+                to_validate = short_candidates[short_candidates["passes_aaa_filters"]].copy()
+                if not to_validate.empty:
                     print(
-                        f"\n  Validating {len(short_patterns)} SHORT patterns on holdout period..."
+                        f"\n  Validating {len(to_validate)} SHORT patterns on holdout period..."
                     )
-                    short_patterns_list = short_patterns.to_dict("records")
-                    validated = validate_patterns(
-                        short_patterns_list,
+                    validated, diagnostics = validate_patterns_with_diagnostics(
+                        to_validate.to_dict("records"),
                         df_regime,
                         val_df_regime,
                         validation_gate,
+                        dedupe_by_symbol_day=dedupe_by_symbol_day,
+                        dedupe_policy=dedupe_policy,
+                        recompute_scan_metrics=dedupe_by_symbol_day,
                     )
+                    short_validation_diag_df = pd.DataFrame(diagnostics)
 
-                    if validated:
-                        short_patterns = pd.DataFrame(validated)
-                        print(f"  ✅ {len(short_patterns)} SHORT patterns passed validation")
-                    else:
-                        print("  ⚠️ No SHORT patterns passed validation")
-                        short_patterns = pd.DataFrame()
+            if not short_candidates.empty and not short_validation_diag_df.empty:
+                short_candidates = short_candidates.merge(
+                    short_validation_diag_df,
+                    on=["rule", "direction", "horizon"],
+                    how="left",
+                )
 
-                if not short_patterns.empty:
-                    short_file = output_dir / f"patterns_short_{horizon}m_{regime_name}.csv"
-                    short_patterns.to_csv(short_file, index=False)
-                    print(f"✅ Saved {len(short_patterns)} validated AAA SHORT patterns")
-                    all_patterns.append(short_patterns)
+            short_final = short_candidates
+            if not short_final.empty:
+                final_mask = short_final["passes_aaa_filters"]
+                if not args.skip_validation and val_df_regime is not None:
+                    if "validation_passed" not in short_final.columns:
+                        short_final["validation_passed"] = False
+                    final_mask = final_mask & (short_final["validation_passed"] == True)
+                short_final = short_final[final_mask].copy()
+
+            if diagnostics_enabled:
+                candidates_file = segments_dir / f"{segment_key_base}__short_candidates.csv"
+                short_candidates.to_csv(candidates_file, index=False)
+
+            short_summary: dict = {
+                "regime": regime_name,
+                "horizon_m": horizon,
+                "direction": "SHORT",
+                "return_col": return_col,
+                "n_rows_scan": int(len(df_regime)),
+                "n_rows_val": int(len(val_df_regime)) if val_df_regime is not None else 0,
+                "n_patterns_raw": int(len(short_raw)),
+                "n_pass_event_filter": int(short_candidates["passes_event_filter"].sum())
+                if not short_candidates.empty
+                else 0,
+                "n_pass_overfit_filter": int(short_candidates["passes_overfit_filter"].sum())
+                if not short_candidates.empty
+                else 0,
+                "n_pass_regime_filter": int(short_candidates["passes_regime_filter"].sum())
+                if not short_candidates.empty
+                else 0,
+                "n_pass_aaa_score": int(short_candidates["passes_aaa_score"].sum())
+                if (not short_candidates.empty and "passes_aaa_score" in short_candidates)
+                else 0,
+                "n_pass_aaa_filters": int(short_candidates["passes_aaa_filters"].sum())
+                if not short_candidates.empty
+                else 0,
+                "n_pass_validation": int(short_final["validation_passed"].sum())
+                if (
+                    not args.skip_validation
+                    and val_df_regime is not None
+                    and not short_final.empty
+                )
+                else (int(len(short_final)) if not short_final.empty else 0),
+            }
+            if (
+                diagnostics_enabled
+                and not short_candidates.empty
+                and "overfit_reason" in short_candidates
+            ):
+                rejected = short_candidates[short_candidates["is_overfit"]]
+                short_summary["top_overfit_reasons"] = (
+                    rejected["overfit_reason"].value_counts().head(10).to_dict()
+                    if not rejected.empty
+                    else {}
+                )
+            if (
+                diagnostics_enabled
+                and not short_validation_diag_df.empty
+                and "validation_reason" in short_validation_diag_df
+            ):
+                short_summary["top_validation_reasons"] = (
+                    short_validation_diag_df["validation_reason"].value_counts().head(10).to_dict()
+                )
+
+            segment_summaries.append(short_summary)
+
+            if diagnostics_enabled:
+                summary_file = diagnostics_dir / "summary.json"
+                with open(summary_file, "w") as f:
+                    json.dump(segment_summaries, f, indent=2, default=str)
+
+            if not short_final.empty:
+                short_file = output_dir / f"patterns_short_{horizon}m_{regime_name}.csv"
+                short_final.to_csv(short_file, index=False)
+                print(f"✅ Saved {len(short_final)} validated AAA SHORT patterns")
+                all_patterns.append(short_final)
 
             # MEMORY-OPTIMIZED: Explicit cleanup before next iteration
-            del df_regime, long_patterns, short_patterns
+            del df_regime, long_raw, long_candidates, long_final
+            del short_raw, short_candidates, short_final
             if val_df_regime is not None:
                 del val_df_regime
             gc.collect()
             log_memory(f"After {regime_name}/{horizon}m")
 
+    if diagnostics_enabled:
+        from collections import Counter
+
+        totals = {
+            "segments": len(segment_summaries),
+            "raw_patterns": sum(s.get("n_patterns_raw", 0) for s in segment_summaries),
+            "pass_event": sum(s.get("n_pass_event_filter", 0) for s in segment_summaries),
+            "pass_overfit": sum(s.get("n_pass_overfit_filter", 0) for s in segment_summaries),
+            "pass_regime": sum(s.get("n_pass_regime_filter", 0) for s in segment_summaries),
+            "pass_aaa_score": sum(s.get("n_pass_aaa_score", 0) for s in segment_summaries),
+            "pass_aaa_filters": sum(s.get("n_pass_aaa_filters", 0) for s in segment_summaries),
+            "pass_validation": sum(s.get("n_pass_validation", 0) for s in segment_summaries),
+        }
+
+        overfit_reasons: Counter[str] = Counter()
+        validation_reasons: Counter[str] = Counter()
+        for seg in segment_summaries:
+            for reason, count in (seg.get("top_overfit_reasons") or {}).items():
+                overfit_reasons[str(reason)] += int(count)
+            for reason, count in (seg.get("top_validation_reasons") or {}).items():
+                validation_reasons[str(reason)] += int(count)
+
+        report_lines = [
+            "# AAA Discovery Diagnostics",
+            "",
+            f"- Date range: {args.start_date} to {args.end_date}",
+            f"- Horizons: {', '.join(str(h) for h in horizons)}",
+            f"- Current regime: {current_regime}",
+            f"- Require event-based: {config['aaa_criteria']['require_event_based']}",
+            f"- Overfit policy: {overfit_policy}",
+            f"- Min AAA score: {min_aaa_score if min_aaa_score is not None else 'none'}",
+            f"- Validation cost (bps): {validation_gate.cost_bps:.1f}",
+            (
+                "- Min net expectancy (bps): "
+                f"{validation_gate.min_net_expectancy_bps}"
+                if validation_gate.min_net_expectancy_bps is not None
+                else "- Min net expectancy (bps): none"
+            ),
+            f"- Dedupe by symbol/day: {dedupe_by_symbol_day} ({dedupe_policy})",
+            f"- Validation enabled: {not args.skip_validation}",
+            "",
+            "## Totals",
+            f"- Segments: {totals['segments']}",
+            f"- Raw patterns: {totals['raw_patterns']}",
+            f"- Pass event filter: {totals['pass_event']}",
+            f"- Pass overfit filter: {totals['pass_overfit']}",
+            f"- Pass regime filter: {totals['pass_regime']}",
+            f"- Pass AAA score: {totals['pass_aaa_score']}",
+            f"- Pass AAA filters: {totals['pass_aaa_filters']}",
+            f"- Pass validation: {totals['pass_validation']}",
+            "",
+            "## Top Overfit Rejections",
+        ]
+
+        for reason, count in overfit_reasons.most_common(20):
+            report_lines.append(f"- {count}: {reason}")
+
+        report_lines.append("")
+        report_lines.append("## Top Validation Rejections")
+        for reason, count in validation_reasons.most_common(20):
+            report_lines.append(f"- {count}: {reason}")
+
+        report_file = diagnostics_dir / "report.md"
+        with open(report_file, "w") as f:
+            f.write("\n".join(report_lines) + "\n")
+        print(f"✅ Diagnostics report saved to {report_file}")
+
     # Consolidate and rank
+    all_file = output_dir / "patterns_all_aaa.csv"
     if all_patterns:
         all_patterns_df = pd.concat(all_patterns, ignore_index=True)
 
@@ -764,7 +1203,6 @@ def main():
         else:
             all_patterns_df = all_patterns_df.sort_values("t_stat", ascending=False)
 
-        all_file = output_dir / "patterns_all_aaa.csv"
         all_patterns_df.to_csv(all_file, index=False)
 
         print(f"\n{'=' * 80}")
@@ -777,7 +1215,9 @@ def main():
             print("\nRunning LLM analysis on top patterns...")
             top_patterns = all_patterns_df.head(config["llm_analysis"]["max_patterns_to_analyze"])
             llm_output = format_patterns_for_llm(
-                top_patterns, "AAA Patterns", top_n=len(top_patterns)
+                top_patterns,
+                "AAA Patterns",
+                top_n=len(top_patterns),
             )
 
             llm_file = output_dir / "llm_analysis_aaa.md"
@@ -785,7 +1225,9 @@ def main():
                 f.write(llm_output)
             print(f"✅ LLM analysis saved to {llm_file}")
     else:
-        print("\n⚠️ No patterns passed AAA filters")
+        pd.DataFrame().to_csv(all_file, index=False)
+        print("\n⚠️ No patterns passed AAA filters/validation")
+        print(f"✅ Wrote empty {all_file}")
 
     # Cleanup temp files
     if val_df_path is not None and val_df_path.exists():

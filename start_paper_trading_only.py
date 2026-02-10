@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path.home() / "transalpha" / "l2"))
 sys.path.insert(0, str(repo_root / "qx-data" / "src"))
 
 import logging
+import os
 import time
 from datetime import datetime
 
@@ -35,7 +36,8 @@ def main():
 
     # Create directories
     Path("logs").mkdir(exist_ok=True)
-    Path("data/live_l2").mkdir(parents=True, exist_ok=True)
+    l2_root = Path(os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")).expanduser()
+    (l2_root / "live_l2").mkdir(parents=True, exist_ok=True)
 
     logger.info("🚀 Starting Paper Trading System with L2 Data Collection")
 
@@ -65,7 +67,8 @@ def main():
 
     logger.info("📊 Initializing L2 Collector...")
     l2_collector = QuantstackL2Collector(
-        symbols=symbols[:6], output_dir="data/live_l2"  # Top 6 for L2 collection
+        symbols=symbols[:6],
+        output_dir=str(l2_root / "live_l2"),  # Top 6 for L2 collection
     )
 
     logger.info("⏱️  Initializing Performance Monitor...")

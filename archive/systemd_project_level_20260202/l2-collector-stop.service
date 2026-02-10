@@ -1,0 +1,6 @@
+[Unit]
+Description=Stop L2 Collector Service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl stop l2-collector.service

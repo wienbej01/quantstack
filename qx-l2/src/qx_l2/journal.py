@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 import sqlite3
 import uuid
 from datetime import datetime
@@ -17,7 +18,11 @@ class L2Journal:
     def __init__(self, config: dict):
         journal_cfg = config.get("journal", {})
         self.enabled = journal_cfg.get("enabled", True)
-        self.db_path = Path(journal_cfg.get("db_path", "./data/l2/journal.db"))
+        default_root = Path(
+            os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
+        ).expanduser()
+        default_db = default_root / "l2" / "journal.db"
+        self.db_path = Path(journal_cfg.get("db_path", default_db))
 
         if self.enabled:
             self.db_path.parent.mkdir(parents=True, exist_ok=True)

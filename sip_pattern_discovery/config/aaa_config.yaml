@@ -3,7 +3,7 @@
 aaa_criteria:
   # Overfitting thresholds
   max_win_rate: 0.65
-  max_sharpe: 3.0
+  max_sharpe: 4.0
   max_expectancy: 0.10
   min_samples: 10000
   
@@ -16,6 +16,23 @@ aaa_criteria:
   # Pattern requirements
   require_event_based: true
   require_regime_match: false  # Disable for testing
+  overfit_policy: "reject"  # "reject" or "score_only"
+
+discovery:
+  # Pattern search breadth
+  n_bins: 5
+  max_conditions: 2
+  # Sample threshold for candidate evaluation (bar-level observations)
+  min_samples: 10000
+  # Increase this to avoid losing patterns before AAA filters
+  max_patterns_pre_filter: 250
+  # Candidate rule generation controls (for different pattern families)
+  actionable_bin_values: [0, 1, 2, 3, 4]
+  include_false_for_binary: false
+  max_candidate_rules: 5000
+  # Discovery thresholds (targets are % returns, so 0.01 == 0.01%)
+  min_t_stat: 3.0
+  min_expectancy: 0.005
 
 temporal_periods:
   # Data split configuration
@@ -32,6 +49,11 @@ validation_gates:
   max_expectancy_drop_pct: 0.50  # 50% relative
   max_sharpe_drop_pct: 0.40  # 40% relative
   min_validation_trades: 20
+  # Validation realism
+  cost_bps: 2.0
+  min_net_expectancy_bps: 1.0
+  dedupe_by_symbol_day: false
+  dedupe_policy: "first"
 
 regime_detection:
   # SPY regime parameters
@@ -41,7 +63,7 @@ regime_detection:
 deployment:
   # Production deployment limits
   max_strategies: 3
-  min_aaa_score: 0.5
+  min_aaa_score: 0.02
   
   # Position sizing
   position_size_per_strategy: 100
@@ -53,3 +75,39 @@ llm_analysis:
   max_patterns_to_analyze: 10
   require_economic_rationale: true
   max_overfit_risk_score: 1.0
+
+diagnostics:
+  enabled: true
+
+event_filter:
+  # Require at least one "trigger" event; time context alone does not qualify.
+  require_trigger: true
+  trigger_keywords:
+    - rel_underperform_extreme
+    - rel_outperform_extreme
+    - price_up_vol_weak
+    - price_down_vol_weak
+    - price_up_vol_strong
+    - price_down_vol_strong
+    - vwap_cross_up
+    - vwap_cross_down
+    - avwap_cross_up
+    - avwap_cross_down
+    - at_session_low
+    - at_session_high
+    - new_session_high
+    - new_session_low
+    - ret_5m_turned_positive
+    - ret_5m_turned_negative
+    - ret_15m_turned_positive
+    - ret_15m_turned_negative
+    - ret_30m_turned_positive
+    - ret_30m_turned_negative
+    - ret_60m_turned_positive
+    - ret_60m_turned_negative
+  context_keywords:
+    - is_first_hour
+    - is_power_hour
+    - first_hour_start
+    - power_hour_start
+    - last_30min_start

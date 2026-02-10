@@ -1,0 +1,18 @@
+[Unit]
+Description=System Vitals Monitor for Trading Operations
+After=network.target
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+ExecStart=/home/jacobw/quantstack/.venv/bin/python /home/jacobw/quantstack/scripts/monitor_vitals.py
+Restart=always
+RestartSec=5
+
+# Resource limits
+Nice=10
+CPUQuota=5%
+
+[Install]
+WantedBy=multi-user.target

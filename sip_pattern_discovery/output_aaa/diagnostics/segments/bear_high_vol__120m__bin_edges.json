@@ -1,0 +1,101 @@
+{
+  "rel_underperform_extreme": null,
+  "rel_outperform_extreme": null,
+  "price_up_vol_weak": null,
+  "price_down_vol_weak": null,
+  "price_up_vol_strong": null,
+  "price_down_vol_strong": null,
+  "at_session_high": null,
+  "at_session_low": null,
+  "new_session_high": null,
+  "new_session_low": null,
+  "vwap_cross_up": null,
+  "vwap_cross_down": null,
+  "avwap_cross_up": null,
+  "avwap_cross_down": null,
+  "ret_5m_turned_positive": null,
+  "ret_5m_turned_negative": null,
+  "ret_15m_turned_positive": null,
+  "ret_15m_turned_negative": null,
+  "ret_30m_turned_positive": null,
+  "ret_30m_turned_negative": null,
+  "ret_60m_turned_positive": null,
+  "ret_60m_turned_negative": null,
+  "ret_5m": [
+    -Infinity,
+    -0.001644730567932129,
+    -0.000659644603729248,
+    0.0,
+    0.0009183883666992188,
+    Infinity
+  ],
+  "ret_15m": [
+    -Infinity,
+    -0.0030951499938964844,
+    -0.0013714432716369629,
+    -0.00012373924255371094,
+    0.001386404037475586,
+    Infinity
+  ],
+  "ret_30m": [
+    -Infinity,
+    -0.004333376884460449,
+    -0.0018283009529113728,
+    0.0,
+    0.0022513866424560547,
+    Infinity
+  ],
+  "ret_60m": [
+    -Infinity,
+    -0.0060752153396606435,
+    -0.0024130940437316895,
+    0.0002627372741699219,
+    0.0036857604980468778,
+    Infinity
+  ],
+  "rel_strength_60m": [
+    -Infinity,
+    -0.3739774227142334,
+    -0.041365623474121094,
+    0.2151238918304446,
+    0.5539143085479737,
+    Infinity
+  ],
+  "session_range_pct": [
+    -Infinity,
+    0.1118408665060997,
+    0.307691752910614,
+    0.5555531978607178,
+    0.785717785358429,
+    Infinity
+  ],
+  "rvol": [
+    -Infinity,
+    0.38825706839561464,
+    0.6211428165435792,
+    0.9087681651115418,
+    1.4260633230209352,
+    Infinity
+  ],
+  "atr_14": [
+    -Infinity,
+    0.0167857576161623,
+    0.023506982252001762,
+    0.03181430324912071,
+    0.046193695813417444,
+    Infinity
+  ],
+  "price_vs_vwap_pct": [
+    -Infinity,
+    -0.2483998030424118,
+    -0.11030829250812531,
+    -0.011968511715531323,
+    0.10760582238435751,
+    Infinity
+  ],
+  "is_first_hour": null,
+  "is_power_hour": null,
+  "first_hour_start": null,
+  "power_hour_start": null,
+  "last_30min_start": null
+}

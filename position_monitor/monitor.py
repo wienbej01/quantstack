@@ -1,14 +1,19 @@
 """
-Position Monitor - Queries IBKR Platform for positions and P&L.
+Position Monitor - Queries IBKR Gateway for positions and P&L.
 """
 
 import json
 import logging
-from datetime import time
+from datetime import datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from cpapi.platform_client import IBKRPlatformClient, PlatformConfig
+from qx_broker.ibkr import (
+    IBKRAccount,
+    IBKRConnectionConfig,
+    IBKRSession,
+    IBKRSessionConfig,
+)
 from position_monitor.models import PnLData, Position, PositionsOutput
 
 logger = logging.getLogger(__name__)
@@ -21,117 +26,102 @@ TIMEZONE = ZoneInfo("America/New_York")
 
 class PositionMonitor:
     """
-    Queries IBKR Platform for positions and P&L, writes to JSON file.
+    Queries IBKR Gateway for positions and P&L, writes to JSON file.
 
     Args:
-        platform_url: URL of IBKR Platform (default: http://127.0.0.1:8000)
+        host: IBKR Gateway host (default: 127.0.0.1)
+        port: IBKR Gateway port (default: 7497)
+        client_id: IBKR client ID (default: 900)
         output_file: Path to output JSON file (default: /tmp/positions.json)
-        account_id: IBKR account ID (if None, will fetch from platform)
+        account_id: IBKR account ID (optional)
     """
 
     def __init__(
         self,
-        platform_url: str = "http://127.0.0.1:8000",
+        host: str = "127.0.0.1",
+        port: int = 7497,
+        client_id: int = 900,
         output_file: str = "/tmp/positions.json",
-        account_id: str = None,
+        account_id: str | None = None,
     ):
-        self.platform_url = platform_url
+        self.host = host
+        self.port = port
+        self.client_id = client_id
         self.output_file = Path(output_file)
         self.account_id = account_id
 
-        # Initialize platform client
-        config = PlatformConfig(base_url=platform_url)
-        self.client = IBKRPlatformClient(
-            service_id="position-monitor",
-            service_name="Position Monitor",
-            config=config,
-        )
-
-        self._registered = False
+        connection = IBKRConnectionConfig(host=host, port=port, client_id=client_id)
+        session_cfg = IBKRSessionConfig(system_name="POSITION_MONITOR", connection=connection)
+        self.session = IBKRSession(session_cfg)
+        self.account = IBKRAccount(self.session)
+        self._pnl_subscription = None
 
     def connect(self) -> bool:
-        """Connect to IBKR Platform."""
-        try:
-            if not self.client.is_healthy():
-                logger.error(f"Platform not healthy at {self.platform_url}")
-                return False
-
-            success = self.client.register(endpoints=["positions", "pnl"])
-            if success:
-                self._registered = True
-                logger.info("Connected to IBKR Platform")
-
-                # Fetch account ID if not provided
-                if not self.account_id:
-                    # Get full accounts response to retrieve selected account
-                    import requests
-
-                    response = requests.get(
-                        f"{self.platform_url}/api/accounts", timeout=10
-                    )
-                    if response.status_code == 200:
-                        data = response.json()
-                        accounts = data.get("accounts", [])
-                        selected = data.get("selected", "")
-
-                        # Use selected account if available, otherwise first account
-                        if selected:
-                            self.account_id = selected
-                            logger.info(f"Using selected account: {self.account_id}")
-                        elif accounts:
-                            self.account_id = accounts[0]
-                            logger.info(f"Using account: {self.account_id}")
-                        else:
-                            logger.warning("No accounts found")
-                    else:
-                        logger.warning("Failed to get accounts from platform")
-
-            return success
-        except Exception as e:
-            logger.error(f"Failed to connect: {e}")
+        """Connect to IBKR Gateway."""
+        if not self.session.connect():
+            logger.error("Failed to connect to IBKR Gateway")
             return False
+
+        if not self.account_id:
+            self.account_id = self._resolve_account_id()
+            if self.account_id:
+                logger.info("Using account: %s", self.account_id)
+            else:
+                logger.warning("No account ID resolved from IBKR")
+
+        if self.account_id:
+            try:
+                self._pnl_subscription = self.account.subscribe_pnl(self.account_id)
+            except Exception as exc:
+                logger.warning("PnL subscription failed: %s", exc)
+
+        logger.info("Connected to IBKR Gateway")
+        return True
+
+    def _resolve_account_id(self) -> str | None:
+        try:
+            accounts = self.session.call(self.session.ib.managedAccounts, timeout=5)
+            if accounts:
+                return accounts[0]
+        except Exception as exc:
+            logger.warning("managedAccounts lookup failed: %s", exc)
+
+        try:
+            summary = self.session.call(self.session.ib.accountSummary, timeout=10)
+            if summary:
+                return summary[0].account
+        except Exception as exc:
+            logger.warning("accountSummary lookup failed: %s", exc)
+
+        return None
 
     def is_market_hours(self) -> bool:
         """Check if current time is within market hours (0930-1630 ET)."""
-        from datetime import datetime
-
         now = datetime.now(TIMEZONE).time()
         return MARKET_OPEN <= now <= MARKET_CLOSE
 
     def get_open_positions(self) -> list[Position]:
-        """Get open positions from IBKR Platform."""
+        """Get open positions from IBKR Gateway."""
         if not self.account_id:
             logger.warning("No account ID available")
             return []
 
         try:
-            positions_data = self.client.get_positions(self.account_id, page=0)
-
             positions = []
-            for pos in positions_data:
-                # Extract position data
-                # IBKR API returns various fields; we need to parse them
-                symbol = pos.get("contractdesc", "UNKNOWN")
-                if symbol == "UNKNOWN":
-                    symbol = pos.get("symbol", "UNKNOWN")
-
-                quantity = int(pos.get("pos", 0))
+            for pos in self.account.positions():
+                quantity = int(pos.position)
                 if quantity == 0:
-                    continue  # Skip positions with zero quantity
+                    continue
 
-                avg_price = float(pos.get("avgpx", 0))
-                current_price = float(
-                    pos.get("mark_price", pos.get("last_price", avg_price))
+                symbol = pos.contract.symbol
+                avg_price = float(pos.avgCost or 0.0)
+                current_price = float(pos.marketPrice or avg_price or 0.0)
+                market_value = float(pos.marketValue or (quantity * current_price))
+                unrealized_pnl = float(
+                    pos.unrealizedPNL
+                    if pos.unrealizedPNL is not None
+                    else market_value - (avg_price * quantity)
                 )
-                market_value = float(pos.get("mktval", 0))
-
-                # Calculate unrealized P&L
-                # IBKR may provide this directly, or we calculate it
-                unrealized_pnl = float(pos.get("unrealized_pnl", 0))
-                if unrealized_pnl == 0 and quantity != 0:
-                    # Calculate from market value and cost basis
-                    cost_basis = float(pos.get("cost_basis", market_value))
-                    unrealized_pnl = market_value - cost_basis
 
                 positions.append(
                     Position(
@@ -144,45 +134,34 @@ class PositionMonitor:
                     )
                 )
 
-            logger.info(f"Retrieved {len(positions)} open positions")
+            logger.info("Retrieved %s open positions", len(positions))
             return positions
 
-        except Exception as e:
-            logger.error(f"Failed to get positions: {e}")
+        except Exception as exc:
+            logger.error("Failed to get positions: %s", exc)
             return []
 
     def get_daily_pnl(self) -> PnLData:
-        """Get daily P&L from IBKR Platform."""
+        """Get daily P&L from IBKR Gateway."""
+        if not self._pnl_subscription:
+            return PnLData(daily_pnl=0.0)
+
         try:
-            pnl_data = self.client.get_pnl()
-
-            # Parse P&L from response
-            # IBKR response format varies; we need to extract daily P&L
-            daily_pnl = 0.0
-
-            # Try common fields
-            if "upnl" in pnl_data:
-                daily_pnl = float(pnl_data["upnl"])
-            elif "unrealized_pnl" in pnl_data:
-                daily_pnl = float(pnl_data["unrealized_pnl"])
-            elif "dailypnl" in pnl_data:
-                daily_pnl = float(pnl_data["dailypnl"])
-
-            return PnLData(daily_pnl=daily_pnl)
-
-        except Exception as e:
-            logger.error(f"Failed to get P&L: {e}")
+            pnl = self._pnl_subscription
+            daily = float(pnl.dailyPnL or 0.0)
+            realized = float(pnl.realizedPnL or 0.0)
+            unrealized = float(pnl.unrealizedPnL or 0.0)
+            return PnLData(daily_pnl=daily, realized_pnl=realized, unrealized_pnl=unrealized)
+        except Exception as exc:
+            logger.error("Failed to get P&L: %s", exc)
             return PnLData(daily_pnl=0.0)
 
     def write_positions_json(
-        self, positions: list[Position] = None, pnl: PnLData = None
+        self, positions: list[Position] | None = None, pnl: PnLData | None = None
     ) -> bool:
         """Write positions and P&L to JSON file for Conky to read."""
         try:
-            is_market_hours = self.is_market_hours()
-
-            # If not market hours, write empty data
-            if not is_market_hours:
+            if not self.is_market_hours():
                 output = PositionsOutput(
                     positions=[],
                     daily_pnl="+$0.00",
@@ -190,13 +169,11 @@ class PositionMonitor:
                     market_hours=False,
                 )
             else:
-                # Fetch data if not provided
                 if positions is None:
                     positions = self.get_open_positions()
                 if pnl is None:
                     pnl = self.get_daily_pnl()
 
-                # Build position list for JSON
                 positions_json = [
                     {
                         "symbol": p.symbol,
@@ -213,37 +190,33 @@ class PositionMonitor:
                     market_hours=True,
                 )
 
-            # Write to file
             self.output_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.output_file, "w") as f:
                 json.dump(output.to_dict(), f, indent=2)
 
-            logger.debug(
-                f"Wrote {len(output.positions)} positions to {self.output_file}"
-            )
+            logger.debug("Wrote %s positions to %s", len(output.positions), self.output_file)
             return True
 
-        except Exception as e:
-            logger.error(f"Failed to write positions JSON: {e}")
+        except Exception as exc:
+            logger.error("Failed to write positions JSON: %s", exc)
             return False
 
     def update(self) -> bool:
         """Perform a single update cycle."""
         try:
-            # Send heartbeat
-            if self._registered:
-                self.client.heartbeat()
-
-            # Check market hours and write JSON
             return self.write_positions_json()
-
-        except Exception as e:
-            logger.error(f"Update failed: {e}")
+        except Exception as exc:
+            logger.error("Update failed: %s", exc)
             return False
 
-    def disconnect(self):
-        """Disconnect from IBKR Platform."""
-        if self._registered:
-            self.client.unregister()
-            self._registered = False
-            logger.info("Disconnected from IBKR Platform")
+    def disconnect(self) -> None:
+        """Disconnect from IBKR Gateway."""
+        if self._pnl_subscription and self.account_id:
+            try:
+                self.account.cancel_pnl(self.account_id)
+            except Exception as exc:
+                logger.warning("Failed to cancel PnL subscription: %s", exc)
+            self._pnl_subscription = None
+
+        self.session.disconnect()
+        logger.info("Disconnected from IBKR Gateway")

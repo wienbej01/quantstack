@@ -1,0 +1,9 @@
+WARNING:  database "trading" has a collation version mismatch
+DETAIL:  The database was created using collation version 2.41, but the operating system provides version 2.42.
+HINT:  Rebuild all objects in this database that use the default collation and run ALTER DATABASE trading REFRESH COLLATION VERSION, or build PostgreSQL with the right library version.
+  source  | fills |  pct  
+----------+-------+-------
+ CALLBACK |  1311 | 68.78
+ POLL     |   595 | 31.22
+(2 rows)
+

@@ -1,17 +1,20 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this
+repository.
 
 ## Project Overview
 
-SIP Pattern Discovery is a **statistical pattern discovery system** for intraday equity trading. It finds statistically significant trading rules by:
+SIP Pattern Discovery is a **statistical pattern discovery system** for intraday equity trading.
+It finds statistically significant trading rules by:
 1. Loading SIP-filtered 1-minute bar data from Gold data
 2. Computing high-alpha features (relative strength, volume-price divergence, session range)
 3. Running event-based pattern discovery with t-statistic ranking
 4. Applying AAA (Anti-Overfitting, Actionable, Adaptable) filters
 5. Validating patterns across 3 temporal periods (scan, validation, OOS)
 
-**Key innovation:** Patterns are discovered **separately for each market regime** (bull/bear × high/low volatility) rather than averaged across conditions.
+**Key innovation:** Patterns are discovered **separately for each market regime**
+(bull/bear × high/low volatility) rather than averaged across conditions.
 
 ## Common Commands
 
@@ -24,6 +27,14 @@ python3 run_long_short_discovery.py
 ### Run AAA Discovery (with overfitting filters + 3-period validation)
 ```bash
 python3 run_aaa_discovery_wrapper.py --start-date 2024-06-01 --end-date 2024-08-31
+```
+
+### Run AAA Discovery (rebuild monthly cache after feature/config changes)
+```bash
+python3 run_aaa_discovery_wrapper.py \
+  --start-date 2024-06-01 \
+  --end-date 2024-08-31 \
+  --rebuild-monthly-cache
 ```
 
 ### Run Discovery Directly
@@ -64,15 +75,16 @@ Gold 1m bars (/home/jacobw/gcs-mount/gold/stocks/1m/)
     ↓ 3-period validation (scan/val/OOS)
     ↓ Output: patterns_*.csv, llm_analysis_*.md
 ```
+Note: OOS data is cached in the split, but there is no standalone OOS scoring step yet.
 
 ### Source Modules (`src/`)
 
 | Module | Purpose |
 |--------|---------|
-| `data_loader.py` | Load SIP-filtered Gold data with streaming write to avoid memory explosion |
-| `features.py` | Compute high-alpha features (momentum, VWAP, volume, ATR, session, relative strength, SPY regime) |
+| `data_loader.py` | Load SIP-filtered Gold data with streaming writes |
+| `features.py` | Compute high-alpha features (momentum, VWAP, volume, SPY regime) |
 | `targets.py` | Generate forward return targets (30m, 60m, 90m, 120m, 180m) |
-| `pattern_engine.py` | Discover patterns via discretization + t-stat ranking (memory-optimized) |
+| `pattern_engine.py` | Discover patterns via discretization + t-stat ranking |
 | `overfitting_filter.py` | Reject patterns with extreme metrics (WR > 65%, Sharpe > 3.0) |
 | `event_filter.py` | Require event-based patterns (time-constrained vs persistent states) |
 | `regime_filter.py` | Detect market regime (bull/bear × vol) from SPY |
@@ -91,14 +103,25 @@ Gold 1m bars (/home/jacobw/gcs-mount/gold/stocks/1m/)
 | `discover_aaa.py` | AAA discovery with overfitting filters + 3-period validation |
 | `run_aaa_discovery_wrapper.py` | Wrapper for discover_aaa.py |
 
+### Outputs (AAA)
+
+- `output_aaa/patterns_all_aaa.csv`: Consolidated patterns (ranked by AAA score or t-stat)
+- `output_aaa/llm_analysis_aaa.md`: LLM prompt text for top patterns (no API call)
+- `output_aaa/diagnostics/report.md`: Per-run filter/validation summary
+- `output_aaa/diagnostics/segments/*candidates.csv`: Per-segment candidate diagnostics
+- `output_aaa/diagnostics/indication_report.md`: CSV re-eval summary (optional)
+
 ### Configuration
 
 Configuration is YAML-based in `config/aaa_config.yaml`:
 - `aaa_criteria`: Overfitting thresholds (max_win_rate, max_sharpe, max_expectancy)
+- `discovery`: Discretization + rule-generation controls (bins, max conditions, thresholds)
 - `temporal_periods`: Data split (scan_months, validation_months, oos_months)
-- `validation_gates`: Degradation limits between periods
+- `validation_gates`: Degradation limits + cost gates + optional dedupe
 - `regime_detection`: SPY regime parameters (SMA period, vol threshold)
-- `deployment`: Production limits (max_strategies, position sizing)
+- `deployment`: Production limits (max_strategies, min_aaa_score, position sizing)
+- `event_filter`: Trigger/context keywords for event-based patterns
+- `diagnostics`: Enable per-segment diagnostics outputs
 
 ### High-Alpha Features (Actionable Entry Signals)
 
@@ -167,7 +190,8 @@ Patterns are discovered separately for 4 regimes:
 - **High Vol:** SPY ATR in top 30th percentile (rolling 252 days)
 - **Low Vol:** SPY ATR below 70th percentile
 
-**Why this matters:** A pattern with t-stat 3.0 overall might be t-stat 5.0 in bull, t-stat 0.5 in bear. Regime segmentation prevents averaging across incompatible conditions.
+**Why this matters:** A pattern with t-stat 3.0 overall might be t-stat 5.0 in bull,
+t-stat 0.5 in bear. Regime segmentation prevents averaging across incompatible conditions.
 
 ### Ranking Metrics
 

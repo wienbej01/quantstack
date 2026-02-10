@@ -9,6 +9,17 @@ import pandas as pd
 pd.set_option("future.no_silent_downcasting", True)
 
 
+def _ensure_datetime64_ns(series: pd.Series) -> pd.Series:
+    """Normalize timestamps to naive datetime64[ns] for merge_asof compatibility."""
+    if pd.api.types.is_datetime64_ns_dtype(series):
+        return series
+    if pd.api.types.is_datetime64tz_dtype(series):
+        return series.dt.tz_convert("UTC").dt.tz_localize(None)
+    if pd.api.types.is_datetime64_any_dtype(series):
+        return series.astype("datetime64[ns]")
+    return pd.to_datetime(series, utc=True, errors="coerce").dt.tz_localize(None)
+
+
 def compute_momentum_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
     """Compute momentum features for a single symbol."""
     symbol, group = symbol_group
@@ -44,6 +55,8 @@ def compute_relative_strength_features(df: pd.DataFrame, spy_df: pd.DataFrame) -
 
     # Merge SPY returns to main df
     spy_rets = spy[["ts", "spy_ret_60m_pct"]].rename(columns={"ts": "spy_ts"})
+    result["ts"] = _ensure_datetime64_ns(result["ts"])
+    spy_rets["spy_ts"] = _ensure_datetime64_ns(spy_rets["spy_ts"])
     result = result.sort_values("ts")
     spy_rets = spy_rets.sort_values("spy_ts")
 
@@ -393,6 +406,8 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
     spy_features = spy_features.rename(columns={"ts": "spy_ts"})
 
     # Use merge_asof for time-based join
+    result["ts"] = _ensure_datetime64_ns(result["ts"])
+    spy_features["spy_ts"] = _ensure_datetime64_ns(spy_features["spy_ts"])
     result = result.sort_values("ts")
     spy_features = spy_features.sort_values("spy_ts")
 

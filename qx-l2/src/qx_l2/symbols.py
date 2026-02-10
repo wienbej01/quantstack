@@ -4,6 +4,7 @@ import glob
 import hashlib
 import json
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -15,12 +16,16 @@ logger = logging.getLogger(__name__)
 class L2SymbolSelector:
     """Independent symbol selection for L2 collection."""
 
+    # Known ARCA ETFs - excluded when nyse_only=true
+    KNOWN_ARCA = {"UNG", "SPY", "QQQ", "IWM", "EFA", "EEM", "GLD", "SLV", "TLT", "HYG"}
+
     def __init__(self, config: dict):
         symbols_cfg = config.get("symbols", {})
         self.mode = symbols_cfg.get("mode", "hybrid")
         self.core_symbols = symbols_cfg.get("core", [])
         self.rotating_pool = symbols_cfg.get("rotating_pool", [])
         self.max_symbols = symbols_cfg.get("max_symbols", 6)
+        self.nyse_only = symbols_cfg.get("nyse_only", False)
         self._external_symbols: Optional[list[str]] = None
         self.sip_source = symbols_cfg.get("sip_source")
         self.sip_fallback = symbols_cfg.get("sip_fallback")
@@ -33,7 +38,11 @@ class L2SymbolSelector:
         )
 
         storage_cfg = config.get("storage", {})
-        self.log_dir = Path(storage_cfg.get("base_dir", "./data/l2")) / "selection_log"
+        default_root = Path(
+            os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
+        ).expanduser()
+        default_base = default_root / "l2"
+        self.log_dir = Path(storage_cfg.get("base_dir", default_base)) / "selection_log"
 
     def get_symbols(self, date_str: str = None) -> list[str]:
         """Get symbols for collection based on mode."""
@@ -101,6 +110,13 @@ class L2SymbolSelector:
                 raise RuntimeError(message)
             logger.warning(message)
             return []
+
+        # Filter for NYSE-only if configured
+        if self.nyse_only:
+            filtered = [s for s in symbols if s not in self.KNOWN_ARCA]
+            logger.info(f"NYSE filter: {len(symbols)} -> {len(filtered)} symbols (excluded ARCA: {[s for s in symbols if s in self.KNOWN_ARCA]})")
+            symbols = filtered
+
         return symbols[: self.max_symbols]
 
     def set_external_symbols(self, symbols: list[str]):

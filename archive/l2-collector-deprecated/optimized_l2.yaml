@@ -1,0 +1,93 @@
+# Optimized L2 Data Collection Configuration
+# Adjusted for IBKR 3-symbol L2 depth limit (Error 309)
+
+# System identification
+system:
+  name: "L2COLLECT_OPT"
+  client_id: 30  # l2-collector range: 1-99
+  version: "2.1.0"
+
+# IBKR connection
+ibkr:
+  host: "127.0.0.1"
+  port: 7497
+  timeout: 30
+
+# Symbol selection - 3 SYMBOL LIMIT
+symbols:
+  mode: "static"
+  exchange: "NYSE"
+  allowed_primary_exchanges: ["NYSE"]
+  max_symbols: 3  # IBKR account limit
+  
+  # High-priority NYSE stocks for rotation
+  core:
+    - HAL    # Energy (confirmed working)
+    - XOM    # Energy (high volume)
+    - JPM    # Financials (high volume)
+    - PFE    # Healthcare
+    - KO     # Consumer staples
+    - HD     # Retail
+    - CAT    # Industrial
+    - GE     # Industrial
+    - DIS    # Media
+    - MMM    # Industrial
+    - BAC    # Financials
+    - WFC    # Financials
+    - CVX    # Energy
+    - JNJ    # Healthcare
+    - MCD    # Consumer
+
+# Collection - OPTIMIZED FOR 3 SYMBOLS
+collection:
+  levels: 10
+  snapshot_interval_ms: 500     # 2/second
+  smart_depth: false            # Direct NYSE OpenBook
+  rotate_seconds: 600           # 10-minute rotation for broader coverage
+  poll_interval_sec: 0.1
+
+# Schedule - EXTENDED HOURS FOR MORE DATA
+schedule:
+  timezone: "America/New_York"
+  windows:
+    - "09:30-10:30"  # Opening hour
+    - "10:30-11:30"  # Late morning
+    - "11:30-12:30"  # Pre-lunch
+    - "12:30-13:30"  # Lunch
+    - "13:30-14:30"  # Early afternoon
+    - "14:30-15:30"  # Late afternoon
+    - "15:30-16:00"  # Power hour
+  skip_weekends: true
+
+# Storage - HIGH THROUGHPUT
+storage:
+  base_dir: "/home/jacobw/quantstack/data/l2/l2_optimized"
+  format: "parquet"
+  compression: "snappy"
+  flush_rows: 500               # Smaller batches for 3 symbols
+  consolidate_daily: true
+  retention_days: 180
+
+# Features - COMPREHENSIVE
+features:
+  enabled: true
+  obi_levels: [1, 2, 3, 5, 10]
+  delta_windows_sec: [5, 15, 30, 60]
+
+# Journaling - DETAILED TRACKING
+journal:
+  enabled: true
+  db_path: "/home/jacobw/quantstack/data/l2/l2_optimized/journal.db"
+  sample_rate: 0.1  # 10% sampling
+
+# Quality - STRICT STANDARDS
+quality:
+  min_depth_rate: 0.90
+  max_spread: 0.025
+  alert_on_degradation: true
+
+# Performance monitoring
+monitoring:
+  enabled: true
+  log_interval_seconds: 300
+  metrics_retention_hours: 48

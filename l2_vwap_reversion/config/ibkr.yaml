@@ -1,0 +1,20 @@
+# IBKR Connection Configuration for L2 VWAP Mean Reversion
+
+ibkr:
+  host: "127.0.0.1"
+  port: 7494                    # Paper trading gateway
+  # Client ID ranges (l2-vwap: 300-399)
+  order_client_id_base: 300     # Orders: 300-349
+  data_client_id_base: 350      # Data: 350-399
+  client_id_max: 399            # Max ID in range
+  timeout: 30
+  max_reconnect_attempts: 5
+  readonly: false
+  orders:
+    min_cancel_interval_sec: 2.0  # Throttle repeated cancels per order id
+
+# Market data settings
+market_data:
+  bar_size: "1 min"
+  what_to_show: "TRADES"
+  use_rth: true                 # Regular trading hours only

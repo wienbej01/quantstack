@@ -1,0 +1,36 @@
+seed: 42
+baseline_window_minutes: 60
+baseline_min_periods: 600
+cooldown_seconds: 300
+forward_minutes: 5
+pre_minutes: 5
+session_start: "09:30:00"
+session_end: "16:00:00"
+exclude_first_minutes: 5
+exclude_last_minutes: 6
+deep_level_min: 5
+deep_level_max: 20
+near_level_max: 4
+min_events_target: 500
+bootstrap_reps: 1000
+thresholds:
+  - 0.99
+fallback_threshold: 0.97
+use_robust_z: true
+robust_z_threshold: 3.0
+polygon:
+  adjusted: true
+  limit: 50000
+definitions:
+  def_a:
+    name: "Definition A"
+    percentile: 0.99
+    persistence_seconds: 30
+  def_b:
+    name: "Definition B"
+    percentile_ratio: 0.99
+    percentile_deep: 0.90
+    persistence_seconds: 20
+controls:
+  use_volume_30m: true
+  use_hl_range: true

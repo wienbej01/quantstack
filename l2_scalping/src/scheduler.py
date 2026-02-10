@@ -26,12 +26,26 @@ class MarketScheduler:
         self.market_close = dt_time(16, 0)  # 4:00 PM
 
         # Trading schedule
-        schedule_config = config.get("schedule", {})
+        schedule_config = config.get("schedule", config or {})
         self.auto_start = schedule_config.get("auto_start", True)
         self.pre_market_buffer = schedule_config.get("pre_market_buffer_minutes", 5)
         self.post_market_buffer = schedule_config.get("post_market_buffer_minutes", 5)
 
+        # Optional EOD flatten time override (HH:MM)
+        self.eod_flatten_time = self._parse_time(schedule_config.get("eod_flatten_time"))
+
         logger.info(f"Market scheduler initialized - auto_start: {self.auto_start}")
+
+    def _parse_time(self, time_str: str | None) -> dt_time | None:
+        """Parse HH:MM string into time."""
+        if not time_str:
+            return None
+        try:
+            hour_str, minute_str = time_str.split(":")
+            return dt_time(int(hour_str), int(minute_str))
+        except Exception:
+            logger.warning(f"Invalid time format: {time_str}")
+            return None
 
     def get_et_time(self) -> datetime:
         """Get current Eastern Time"""
@@ -71,6 +85,56 @@ class MarketScheduler:
         )
 
         return start_time <= current_time <= end_time
+
+    def can_open_new_position(self, max_hold_seconds: int) -> tuple[bool, str]:
+        """Check if sufficient time remains to open a new position.
+        
+        Args:
+            max_hold_seconds: Maximum hold time for position
+            
+        Returns:
+            (can_open, reason) tuple
+        """
+        if not self.is_market_day():
+            return False, "Not a market day"
+        
+        et_now = self.get_et_time()
+        current_time = et_now.time()
+        
+        # Calculate time until effective close (EOD flatten if configured)
+        effective_close = self.eod_flatten_time or self.market_close
+        market_close_dt = et_now.replace(
+            hour=effective_close.hour,
+            minute=effective_close.minute,
+            second=0,
+            microsecond=0,
+        )
+        
+        seconds_until_close = (market_close_dt - et_now).total_seconds()
+        
+        # Need enough time for max hold + buffer
+        buffer_seconds = 60  # 1-minute buffer
+        required_seconds = max_hold_seconds + buffer_seconds
+        
+        if seconds_until_close < required_seconds:
+            return False, f"Insufficient time: {seconds_until_close:.0f}s until close, need {required_seconds}s"
+        
+        return True, "OK"
+
+    def is_eod_flatten_time(self) -> bool:
+        """Check if EOD flatten window has started."""
+        if not self.eod_flatten_time or not self.is_market_day():
+            return False
+        et_now = self.get_et_time()
+        return et_now.time() >= self.eod_flatten_time
+
+    def is_entry_cutoff_reached(self) -> bool:
+        """Check if new entries should be blocked."""
+        if not self.is_market_day():
+            return True
+        et_now = self.get_et_time()
+        cutoff = self.eod_flatten_time or self.market_close
+        return et_now.time() >= cutoff
 
     def wait_for_market_open(self) -> None:
         """Wait until market opens"""

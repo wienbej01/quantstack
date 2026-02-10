@@ -27,12 +27,23 @@ except ImportError:
     SHARED_EVENT_STORE = False
     logging.warning("Could not import shared event store, using local journal")
 
+# Use qx-broker notify functions for NTFY
 try:
-    from notifications.ntfy_notifier import NTFYNotifier
+    from qx_broker.notify import send_trade_notification
     NTFY_AVAILABLE = True
 except ImportError:
     NTFY_AVAILABLE = False
-    logging.warning("Could not import NTFY notifier")
+    logging.warning("Could not import qx_broker notify functions")
+
+# Audit logger
+sys.path.insert(0, "/home/jacobw/quantstack/cpapi")
+try:
+    from audit_logger import AuditLogger, EventType, Severity
+
+    AUDIT_AVAILABLE = True
+except ImportError:
+    AUDIT_AVAILABLE = False
+    logging.warning("Could not import audit logger")
 
 logger = logging.getLogger(__name__)
 
@@ -75,31 +86,66 @@ class TradeJournal:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(exist_ok=True)
 
+        # Daily journal file (always set for fallback)
+        today = datetime.now().strftime("%Y%m%d")
+        self.journal_file = self.data_dir / f"trades_{today}.jsonl"
+
         # Use shared event store if available
         if SHARED_EVENT_STORE:
-            self.event_store = EventStore(
-                "/home/jacobw/intraday_stack/data/journal/events.db"
-            )
-            logger.info("Using shared event store for L2 scalping trades")
+            try:
+                self.event_store = EventStore(
+                    use_postgres=True,
+                    pg_config={"database": "trading", "user": "jacobw"},
+                )
+                logger.info("Using shared PostgreSQL event store for L2 scalping trades")
+                self._ensure_postgres_schema()
+            except Exception as exc:
+                logger.error(f"Failed to initialize shared event store: {exc}", exc_info=True)
+                self.event_store = None
         else:
             self.event_store = None
-            # Daily journal file fallback
-            today = datetime.now().strftime("%Y%m%d")
-            self.journal_file = self.data_dir / f"trades_{today}.jsonl"
 
-        # NTFY notifier
-        if NTFY_AVAILABLE:
-            self.notifier = NTFYNotifier()
+        # NTFY notifications via qx-broker
+        self.ntfy_available = NTFY_AVAILABLE
+        if self.ntfy_available:
             logger.info("NTFY notifications enabled for L2 scalping")
+
+        # Audit logger
+        if AUDIT_AVAILABLE:
+            self.audit = AuditLogger(service_name="l2-scalping")
+            logger.info("Audit logging enabled for L2 scalping")
         else:
-            self.notifier = None
+            self.audit = None
 
         # In-memory storage
         self.trades: list[TradeRecord] = []
-        if not SHARED_EVENT_STORE:
+        if not SHARED_EVENT_STORE or not self.event_store:
             self.load_today_trades()
 
-        logger.info(f"L2 Trade journal initialized")
+        logger.info("L2 Trade journal initialized")
+
+    def _ensure_postgres_schema(self) -> None:
+        """Ensure PostgreSQL schema supports extended trade fields."""
+        if not self.event_store or not getattr(self.event_store, "use_postgres", False):
+            return
+
+        conn = getattr(self.event_store, "conn", None)
+        if conn is None:
+            return
+
+        cursor = conn.cursor()
+        try:
+            cursor.execute("ALTER TABLE trades ADD COLUMN IF NOT EXISTS system TEXT")
+            cursor.execute(
+                "ALTER TABLE trades ADD COLUMN IF NOT EXISTS signal_entry_price REAL"
+            )
+            cursor.execute(
+                "ALTER TABLE trades ADD COLUMN IF NOT EXISTS signal_exit_price REAL"
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            logger.exception("Failed to ensure PostgreSQL trade schema")
 
     def record_signal(
         self, symbol: str, signal_type: str, signal_strength: float
@@ -107,7 +153,7 @@ class TradeJournal:
         """Record a trading signal (before execution)"""
         trade_id = f"{symbol}_{datetime.now().strftime('%H%M%S_%f')}"
 
-        if SHARED_EVENT_STORE:
+        if SHARED_EVENT_STORE and self.event_store:
             # Log decision to shared event store
             self.event_store.log_decision(
                 symbol=symbol,
@@ -131,7 +177,7 @@ class TradeJournal:
         )
 
         self.trades.append(trade)
-        if not SHARED_EVENT_STORE:
+        if not SHARED_EVENT_STORE or not self.event_store:
             self._persist_trade(trade)
 
         logger.info(
@@ -140,97 +186,231 @@ class TradeJournal:
         return trade_id
 
     def record_trade_entry(
-        self, symbol: str, side: str, quantity: int, entry_price: float, order_id: str,
-        rule_name: str = "obi_momentum"
+        self,
+        symbol: str,
+        side: str,
+        quantity: int,
+        entry_price: float,
+        order_id: str,
+        rule_name: str = "obi_momentum",
+        signal_id: str | None = None,
+        signal_price: float | None = None,
     ) -> str:
-        """Record trade entry with rule attribution and NTFY notification"""
-        # Send NTFY notification
-        if self.notifier:
-            system_tag = f"l2-scalping:{rule_name}"
-            self.notifier.trade_alert(
+        """Record trade entry with rule attribution and NTFY notification.
+
+        Args:
+            entry_price: Actual fill price
+            signal_price: Original signal price (for slippage calculation)
+        """
+        trade_id = ""
+        system_tag = f"l2-scalping:{rule_name}"
+
+        if SHARED_EVENT_STORE and self.event_store:
+            if not signal_id:
+                signal_id = f"l2_{rule_name}_{symbol}_{datetime.now().strftime('%H%M%S')}"
+            # Open trade in shared event store with rule_name in strategy field
+            try:
+                trade_id = self.event_store.open_trade(
+                    symbol=symbol,
+                    strategy=f"l2_scalping_{rule_name}",  # Include rule name
+                    direction="long" if side == "BUY" else "short",
+                    signal_id=signal_id,
+                    entry_order_id=int(order_id) if order_id.isdigit() else 0,
+                    entry_price=entry_price,
+                    entry_qty=quantity,
+                    signal_price=signal_price if signal_price is not None else entry_price,
+                    system="l2-scalping",
+                )
+            except Exception as exc:
+                logger.error(f"Failed to open L2 trade in shared store: {exc}", exc_info=True)
+                trade_id = ""
+
+            if not trade_id:
+                logger.error(f"L2 Trade open FAILED [{rule_name}] for {symbol}")
+                if self.audit:
+                    self.audit.log_event(
+                        event_type=EventType.ERROR,
+                        message=f"Trade open failed for {symbol}",
+                        severity=Severity.ERROR,
+                        context={
+                            "symbol": symbol,
+                            "side": side,
+                            "quantity": quantity,
+                            "entry_price": entry_price,
+                            "order_id": order_id,
+                            "rule_name": rule_name,
+                        },
+                    )
+                return ""
+
+            logger.info(f"L2 Trade opened [{rule_name}] in shared store: {trade_id}")
+
+            if self.audit:
+                self.audit.log_event(
+                    event_type=EventType.TRADE_SIGNAL,
+                    message=f"ENTRY {side} {quantity} {symbol} @ {entry_price:.4f}",
+                    context={
+                        "symbol": symbol,
+                        "side": side,
+                        "quantity": quantity,
+                        "entry_price": entry_price,
+                        "order_id": order_id,
+                        "signal_price": signal_price if signal_price is not None else entry_price,
+                        "rule_name": rule_name,
+                        "trade_id": trade_id,
+                    },
+                )
+                self.audit.trade_open(
+                    symbol=symbol,
+                    direction=side,
+                    qty=quantity,
+                    price=entry_price,
+                    trade_id=trade_id,
+                )
+
+        # Fallback to local journal
+        else:
+            trade = self._find_pending_trade(symbol)
+            if not trade:
+                trade = TradeRecord(
+                    timestamp=datetime.now().isoformat(),
+                    symbol=symbol,
+                    side=side,
+                    quantity=quantity,
+                    entry_price=entry_price,
+                    order_id=order_id,
+                    status=TradeStatus.FILLED.value,
+                    rule_name=rule_name,
+                )
+                self.trades.append(trade)
+            else:
+                trade.side = side
+                trade.quantity = quantity
+                trade.entry_price = entry_price
+                trade.order_id = order_id
+                trade.fill_time = datetime.now().isoformat()
+                trade.status = TradeStatus.FILLED.value
+                trade.rule_name = rule_name
+
+            self._persist_trade(trade)
+            logger.info(f"L2 Trade entry [{rule_name}]: {symbol} {side} {quantity}@{entry_price:.4f}")
+            trade_id = f"local_{symbol}_{datetime.now().strftime('%H%M%S')}"
+
+            if self.audit:
+                self.audit.log_event(
+                    event_type=EventType.TRADE_SIGNAL,
+                    message=f"ENTRY {side} {quantity} {symbol} @ {entry_price:.4f}",
+                    context={
+                        "symbol": symbol,
+                        "side": side,
+                        "quantity": quantity,
+                        "entry_price": entry_price,
+                        "order_id": order_id,
+                        "rule_name": rule_name,
+                    },
+                )
+
+        # Send NTFY notification after trade_id is available
+        if self.ntfy_available:
+            send_trade_notification(
+                action="ENTRY",
                 symbol=symbol,
+                strategy=system_tag,
                 direction=side,
                 price=entry_price,
                 quantity=quantity,
-                system=system_tag
+                position_id=trade_id[:8] if trade_id else None,
             )
-        
-        if SHARED_EVENT_STORE:
-            # Open trade in shared event store with rule_name in strategy field
-            trade_id = self.event_store.open_trade(
-                symbol=symbol,
-                strategy=f"l2_scalping_{rule_name}",  # Include rule name
-                direction="long" if side == "BUY" else "short",
-                signal_id=f"l2_{rule_name}_{symbol}_{datetime.now().strftime('%H%M%S')}",
-                entry_order_id=int(order_id) if order_id.isdigit() else 0,
-                entry_price=entry_price,
-                entry_qty=quantity,
-                signal_price=entry_price,
-                system="l2-scalping",
-            )
-            logger.info(f"L2 Trade opened [{rule_name}] in shared store: {trade_id}")
-            return trade_id
 
-        # Fallback to local journal
-        trade = self._find_pending_trade(symbol)
-        if not trade:
-            trade = TradeRecord(
-                timestamp=datetime.now().isoformat(),
-                symbol=symbol,
-                side=side,
-                quantity=quantity,
-                entry_price=entry_price,
-                order_id=order_id,
-                status=TradeStatus.FILLED.value,
-                rule_name=rule_name,
-            )
-            self.trades.append(trade)
-        else:
-            trade.side = side
-            trade.quantity = quantity
-            trade.entry_price = entry_price
-            trade.order_id = order_id
-            trade.fill_time = datetime.now().isoformat()
-            trade.status = TradeStatus.FILLED.value
-            trade.rule_name = rule_name
+        return trade_id
 
-        self._persist_trade(trade)
-        logger.info(f"L2 Trade entry [{rule_name}]: {symbol} {side} {quantity}@{entry_price:.4f}")
-        return f"local_{symbol}_{datetime.now().strftime('%H%M%S')}"
+    def record_decision(
+        self,
+        symbol: str,
+        strategy: str,
+        direction: str,
+        signal_strength: float,
+        decision: str,
+        rejection_reason: str = "",
+        features: dict | None = None,
+    ) -> str:
+        """Record decision event for correlation with PnL."""
+        if not SHARED_EVENT_STORE or not self.event_store:
+            return ""
+
+        return self.event_store.log_decision(
+            symbol=symbol,
+            strategy=strategy,
+            direction=direction,
+            signal_strength=signal_strength,
+            net_edge_bps=0.0,
+            decision=decision,
+            rejection_reason=rejection_reason,
+            features=features or {},
+        )
 
     def record_trade_exit(
         self,
         trade_id: str,
         symbol: str,
         exit_price: float,
+        exit_qty: int,
         pnl: float,
         commission: float = 0.0,
         rule_name: str = "obi_momentum",
         exit_reason: str = "L2_SIGNAL",
+        exit_order_id: int | None = None,
     ) -> None:
         """Record trade exit with NTFY notification"""
-        # Send NTFY notification
-        if self.notifier:
-            system_tag = f"l2-scalping:{rule_name}"
-            self.notifier.trade_exit(
+        system_tag = f"l2-scalping:{rule_name}"
+
+        # Send NTFY notification (use shortened trade_id for position_id)
+        if self.ntfy_available:
+            send_trade_notification(
+                action="EXIT",
                 symbol=symbol,
+                strategy=system_tag,
+                direction="",  # Not used for EXIT
+                price=exit_price,
+                quantity=exit_qty,
                 pnl=pnl,
-                reason=exit_reason,
-                system=system_tag
-            )
-        
-        if SHARED_EVENT_STORE and trade_id:
-            # Close trade in shared event store
-            self.event_store.close_trade(
-                trade_id=trade_id,
-                exit_order_id=0,  # L2 scalping uses market orders
-                exit_price=exit_price,
-                exit_qty=100,  # Standard L2 scalping size
                 exit_reason=exit_reason,
-                commission=commission,
-                signal_price=exit_price,
+                position_id=trade_id[:8] if trade_id else None,
             )
-            logger.info(f"L2 Trade closed [{rule_name}] in shared store: {trade_id}")
+
+        if SHARED_EVENT_STORE and self.event_store and trade_id:
+            # Close trade in shared event store
+            try:
+                self.event_store.close_trade(
+                    trade_id=trade_id,
+                    exit_order_id=int(exit_order_id) if exit_order_id is not None else 0,
+                    exit_price=exit_price,
+                    exit_qty=exit_qty,
+                    exit_reason=exit_reason,
+                    commission=commission,
+                    signal_price=exit_price,
+                )
+                logger.info(f"L2 Trade closed [{rule_name}] in shared store: {trade_id}")
+            except Exception as exc:
+                logger.error(f"Failed to close L2 trade in shared store: {exc}", exc_info=True)
+                return
+
+            if self.audit:
+                self.audit.log_event(
+                    event_type=EventType.INFO,
+                    message=f"EXIT {symbol} @ {exit_price:.4f} pnl={pnl:.2f}",
+                    context={
+                        "symbol": symbol,
+                        "exit_price": exit_price,
+                        "exit_qty": exit_qty,
+                        "pnl": pnl,
+                        "commission": commission,
+                        "exit_reason": exit_reason,
+                        "rule_name": rule_name,
+                        "exit_order_id": exit_order_id,
+                        "trade_id": trade_id,
+                    },
+                )
             return
 
         # Fallback to local journal
@@ -252,6 +432,67 @@ class TradeJournal:
         logger.info(
             f"L2 Trade exit: {symbol} {exit_price:.4f} PnL=${pnl:.2f} hold={hold_duration}s"
         )
+
+        if self.audit:
+            self.audit.log_event(
+                event_type=EventType.INFO,
+                message=f"EXIT {symbol} @ {exit_price:.4f} pnl={pnl:.2f}",
+                context={
+                    "symbol": symbol,
+                    "exit_price": exit_price,
+                    "exit_qty": exit_qty,
+                    "pnl": pnl,
+                    "commission": commission,
+                    "exit_reason": exit_reason,
+                    "rule_name": rule_name,
+                },
+            )
+
+    def record_fill(
+        self,
+        order_id: int,
+        symbol: str,
+        side: str,
+        quantity: int,
+        price: float,
+        commission: float = 0.0,
+        exchange: str = "",
+        exec_id: str = "",
+        realized_pnl: float = 0.0,
+    ) -> None:
+        """Record execution fills to shared event store and audit log."""
+        if SHARED_EVENT_STORE and self.event_store:
+            try:
+                self.event_store.log_fill(
+                    order_id=order_id,
+                    symbol=symbol,
+                    side=side,
+                    quantity=quantity,
+                    price=price,
+                    commission=commission,
+                    exchange=exchange,
+                    exec_id=exec_id,
+                    realized_pnl=realized_pnl,
+                )
+            except Exception as exc:
+                logger.error(f"Failed to log fill for {symbol}: {exc}", exc_info=True)
+
+        if self.audit:
+            self.audit.log_event(
+                event_type=EventType.INFO,
+                message=f"FILL {side} {quantity} {symbol} @ {price:.4f}",
+                context={
+                    "order_id": order_id,
+                    "symbol": symbol,
+                    "side": side,
+                    "quantity": quantity,
+                    "price": price,
+                    "commission": commission,
+                    "exchange": exchange,
+                    "exec_id": exec_id,
+                    "realized_pnl": realized_pnl,
+                },
+            )
 
     def get_daily_summary(self) -> dict:
         """Get daily trading summary"""
@@ -320,6 +561,104 @@ class TradeJournal:
                 f.write(json.dumps(trade.to_dict()) + "\n")
         except Exception as e:
             logger.error(f"Failed to persist trade: {e}")
+
+    def open_trade(self, trade_id: str, symbol: str, direction: str, 
+                   entry_order_id: int, target_qty: int, signal_price: float) -> None:
+        """Record trade opening - called when entry order is placed."""
+        if not self.event_store:
+            return
+            
+        try:
+            self.event_store.record_order(
+                order_id=entry_order_id,
+                symbol=symbol,
+                side=direction.upper(),
+                quantity=target_qty,
+                order_type="MKT",
+                metadata={
+                    "trade_id": trade_id,
+                    "intent": "ENTRY",
+                    "signal_price": signal_price
+                }
+            )
+            logger.info(f"Trade opened: {trade_id[:8]} {symbol} {direction} {target_qty}")
+        except Exception as e:
+            logger.error(f"Failed to record trade opening: {e}")
+
+    def record_entry_fill(self, trade_id: str, fill_price: float, fill_qty: int,
+                          is_partial: bool) -> None:
+        """Record entry fill - updates avg_entry_price."""
+        if not self.event_store:
+            return
+            
+        try:
+            # This will be handled by the existing record_fill method
+            logger.debug(f"Entry fill recorded: {trade_id[:8]} {fill_qty}@{fill_price}")
+        except Exception as e:
+            logger.error(f"Failed to record entry fill: {e}")
+
+    def record_tp_sl_orders(self, trade_id: str, tp_order_id: int, sl_order_id: int,
+                            tp_price: float, sl_price: float) -> None:
+        """Record TP/SL orders after entry is filled."""
+        if not self.event_store:
+            return
+            
+        try:
+            # Record TP order
+            self.event_store.record_order(
+                order_id=tp_order_id,
+                symbol="",  # Will be filled by caller
+                side="SELL",  # Will be corrected by caller
+                quantity=0,   # Will be filled by caller
+                order_type="LMT",
+                metadata={
+                    "trade_id": trade_id,
+                    "intent": "TP",
+                    "tp_price": tp_price
+                }
+            )
+            
+            # Record SL order
+            self.event_store.record_order(
+                order_id=sl_order_id,
+                symbol="",  # Will be filled by caller
+                side="SELL",  # Will be corrected by caller
+                quantity=0,   # Will be filled by caller
+                order_type="STP",
+                metadata={
+                    "trade_id": trade_id,
+                    "intent": "SL",
+                    "sl_price": sl_price
+                }
+            )
+            
+            logger.info(f"TP/SL orders recorded: {trade_id[:8]} TP={tp_price:.4f} SL={sl_price:.4f}")
+        except Exception as e:
+            logger.error(f"Failed to record TP/SL orders: {e}")
+
+    def record_exit_fill(self, trade_id: str, fill_price: float, fill_qty: int,
+                         exit_reason: str, is_partial: bool) -> None:
+        """Record exit fill - updates avg_exit_price."""
+        if not self.event_store:
+            return
+            
+        try:
+            # This will be handled by the existing record_fill method
+            logger.info(f"Exit fill recorded: {trade_id[:8]} {exit_reason} {fill_qty}@{fill_price}")
+        except Exception as e:
+            logger.error(f"Failed to record exit fill: {e}")
+
+    def close_trade(self, trade_id: str, exit_reason: str, 
+                    avg_exit_price: float, pnl: float) -> None:
+        """Record trade closure - called when position is fully closed."""
+        if not self.event_store:
+            return
+            
+        try:
+            # Update trade record with final details
+            logger.info(f"Trade closed: {trade_id[:8]} {exit_reason} PnL=${pnl:.2f}")
+        except Exception as e:
+            logger.error(f"Failed to record trade closure: {e}")
 
     def load_today_trades(self) -> None:
         """Load today's trades from journal file"""

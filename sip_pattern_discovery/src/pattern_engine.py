@@ -1,5 +1,7 @@
 """Pattern discovery engine - find statistically significant trading rules."""
 
+from __future__ import annotations
+
 from functools import partial
 from itertools import combinations
 from multiprocessing import Pool
@@ -10,34 +12,86 @@ from scipy import stats
 
 
 def discretize_features(
-    df: pd.DataFrame, feature_cols: list[str], n_bins: int = 5
-) -> pd.DataFrame:
-    """Discretize continuous features into bins (MEMORY-OPTIMIZED: in-place).
+    df: pd.DataFrame,
+    feature_cols: list[str],
+    n_bins: int = 5,
+    *,
+    bin_edges: dict[str, list[float] | None] | None = None,
+) -> tuple[pd.DataFrame, dict[str, list[float] | None]]:
+    """Discretize features into bins (MEMORY-OPTIMIZED: in-place).
 
-    Modifies df in-place instead of creating a copy to save memory.
+    Modifies df in-place instead of creating a copy to save memory. If `bin_edges` is
+    provided, applies those edges to ensure consistent binning across datasets (e.g.,
+    scan vs validation).
     """
+    edges_used: dict[str, list[float] | None] = {}
+
     for col in feature_cols:
         if col not in df.columns:
             continue
 
-        if df[col].nunique() <= 2:
+        if bin_edges is not None and col in bin_edges:
+            edges = bin_edges[col]
+            if edges is None:
+                df[f"{col}_bin"] = df[col].values  # Use values to avoid copy
+                edges_used[col] = None
+                continue
+
+            bins = np.asarray(edges, dtype="float64")
+            if bins.size < 2:
+                df[f"{col}_bin"] = df[col].values
+                edges_used[col] = None
+                continue
+
+            bins[0] = -np.inf
+            bins[-1] = np.inf
+            df[f"{col}_bin"] = pd.cut(
+                df[col],
+                bins=bins,
+                labels=False,
+                include_lowest=True,
+            )
+            edges_used[col] = bins.tolist()
+            continue
+
+        if df[col].nunique(dropna=True) <= 2:
             df[f"{col}_bin"] = df[col].values  # Use values to avoid copy
+            edges_used[col] = None
             continue
 
         try:
-            df[f"{col}_bin"] = pd.qcut(
-                df[col], q=n_bins, labels=False, duplicates="drop"
+            binned, bins = pd.qcut(
+                df[col],
+                q=n_bins,
+                labels=False,
+                duplicates="drop",
+                retbins=True,
             )
         except Exception:
-            df[f"{col}_bin"] = pd.cut(df[col], bins=n_bins, labels=False)
+            binned, bins = pd.cut(
+                df[col],
+                bins=n_bins,
+                labels=False,
+                retbins=True,
+            )
 
-    return df  # Return same object, modified in-place
+        bins = np.asarray(bins, dtype="float64")
+        bins[0] = -np.inf
+        bins[-1] = np.inf
+        df[f"{col}_bin"] = binned
+        edges_used[col] = bins.tolist()
+
+    return df, edges_used  # Return same object, modified in-place
 
 
 def generate_candidate_rules(
     df: pd.DataFrame,
     feature_cols: list[str],
     max_conditions: int = 2,
+    *,
+    actionable_bin_values: list[int] | None = None,
+    include_false_for_binary: bool = False,
+    max_rules: int | None = None,
 ) -> list[dict]:
     """Generate candidate rule DESCRIPTORS from feature combinations (MEMORY-OPTIMIZED).
 
@@ -45,19 +99,21 @@ def generate_candidate_rules(
     millions of boolean Series in memory. Masks are created on-the-fly during
     evaluation instead.
 
-    Only generates POSITIVE conditions with economic rationale:
+    By default, only generates POSITIVE conditions with economic rationale:
     - Binary features: Only test "== True" (not "== False")
-    - Binned features: Only test high bins (3, 4) for momentum/strength
+    - Binned features: Only test bins in `actionable_bin_values` (default: [0, 3, 4])
     - Avoids trivial "NOT X" patterns that aren't actionable
     """
     rules = []
+    if actionable_bin_values is None:
+        actionable_bin_values = [0, 3, 4]
 
     # Single condition rules
     for col in feature_cols:
         if col not in df.columns:
             continue
 
-        unique_vals = df[col].dropna().unique()
+        unique_vals = sorted(df[col].dropna().unique().tolist())
 
         # For binary features (True/False), only test True
         if len(unique_vals) == 2 and True in unique_vals:
@@ -67,12 +123,18 @@ def generate_candidate_rules(
                 "val": True,
                 "desc": f"{col} == True"
             })
+            if include_false_for_binary and False in unique_vals:
+                rules.append({
+                    "type": "single",
+                    "col": col,
+                    "val": False,
+                    "desc": f"{col} == False"
+                })
 
         # For binned features (0-4), only test high bins (momentum/strength)
         elif len(unique_vals) <= 5:
             for val in unique_vals:
-                # Only high bins (3, 4) or extreme low (0) for mean reversion
-                if val in [0, 3, 4]:
+                if val in actionable_bin_values:
                     rules.append({
                         "type": "single",
                         "col": col,
@@ -86,21 +148,25 @@ def generate_candidate_rules(
             if col1 not in df.columns or col2 not in df.columns:
                 continue
 
-            vals1 = df[col1].dropna().unique()
-            vals2 = df[col2].dropna().unique()
+            vals1 = sorted(df[col1].dropna().unique().tolist())
+            vals2 = sorted(df[col2].dropna().unique().tolist())
 
             # Filter to actionable values
             actionable_vals1 = []
             if len(vals1) == 2 and True in vals1:
                 actionable_vals1 = [True]
+                if include_false_for_binary and False in vals1:
+                    actionable_vals1.append(False)
             elif len(vals1) <= 5:
-                actionable_vals1 = [v for v in vals1 if v in [0, 3, 4]]
+                actionable_vals1 = [v for v in vals1 if v in actionable_bin_values]
 
             actionable_vals2 = []
             if len(vals2) == 2 and True in vals2:
                 actionable_vals2 = [True]
+                if include_false_for_binary and False in vals2:
+                    actionable_vals2.append(False)
             elif len(vals2) <= 5:
-                actionable_vals2 = [v for v in vals2 if v in [0, 3, 4]]
+                actionable_vals2 = [v for v in vals2 if v in actionable_bin_values]
 
             if len(actionable_vals1) * len(actionable_vals2) > 25:
                 continue
@@ -115,6 +181,9 @@ def generate_candidate_rules(
                         "val2": v2,
                         "desc": f"{col1} == {v1} AND {col2} == {v2}"
                     })
+
+    if max_rules is not None:
+        return rules[:max_rules]
 
     return rules
 
@@ -197,11 +266,17 @@ def evaluate_single_rule(
     """
     # Create mask on-the-fly from descriptor
     if rule_desc["type"] == "single":
-        mask = df_binned[rule_desc["col"]] == rule_desc["val"]
+        rule_col = rule_desc["col"]
+        rule_val = rule_desc["val"]
+        mask = df_binned[rule_col] == rule_val
     else:  # double
+        rule_col1 = rule_desc["col1"]
+        rule_val1 = rule_desc["val1"]
+        rule_col2 = rule_desc["col2"]
+        rule_val2 = rule_desc["val2"]
         mask = (
-            (df_binned[rule_desc["col1"]] == rule_desc["val1"])
-            & (df_binned[rule_desc["col2"]] == rule_desc["val2"])
+            (df_binned[rule_col1] == rule_val1)
+            & (df_binned[rule_col2] == rule_val2)
         )
 
     # Get returns for this pattern
@@ -219,12 +294,31 @@ def evaluate_single_rule(
     if pattern_stats is None:
         return None
 
-    return {
+    payload = {
         "rule": rule_desc["desc"],
+        "rule_type": rule_desc["type"],
         "direction": direction,
         "horizon": return_col,
         **pattern_stats,
     }
+    if rule_desc["type"] == "single":
+        payload.update(
+            {
+                "rule_col": rule_desc["col"],
+                "rule_val": rule_desc["val"],
+            }
+        )
+    else:
+        payload.update(
+            {
+                "rule_col1": rule_desc["col1"],
+                "rule_val1": rule_desc["val1"],
+                "rule_col2": rule_desc["col2"],
+                "rule_val2": rule_desc["val2"],
+            }
+        )
+
+    return payload
 
 
 def discover_patterns(
@@ -241,7 +335,13 @@ def discover_patterns(
     n_workers: int = 1,  # MEMORY-OPTIMIZED: default to 1 to avoid worker duplication
     use_aaa_scoring: bool = False,
     current_regime: str = None,
-) -> pd.DataFrame:
+    *,
+    actionable_bin_values: list[int] | None = None,
+    include_false_for_binary: bool = False,
+    max_candidate_rules: int | None = None,
+    bin_edges: dict[str, list[float] | None] | None = None,
+    return_bin_edges: bool = False,
+) -> pd.DataFrame | tuple[pd.DataFrame, dict[str, list[float] | None]]:
     """Discover patterns ranked by t-statistic or AAA score (MEMORY-OPTIMIZED).
 
     MEMORY OPTIMIZATIONS:
@@ -272,14 +372,26 @@ def discover_patterns(
     n_workers = min(n_workers, 6)  # Cap at 6 workers
 
     print(f"Discretizing {len(feature_cols)} features into {n_bins} bins (in-place)...")
-    df_binned = discretize_features(df, feature_cols, n_bins)
+    df_binned, edges_used = discretize_features(
+        df,
+        feature_cols,
+        n_bins,
+        bin_edges=bin_edges,
+    )
 
     bin_cols = [
         f"{col}_bin" for col in feature_cols if f"{col}_bin" in df_binned.columns
     ]
 
     print(f"Generating candidate rules (max {max_conditions} conditions)...")
-    candidate_rules = generate_candidate_rules(df_binned, bin_cols, max_conditions)
+    candidate_rules = generate_candidate_rules(
+        df_binned,
+        bin_cols,
+        max_conditions,
+        actionable_bin_values=actionable_bin_values,
+        include_false_for_binary=include_false_for_binary,
+        max_rules=max_candidate_rules,
+    )
     print(f"Generated {len(candidate_rules)} candidate rule descriptors")
 
     print(
@@ -318,7 +430,10 @@ def discover_patterns(
         print(
             f"  No patterns found meeting criteria (t>{min_t_stat}, exp>{min_expectancy}%)"
         )
-        return pd.DataFrame()
+        empty = pd.DataFrame()
+        if return_bin_edges:
+            return empty, edges_used
+        return empty
 
     patterns_df = pd.DataFrame(patterns)
 
@@ -340,4 +455,6 @@ def discover_patterns(
 
     print(f"  Found {len(patterns_df)} patterns")
 
+    if return_bin_edges:
+        return patterns_df, edges_used
     return patterns_df

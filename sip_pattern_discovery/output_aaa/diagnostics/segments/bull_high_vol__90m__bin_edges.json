@@ -1,0 +1,101 @@
+{
+  "rel_underperform_extreme": null,
+  "rel_outperform_extreme": null,
+  "price_up_vol_weak": null,
+  "price_down_vol_weak": null,
+  "price_up_vol_strong": null,
+  "price_down_vol_strong": null,
+  "at_session_high": null,
+  "at_session_low": null,
+  "new_session_high": null,
+  "new_session_low": null,
+  "vwap_cross_up": null,
+  "vwap_cross_down": null,
+  "avwap_cross_up": null,
+  "avwap_cross_down": null,
+  "ret_5m_turned_positive": null,
+  "ret_5m_turned_negative": null,
+  "ret_15m_turned_positive": null,
+  "ret_15m_turned_negative": null,
+  "ret_30m_turned_positive": null,
+  "ret_30m_turned_negative": null,
+  "ret_60m_turned_positive": null,
+  "ret_60m_turned_negative": null,
+  "ret_5m": [
+    -Infinity,
+    -0.0009723305702209473,
+    0.0,
+    0.0006978511810302734,
+    0.0017203092575073242,
+    Infinity
+  ],
+  "ret_15m": [
+    -Infinity,
+    -0.0015001893043518066,
+    6.663799285888672e-05,
+    0.0013654232025146484,
+    0.0032235383987426758,
+    Infinity
+  ],
+  "ret_30m": [
+    -Infinity,
+    -0.0025045275688171387,
+    -0.00017523765563964844,
+    0.0016994476318359375,
+    0.004364967346191406,
+    Infinity
+  ],
+  "ret_60m": [
+    -Infinity,
+    -0.004011571407318115,
+    -0.0005740523338317871,
+    0.0021277666091919015,
+    0.005964994430541992,
+    Infinity
+  ],
+  "rel_strength_60m": [
+    -Infinity,
+    -0.528419017791748,
+    -0.16363859176635742,
+    0.09865760803222656,
+    0.4309117794036865,
+    Infinity
+  ],
+  "session_range_pct": [
+    -Infinity,
+    0.18877311050891876,
+    0.40540653467178345,
+    0.6388865113258362,
+    0.8461577892303467,
+    Infinity
+  ],
+  "rvol": [
+    -Infinity,
+    0.3661131262779236,
+    0.5904438495635986,
+    0.8706125020980835,
+    1.3715661764144897,
+    Infinity
+  ],
+  "atr_14": [
+    -Infinity,
+    0.0174996517598629,
+    0.02474321611225605,
+    0.034284863620996475,
+    0.0511213019490242,
+    Infinity
+  ],
+  "price_vs_vwap_pct": [
+    -Infinity,
+    -0.11849593371152878,
+    0.00890777725726366,
+    0.1089704260230065,
+    0.2596115469932556,
+    Infinity
+  ],
+  "is_first_hour": null,
+  "is_power_hour": null,
+  "first_hour_start": null,
+  "power_hour_start": null,
+  "last_30min_start": null
+}

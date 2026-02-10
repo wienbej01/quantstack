@@ -24,7 +24,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_l2_data():
     """Load L2 data from parquet files."""
-    l2_dir = Path("/home/jacobw/quantstack/data/l2_maximum/features")
+    l2_dir = Path("/home/jacobw/quantstack/data/l2/l2_maximum/features")
 
     all_data = []
     for date_dir in l2_dir.glob("date=*"):

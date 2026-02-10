@@ -1,0 +1,10 @@
+[Unit]
+Description=Run market open recording checks at 09:35 ET
+
+[Timer]
+OnCalendar=Mon..Fri 09:35:00 America/New_York
+Persistent=true
+Unit=market-open-recording-checks.service
+
+[Install]
+WantedBy=timers.target

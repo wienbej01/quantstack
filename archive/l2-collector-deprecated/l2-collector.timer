@@ -1,0 +1,11 @@
+[Unit]
+Description=L2 Data Collector Daily Timer
+Requires=l2-collector.service
+
+[Timer]
+OnCalendar=Mon..Fri 09:25:00 America/New_York
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

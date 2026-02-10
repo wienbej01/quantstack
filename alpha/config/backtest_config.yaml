@@ -1,0 +1,56 @@
+# Alpha Backtest Configuration
+
+data:
+  gold_path: "~/gcs-mount/gold/stocks"
+  spy_path: "~/gcs-mount/gold/stocks/SPY"
+  sip_path: "~/intraday_stack/data/daily_sip"
+  l2_path: "~/quantstack/data/l2/l2_maximum/raw"
+
+validation:
+  walk_forward:
+    train_months: 3
+    val_months: 1
+    min_profitable_periods: 0.7  # 70% must be profitable
+  
+  regime:
+    spy_sma_period: 20
+    vix_threshold: 20
+    min_regimes_profitable: 2  # Must work in at least 2 regimes
+  
+  thresholds:
+    min_sharpe: 0.75
+    min_win_rate: 0.52
+    min_profit_factor: 1.2
+    min_t_stat: 2.0
+    min_trades: 500
+
+execution:
+  latency_ms: 75  # Retail latency
+  slippage_model: "book_walk"  # Use L2 book to calculate slippage
+  commission_per_share: 0.005
+
+signals:
+  order_flow:
+    book_imbalance_threshold: 0.35
+    trade_imbalance_threshold: 0.25
+    max_spread_pct: 0.05
+    target_pct: 0.4
+    stop_pct: 0.25
+    time_limit_minutes: 10
+  
+  whale_detect:
+    large_order_mult: 5  # 5x average size
+    target_pct: 0.8
+    stop_pct: 0.4
+    time_limit_minutes: 30
+  
+  liquidity_fade:
+    depth_drop_threshold: 0.5  # 50% drop
+    target_pct: 0.3
+    stop_pct: 0.3
+    time_limit_minutes: 5
+
+risk:
+  max_position_pct: 0.02  # 2% of capital per trade
+  max_total_exposure_pct: 0.15  # 15% total
+  max_daily_loss_pct: 0.03  # 3% daily loss halt

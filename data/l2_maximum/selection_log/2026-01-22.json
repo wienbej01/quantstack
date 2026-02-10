@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-22",
+  "timestamp": "2026-01-22T15:59:59.576840",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "INTC",
+    "GLSI",
+    "CORT"
+  ],
+  "core": [],
+  "rotating": [
+    "INTC",
+    "GLSI",
+    "CORT"
+  ]
+}

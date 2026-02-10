@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-26",
+  "timestamp": "2026-01-26T15:59:59.887554",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "IONQ",
+    "SKYT",
+    "RVMD"
+  ],
+  "core": [],
+  "rotating": [
+    "IONQ",
+    "SKYT",
+    "RVMD"
+  ]
+}

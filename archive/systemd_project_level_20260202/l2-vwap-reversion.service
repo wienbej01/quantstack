@@ -1,0 +1,28 @@
+[Unit]
+Description=L2 VWAP Mean Reversion Paper Trading
+After=network.target l2-scalping.service
+Wants=network-online.target
+Requires=l2-scalping.service
+
+[Service]
+Type=simple
+User=jacobw
+Group=jacobw
+WorkingDirectory=/home/jacobw/quantstack/l2_vwap_reversion
+Environment=PYTHONPATH=/home/jacobw/quantstack/l2_vwap_reversion/src:/home/jacobw/quantstack
+ExecStart=/home/jacobw/quantstack/.venv/bin/python src/main.py --config config
+Restart=on-failure
+RestartSec=30
+StandardOutput=journal
+StandardError=journal
+
+# Resource limits
+MemoryMax=1G
+CPUQuota=50%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

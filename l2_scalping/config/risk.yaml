@@ -5,7 +5,12 @@ per_trade:
   max_loss_bps: 10              # Maximum loss per trade (basis points)
   profit_target_bps: 15         # Primary profit target
   extended_target_bps: 25       # Extended target if regime persists
-  max_position_pct: 0.01        # 1% of account per trade
+  max_position_pct: 0.02        # 2% of account per trade (allows ~$20k positions)
+  
+  # AAA signal overrides (resistance rejection)
+  aaa_max_loss_bps: 8           # Tighter stop for AAA signals
+  aaa_profit_target_bps: 20     # Higher target for AAA signals
+  aaa_size_multiplier: 2.0      # 2× position size for AAA (confidence ≥0.90)
 
 # Daily Risk Limits
 daily:

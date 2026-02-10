@@ -45,6 +45,8 @@ class L2Storage:
         written_files = []
         for (date_str, symbol), rows in grouped.items():
             df = pd.DataFrame(rows)
+            if "symbol" in df.columns:
+                df = df.drop(columns=["symbol"])
 
             # Create partition directory
             partition_dir = self.get_partition_path(data_type, date_str, symbol)
@@ -92,7 +94,10 @@ class L2Storage:
                     continue
 
                 combined = pd.concat(dfs, ignore_index=True)
-                combined = combined.drop_duplicates(subset=["ts_epoch", "symbol"])
+                if "symbol" in combined.columns:
+                    combined = combined.drop_duplicates(subset=["ts_epoch", "symbol"])
+                else:
+                    combined = combined.drop_duplicates(subset=["ts_epoch"])
                 combined = combined.sort_values("ts_epoch")
 
                 # Write consolidated file
@@ -147,7 +152,7 @@ class L2Storage:
             return {"error": f"No {data_type} data found"}
 
         # Find matching files
-        files = []
+        files: list[tuple[Path, str]] = []
         for date_dir in sorted(type_dir.glob("date=*")):
             date_str = date_dir.name.replace("date=", "")
 
@@ -164,16 +169,20 @@ class L2Storage:
                 if symbols and symbol not in symbols:
                     continue
 
-                files.extend(symbol_dir.glob("*.parquet"))
+                for f in symbol_dir.glob("*.parquet"):
+                    files.append((f, symbol))
 
         if not files:
             return {"error": "No matching files found"}
 
         # Read and combine
         dfs = []
-        for f in files:
+        for f, symbol in files:
             try:
-                dfs.append(pd.read_parquet(f))
+                df = pd.read_parquet(f)
+                if "symbol" not in df.columns:
+                    df["symbol"] = symbol
+                dfs.append(df)
             except Exception as e:
                 logger.warning(f"Failed to read {f}: {e}")
 
@@ -181,8 +190,12 @@ class L2Storage:
             return {"error": "Failed to read any files"}
 
         combined = pd.concat(dfs, ignore_index=True)
-        combined = combined.drop_duplicates(subset=["ts_epoch", "symbol"])
-        combined = combined.sort_values(["symbol", "ts_epoch"])
+        if "symbol" in combined.columns:
+            combined = combined.drop_duplicates(subset=["ts_epoch", "symbol"])
+            combined = combined.sort_values(["symbol", "ts_epoch"])
+        else:
+            combined = combined.drop_duplicates(subset=["ts_epoch"])
+            combined = combined.sort_values(["ts_epoch"])
 
         # Save
         output = Path(output_path)
@@ -212,7 +225,8 @@ class L2Storage:
             try:
                 df = pd.read_parquet(f)
                 total_records += len(df)
-                symbols.update(df["symbol"].unique())
+                if "symbol" in df.columns:
+                    symbols.update(df["symbol"].unique())
             except Exception:
                 pass
 

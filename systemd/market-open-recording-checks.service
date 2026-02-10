@@ -1,0 +1,12 @@
+[Unit]
+Description=Market Open Recording Checks (audit/DB/L2)
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/jacobw/quantstack-v2
+Environment=TZ=America/New_York
+ExecStart=/home/jacobw/quantstack-v2/scripts/run_market_open_recording_checks.sh
+
+[Install]
+WantedBy=default.target

@@ -1,4 +1,0 @@
-order_id,symbol,side,order_type,quantity,price,stop_price,time_in_force,timestamp,status,filled_quantity,remaining_quantity,avg_fill_price,is_fully_filled,is_active,strategy_id,parent_order_id,tags,fill_count
-ml_order_1706797920000000_0,msft,SELL,MKT,2476,,,DAY,1706797920000000,FILLED,2476,0,408.73005726539105,True,False,,,{},2476
-ml_order_1707748260000000_1,msft,BUY,MKT,2384,,,DAY,1707748260000000,FILLED,2384,0,407.20630945771796,True,False,,,{},2384
-ml_order_1706798040000000_0,aapl,SELL,MKT,5406,,,DAY,1706798040000000,FILLED,5406,0,185.51592045264698,True,False,,,{},5406

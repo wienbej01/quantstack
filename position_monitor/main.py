@@ -6,6 +6,7 @@ Runs the position monitor with periodic updates and graceful shutdown.
 
 import asyncio
 import logging
+import os
 import signal
 import sys
 
@@ -22,7 +23,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-PLATFORM_URL = "http://127.0.0.1:8000"
+IBKR_HOST = os.environ.get("IBKR_GATEWAY_HOST", "127.0.0.1")
+IBKR_PORT = int(os.environ.get("IBKR_GATEWAY_PORT", "7494"))
+IBKR_CLIENT_ID = int(os.environ.get("IBKR_POSITION_CLIENT_ID", "900"))
+IBKR_ACCOUNT_ID = os.environ.get("IBKR_ACCOUNT_ID")
 OUTPUT_FILE = "/tmp/positions.json"
 REFRESH_INTERVAL = 60  # seconds
 
@@ -32,7 +36,10 @@ class PositionMonitorApp:
 
     def __init__(self):
         self.monitor = PositionMonitor(
-            platform_url=PLATFORM_URL,
+            host=IBKR_HOST,
+            port=IBKR_PORT,
+            client_id=IBKR_CLIENT_ID,
+            account_id=IBKR_ACCOUNT_ID,
             output_file=OUTPUT_FILE,
         )
         self.running = False
@@ -42,9 +49,9 @@ class PositionMonitorApp:
         """Run the position monitor with periodic updates."""
         logger.info("Starting Position Monitor")
 
-        # Connect to platform
+        # Connect to IBKR Gateway
         if not self.monitor.connect():
-            logger.error("Failed to connect to IBKR Platform")
+            logger.error("Failed to connect to IBKR Gateway")
             return 1
 
         self.running = True

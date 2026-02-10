@@ -102,7 +102,7 @@ else:
     tests.append(("api_polygon", passed and "OK" in out))
 
     # IBKR Gateway
-    ibkr_test = "nc -zv 127.0.0.1 7497 2>&1"
+    ibkr_test = "nc -zv 127.0.0.1 7494 2>&1"
     passed, out = run_test("IBKR Gateway", ibkr_test)
     is_open = "succeeded" in out or "open" in out.lower()
     status = "🟢" if is_open else "⚠️ "

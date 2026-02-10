@@ -1,0 +1,60 @@
+======================================================================
+ALPHA HYPOTHESIS TESTING - SUMMARY REPORT
+======================================================================
+
+Generated: 2026-01-19 13:06:11
+
+VALIDATION THRESHOLDS
+----------------------------------------
+Min Sharpe:       0.75
+Min Win Rate:     52.0%
+Min Profit Factor: 1.2
+Min T-Stat:       2.0
+Min Trades:       500
+
+HYPOTHESIS RESULTS
+----------------------------------------
+
+order_flow: ❌ FAIL
+  Trades:         0
+  Total Return:   0.00%
+  Sharpe:         0.00
+  Win Rate:       0.0% (FAIL)
+  Profit Factor:  0.00 (FAIL)
+  Max Drawdown:   0.00%
+  Expectancy:     $0.00
+  T-Stat:         0.00
+
+whale_detect: ❌ FAIL
+  Trades:         0
+  Total Return:   0.00%
+  Sharpe:         0.00
+  Win Rate:       0.0% (FAIL)
+  Profit Factor:  0.00 (FAIL)
+  Max Drawdown:   0.00%
+  Expectancy:     $0.00
+  T-Stat:         0.00
+
+liquidity_fade: ❌ FAIL
+  Trades:         0
+  Total Return:   0.00%
+  Sharpe:         0.00
+  Win Rate:       0.0% (FAIL)
+  Profit Factor:  0.00 (FAIL)
+  Max Drawdown:   0.00%
+  Expectancy:     $0.00
+  T-Stat:         0.00
+
+======================================================================
+RECOMMENDATION
+======================================================================
+❌ No hypotheses passed validation thresholds
+   Recommendation: REFININE HYPOTHESES OR ADJUST PARAMETERS
+
+======================================================================
+
+NEXT STEPS
+----------------------------------------
+1. Review trade attribution for losing trades
+2. Analyze regime-specific performance
+3. Consider parameter optimization if close to thresholds

@@ -1,7 +1,7 @@
 """
 Position Monitor - Real-time IBKR position and P&L tracking.
 
-Queries IBKR Platform every 60 seconds and writes positions to /tmp/positions.json
+Queries IBKR Gateway every 60 seconds and writes positions to /tmp/positions.json
 for consumption by Conky display widget.
 """
 

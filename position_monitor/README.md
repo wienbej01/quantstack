@@ -4,17 +4,17 @@ Real-time IBKR position and P&L tracking with Conky display.
 
 ## Overview
 
-The Position Monitor queries the IBKR Platform every 60 seconds for open positions and daily P&L, then writes the data to `/tmp/positions.json` for consumption by Conky desktop widgets.
+The Position Monitor queries the IBKR Gateway every 60 seconds for open positions and daily
+P&L, then writes the data to `/tmp/positions.json` for consumption by Conky desktop widgets.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      IBKR Platform (cpapi)                  │
-│  FastAPI @ http://127.0.0.1:8000                             │
-│  Endpoints: /api/positions, /api/pnl, /health               │
+│                    IBKR Gateway (TWS API)                   │
+│  Host: 127.0.0.1  Port: 7497                                │
 └────────────────────────┬────────────────────────────────────┘
-                         │ HTTP (IBKRPlatformClient)
+                         │ socket (ib_insync)
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
 │            Position Monitor (position_monitor/)              │
@@ -35,10 +35,10 @@ The Position Monitor queries the IBKR Platform every 60 seconds for open positio
 
 ### Prerequisites
 
-1. **IBKR Platform** must be running and healthy:
+1. **IBKR Gateway** must be running and accepting API connections:
    ```bash
-   systemctl status ibkr-platform.service
-   curl http://127.0.0.1:8000/health
+   systemctl status ibkr-gateway.service
+   nc -zv 127.0.0.1 7497
    ```
 
 2. **Conky** installed on your system:
@@ -81,11 +81,12 @@ tail -f /home/jacobw/quantstack/logs/position_monitor.log
 
 ### Position Monitor
 
-Edit `position_monitor/main.py`:
-```python
-PLATFORM_URL = "http://127.0.0.1:8000"  # IBKR Platform URL
-OUTPUT_FILE = "/tmp/positions.json"      # Output file path
-REFRESH_INTERVAL = 60                     # Update interval (seconds)
+Configure via environment variables (read in `position_monitor/main.py`):
+```bash
+export IBKR_GATEWAY_HOST="127.0.0.1"
+export IBKR_GATEWAY_PORT="7497"
+export IBKR_POSITION_CLIENT_ID="900"
+export IBKR_ACCOUNT_ID="DU123456"  # Optional
 ```
 
 ### Conky Display
@@ -148,21 +149,21 @@ python tests/position_monitor/run_tests.py
 # Check service logs
 journalctl -u position-monitor.service -n 50
 
-# Check IBKR Platform connectivity
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/api/accounts
+# Check IBKR Gateway connectivity
+systemctl status ibkr-gateway.service
+nc -zv 127.0.0.1 7497
 ```
 
 ### No positions displayed
 
-1. Verify IBKR authentication status:
+1. Verify IBKR Gateway is authenticated (check the Gateway UI or logs):
    ```bash
-   curl http://127.0.0.1:8000/api/auth/status
+   journalctl -u ibkr-gateway.service -n 50
    ```
 
-2. Check if account has open positions:
+2. Confirm account selection (optional):
    ```bash
-   curl http://127.0.0.1:8000/api/accounts
+   export IBKR_ACCOUNT_ID="DU123456"
    ```
 
 3. Monitor logs for errors:
@@ -239,7 +240,14 @@ class PositionsOutput:
 
 ```python
 class PositionMonitor:
-    def __init__(self, platform_url: str, output_file: str, account_id: str = None)
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        client_id: int,
+        output_file: str,
+        account_id: str | None = None,
+    )
     def connect(self) -> bool
     def is_market_hours(self) -> bool
     def get_open_positions(self) -> list[Position]
@@ -255,7 +263,7 @@ class PositionMonitor:
 |------|---------|
 | `position_monitor/__init__.py` | Package exports |
 | `position_monitor/models.py` | Dataclasses (Position, PnLData, PositionsOutput) |
-| `position_monitor/monitor.py` | PositionMonitor class with IBKR Platform integration |
+| `position_monitor/monitor.py` | PositionMonitor class with IBKR Gateway integration |
 | `position_monitor/main.py` | Application entry point (async, signal handling) |
 | `systemd/position-monitor.service` | Systemd service for monitor |
 | `systemd/conky-position.service` | Systemd service for Conky display |

@@ -1,0 +1,6 @@
+[Unit]
+Description=Start Vitals Monitor Service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl start vitals-monitor.service

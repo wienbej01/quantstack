@@ -32,6 +32,13 @@ class EventType(str, Enum):
     PLATFORM_HEALTH = "PLATFORM_HEALTH"
     SIP_COMPLETE = "SIP_COMPLETE"
     TRADE_SIGNAL = "TRADE_SIGNAL"
+    TRADE_OPEN = "TRADE_OPEN"
+    TRADE_CLOSE = "TRADE_CLOSE"
+    ORDER_SUBMIT = "ORDER_SUBMIT"
+    ORDER_FILL = "ORDER_FILL"
+    ORDER_CANCEL = "ORDER_CANCEL"
+    ORDER_REJECT = "ORDER_REJECT"
+    POSITION_UPDATE = "POSITION_UPDATE"
     RESOURCE_ALERT = "RESOURCE_ALERT"
     DEPENDENCY_FAIL = "DEPENDENCY_FAIL"
     INFO = "INFO"
@@ -233,6 +240,42 @@ class AuditLogger:
                 "value": value,
                 "threshold": threshold,
             },
+        )
+
+    def trade_open(self, symbol: str, direction: str, qty: int, price: float, trade_id: str | None = None):
+        """Log trade open event."""
+        self.log_event(
+            EventType.TRADE_OPEN,
+            f"OPEN {direction} {qty} {symbol} @ {price:.2f}",
+            Severity.INFO,
+            context={"symbol": symbol, "direction": direction, "qty": qty, "price": price, "trade_id": trade_id},
+        )
+
+    def trade_close(self, symbol: str, direction: str, qty: int, price: float, pnl: float, trade_id: str | None = None):
+        """Log trade close event."""
+        self.log_event(
+            EventType.TRADE_CLOSE,
+            f"CLOSE {direction} {qty} {symbol} @ {price:.2f} PnL={pnl:.2f}",
+            Severity.INFO,
+            context={"symbol": symbol, "direction": direction, "qty": qty, "price": price, "pnl": pnl, "trade_id": trade_id},
+        )
+
+    def order_fill(self, symbol: str, side: str, qty: int, price: float, order_id: int | None = None):
+        """Log order fill event."""
+        self.log_event(
+            EventType.ORDER_FILL,
+            f"FILL {side} {qty} {symbol} @ {price:.4f}",
+            Severity.INFO,
+            context={"symbol": symbol, "side": side, "qty": qty, "price": price, "order_id": order_id},
+        )
+
+    def order_reject(self, symbol: str, reason: str, order_id: int | None = None):
+        """Log order rejection event."""
+        self.log_event(
+            EventType.ORDER_REJECT,
+            f"REJECT {symbol}: {reason}",
+            Severity.WARNING,
+            context={"symbol": symbol, "reason": reason, "order_id": order_id},
         )
 
 

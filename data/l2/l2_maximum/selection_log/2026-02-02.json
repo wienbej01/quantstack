@@ -1,0 +1,16 @@
+{
+  "date": "2026-02-02",
+  "timestamp": "2026-02-02T10:02:03.490374",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "ORCL",
+    "PLTR",
+    "HL"
+  ],
+  "core": [],
+  "rotating": [
+    "ORCL",
+    "PLTR",
+    "HL"
+  ]
+}

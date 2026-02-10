@@ -1,0 +1,11 @@
+[Unit]
+Description=Stop Vitals Monitor at 1700 ET on Weekdays
+
+[Timer]
+# 1700 ET = 2200 UTC (EST) or 2100 UTC (EDT)
+# Using America/New_York timezone
+OnCalendar=Mon..Fri *-*-* 17:00:00 America/New_York
+Persistent=false
+
+[Install]
+WantedBy=timers.target

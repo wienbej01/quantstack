@@ -15,7 +15,8 @@ fi
 # Create directories
 mkdir -p logs
 mkdir -p data/daily_sip
-mkdir -p data/live_l2
+L2_DATA_ROOT="${L2_DATA_ROOT:-/home/jacobw/quantstack/data/l2}"
+mkdir -p "$L2_DATA_ROOT/live_l2"
 
 # Check IBKR connection (non-blocking)
 echo "🔌 Checking IBKR connection..."

@@ -23,9 +23,9 @@ logger = logging.getLogger(__name__)
 
 # Paths
 L2_DATA_DIRS = [
-    Path("/home/jacobw/quantstack/data/l2_maximum/features"),
-    Path("/home/jacobw/quantstack/data/l2_maximum/features_v2"),
-    Path("/home/jacobw/quantstack/data/live_l2"),
+    Path("/home/jacobw/quantstack/data/l2/l2_maximum/features"),
+    Path("/home/jacobw/quantstack/data/l2/l2_maximum/features_v2"),
+    Path("/home/jacobw/quantstack/data/l2/live_l2"),
 ]
 OUTPUT_DIR = Path("/home/jacobw/quantstack/l2_scalping/analysis/output")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -49,9 +49,14 @@ def load_l2_data() -> pd.DataFrame:  # noqa: PLR0912
     if max_dir.exists():
         for date_dir in max_dir.glob("date=*"):
             for sym_dir in date_dir.glob("symbol=*"):
+                symbol = sym_dir.name.replace("symbol=", "")
                 for f in sym_dir.glob("*.parquet"):
                     try:
                         df = pd.read_parquet(f)
+                        if "symbol" not in df.columns:
+                            df["symbol"] = symbol
+                        else:
+                            df["symbol"] = df["symbol"].fillna(symbol)
                         all_data.append(df)
                     except Exception as e:
                         logger.warning(f"Error loading {f}: {e}")
@@ -64,9 +69,14 @@ def load_l2_data() -> pd.DataFrame:  # noqa: PLR0912
             if feat_dir.exists():
                 for date_dir in feat_dir.glob("date=*"):
                     for sym_dir in date_dir.glob("symbol=*"):
+                        symbol = sym_dir.name.replace("symbol=", "")
                         for f in sym_dir.glob("*.parquet"):
                             try:
                                 df = pd.read_parquet(f)
+                                if "symbol" not in df.columns:
+                                    df["symbol"] = symbol
+                                else:
+                                    df["symbol"] = df["symbol"].fillna(symbol)
                                 all_data.append(df)
                             except Exception as e:
                                 logger.warning(f"Error loading {f}: {e}")

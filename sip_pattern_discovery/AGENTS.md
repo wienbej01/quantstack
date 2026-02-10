@@ -18,8 +18,8 @@
   - `make test` (full test suite)
   - `make test-daily-hmm` and `python examples/daily_hmm_sip_example.py` (SIP smoke tests)
 - From this repo:
-  - `python3 run_long_short_discovery.py` (default discovery run)
   - `python3 run_aaa_discovery_wrapper.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD`
+  - `python3 backtest_top10.py output_aaa/cached_data.parquet`
   - `pytest -q sip_pattern_discovery/test_aaa_quick.py` (run from workspace root so
     pythonpath resolves)
 

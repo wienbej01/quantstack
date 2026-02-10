@@ -1,0 +1,101 @@
+{
+  "rel_underperform_extreme": null,
+  "rel_outperform_extreme": null,
+  "price_up_vol_weak": null,
+  "price_down_vol_weak": null,
+  "price_up_vol_strong": null,
+  "price_down_vol_strong": null,
+  "at_session_high": null,
+  "at_session_low": null,
+  "new_session_high": null,
+  "new_session_low": null,
+  "vwap_cross_up": null,
+  "vwap_cross_down": null,
+  "avwap_cross_up": null,
+  "avwap_cross_down": null,
+  "ret_5m_turned_positive": null,
+  "ret_5m_turned_negative": null,
+  "ret_15m_turned_positive": null,
+  "ret_15m_turned_negative": null,
+  "ret_30m_turned_positive": null,
+  "ret_30m_turned_negative": null,
+  "ret_60m_turned_positive": null,
+  "ret_60m_turned_negative": null,
+  "ret_5m": [
+    -Infinity,
+    -0.0009745955467224121,
+    -0.0003548860549926758,
+    4.780292510986328e-05,
+    0.0006543397903442383,
+    Infinity
+  ],
+  "ret_15m": [
+    -Infinity,
+    -0.0017181754112243642,
+    -0.0006784796714782715,
+    0.00011551380157470703,
+    0.0010859966278076172,
+    Infinity
+  ],
+  "ret_30m": [
+    -Infinity,
+    -0.0023076534271240234,
+    -0.0008415579795837402,
+    0.0002944469451904297,
+    0.001714468002319336,
+    Infinity
+  ],
+  "ret_60m": [
+    -Infinity,
+    -0.0031520724296569824,
+    -0.0009928345680236816,
+    0.0006797075271606501,
+    0.0028052330017089844,
+    Infinity
+  ],
+  "rel_strength_60m": [
+    -Infinity,
+    -0.28024911880493164,
+    -0.06920099258422852,
+    0.09788274765014648,
+    0.31263232231140137,
+    Infinity
+  ],
+  "session_range_pct": [
+    -Infinity,
+    0.1666676253080368,
+    0.3750089406967163,
+    0.6037744283676147,
+    0.8143997192382812,
+    Infinity
+  ],
+  "rvol": [
+    -Infinity,
+    0.297733336687088,
+    0.5017264485359192,
+    0.7619236707687378,
+    1.2331634759902954,
+    Infinity
+  ],
+  "atr_14": [
+    -Infinity,
+    0.011964253149926662,
+    0.015713827684521675,
+    0.020356860011816025,
+    0.027500424534082413,
+    Infinity
+  ],
+  "price_vs_vwap_pct": [
+    -Infinity,
+    -0.1336383819580078,
+    -0.053040627390146255,
+    0.008760961703956164,
+    0.08421148359775543,
+    Infinity
+  ],
+  "is_first_hour": null,
+  "is_power_hour": null,
+  "first_hour_start": null,
+  "power_hour_start": null,
+  "last_30min_start": null
+}

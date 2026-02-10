@@ -37,7 +37,7 @@ from .strategy_checks import StrategyCheckRegistry
 class EntryCandidate:
     symbol: str
     dt_utc: pd.Timestamp
-    day_key: tuple[str, pd.Timestamp]
+    day_key: tuple[str, str, pd.Timestamp]
     side: str
     prob_long: float
     prob_short: float
@@ -181,11 +181,11 @@ class IntradayMLDecisionPolicy:
         self.daily_realized_r = 0.0
 
         # State tracking
-        self.last_trade_ts: dict[str, pd.Timestamp] = {}  # (symbol -> last trade ts) for cooldown
+        self.last_trade_ts: dict[tuple[str, str], pd.Timestamp] = {}  # cooldown per symbol+strategy
         self.position_state: dict[
-            str, dict[str, object]
-        ] = {}  # symbol -> {"side": str, "entry_ts": ts, "entry_gap": float, "entry_conviction": float}
-        self.entries_per_day: dict[tuple[str, pd.Timestamp], int] = {}
+            tuple[str, str], dict[str, object]
+        ] = {}  # (symbol,strategy) -> {"side": str, "entry_ts": ts, ...}
+        self.entries_per_day: dict[tuple[str, str, pd.Timestamp], int] = {}
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
         self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
         self.required_feature_columns = set(self.strategy_checks.required_columns)
@@ -252,15 +252,12 @@ class IntradayMLDecisionPolicy:
                 symbol = row["symbol"]
                 dt_et = dt_utc.tz_convert(self.session_timezone)
                 self._sync_trading_day(dt_et.date())
-                day_key = (symbol, pd.Timestamp(dt_et.date()))
-                stop_loss_pct_dynamic: float | None = None
-                take_profit_pct_dynamic: float | None = None
-                risk_metadata: dict[str, object] | None = None
-                side: str | None = None
-                exit_reason: str | None = None
+                trading_day = dt_et.date()
 
-                if self._force_flat_if_needed(symbol, dt_utc, dt_et, orders):
-                    self.last_trade_ts[symbol] = dt_utc
+                force_flat_keys = self._force_flat_if_needed(symbol, dt_utc, dt_et, orders)
+                if force_flat_keys:
+                    for key in force_flat_keys:
+                        self.last_trade_ts[key] = dt_utc
                     continue
 
                 prob_long = float(row.get("prob_long", 0.0))
@@ -296,33 +293,16 @@ class IntradayMLDecisionPolicy:
                     continue
 
                 cooldown_duration = pd.Timedelta(minutes=self.cooldown_minutes)
-                last_trade = self.last_trade_ts.get(symbol)
-                if last_trade is not None and (dt_utc - last_trade) < cooldown_duration:
-                    self._append_rejection_record(
-                        rejections,
-                        dt_utc,
-                        symbol,
-                        "cooldown",
-                        prob_long=prob_long,
-                        prob_short=prob_short,
-                        directional_gap=directional_gap,
-                        reason_key=REJECT_REASON_TOD_PROFILE,
-                    )
-                    continue
-
-                position = self.position_state.get(symbol)
-                hold_duration = None
-                pnl_r: float | None = None
                 current_price = self._clean_float(row.get("close"))
-                if position:
+                positions = self._positions_for_symbol(symbol)
+                holding_keys: set[tuple[str, str]] = set()
+                for position_key, position in positions:
                     hold_duration = (dt_utc - position["entry_ts"]).total_seconds() / 60.0
                     entry_gap = float(position.get("entry_gap", directional_gap))
                     entry_conviction = float(position.get("entry_conviction", conviction_score))
+                    pnl_r: float | None = None
                     if current_price is not None:
                         pnl_r = self._compute_position_pnl_r(position, current_price)
-                else:
-                    entry_gap = directional_gap
-                    entry_conviction = conviction_score
 
                     gap_threshold = max(
                         min_directional_gap,
@@ -342,91 +322,115 @@ class IntradayMLDecisionPolicy:
                             conviction_score <= conviction_threshold
                         )
 
-                hold_threshold = self.conviction_decay_min_hold_minutes
-                if gap_exit_delay is not None:
-                    hold_threshold = max(hold_threshold, gap_exit_delay)
+                    hold_threshold = self.conviction_decay_min_hold_minutes
+                    if gap_exit_delay is not None:
+                        hold_threshold = max(hold_threshold, gap_exit_delay)
 
-                hold_limit = max_hold_minutes
-                if pnl_r is not None:
-                    if pnl_r >= 1.0:
-                        hold_limit = max(hold_limit, self.max_hold_minutes_in_the_money)
-                    elif pnl_r <= 0.0:
-                        hold_limit = min(hold_limit, self.max_hold_minutes_flat_or_loser)
+                    hold_limit = max_hold_minutes
+                    if pnl_r is not None:
+                        if pnl_r >= 1.0:
+                            hold_limit = max(hold_limit, self.max_hold_minutes_in_the_money)
+                        elif pnl_r <= 0.0:
+                            hold_limit = min(hold_limit, self.max_hold_minutes_flat_or_loser)
 
-                exit_decision = self._evaluate_position_exit(
-                    position=position,
-                    pnl_r=pnl_r,
-                    hold_duration=hold_duration,
-                    hold_threshold=hold_threshold,
-                    hold_limit=hold_limit,
-                    shrinkage_trigger=shrinkage_trigger,
+                    exit_decision = self._evaluate_position_exit(
+                        position=position,
+                        pnl_r=pnl_r,
+                        hold_duration=hold_duration,
+                        hold_threshold=hold_threshold,
+                        hold_limit=hold_limit,
+                        shrinkage_trigger=shrinkage_trigger,
+                        prob_long=prob_long,
+                        prob_short=prob_short,
+                        exit_threshold_long=exit_threshold_long,
+                        exit_threshold_short=exit_threshold_short,
+                    )
+
+                    if exit_decision is not None:
+                        side, exit_reason = exit_decision
+                        qty = int(position.get("qty", self.order_qty))
+                        strategy_name = str(position.get("strategy") or "exit")
+                        strategy_detail = exit_reason or "exit"
+                        stop_loss_pct_dynamic = position.get("entry_stop_pct")
+                        take_profit_pct_dynamic = position.get("entry_take_profit_pct")
+                        self.position_state.pop(position_key, None)
+
+                        order = self._build_order(
+                            symbol=symbol,
+                            dt_utc=dt_utc,
+                            side=side,
+                            qty=qty,
+                            reason=exit_reason or "exit",
+                            strategy=strategy_name,
+                            strategy_detail=strategy_detail,
+                            stop_loss_pct=stop_loss_pct_dynamic,
+                            take_profit_pct=take_profit_pct_dynamic,
+                            metadata=None,
+                        )
+                        orders.append(order)
+                        if pnl_r is not None:
+                            self.daily_realized_r += pnl_r
+                        self.last_trade_ts[position_key] = dt_utc
+                    else:
+                        hold_reason = "holding_short" if position["side"] == "short" else "holding_long"
+                        self._append_rejection_record(
+                            rejections,
+                            dt_utc,
+                            symbol,
+                            hold_reason,
+                            prob_long=prob_long,
+                            prob_short=prob_short,
+                            directional_gap=directional_gap,
+                            reason_key=REJECT_REASON_BAR_CAP,
+                        )
+                        holding_keys.add(position_key)
+
+                candidate = self._evaluate_entry_candidate(
+                    row=row,
+                    dt_utc=dt_utc,
+                    symbol=symbol,
+                    trading_day=trading_day,
+                    thresholds=thresholds,
+                    profile=profile,
                     prob_long=prob_long,
                     prob_short=prob_short,
-                    exit_threshold_long=exit_threshold_long,
-                    exit_threshold_short=exit_threshold_short,
+                    prob_neutral=prob_neutral,
+                    directional_gap=directional_gap,
+                    conviction_score=conviction_score,
+                    score_margin=score_margin,
+                    rejections=rejections,
                 )
-
-                if exit_decision is not None:
-                    side, exit_reason = exit_decision
-                elif position:
-                    hold_reason = "holding_short" if position["side"] == "short" else "holding_long"
-                    self._append_rejection_record(
-                        rejections,
-                        dt_utc,
-                        symbol,
-                        hold_reason,
-                        prob_long=prob_long,
-                        prob_short=prob_short,
-                        directional_gap=directional_gap,
-                        reason_key=REJECT_REASON_BAR_CAP,
-                    )
-                    continue
-                else:
-                    candidate = self._evaluate_entry_candidate(
-                        row=row,
-                        dt_utc=dt_utc,
-                        symbol=symbol,
-                        day_key=day_key,
-                        thresholds=thresholds,
-                        profile=profile,
-                        prob_long=prob_long,
-                        prob_short=prob_short,
-                        prob_neutral=prob_neutral,
-                        directional_gap=directional_gap,
-                        conviction_score=conviction_score,
-                        score_margin=score_margin,
-                        rejections=rejections,
-                    )
-                    if candidate is not None:
-                        entry_candidates.append(candidate)
-                    continue
-
-                if side is None:
-                    continue
-
-                qty = int(position.get("qty", self.order_qty))
-                strategy_name = "exit"
-                strategy_detail = exit_reason or "exit"
-                self.position_state.pop(symbol, None)
-                stop_loss_pct_dynamic = position.get("entry_stop_pct")
-                take_profit_pct_dynamic = position.get("entry_take_profit_pct")
-
-                order = self._build_order(
-                    symbol=symbol,
-                    dt_utc=dt_utc,
-                    side=side,
-                    qty=qty,
-                    reason=exit_reason or "exit",
-                    strategy=strategy_name,
-                    strategy_detail=strategy_detail,
-                    stop_loss_pct=stop_loss_pct_dynamic,
-                    take_profit_pct=take_profit_pct_dynamic,
-                    metadata=None,
-                )
-                orders.append(order)
-                if pnl_r is not None:
-                    self.daily_realized_r += pnl_r
-                self.last_trade_ts[symbol] = dt_utc
+                if candidate is not None:
+                    position_key = self._position_key(candidate.symbol, candidate.strategy_name)
+                    last_trade = self.last_trade_ts.get(position_key)
+                    if last_trade is not None and (dt_utc - last_trade) < cooldown_duration:
+                        self._append_rejection_record(
+                            rejections,
+                            dt_utc,
+                            candidate.symbol,
+                            "cooldown",
+                            prob_long=prob_long,
+                            prob_short=prob_short,
+                            directional_gap=directional_gap,
+                            reason_key=REJECT_REASON_TOD_PROFILE,
+                        )
+                        continue
+                    if position_key in self.position_state:
+                        if position_key not in holding_keys:
+                            position = self.position_state[position_key]
+                            hold_reason = "holding_short" if position["side"] == "short" else "holding_long"
+                            self._append_rejection_record(
+                                rejections,
+                                dt_utc,
+                                candidate.symbol,
+                                hold_reason,
+                                prob_long=prob_long,
+                                prob_short=prob_short,
+                                directional_gap=directional_gap,
+                                reason_key=REJECT_REASON_BAR_CAP,
+                            )
+                        continue
+                    entry_candidates.append(candidate)
 
             entries_this_bar = self._apply_entry_candidates(
                 entry_candidates,
@@ -489,6 +493,24 @@ class IntradayMLDecisionPolicy:
             col for col in rejections_df.columns if col not in rejection_columns
         ]
         return rejections_df[ordered_columns]
+
+    @staticmethod
+    def _position_key(symbol: str, strategy_name: str | None) -> tuple[str, str]:
+        return symbol, strategy_name or "none"
+
+    def _positions_for_symbol(
+        self,
+        symbol: str,
+    ) -> list[tuple[tuple[str, str], dict[str, object]]]:
+        return [
+            (key, position)
+            for key, position in self.position_state.items()
+            if key[0] == symbol
+        ]
+
+    def _count_positions_for_strategy(self, strategy_name: str) -> int:
+        normalized_strategy = strategy_name or "none"
+        return sum(1 for key in self.position_state if key[1] == normalized_strategy)
 
     def get_rejection_reason_counts(self) -> dict[str, int]:
         """Return aggregated rejection counters keyed by canonical reason."""
@@ -566,11 +588,13 @@ class IntradayMLDecisionPolicy:
             reason_key=reason_key,
         )
 
-    def _entry_block_reason(self, entries_this_bar: int) -> str | None:
+    def _entry_block_reason(self, entries_this_bar: int, strategy_name: str) -> str | None:
         if self.max_trades_per_bar_global and entries_this_bar >= self.max_trades_per_bar_global:
             return "max_trades_per_bar_reached"
-        if self.max_open_positions_global and len(self.position_state) >= self.max_open_positions_global:
-            return "max_open_positions_reached"
+        if self.max_open_positions_global:
+            open_positions = self._count_positions_for_strategy(strategy_name)
+            if open_positions >= self.max_open_positions_global:
+                return "max_open_positions_reached"
         if self.max_entries_per_day and self.global_entries_today >= self.max_entries_per_day:
             return "max_entries_reached_global"
         return None
@@ -587,7 +611,7 @@ class IntradayMLDecisionPolicy:
 
         entry_candidates.sort(key=lambda candidate: candidate.score, reverse=True)
         for candidate in entry_candidates:
-            block_reason = self._entry_block_reason(entries_this_bar)
+            block_reason = self._entry_block_reason(entries_this_bar, candidate.strategy_name)
             symbol_day_count = self.entries_per_day.get(candidate.day_key, 0)
             if block_reason:
                 self._append_candidate_rejection(
@@ -608,7 +632,8 @@ class IntradayMLDecisionPolicy:
                     reason_key=REJECT_REASON_BAR_CAP,
                 )
                 continue
-            if candidate.symbol in self.position_state:
+            position_key = self._position_key(candidate.symbol, candidate.strategy_name)
+            if position_key in self.position_state:
                 self._append_candidate_rejection(
                     rejections,
                     candidate,
@@ -638,7 +663,7 @@ class IntradayMLDecisionPolicy:
             entries_this_bar += 1
             self.global_entries_today += 1
             self.entries_per_day[candidate.day_key] = symbol_day_count + 1
-            self.position_state[candidate.symbol] = {
+            self.position_state[position_key] = {
                 "side": candidate.side,
                 "entry_ts": candidate.dt_utc,
                 "qty": qty,
@@ -648,8 +673,10 @@ class IntradayMLDecisionPolicy:
                 "entry_take_profit_pct": candidate.take_profit_pct,
                 "entry_price": candidate.entry_price,
                 "entry_expected_r": candidate.entry_expected_r,
+                "strategy": candidate.strategy_name,
+                "strategy_detail": candidate.strategy_detail,
             }
-            self.last_trade_ts[candidate.symbol] = candidate.dt_utc
+            self.last_trade_ts[position_key] = candidate.dt_utc
         return entries_this_bar
 
     def _sync_trading_day(self, trading_day: date) -> None:
@@ -661,7 +688,7 @@ class IntradayMLDecisionPolicy:
         self.entries_per_day = {
             key: value
             for key, value in self.entries_per_day.items()
-            if key[1].date() == trading_day
+            if key[2].date() == trading_day
         }
 
     def _evaluate_position_exit(
@@ -742,7 +769,7 @@ class IntradayMLDecisionPolicy:
         row: pd.Series,
         dt_utc: pd.Timestamp,
         symbol: str,
-        day_key: tuple[str, pd.Timestamp],
+        trading_day: date,
         thresholds: dict[str, float],
         profile,
         prob_long: float,
@@ -759,22 +786,6 @@ class IntradayMLDecisionPolicy:
                 dt_utc,
                 symbol,
                 "max_entries_reached_global",
-                prob_long=prob_long,
-                prob_short=prob_short,
-                directional_gap=directional_gap,
-                reason_key=REJECT_REASON_BAR_CAP,
-            )
-            return None
-
-        if (
-            self.max_trades_per_symbol_per_day
-            and self.entries_per_day.get(day_key, 0) >= self.max_trades_per_symbol_per_day
-        ):
-            self._append_rejection_record(
-                rejections,
-                dt_utc,
-                symbol,
-                "max_trades_per_symbol_reached",
                 prob_long=prob_long,
                 prob_short=prob_short,
                 directional_gap=directional_gap,
@@ -967,6 +978,23 @@ class IntradayMLDecisionPolicy:
             )
             return None
 
+        day_key = (symbol, strategy_name, pd.Timestamp(trading_day))
+        if (
+            self.max_trades_per_symbol_per_day
+            and self.entries_per_day.get(day_key, 0) >= self.max_trades_per_symbol_per_day
+        ):
+            self._append_rejection_record(
+                rejections,
+                dt_utc,
+                symbol,
+                "max_trades_per_symbol_reached",
+                prob_long=prob_long,
+                prob_short=prob_short,
+                directional_gap=directional_gap,
+                reason_key=REJECT_REASON_BAR_CAP,
+            )
+            return None
+
         score = self._compute_candidate_score(
             prob_long=prob_long,
             prob_short=prob_short,
@@ -1096,31 +1124,34 @@ class IntradayMLDecisionPolicy:
         dt_utc: pd.Timestamp,
         dt_et: pd.Timestamp,
         orders: list[dict[str, object]],
-    ) -> bool:
+    ) -> list[tuple[str, str]]:
         """Force-close open positions beyond the configured flat time."""
-        position = self.position_state.get(symbol)
-        if not position:
-            return False
+        positions = self._positions_for_symbol(symbol)
+        if not positions:
+            return []
 
         if dt_et.time() < self.force_flat_time:
-            return False
+            return []
 
-        side = "long" if position["side"] == "short" else "short"
-        qty = int(position.get("qty", self.order_qty))
-        order = self._build_order(
-            symbol=symbol,
-            dt_utc=dt_utc,
-            side=side,
-            qty=qty,
-            reason="force_flat",
-            strategy="force_flat",
-            strategy_detail="session_close",
-            stop_loss_pct=position.get("entry_stop_pct"),
-            take_profit_pct=position.get("entry_take_profit_pct"),
-        )
-        orders.append(order)
-        self.position_state.pop(symbol, None)
-        return True
+        flattened_keys: list[tuple[str, str]] = []
+        for position_key, position in positions:
+            side = "long" if position["side"] == "short" else "short"
+            qty = int(position.get("qty", self.order_qty))
+            order = self._build_order(
+                symbol=symbol,
+                dt_utc=dt_utc,
+                side=side,
+                qty=qty,
+                reason="force_flat",
+                strategy="force_flat",
+                strategy_detail="session_close",
+                stop_loss_pct=position.get("entry_stop_pct"),
+                take_profit_pct=position.get("entry_take_profit_pct"),
+            )
+            orders.append(order)
+            self.position_state.pop(position_key, None)
+            flattened_keys.append(position_key)
+        return flattened_keys
 
     @staticmethod
     def _rejection_record(

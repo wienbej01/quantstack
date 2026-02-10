@@ -15,6 +15,8 @@ class RuleName(Enum):
     OBI_DEPTH_COMBO = "obi_depth_combo"     # Rule 1: d_obi_1_30s + high depth
     BID_DEPTH_OBI = "bid_depth_obi"         # Rule 2: depth_bid + d_obi_1_15s
     HIGH_OBI_DEPTH = "high_obi_depth"       # Rule 3: obi_1 + depth_ask
+    LARGE_ORDER_SIZE = "large_order_size"   # Rule 4: Large depth signals informed flow
+    RESISTANCE_REJECTION = "resistance_rejection"  # Rule 5: Price rejection at resistance levels
 
 
 @dataclass
@@ -306,3 +308,370 @@ class MultiRuleSignalGenerator:
     def generate_pattern_signals(self, snapshot: ExtendedL2Snapshot) -> list[RuleSignal]:
         """Generate signals from all pattern rules."""
         return self.pattern_rules.evaluate_all(snapshot)
+
+
+class SizeSignalGenerator:
+    """
+    Large order size signal generator.
+    
+    Detects when depth exceeds dynamic percentile threshold (per-symbol).
+    Large bid depth → LONG signal (informed buying)
+    Large ask depth → SHORT signal (informed selling)
+    
+    Uses rolling percentile to adapt to each symbol's typical depth.
+    """
+    
+    # Rough depth multiplier by price tier (empirical estimate)
+    # Higher priced stocks tend to have larger dollar depth
+    PRICE_DEPTH_MULTIPLIER = {
+        5: 1.0,    # $0-5: baseline
+        10: 1.5,   # $5-10
+        25: 2.5,   # $10-25
+        50: 4.0,   # $25-50
+        100: 6.0,  # $50-100
+        float('inf'): 10.0,  # $100+
+    }
+    
+    def __init__(self, config: dict):
+        self.config = config
+        size_cfg = config.get("size_signal", {})
+        
+        self.enabled = size_cfg.get("enabled", True)
+        self.percentile = size_cfg.get("percentile", 90)  # Dynamic threshold
+        self.min_depth_k = size_cfg.get("min_depth_k", 10)  # Minimum $10k absolute
+        self.warmup_depth_k = size_cfg.get("warmup_depth_k", 25)  # Warmup threshold $25k
+        self.lookback = size_cfg.get("lookback", 300)  # 5 min rolling window
+        self.cooldown_sec = size_cfg.get("cooldown_sec", 30)  # Min time between signals
+        self.warmup_samples = size_cfg.get("warmup_samples", 120)  # ~2 min warmup
+        
+        # Per-symbol rolling depth history: symbol -> list[(ts, depth_bid, depth_ask)]
+        self._depth_history: dict[str, list[tuple[float, float, float]]] = {}
+        # Per-symbol last signal time
+        self._last_signal: dict[str, float] = {}
+        # Per-symbol last known price (for warmup estimation)
+        self._last_price: dict[str, float] = {}
+    
+    def _update_history(self, symbol: str, ts: float, depth_bid: float, depth_ask: float):
+        """Update rolling depth history."""
+        if symbol not in self._depth_history:
+            self._depth_history[symbol] = []
+        
+        self._depth_history[symbol].append((ts, depth_bid, depth_ask))
+        
+        # Trim to lookback window
+        cutoff = ts - self.lookback
+        self._depth_history[symbol] = [
+            (t, db, da) for t, db, da in self._depth_history[symbol] if t >= cutoff
+        ]
+    
+    def _get_price_multiplier(self, price: float) -> float:
+        """Get depth multiplier based on price tier."""
+        for tier, mult in self.PRICE_DEPTH_MULTIPLIER.items():
+            if price <= tier:
+                return mult
+        return 10.0
+    
+    def _get_warmup_threshold(self, symbol: str) -> float:
+        """Get threshold during warmup period based on price estimate."""
+        price = self._last_price.get(symbol, 10.0)  # Default $10 if unknown
+        multiplier = self._get_price_multiplier(price)
+        return self.warmup_depth_k * 1000 * multiplier
+    
+    def _is_in_warmup(self, symbol: str) -> bool:
+        """Check if symbol is still in warmup period."""
+        return (symbol not in self._depth_history or 
+                len(self._depth_history[symbol]) < self.warmup_samples)
+    
+    def _get_percentile_threshold(self, symbol: str, side: str) -> float | None:
+        """Get dynamic percentile threshold for symbol. Returns None if in warmup."""
+        if self._is_in_warmup(symbol):
+            return None
+        
+        idx = 1 if side == "bid" else 2
+        depths = [h[idx] for h in self._depth_history[symbol]]
+        return float(sorted(depths)[int(len(depths) * self.percentile / 100)])
+    
+    def generate_signal(
+        self, symbol: str, timestamp: float, depth_bid: float, depth_ask: float,
+        mid_price: float = None
+    ) -> Optional[RuleSignal]:
+        """
+        Generate size signal if depth exceeds dynamic threshold.
+        
+        Args:
+            symbol: Ticker symbol
+            timestamp: Current timestamp
+            depth_bid: Total bid depth in dollars
+            depth_ask: Total ask depth in dollars
+            mid_price: Current mid price (for warmup estimation)
+        
+        Returns RuleSignal or None.
+        """
+        if not self.enabled:
+            return None
+        
+        # Track price for warmup estimation
+        if mid_price is not None:
+            self._last_price[symbol] = mid_price
+        
+        # Update history
+        self._update_history(symbol, timestamp, depth_bid, depth_ask)
+        
+        # Check cooldown
+        last = self._last_signal.get(symbol, 0)
+        if timestamp - last < self.cooldown_sec:
+            return None
+        
+        # Determine thresholds based on warmup state
+        in_warmup = self._is_in_warmup(symbol)
+        
+        if in_warmup:
+            # During warmup: use price-adjusted absolute threshold
+            warmup_thresh = self._get_warmup_threshold(symbol)
+            bid_thresh = max(warmup_thresh, self.min_depth_k * 1000)
+            ask_thresh = bid_thresh
+            thresh_desc = f"warmup ${bid_thresh/1000:.0f}k"
+        else:
+            # After warmup: use dynamic percentile
+            bid_thresh = self._get_percentile_threshold(symbol, "bid")
+            ask_thresh = self._get_percentile_threshold(symbol, "ask")
+            # Apply minimum absolute threshold
+            min_thresh = self.min_depth_k * 1000
+            bid_thresh = max(bid_thresh, min_thresh)
+            ask_thresh = max(ask_thresh, min_thresh)
+            thresh_desc = f"{self.percentile}th pct"
+        
+        # Check for large bid (LONG signal)
+        if depth_bid >= bid_thresh:
+            self._last_signal[symbol] = timestamp
+            excess = (depth_bid - bid_thresh) / bid_thresh
+            strength = min(1.0, 0.5 + excess)
+            # Lower confidence during warmup
+            confidence = 0.55 if in_warmup else 0.70
+            return RuleSignal(
+                rule_name=RuleName.LARGE_ORDER_SIZE,
+                direction=1,
+                strength=strength,
+                confidence=confidence,
+                reason=f"large_bid={depth_bid/1000:.1f}k >= {bid_thresh/1000:.1f}k ({thresh_desc})"
+            )
+        
+        # Check for large ask (SHORT signal)
+        if depth_ask >= ask_thresh:
+            self._last_signal[symbol] = timestamp
+            excess = (depth_ask - ask_thresh) / ask_thresh
+            strength = min(1.0, 0.5 + excess)
+            confidence = 0.55 if in_warmup else 0.70
+            return RuleSignal(
+                rule_name=RuleName.LARGE_ORDER_SIZE,
+                direction=-1,
+                strength=strength,
+                confidence=confidence,
+                reason=f"large_ask={depth_ask/1000:.1f}k >= {ask_thresh/1000:.1f}k ({thresh_desc})"
+            )
+        
+        return None
+
+
+
+@dataclass
+class Touch:
+    """Record of price touching a level."""
+    timestamp: float
+    price: float
+    depth_ask: float
+    had_large_order: bool
+
+
+@dataclass
+class ResistanceLevel:
+    """Qualified resistance level with institutional activity."""
+    price: float
+    touches: list[Touch]
+    large_order_ratio: float
+    last_touch_time: float
+    last_signal_time: float = 0.0
+    
+    def is_hot(self, current_time: float, window_sec: int = 3600) -> bool:
+        """Check if level has recent activity."""
+        recent = [t for t in self.touches if current_time - t.timestamp < window_sec]
+        return len(recent) >= 3
+
+
+class ResistanceSignalGenerator:
+    """
+    Resistance rejection signal generator.
+    
+    Detects institutional distribution zones where price consistently
+    rejects with large ask orders. SHORT only (support levels don't work).
+    
+    Expected: +12 bps @ 300s, 5-20 signals/day (AAA quality)
+    """
+    
+    def __init__(self, config: dict):
+        self.config = config
+        res_cfg = config.get("resistance_signal", {})
+        
+        self.enabled = res_cfg.get("enabled", False)
+        self.min_touches = res_cfg.get("min_touches", 20)
+        self.min_large_order_ratio = res_cfg.get("min_large_order_ratio", 0.5)
+        self.min_recent_touches = res_cfg.get("min_recent_touches", 3)
+        self.price_tolerance = res_cfg.get("price_tolerance", 0.005)
+        self.approach_tolerance = res_cfg.get("approach_tolerance", 0.002)
+        self.min_imbalance = res_cfg.get("min_imbalance", -0.2)
+        self.cooldown_sec = res_cfg.get("cooldown_sec", 300)
+        self.tod_filter = res_cfg.get("tod_filter", "closing")
+        self.lookback_hours = res_cfg.get("lookback_hours", 4)
+        
+        # Per-symbol price history: symbol -> list[Touch]
+        self._price_history: dict[str, list[Touch]] = {}
+        # Per-symbol detected levels: symbol -> list[ResistanceLevel]
+        self._levels: dict[str, list[ResistanceLevel]] = {}
+        # Last level detection time
+        self._last_detection: dict[str, float] = {}
+    
+    def _update_history(self, symbol: str, timestamp: float, price: float, 
+                       depth_ask: float, large_order_threshold: float):
+        """Update price history with new touch."""
+        if symbol not in self._price_history:
+            self._price_history[symbol] = []
+        
+        touch = Touch(
+            timestamp=timestamp,
+            price=price,
+            depth_ask=depth_ask,
+            had_large_order=(depth_ask >= large_order_threshold)
+        )
+        self._price_history[symbol].append(touch)
+        
+        # Trim to lookback window
+        cutoff = timestamp - (self.lookback_hours * 3600)
+        self._price_history[symbol] = [
+            t for t in self._price_history[symbol] if t.timestamp >= cutoff
+        ]
+    
+    def _detect_levels(self, symbol: str, current_time: float) -> list[ResistanceLevel]:
+        """Detect qualified resistance levels from price history."""
+        if symbol not in self._price_history:
+            return []
+        
+        history = self._price_history[symbol]
+        if len(history) < self.min_touches:
+            return []
+        
+        # Cluster prices into levels
+        levels = []
+        used = set()
+        
+        for i, touch in enumerate(history):
+            if i in used:
+                continue
+            
+            # Find all touches within tolerance of this price
+            cluster = [touch]
+            used.add(i)
+            
+            for j, other in enumerate(history):
+                if j in used:
+                    continue
+                if abs(other.price - touch.price) / touch.price <= self.price_tolerance:
+                    cluster.append(other)
+                    used.add(j)
+            
+            # Check if cluster qualifies as resistance level
+            if len(cluster) >= self.min_touches:
+                large_orders = sum(1 for t in cluster if t.had_large_order)
+                ratio = large_orders / len(cluster)
+                
+                if ratio >= self.min_large_order_ratio:
+                    avg_price = sum(t.price for t in cluster) / len(cluster)
+                    level = ResistanceLevel(
+                        price=avg_price,
+                        touches=cluster,
+                        large_order_ratio=ratio,
+                        last_touch_time=max(t.timestamp for t in cluster)
+                    )
+                    
+                    # Check if level is "hot" (recent activity)
+                    if level.is_hot(current_time, window_sec=3600):
+                        levels.append(level)
+        
+        return levels
+    
+    def _is_closing_session(self, timestamp: float) -> bool:
+        """Check if current time is in closing session (15:30-16:00 ET)."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        
+        dt = datetime.fromtimestamp(timestamp, tz=ZoneInfo("America/New_York"))
+        hour = dt.hour + dt.minute / 60.0
+        return 15.5 <= hour < 16.0
+    
+    def generate_signal(
+        self,
+        symbol: str,
+        timestamp: float,
+        price: float,
+        depth_ask: float,
+        depth_imbalance: float,
+        large_order_threshold: float
+    ) -> Optional[RuleSignal]:
+        """
+        Generate resistance rejection signal.
+        
+        Returns signal only if ALL AAA criteria met.
+        """
+        if not self.enabled:
+            return None
+        
+        # Update history
+        self._update_history(symbol, timestamp, price, depth_ask, large_order_threshold)
+        
+        # Detect levels periodically (every 60 seconds)
+        last_detect = self._last_detection.get(symbol, 0)
+        if timestamp - last_detect >= 60:
+            self._levels[symbol] = self._detect_levels(symbol, timestamp)
+            self._last_detection[symbol] = timestamp
+        
+        # Get current levels
+        levels = self._levels.get(symbol, [])
+        if not levels:
+            return None
+        
+        # Check time-of-day filter
+        if self.tod_filter == "closing" and not self._is_closing_session(timestamp):
+            return None
+        
+        # Find level being approached (within tolerance below)
+        approaching_level = None
+        for level in levels:
+            distance = (level.price - price) / price
+            if 0 < distance <= self.approach_tolerance:  # Approaching from below
+                approaching_level = level
+                break
+        
+        if not approaching_level:
+            return None
+        
+        # Check cooldown
+        if timestamp - approaching_level.last_signal_time < self.cooldown_sec:
+            return None
+        
+        # Check large order present NOW
+        if depth_ask < large_order_threshold:
+            return None
+        
+        # Check imbalance confirmation (ask-heavy)
+        if depth_imbalance >= self.min_imbalance:
+            return None
+        
+        # All AAA criteria met
+        approaching_level.last_signal_time = timestamp
+        
+        return RuleSignal(
+            rule_name=RuleName.RESISTANCE_REJECTION,
+            direction=-1,  # SHORT only
+            strength=1.0,
+            confidence=0.90,  # AAA quality
+            reason=f"resistance@{approaching_level.price:.2f} ({len(approaching_level.touches)} touches, {approaching_level.large_order_ratio:.0%} large orders)"
+        )

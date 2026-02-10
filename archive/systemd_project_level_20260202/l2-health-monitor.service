@@ -1,0 +1,20 @@
+[Unit]
+Description=L2 Scalping Health Monitor
+After=network.target l2-scalping.service
+Requires=l2-scalping.service
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+ExecStart=/usr/bin/python3 /home/jacobw/quantstack/scripts/l2_health_monitor.py
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=l2-health-monitor
+
+[Install]
+WantedBy=multi-user.target

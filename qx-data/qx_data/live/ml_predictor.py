@@ -6,6 +6,17 @@ from pathlib import Path
 from typing import Any, Optional
 
 import numpy as np
+from ib_insync import MarketOrder
+
+from qx_broker.ibkr import (
+    ContractFactory,
+    IBKRAccount,
+    IBKRConnectionConfig,
+    IBKROrderConfig,
+    IBKROrderManager,
+    IBKRSession,
+    IBKRSessionConfig,
+)
 
 
 class RegimeAwarePredictor:
@@ -110,65 +121,89 @@ class RegimeAwarePredictor:
 class PaperTrader:
     """Paper trading execution via IBKR."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 7497):
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 7497,
+        client_id: int = 400,
+        account_id: str | None = None,
+    ):
         self.host = host
         self.port = port
+        self.client_id = client_id
+        self.account_id = account_id
         self.logger = logging.getLogger(__name__)
-        self.ib = None
-        self.positions = {}
 
-    def connect(self):
+        connection = IBKRConnectionConfig(host=host, port=port, client_id=client_id)
+        session_cfg = IBKRSessionConfig(system_name="INTRADAY_PAPER", connection=connection)
+        self.session = IBKRSession(session_cfg)
+        self.contracts = ContractFactory(self.session)
+        self.account = IBKRAccount(self.session)
+        self.orders = IBKROrderManager(
+            self.session,
+            IBKROrderConfig(order_ref_prefix="INTRADAY_PAPER", account=account_id),
+        )
+
+    def connect(self) -> bool:
         """Connect to IBKR."""
-        try:
-            from ib_insync import IB
-
-            self.ib = IB()
-            self.ib.connect(self.host, self.port, clientId=400, readonly=False)
-            self.logger.info("Connected to IBKR for paper trading")
-            return True
-        except Exception as e:
-            self.logger.error(f"IBKR connection failed: {e}")
+        if not self.session.connect():
+            self.logger.error("IBKR connection failed")
             return False
 
-    def place_order(self, symbol: str, action: str, quantity: int = 100):
+        if not self.account_id:
+            self.account_id = self._resolve_account_id()
+        self.logger.info("Connected to IBKR for paper trading")
+        return True
+
+    def _resolve_account_id(self) -> str | None:
+        try:
+            accounts = self.session.call(self.session.ib.managedAccounts, timeout=5)
+            if accounts:
+                return accounts[0]
+        except Exception as exc:
+            self.logger.warning("managedAccounts lookup failed: %s", exc)
+
+        try:
+            summary = self.session.call(self.session.ib.accountSummary, timeout=10)
+            if summary:
+                return summary[0].account
+        except Exception as exc:
+            self.logger.warning("accountSummary lookup failed: %s", exc)
+
+        return None
+
+    def place_order(self, symbol: str, action: str, quantity: int = 100) -> bool:
         """Place paper trade order."""
-        if not self.ib or not self.ib.isConnected():
+        if not self.session.is_connected():
             self.logger.error("Not connected to IBKR")
             return False
 
         try:
-            from ib_insync import MarketOrder, Stock
-
-            # Create contract
-            contract = Stock(symbol, "SMART", "USD")
-
-            # Create order
+            contract = self.contracts.stock(symbol, "SMART", "USD")
+            contract = self.contracts.qualify(contract)
             order = MarketOrder(action, quantity)
-
-            # Place order
-            trade = self.ib.placeOrder(contract, order)
-
-            self.logger.info(f"Paper trade placed: {action} {quantity} {symbol}")
+            if self.account_id:
+                order.account = self.account_id
+            self.orders.place_order(contract, order)
+            self.logger.info("Paper trade placed: %s %s %s", action, quantity, symbol)
             return True
-
-        except Exception as e:
-            self.logger.error(f"Order placement failed: {e}")
+        except Exception as exc:
+            self.logger.error("Order placement failed: %s", exc)
             return False
 
     def get_positions(self) -> dict[str, Any]:
         """Get current positions."""
-        if not self.ib or not self.ib.isConnected():
+        if not self.session.is_connected():
             return {}
 
         try:
-            positions = self.ib.positions()
+            positions = self.account.positions()
             return {pos.contract.symbol: pos.position for pos in positions}
-        except Exception as e:
-            self.logger.error(f"Failed to get positions: {e}")
+        except Exception as exc:
+            self.logger.error("Failed to get positions: %s", exc)
             return {}
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """Disconnect from IBKR."""
-        if self.ib:
-            self.ib.disconnect()
-            self.logger.info("Disconnected from IBKR")
+        self.session.disconnect()
+        self.logger.info("Disconnected from IBKR")

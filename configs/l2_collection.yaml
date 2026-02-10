@@ -24,7 +24,7 @@ collection:
     - "15:00-16:00"  # Power hour
   
   # Output
-  output_dir: "./data/live_l2"
+  output_dir: "/home/jacobw/quantstack/data/l2/live_l2"
   flush_rows: 300
   write_features: true
 

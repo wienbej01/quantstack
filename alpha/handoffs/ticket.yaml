@@ -1,0 +1,54 @@
+goal: "Test whether episodes of unusual deep L2 liquidity are followed by statistically different 300-second price movement compared with normal liquidity baselines."
+scope: "Research-only; no execution, broker, or live trading logic."
+assumptions:
+  - "L2 order book files under ~/quantstack/data are readable and include timestamps, price levels, sizes, and side."
+  - "Polygon 1-minute OHLCV API access is available via environment key from ~/.bashrc."
+  - "All timestamps can be aligned to America/New_York for market hours analysis."
+  - "Latest L2 data ends on 2026-01-22; research will only use data through that date."
+data_inputs:
+  l2_order_book_path: "~/quantstack/data (recursive subfolders)"
+  ohlcv_source: "Polygon 1-minute OHLCV (API; key in shell environment)"
+  timezone: "America/New_York"
+  trading_calendar: "US equities regular session only (09:30-16:00 ET)"
+definitions:
+  deep_liquidity: "Conceptual marker for unusually large displayed size at price levels far from mid/inside market, relative to recent history."
+  unusual_event: "A time window where deep_liquidity exceeds a chosen baseline threshold for the instrument."
+  baseline_window: "Recent historical window used to characterize typical deep liquidity for comparison."
+  event_window: "Short interval used to detect unusual_event occurrences."
+  forward_horizon: "300-second (5-minute) forward window after event time."
+  price_movement: "Directional change in price over forward_horizon using 1-minute OHLCV mid/close proxy."
+  placebo_events: "Synthetic event times drawn from matched times without unusual_event signals."
+  falsification_test: "Same analysis on time-shifted events that should not affect future prices."
+outcomes:
+  primary: "Forward 300-second price movement conditioned on unusual_event vs baseline."
+  secondary:
+    - "Hit rate for directionality (up/down/flat) over forward_horizon."
+    - "Effect size stability across symbols and days."
+    - "Sensitivity of results to threshold choices for unusual_event."
+acceptance_criteria:
+  - "At least 500 unusual_event instances across the dataset (aggregate) after filtering to regular session."
+  - "At least 500 placebo_events matched by symbol and time-of-day."
+  - "Primary outcome shows a statistically distinguishable distribution vs baseline AND the placebo test shows no comparable effect."
+  - "Falsification test using time-shifted events (e.g., +30 minutes) shows no effect consistent with the primary signal."
+  - "Results include confidence intervals and multiple-testing notes if thresholds are swept."
+artifacts_required:
+  - "reports/l2_deep_liquidity_300s_summary.md"
+  - "reports/l2_deep_liquidity_300s_results.csv"
+  - "reports/l2_deep_liquidity_300s_placebo.csv"
+  - "reports/l2_deep_liquidity_300s_falsification.csv"
+  - "reports/l2_deep_liquidity_300s_metadata.json"
+run_commands:
+  - "python -m research.l2_deep_liquidity_300s --l2-root ~/quantstack/data --ohlcv polygon --tz America/New_York"
+  - "python -m research.l2_deep_liquidity_300s --l2-root ~/quantstack/data --ohlcv polygon --tz America/New_York --placebo"
+  - "python -m research.l2_deep_liquidity_300s --l2-root ~/quantstack/data --ohlcv polygon --tz America/New_York --falsification shift_30m"
+touched_paths_allowed:
+  - "research/"
+  - "handoffs/"
+  - "reports/"
+  - "tests/"
+constraints:
+  performance: "Must run within 4 hours on a single workstation; prefer incremental caching if available."
+  determinism: "Seed any random sampling; record seeds in metadata.json."
+  safety: "Read-only on data inputs; no writing under ~/quantstack/data."
+test_commands:
+  - "pytest tests/test_l2_impact_gates.py"

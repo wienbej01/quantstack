@@ -3,7 +3,7 @@
 # Connection Settings
 ibkr:
   host: "127.0.0.1"
-  port: 8000                    # IBKR Platform port
+  port: 7494                    # IBKR Gateway port
   
   # Client ID ranges (100 IDs per service to avoid Gateway caching issues)
   # l2-collector: 1-99, intraday-paper: 100-199, l2-scalping: 200-299
@@ -18,15 +18,20 @@ ibkr:
 
 # Account Settings
 account:
-  account_id: "DU123456"        # Paper trading account
-  initial_capital: 100000       # Starting capital
+  account_id: "DUN575068"        # Paper trading account
+  initial_capital: 1000000      # Starting capital (~$1M)
   currency: "USD"
 
 # Order Settings
 orders:
   default_order_type: "LMT"     # Limit orders
   default_tif: "DAY"            # Time in force
-  use_ioc_for_scalping: true    # Use IOC for quick fills
+  use_ioc_for_scalping: false   # Deprecated for entry; use entry_order_type
+  entry_order_type: "MKT"       # Entry order type: MKT, IOC, LMT
+  exit_price_source: "fill"     # Exit pricing: "fill" uses actual fill price; "signal" uses entry signal/limit
+  min_cancel_interval_sec: 2.0  # Throttle repeated cancels per order id
+  ioc_price_improvement_ticks: 3  # Add N ticks to IOC orders for better fills (0 = disabled) - INCREASED from 1 to 3 for better fill rate
+  tick_size: 0.01               # Default tick size for most stocks
   order_ref_prefix: "L2SCALP"   # Order tag prefix
   commission_per_share: 0.0     # Set per IBKR commission schedule
   fee_per_share: 0.0            # SEC/FINRA fees if applicable
@@ -41,6 +46,7 @@ market_data:
   depth_levels: 10              # Number of depth levels
   smart_depth: false            # Use exchange-specific depth
   exchange: "NYSE"              # Match L2 data subscription
+  max_symbols: 3                # IBKR account limit for L2 subscriptions
   
   # Data validation
   max_stale_data_seconds: 5     # Reject stale data

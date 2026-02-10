@@ -2,6 +2,7 @@
 """Minimal live trading using proven system components."""
 
 import logging
+import os
 import sys
 import time
 from pathlib import Path
@@ -34,6 +35,7 @@ def main():
         from time_windows import parse_windows
 
         # Configure L2 collection for opening and power hour
+        l2_root = os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
         config = CollectorConfig(
             host="127.0.0.1",
             port=8000,  # IBKR Platform port
@@ -42,7 +44,7 @@ def main():
             levels=10,
             max_depth_symbols=6,
             rotate_every_sec=600,  # 10 minutes
-            out_dir="./data/live_l2",
+            out_dir=f"{l2_root}/live_l2",
             run_id=f'live_{time.strftime("%Y%m%d")}',
             session_windows_et=parse_windows("09:30-10:30,15:00-16:00"),
             unsubscribe_outside_windows=True,
@@ -53,7 +55,7 @@ def main():
 
         logger.info(f"✅ L2 collection started for {len(symbols)} symbols")
         logger.info(f"📊 Collection windows: 09:30-10:30, 15:00-16:00 ET")
-        logger.info(f"💾 Output: ./data/live_l2/run_id=live_{time.strftime('%Y%m%d')}")
+        logger.info(f"💾 Output: {l2_root}/live_l2/run_id=live_{time.strftime('%Y%m%d')}")
 
         # Main loop - collect L2 data and log status
         loop_count = 0

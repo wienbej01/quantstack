@@ -1,8 +1,0 @@
-v4 Simple Backtest Results
-================================================================================
-
-Period: May 2024
-Signals: 35
-Win rate: 100.0%
-Avg P&L: 2.70%
-Total P&L: 94.46%

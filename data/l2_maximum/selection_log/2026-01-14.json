@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-14",
+  "timestamp": "2026-01-14T15:59:57.668117",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "SLV",
+    "INTC",
+    "UNG"
+  ],
+  "core": [],
+  "rotating": [
+    "SLV",
+    "INTC",
+    "UNG"
+  ]
+}

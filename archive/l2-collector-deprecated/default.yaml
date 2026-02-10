@@ -1,0 +1,110 @@
+# qx-l2 Default Configuration
+# Standalone L2 data collection module
+
+# System identification
+system:
+  name: "L2COLLECT"
+  client_id: 10  # l2-collector range: 1-99
+  version: "1.0.0"
+
+# IBKR connection settings
+ibkr:
+  host: "127.0.0.1"
+  port: 7497
+  timeout: 30
+  reconnect_interval: 60
+
+# Symbol selection strategy
+symbols:
+  # Modes: static, rotating, hybrid, external
+  mode: "hybrid"
+  nyse_only: true
+  exchange: "NYSE"
+  allowed_primary_exchanges: ["NYSE"]
+  
+  # Core symbols (always included in hybrid mode)
+  core:
+    - HAL   # Energy - high liquidity
+    - PFE   # Healthcare - stable spreads  
+    - LUV   # Transport - momentum patterns
+  
+  # Rotating pool (used in rotating/hybrid modes)
+  rotating_pool:
+    - MOS   # Materials - volatility
+    - ACHR  # Growth - high activity
+    - CRGY  # Energy - sector correlation
+    - FCX   # Materials - copper proxy
+    - AA    # Materials - aluminum
+    - T     # Telecom - stable
+    - VZ    # Telecom - stable
+    - HPE   # Tech - enterprise
+  
+  # Maximum symbols to collect simultaneously
+  max_symbols: 6
+
+# Collection parameters
+collection:
+  levels: 10                    # Order book depth levels
+  snapshot_interval_ms: 1000    # 1 snapshot per second
+  smart_depth: false            # Direct NYSE OpenBook
+  rotate_seconds: 300           # 5-minute symbol rotation
+  poll_interval_sec: 0.1
+
+# Collection schedule
+schedule:
+  timezone: "America/New_York"
+  
+  # Collection windows (ET)
+  windows:
+    - "09:30-10:30"  # Opening volatility
+    - "11:30-12:30"  # Pre-lunch consolidation
+    - "14:00-15:00"  # Afternoon momentum
+    - "15:00-16:00"  # Power hour
+  
+  skip_weekends: true
+  skip_holidays: true
+
+# Data storage
+storage:
+  base_dir: "/home/jacobw/quantstack/data/l2/l2"
+  format: "parquet"
+  compression: "snappy"
+  
+  # Partitioning strategy
+  partition_by:
+    - date
+    - symbol
+  
+  # Performance settings
+  flush_rows: 300
+  consolidate_daily: true
+  retention_days: 90
+
+# Feature engineering
+features:
+  enabled: true
+  
+  # Order Book Imbalance levels
+  obi_levels: [1, 3, 5, 10]
+  
+  # Time delta windows (seconds)
+  delta_windows_sec: [5, 30]
+
+# Event journaling
+journal:
+  enabled: true
+  db_path: "/home/jacobw/quantstack/data/l2/l2/journal.db"
+  sample_rate: 0.1  # Log 10% of snapshots for performance
+
+# Data quality thresholds
+quality:
+  min_depth_rate: 0.85      # Minimum % of snapshots with depth
+  max_spread: 0.03          # Maximum spread (3 cents)
+  alert_on_degradation: true
+
+# Logging
+logging:
+  level: "INFO"
+  file: "l2_collector.log"
+  max_size_mb: 100
+  backup_count: 5

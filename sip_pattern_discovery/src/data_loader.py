@@ -291,16 +291,19 @@ def compute_volume_baseline(
     if baseline_file.exists():
         return baseline_file
 
+    parts_dir = output_dir / "daily_cache" / "volume_baseline_parts"
+    parts_dir.mkdir(parents=True, exist_ok=True)
+
     start_dt = pd.Timestamp(start_date).date()
     end_dt = pd.Timestamp(end_date).date()
     dates = pd.date_range(start_dt, end_dt, freq="D")
 
-    running_sum = pd.Series(dtype="float64")
-    running_count = pd.Series(dtype="float64")
-
     for date_obj in dates:
         day_str = date_obj.strftime("%Y%m%d")
         daily_file = daily_cache_dir / f"day_{day_str}.parquet"
+        part_file = parts_dir / f"volume_baseline_{day_str}.parquet"
+        if part_file.exists():
+            continue
         if not daily_file.exists():
             continue
 
@@ -315,17 +318,36 @@ def compute_volume_baseline(
             daily_df["dt_et"].dt.hour * 60 + daily_df["dt_et"].dt.minute
         )
 
-        agg = daily_df.groupby(["symbol", "minute_of_day"])["volume"].agg(["sum", "count"])
-        running_sum = running_sum.add(agg["sum"], fill_value=0.0)
-        running_count = running_count.add(agg["count"], fill_value=0.0)
+        agg = (
+            daily_df.groupby(["symbol", "minute_of_day"])["volume"]
+            .agg(["sum", "count"])
+            .reset_index()
+        )
+        agg.to_parquet(part_file, index=False)
 
         del daily_df, agg
 
-    avg_volume = running_sum / running_count.replace(0, pd.NA)
+    running_df: pd.DataFrame | None = None
+    for part_file in sorted(parts_dir.glob("volume_baseline_*.parquet")):
+        part_df = pd.read_parquet(part_file)
+        if part_df.empty:
+            continue
+        part_df = part_df.set_index(["symbol", "minute_of_day"])
+        part_df.index.names = ["symbol", "minute_of_day"]
+        if running_df is None:
+            running_df = part_df.copy()
+            continue
+        running_df = running_df.add(part_df, fill_value=0.0)
+
+    if running_df is None or running_df.empty:
+        avg_df = pd.DataFrame(columns=["symbol", "minute_of_day", "avg_volume"])
+        avg_df.to_parquet(baseline_file, index=False)
+        return baseline_file
+
+    avg_volume = running_df["sum"] / running_df["count"].replace(0, pd.NA)
     avg_volume = avg_volume.dropna()
     avg_df = avg_volume.reset_index()
     avg_df.columns = ["symbol", "minute_of_day", "avg_volume"]
-
     avg_df.to_parquet(baseline_file, index=False)
     return baseline_file
 

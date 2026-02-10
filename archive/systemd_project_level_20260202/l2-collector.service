@@ -1,0 +1,21 @@
+[Unit]
+Description=L2 Data Collector (Daily Daemon)
+After=network.target
+
+[Service]
+Type=simple
+User=jacobw
+WorkingDirectory=/home/jacobw/quantstack
+Environment=PATH=/home/jacobw/.local/bin:/home/jacobw/quantstack/.venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONPATH=/home/jacobw/quantstack:/home/jacobw/quantstack/qx-l2/src
+Environment=TZ=America/New_York
+ExecStart=/home/jacobw/quantstack/scripts/audit_wrapper.sh l2-collector /home/jacobw/.local/bin/l2-collect --config qx-l2/configs/maximum_l2.yaml --daemon
+Restart=no
+RestartSec=60
+StandardOutput=journal
+StandardError=journal
+TimeoutStartSec=30
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

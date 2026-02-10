@@ -1,0 +1,11 @@
+[Unit]
+Description=L2 VWAP Mean Reversion Timer - Start before market open
+
+[Timer]
+# 09:26 ET = 22:26 Manila (UTC+8) during EST (winter)
+# System timezone is Manila
+OnCalendar=Mon-Fri 22:26:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

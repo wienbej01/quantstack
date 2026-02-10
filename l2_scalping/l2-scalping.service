@@ -8,7 +8,9 @@ Type=simple
 User=jacobw
 Group=jacobw
 WorkingDirectory=/home/jacobw/quantstack/l2_scalping
-Environment=PYTHONPATH=/home/jacobw/quantstack/l2_scalping/src
+Environment=PYTHONPATH=/home/jacobw/quantstack:/home/jacobw/quantstack/l2_scalping/src:/home/jacobw/quantstack/qx-l2/src
+Environment=L2_DATA_ROOT=/home/jacobw/quantstack/data/l2
+Environment=TZ=America/New_York
 ExecStart=/usr/bin/python3 src/main.py --config config
 Restart=always
 RestartSec=30

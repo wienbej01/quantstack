@@ -1,0 +1,16 @@
+{
+  "date": "2026-01-21",
+  "timestamp": "2026-01-21T15:59:59.524165",
+  "mode": "sip_dynamic",
+  "symbols": [
+    "NFLX",
+    "REPL",
+    "SMR"
+  ],
+  "core": [],
+  "rotating": [
+    "NFLX",
+    "REPL",
+    "SMR"
+  ]
+}
