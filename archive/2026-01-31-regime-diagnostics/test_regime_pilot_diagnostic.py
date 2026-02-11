@@ -147,7 +147,9 @@ def main():
         func = test_case[1]
         extra_args = test_case[2:] if len(test_case) > 2 else ()
 
-        result_df, warnings_list = test_function_isolation(current_df, func_name, func, *extra_args)
+        result_df, warnings_list = test_function_isolation(
+            current_df, func_name, func, *extra_args
+        )
 
         if result_df is not None:
             current_df = result_df

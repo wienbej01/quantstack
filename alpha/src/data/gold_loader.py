@@ -122,17 +122,17 @@ class GoldLoader:
 
         # Filter to date range (ts column is in ET)
         # Convert ts to datetime if it's not already
-        if not pd.api.types.is_datetime64_any_dtype(result['ts']):
-            result['ts'] = pd.to_datetime(result['ts'])
+        if not pd.api.types.is_datetime64_any_dtype(result["ts"]):
+            result["ts"] = pd.to_datetime(result["ts"])
 
         # Filter by date range
         result = result[
-            (result['ts'].dt.date >= start_dt.date()) &
-            (result['ts'].dt.date <= end_dt.date())
+            (result["ts"].dt.date >= start_dt.date())
+            & (result["ts"].dt.date <= end_dt.date())
         ]
 
         # Sort by timestamp
-        result = result.sort_values('ts').reset_index(drop=True)
+        result = result.sort_values("ts").reset_index(drop=True)
 
         logger.info(
             f"Loaded {len(result)} bars for {symbol} "
@@ -211,29 +211,27 @@ class GoldLoader:
         # Original: t, o, h, l, c, v, vw, n, session, date_et
         # Standard: ts, open, high, low, close, volume, ...
         column_map = {
-            't': 'ts',
-            'o': 'open',
-            'h': 'high',
-            'l': 'low',
-            'c': 'close',
-            'v': 'volume',
+            "t": "ts",
+            "o": "open",
+            "h": "high",
+            "l": "low",
+            "c": "close",
+            "v": "volume",
         }
         result = result.rename(columns=column_map)
 
         # Convert timestamp (t is in milliseconds epoch)
-        if 'ts' in result.columns:
-            result['ts'] = pd.to_datetime(result['ts'], unit='ms')
+        if "ts" in result.columns:
+            result["ts"] = pd.to_datetime(result["ts"], unit="ms")
 
         result = result[
-            (result['ts'].dt.date >= start_dt.date()) &
-            (result['ts'].dt.date <= end_dt.date())
+            (result["ts"].dt.date >= start_dt.date())
+            & (result["ts"].dt.date <= end_dt.date())
         ]
 
-        result = result.sort_values('ts').reset_index(drop=True)
+        result = result.sort_values("ts").reset_index(drop=True)
 
-        logger.info(
-            f"Loaded {len(result)} SPY bars from {start_date} to {end_date}"
-        )
+        logger.info(f"Loaded {len(result)} SPY bars from {start_date} to {end_date}")
 
         return result
 
@@ -267,12 +265,14 @@ class GoldLoader:
             trading_days = pd.bdate_range(start_date, end_date)
             expected_bars = len(trading_days) * 390
 
-            coverage_pct = (found_bars / expected_bars * 100) if expected_bars > 0 else 0
+            coverage_pct = (
+                (found_bars / expected_bars * 100) if expected_bars > 0 else 0
+            )
 
             # Find missing dates (dates with zero bars)
             if found_bars > 0:
-                df['date'] = df['ts'].dt.date
-                dates_with_data = set(df['date'].unique())
+                df["date"] = df["ts"].dt.date
+                dates_with_data = set(df["date"].unique())
                 all_dates = set(trading_days.date)
                 missing_dates = sorted(all_dates - dates_with_data)
             else:

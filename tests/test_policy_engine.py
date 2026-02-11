@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent / "qx-data" / "src"))
 
 import numpy as np
 import pandas as pd
+
 from qx_backtest.engine import BacktestConfig, BacktestEngine
 from qx_backtest.policies.regime_aligned import AVWAPMomentumPolicy
 

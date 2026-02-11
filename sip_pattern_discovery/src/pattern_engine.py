@@ -117,30 +117,31 @@ def generate_candidate_rules(
 
         # For binary features (True/False), only test True
         if len(unique_vals) == 2 and True in unique_vals:
-            rules.append({
-                "type": "single",
-                "col": col,
-                "val": True,
-                "desc": f"{col} == True"
-            })
+            rules.append(
+                {"type": "single", "col": col, "val": True, "desc": f"{col} == True"}
+            )
             if include_false_for_binary and False in unique_vals:
-                rules.append({
-                    "type": "single",
-                    "col": col,
-                    "val": False,
-                    "desc": f"{col} == False"
-                })
+                rules.append(
+                    {
+                        "type": "single",
+                        "col": col,
+                        "val": False,
+                        "desc": f"{col} == False",
+                    }
+                )
 
         # For binned features (0-4), only test high bins (momentum/strength)
         elif len(unique_vals) <= 5:
             for val in unique_vals:
                 if val in actionable_bin_values:
-                    rules.append({
-                        "type": "single",
-                        "col": col,
-                        "val": val,
-                        "desc": f"{col} == {val}"
-                    })
+                    rules.append(
+                        {
+                            "type": "single",
+                            "col": col,
+                            "val": val,
+                            "desc": f"{col} == {val}",
+                        }
+                    )
 
     # Two condition rules
     if max_conditions >= 2:
@@ -173,14 +174,16 @@ def generate_candidate_rules(
 
             for v1 in actionable_vals1:
                 for v2 in actionable_vals2:
-                    rules.append({
-                        "type": "double",
-                        "col1": col1,
-                        "val1": v1,
-                        "col2": col2,
-                        "val2": v2,
-                        "desc": f"{col1} == {v1} AND {col2} == {v2}"
-                    })
+                    rules.append(
+                        {
+                            "type": "double",
+                            "col1": col1,
+                            "val1": v1,
+                            "col2": col2,
+                            "val2": v2,
+                            "desc": f"{col1} == {v1} AND {col2} == {v2}",
+                        }
+                    )
 
     if max_rules is not None:
         return rules[:max_rules]
@@ -274,10 +277,7 @@ def evaluate_single_rule(
         rule_val1 = rule_desc["val1"]
         rule_col2 = rule_desc["col2"]
         rule_val2 = rule_desc["val2"]
-        mask = (
-            (df_binned[rule_col1] == rule_val1)
-            & (df_binned[rule_col2] == rule_val2)
-        )
+        mask = (df_binned[rule_col1] == rule_val1) & (df_binned[rule_col2] == rule_val2)
 
     # Get returns for this pattern
     returns = df_binned.loc[mask, return_col]
@@ -440,15 +440,20 @@ def discover_patterns(
     # Rank by AAA score or t-stat
     if use_aaa_scoring:
         from .aaa_scorer import AAAScorer
+
         scorer = AAAScorer()
-        patterns_df['aaa_score'] = patterns_df.apply(
+        patterns_df["aaa_score"] = patterns_df.apply(
             lambda row: scorer.calculate_aaa_score(row.to_dict(), current_regime),
-            axis=1
+            axis=1,
         )
-        patterns_df = patterns_df.sort_values("aaa_score", ascending=False).head(max_patterns)
+        patterns_df = patterns_df.sort_values("aaa_score", ascending=False).head(
+            max_patterns
+        )
         print(f"  Ranked by AAA score (regime: {current_regime})")
     else:
-        patterns_df = patterns_df.sort_values("t_stat", ascending=False).head(max_patterns)
+        patterns_df = patterns_df.sort_values("t_stat", ascending=False).head(
+            max_patterns
+        )
         print(f"  Ranked by t-statistic")
 
     patterns_df = patterns_df.reset_index(drop=True)

@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 
 from ib_insync import Contract, LimitOrder, MarketOrder, Order, Trade
-
 from qx_broker.ibkr.config import IBKROrderConfig
 from qx_broker.ibkr.connection import IBKRSession
 from qx_broker.ibkr.rate_limit import CancelRateLimiter
@@ -48,11 +47,15 @@ class IBKROrderManager:
         order = LimitOrder(action, quantity, limit_price)
         return self._place_order(contract, order, strategy)
 
-    def place_order(self, contract: Contract, order: Order, strategy: str | None = None) -> OrderResult:
+    def place_order(
+        self, contract: Contract, order: Order, strategy: str | None = None
+    ) -> OrderResult:
         return self._place_order(contract, order, strategy)
 
     def what_if(self, contract: Contract, order: Order):
-        return self.session.call(self.session.ib.whatIfOrder, contract, order, timeout=10)
+        return self.session.call(
+            self.session.ib.whatIfOrder, contract, order, timeout=10
+        )
 
     def place_bracket(
         self,
@@ -99,12 +102,16 @@ class IBKROrderManager:
     def executions(self):
         return self.session.call(self.session.ib.executions, timeout=10)
 
-    def _place_order(self, contract: Contract, order: Order, strategy: str | None) -> OrderResult:
+    def _place_order(
+        self, contract: Contract, order: Order, strategy: str | None
+    ) -> OrderResult:
         order_ref = order.orderRef or self._build_order_ref(strategy, contract.symbol)
         order.orderRef = order_ref
         if self.config.account:
             order.account = self.config.account
-        trade = self.session.call(self.session.ib.placeOrder, contract, order, timeout=10)
+        trade = self.session.call(
+            self.session.ib.placeOrder, contract, order, timeout=10
+        )
         return OrderResult(trade=trade, order_ref=order_ref)
 
     def _build_order_ref(self, strategy: str | None, symbol: str) -> str:

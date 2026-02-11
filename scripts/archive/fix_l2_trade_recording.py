@@ -37,15 +37,18 @@ main_py = Path("/home/jacobw/quantstack/l2_scalping/src/main.py")
 content = main_py.read_text()
 
 # Find _legacy_fill_handler
-match = re.search(r'def _legacy_fill_handler\(self.*?\n(?=    def |\Z)', content, re.DOTALL)
+match = re.search(
+    r"def _legacy_fill_handler\(self.*?\n(?=    def |\Z)", content, re.DOTALL
+)
 if match:
     print("\n## CURRENT _legacy_fill_handler():")
-    lines = match.group(0).split('\n')[:30]
+    lines = match.group(0).split("\n")[:30]
     for line in lines:
         print(f"  {line}")
 
 print("\n## REQUIRED CHANGES:")
-print("""
+print(
+    """
 1. In _legacy_fill_handler(), after recording fill:
    - Check if this is an ENTRY fill (opening position)
    - If yes, call: trade_journal.record_trade_entry(
@@ -67,7 +70,8 @@ print("""
        exit_reason=<reason>,
        order_id=exit_order_id
    )
-""")
+"""
+)
 
 print("\n" + "=" * 80)
 print("Run this to apply the fix:")

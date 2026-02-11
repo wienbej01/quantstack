@@ -56,7 +56,10 @@ class ExitGuard:
             return True, "first attempt"
 
         if state.failed:
-            return False, f"EXIT_FAILED after {state.attempts} attempts: {state.last_rejection_reason}"
+            return (
+                False,
+                f"EXIT_FAILED after {state.attempts} attempts: {state.last_rejection_reason}",
+            )
 
         # Check backoff
         now = time.time()
@@ -64,11 +67,16 @@ class ExitGuard:
         elapsed = now - state.last_attempt_time
         if elapsed < backoff:
             remaining = backoff - elapsed
-            return False, f"backoff: {remaining:.1f}s remaining (attempt {state.attempts}/{self.max_attempts})"
+            return (
+                False,
+                f"backoff: {remaining:.1f}s remaining (attempt {state.attempts}/{self.max_attempts})",
+            )
 
         return True, f"attempt {state.attempts + 1}/{self.max_attempts}"
 
-    def record_attempt(self, symbol: str, success: bool, rejection_reason: str = "") -> None:
+    def record_attempt(
+        self, symbol: str, success: bool, rejection_reason: str = ""
+    ) -> None:
         """Record an exit attempt result.
 
         Args:
@@ -106,7 +114,9 @@ class ExitGuard:
                 except Exception as e:
                     logger.error("Alert callback failed: %s", e)
         else:
-            backoff = min(self.base_backoff * (2 ** (state.attempts - 1)), self.max_backoff)
+            backoff = min(
+                self.base_backoff * (2 ** (state.attempts - 1)), self.max_backoff
+            )
             logger.warning(
                 "Exit attempt %d/%d failed for %s: %s (next retry in %.0fs)",
                 state.attempts,

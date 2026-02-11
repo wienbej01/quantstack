@@ -7,22 +7,22 @@ Tests verify:
 - Regime classification matches SPY/VIX logic
 """
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
-
-from src.backtest.walk_forward import (
-    WalkForwardValidator,
-    Period,
-    WalkForwardPeriod,
-    ConsistencyReport,
-)
 from src.backtest.regime_split import (
-    RegimeStratifier,
     RegimeClassification,
     RegimeStats,
+    RegimeStratifier,
     RobustnessReport,
+)
+from src.backtest.walk_forward import (
+    ConsistencyReport,
+    Period,
+    WalkForwardPeriod,
+    WalkForwardValidator,
 )
 
 
@@ -48,7 +48,9 @@ class TestWalkForwardValidator:
         for i in range(len(periods) - 1):
             current_val_end = periods[i].val_period.end_date
             next_val_start = periods[i + 1].val_period.start_date
-            assert current_val_end < next_val_start, "Validation periods should not overlap"
+            assert (
+                current_val_end < next_val_start
+            ), "Validation periods should not overlap"
 
     def test_no_lookahead(self):
         """Validation uses only past data (no future peeking)."""
@@ -65,7 +67,9 @@ class TestWalkForwardValidator:
 
     def test_consistency_check(self):
         """Test consistency calculation correct."""
-        validator = WalkForwardValidator(train_months=3, val_months=1, min_profitable_periods=0.7)
+        validator = WalkForwardValidator(
+            train_months=3, val_months=1, min_profitable_periods=0.7
+        )
 
         # Create mock period results
         period_results = [
@@ -84,7 +88,9 @@ class TestWalkForwardValidator:
 
     def test_consistency_fail(self):
         """Test consistency fails when below threshold."""
-        validator = WalkForwardValidator(train_months=3, val_months=1, min_profitable_periods=0.7)
+        validator = WalkForwardValidator(
+            train_months=3, val_months=1, min_profitable_periods=0.7
+        )
 
         period_results = [
             {"period_index": 0, "is_profitable": True, "total_pnl": 100},
@@ -211,10 +217,12 @@ class TestRegimeStratifier:
 
         # Create simple SPY data (need more than SMA window)
         dates = pd.date_range("2024-01-01", periods=50, freq="D")
-        spy_data = pd.DataFrame({
-            "ts": dates,
-            "close": 440 + np.arange(50) * 0.5,  # Rising trend
-        })
+        spy_data = pd.DataFrame(
+            {
+                "ts": dates,
+                "close": 440 + np.arange(50) * 0.5,  # Rising trend
+            }
+        )
 
         regimes = stratifier.classify_regime_series(spy_data)
 
@@ -314,6 +322,7 @@ class TestRegimeStratifier:
         stratifier = RegimeStratifier()
 
         from src.backtest.engine import BacktestResult
+
         empty_result = BacktestResult(trades=[])
 
         stats = stratifier.calculate_regime_stats(empty_result)

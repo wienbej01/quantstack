@@ -22,7 +22,9 @@ def check_aapl_sessions():
 
         # Convert timestamp to ET for display
         pytz.timezone("US/Eastern")
-        df["ts_et"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.tz_convert("US/Eastern")
+        df["ts_et"] = pd.to_datetime(df["ts"], unit="ns", utc=True).dt.tz_convert(
+            "US/Eastern"
+        )
 
         # Check unique session IDs and their time ranges
         print("\n📊 Session Analysis:")
@@ -30,7 +32,9 @@ def check_aapl_sessions():
 
         # Group by session and get time ranges
         session_ranges = (
-            df.groupby("session_id").agg({"ts_et": ["min", "max"], "ts": ["min", "max"]}).round()
+            df.groupby("session_id")
+            .agg({"ts_et": ["min", "max"], "ts": ["min", "max"]})
+            .round()
         )
 
         print("\n🕐 Session Time Ranges (first 10 sessions):")
@@ -40,7 +44,9 @@ def check_aapl_sessions():
             print(f"   Session {session_id}: {et_min} to {et_max}")
 
         # Check what time the first bar of 2024-01-09 appears
-        jan_9_data = df[df["ts_et"].dt.date == pd.to_datetime("2024-01-09").date()].copy()
+        jan_9_data = df[
+            df["ts_et"].dt.date == pd.to_datetime("2024-01-09").date()
+        ].copy()
 
         if len(jan_9_data) > 0:
             print("\n📅 January 9, 2024 Analysis:")
@@ -49,7 +55,9 @@ def check_aapl_sessions():
             print(f"   Total bars: {len(jan_9_data)}")
 
             # Check for pre-market data (before 09:30 ET)
-            pre_market = jan_9_data[jan_9_data["ts_et"].dt.time < pd.to_datetime("09:30:00").time()]
+            pre_market = jan_9_data[
+                jan_9_data["ts_et"].dt.time < pd.to_datetime("09:30:00").time()
+            ]
             if len(pre_market) > 0:
                 print(f"   Pre-market bars: {len(pre_market)}")
                 print(
@@ -89,7 +97,9 @@ def check_aapl_sessions():
         open_times = [
             t
             for t in unique_times
-            if pd.to_datetime("09:00:00").time() <= t <= pd.to_datetime("10:00:00").time()
+            if pd.to_datetime("09:00:00").time()
+            <= t
+            <= pd.to_datetime("10:00:00").time()
         ]
         print(f"   Times around market open: {open_times[:10]}")
 

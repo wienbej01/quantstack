@@ -29,11 +29,11 @@ class ValidationGate:
     ) -> tuple[bool, str]:
         """
         Check if pattern passes validation gate.
-        
+
         Args:
             scan_metrics: Metrics from scan period
             val_metrics: Metrics from validation period
-        
+
         Returns:
             (passes, reason)
         """
@@ -101,18 +101,23 @@ class ValidationGate:
         """
         Calculate degradation score (0-1, lower is better).
         """
-        wr_deg = abs(scan_metrics["win_rate"] - val_metrics["win_rate"]) / self.max_win_rate_drop
+        wr_deg = (
+            abs(scan_metrics["win_rate"] - val_metrics["win_rate"])
+            / self.max_win_rate_drop
+        )
 
         exp_deg = 0
         if scan_metrics["expectancy"] > 0:
-            exp_deg = abs(
-                1 - val_metrics["expectancy"] / scan_metrics["expectancy"]
-            ) / self.max_expectancy_drop_pct
+            exp_deg = (
+                abs(1 - val_metrics["expectancy"] / scan_metrics["expectancy"])
+                / self.max_expectancy_drop_pct
+            )
 
         sharpe_deg = 0
         if scan_metrics["sharpe"] > 0:
-            sharpe_deg = abs(
-                1 - val_metrics["sharpe"] / scan_metrics["sharpe"]
-            ) / self.max_sharpe_drop_pct
+            sharpe_deg = (
+                abs(1 - val_metrics["sharpe"] / scan_metrics["sharpe"])
+                / self.max_sharpe_drop_pct
+            )
 
         return (wr_deg + exp_deg + sharpe_deg) / 3

@@ -19,7 +19,9 @@ RATE_LIMIT_SEC = 300  # 5 minutes between alerts per key
 class EmergencyAlerts:
     """Rate-limited emergency alert sender."""
 
-    def __init__(self, ntfy_url: str = NTFY_EMERGENCY, rate_limit_sec: float = RATE_LIMIT_SEC):
+    def __init__(
+        self, ntfy_url: str = NTFY_EMERGENCY, rate_limit_sec: float = RATE_LIMIT_SEC
+    ):
         self._url = ntfy_url
         self._rate_limit = rate_limit_sec
         self._last_sent: dict[str, float] = {}
@@ -32,7 +34,13 @@ class EmergencyAlerts:
         self._last_sent[key] = now
         return True
 
-    def _send(self, title: str, message: str, priority: str = "5", tags: str = "rotating_light") -> bool:
+    def _send(
+        self,
+        title: str,
+        message: str,
+        priority: str = "5",
+        tags: str = "rotating_light",
+    ) -> bool:
         try:
             resp = requests.post(
                 self._url,

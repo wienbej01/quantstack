@@ -48,9 +48,7 @@ def load_data_for_symbol_date(symbol: str, date: str) -> pd.DataFrame:
     return df
 
 
-def find_large_order_events(
-    df: pd.DataFrame, min_size: float
-) -> pd.DataFrame:
+def find_large_order_events(df: pd.DataFrame, min_size: float) -> pd.DataFrame:
     """Find all rows where any bid/ask level exceeds min_size."""
     df = df.copy()
 
@@ -68,12 +66,16 @@ def find_large_order_events(
 
     # Add context columns
     df["max_bid_sz"] = (
-        df[[f"bid_sz_{i}" for i in range(1, 6) if f"bid_sz_{i}" in df.columns]].max(axis=1)
+        df[[f"bid_sz_{i}" for i in range(1, 6) if f"bid_sz_{i}" in df.columns]].max(
+            axis=1
+        )
         if any(f"bid_sz_{i}" in df.columns for i in range(1, 6))
         else np.nan
     )
     df["max_ask_sz"] = (
-        df[[f"ask_sz_{i}" for i in range(1, 6) if f"ask_sz_{i}" in df.columns]].max(axis=1)
+        df[[f"ask_sz_{i}" for i in range(1, 6) if f"ask_sz_{i}" in df.columns]].max(
+            axis=1
+        )
         if any(f"ask_sz_{i}" in df.columns for i in range(1, 6))
         else np.nan
     )
@@ -119,7 +121,9 @@ def compute_forward_returns_for_events(
     return events
 
 
-def display_order_book(event: pd.Series, df: pd.DataFrame, context_rows: int = 2) -> str:
+def display_order_book(
+    event: pd.Series, df: pd.DataFrame, context_rows: int = 2
+) -> str:
     """Display order book context around an event."""
     event_idx = df.index.get_indexer([event.name], method="nearest")[0]
 
@@ -134,7 +138,9 @@ def display_order_book(event: pd.Series, df: pd.DataFrame, context_rows: int = 2
     # Format timestamp
     ts = pd.to_datetime(event["ts_utc"])
     lines.append(f"TIMESTAMP: {ts} | Symbol: {event['symbol']}")
-    lines.append(f"Mid: ${event.get('mid', 0):.2f} | Spread: ${event.get('spread', 0):.2f}")
+    lines.append(
+        f"Mid: ${event.get('mid', 0):.2f} | Spread: ${event.get('spread', 0):.2f}"
+    )
     lines.append("=" * 100)
     lines.append("\nOrder Book Context:")
 
@@ -157,13 +163,19 @@ def display_order_book(event: pd.Series, df: pd.DataFrame, context_rows: int = 2
             ask_str = f"${ask_px:7.2f}" if not pd.isna(ask_px) else "        "
             ask_sz_str = f"{int(ask_sz):6d}" if not pd.isna(ask_sz) else "      "
 
-            lines.append(f"  L{level}      {bid_str}     {sz_str}      {ask_str}     {ask_sz_str}")
+            lines.append(
+                f"  L{level}      {bid_str}     {sz_str}      {ask_str}     {ask_sz_str}"
+            )
 
     return "\n".join(lines)
 
 
 def explore_large_orders(
-    symbol: str, date: str, min_size: float, max_events: int = 10, horizons: list[int] = [60, 300]
+    symbol: str,
+    date: str,
+    min_size: float,
+    max_events: int = 10,
+    horizons: list[int] = [60, 300],
 ):
     """Explore large order events for a symbol/date."""
 
@@ -198,7 +210,9 @@ def explore_large_orders(
     print("=" * 100)
     print(f"\nTop {len(events)} largest orders:\n")
 
-    summary_cols = ["ts_utc", "max_bid_sz", "max_ask_sz"] + [f"fwd_ret_{h}s" for h in horizons]
+    summary_cols = ["ts_utc", "max_bid_sz", "max_ask_sz"] + [
+        f"fwd_ret_{h}s" for h in horizons
+    ]
     print(events[summary_cols].to_string(index=False))
 
     # Display forward return statistics
@@ -219,12 +233,17 @@ def explore_large_orders(
 
     # Check if running in interactive mode
     import sys
+
     is_interactive = sys.stdin.isatty()
 
     if is_interactive:
         # Interactive prompt for detailed view
         print("\n" + "=" * 100)
-        print("Enter event number (1-{}) to view order book, or 'q' to quit: ".format(len(events)))
+        print(
+            "Enter event number (1-{}) to view order book, or 'q' to quit: ".format(
+                len(events)
+            )
+        )
 
         while True:
             try:
@@ -242,7 +261,9 @@ def explore_large_orders(
                 break
     else:
         print("\n" + "=" * 100)
-        print("(Non-interactive mode - use --show-events N to display order book for specific event)")
+        print(
+            "(Non-interactive mode - use --show-events N to display order book for specific event)"
+        )
 
 
 def list_available_dates() -> list[str]:
@@ -272,10 +293,16 @@ def main():
     parser.add_argument("--symbol", type=str, help="Symbol to explore")
     parser.add_argument("--date", type=str, help="Date (YYYY-MM-DD)")
     parser.add_argument(
-        "--min-size", type=float, default=1000, help="Minimum order size (default: 1000)"
+        "--min-size",
+        type=float,
+        default=1000,
+        help="Minimum order size (default: 1000)",
     )
     parser.add_argument(
-        "--max-events", type=int, default=10, help="Maximum events to display (default: 10)"
+        "--max-events",
+        type=int,
+        default=10,
+        help="Maximum events to display (default: 10)",
     )
     parser.add_argument(
         "--horizons",
@@ -284,7 +311,9 @@ def main():
         default=[60, 300],
         help="Forward return horizons in seconds (default: 60 300)",
     )
-    parser.add_argument("--list-dates", action="store_true", help="List available dates")
+    parser.add_argument(
+        "--list-dates", action="store_true", help="List available dates"
+    )
     parser.add_argument(
         "--list-symbols",
         type=str,

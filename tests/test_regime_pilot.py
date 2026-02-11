@@ -103,9 +103,9 @@ def load_test_data():
     df = df.sort_values(["symbol", "ts"]).reset_index(drop=True)
 
     # Flag prior-day warmup rows so they can be discarded post-feature prep
-    session_start = pd.Timestamp(f"{trade_dates[0]} 09:30:00", tz="America/New_York").tz_convert(
-        "UTC"
-    )
+    session_start = pd.Timestamp(
+        f"{trade_dates[0]} 09:30:00", tz="America/New_York"
+    ).tz_convert("UTC")
     df_ts = pd.to_datetime(df["ts"], unit="ns", utc=True)
     df["is_warmup_seed"] = df_ts < session_start
     print(
@@ -480,7 +480,9 @@ def test_policies(df, detector):
                 "readable_name": readable_name,
             }
 
-            print(f"{name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L")
+            print(
+                f"{name}: {len(trades)} trades, ${results[name]['final_return']:.2f} P&L"
+            )
 
         except Exception as e:
             print(f"Error in {name} policy: {e}")
@@ -514,9 +516,9 @@ def run_diagnostic_check(df, detector, verbose=False):
         return
 
     # Add date and session info for session-based counting
-    ready_bars["dt_et"] = pd.to_datetime(ready_bars["ts"], unit="ns", utc=True).dt.tz_convert(
-        "America/New_York"
-    )
+    ready_bars["dt_et"] = pd.to_datetime(
+        ready_bars["ts"], unit="ns", utc=True
+    ).dt.tz_convert("America/New_York")
     ready_bars["date"] = ready_bars["dt_et"].dt.date
     ready_bars["session"] = ready_bars["dt_et"].apply(
         lambda x: "AM" if x.time() < pd.Timestamp("12:30").time() else "PM"
@@ -568,9 +570,15 @@ def run_diagnostic_check(df, detector, verbose=False):
         # Simple regime classification using defined constants
         if features["stress"] > 0 or features["mod_vol"] >= STRESS_VOL_THRESHOLD:
             regime = "STRESS"
-        elif features["var_ratio"] > BULL_VAR_RATIO_MIN and features["adx"] >= TRENDING_ADX_MIN:
+        elif (
+            features["var_ratio"] > BULL_VAR_RATIO_MIN
+            and features["adx"] >= TRENDING_ADX_MIN
+        ):
             regime = "BULL"
-        elif features["var_ratio"] < BEAR_VAR_RATIO_MAX and features["adx"] >= TRENDING_ADX_MIN:
+        elif (
+            features["var_ratio"] < BEAR_VAR_RATIO_MAX
+            and features["adx"] >= TRENDING_ADX_MIN
+        ):
             regime = "BEAR"
         elif (
             abs(features["var_ratio"] - 1.0) <= SIDEWAYS_VAR_RANGE
@@ -636,7 +644,9 @@ def main():
     # Drop prior-session warmup seed rows before diagnostics/backtest
     if "is_warmup_seed" in df_features.columns:
         df_features = df_features[not df_features["is_warmup_seed"]].copy()
-        df_features.drop(columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore")
+        df_features.drop(
+            columns=["is_warmup_seed", "_loaded_date"], inplace=True, errors="ignore"
+        )
 
     # Create regime detector
     detector = create_regime_detector()
@@ -654,7 +664,9 @@ def main():
 
     for name, result in results.items():
         if "error" in result:
-            print(f"{result.get('readable_name', name.upper())}: FAILED - {result['error']}")
+            print(
+                f"{result.get('readable_name', name.upper())}: FAILED - {result['error']}"
+            )
         else:
             readable_name = result.get("readable_name", name.upper())
             print(f"{readable_name}: SUCCESS")

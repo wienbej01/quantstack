@@ -9,6 +9,7 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
+
 def log_trade_entry(
     system: str,
     symbol: str,
@@ -35,10 +36,12 @@ def log_trade_entry(
         context["rule_name"] = rule_name
     if strategy:
         context["strategy"] = strategy
-    
-    slippage = entry_price - signal_price if side == "BUY" else signal_price - entry_price
+
+    slippage = (
+        entry_price - signal_price if side == "BUY" else signal_price - entry_price
+    )
     context["slippage"] = slippage
-    
+
     logger.info(
         f"[{system}] TRADE_SIGNAL: ENTRY {side} {quantity} {symbol} @ {entry_price:.4f} | Context: {context}"
     )
@@ -69,7 +72,7 @@ def log_trade_exit(
     }
     if strategy:
         context["strategy"] = strategy
-    
+
     logger.info(
         f"[{system}] TRADE_SIGNAL: EXIT {side} {quantity} {symbol} @ {exit_price:.4f} | Context: {context}"
     )
@@ -93,7 +96,7 @@ def log_fill(
         "order_id": order_id,
         "exec_id": exec_id,
     }
-    
+
     logger.info(
         f"[{system}] FILL: {side} {quantity} {symbol} @ {price:.4f} | Context: {context}"
     )

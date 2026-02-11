@@ -318,7 +318,9 @@ class TestEmergencyAlerts:
         assert result is True
         mock_post.assert_called_once()
         call_data = mock_post.call_args
-        assert "HIMS" in call_data.kwargs.get("headers", call_data[1].get("headers", {})).get("Title", "")
+        assert "HIMS" in call_data.kwargs.get(
+            "headers", call_data[1].get("headers", {})
+        ).get("Title", "")
 
     @patch("cpapi.emergency_alerts.requests.post")
     def test_rate_limiting(self, mock_post):
@@ -343,7 +345,9 @@ class TestEmergencyAlerts:
         result = alerts.margin_breach("HIMS", available=836863, required=839154)
         assert result is True
 
-    @patch("cpapi.emergency_alerts.requests.post", side_effect=Exception("network error"))
+    @patch(
+        "cpapi.emergency_alerts.requests.post", side_effect=Exception("network error")
+    )
     def test_alert_failure_doesnt_crash(self, mock_post):
         alerts = EmergencyAlerts()
         result = alerts.exit_failed("HIMS", 3, "margin")
@@ -365,7 +369,12 @@ class TestVitalsProcessMatching:
         # Simulated cmdlines from real processes
         test_cases = [
             (
-                ["python3", "/home/jacobw/quantstack/l2_scalping/src/main.py", "--config", "config"],
+                [
+                    "python3",
+                    "/home/jacobw/quantstack/l2_scalping/src/main.py",
+                    "--config",
+                    "config",
+                ],
                 True,
                 "l2_scalping",
             ),
@@ -399,9 +408,9 @@ class TestVitalsProcessMatching:
         for cmdline, should_match, expected_pattern in test_cases:
             cmdline_str = " ".join(cmdline).lower()
             matched = any(p in cmdline_str for p in CMDLINE_PATTERNS)
-            assert matched == should_match, (
-                f"cmdline={cmdline}, expected match={should_match}, got={matched}"
-            )
+            assert (
+                matched == should_match
+            ), f"cmdline={cmdline}, expected match={should_match}, got={matched}"
 
     def test_old_matching_would_fail(self):
         """Prove the old matching was broken — process name is 'python3'."""
@@ -441,7 +450,9 @@ class TestFeb9IncidentReplay:
             if allowed:
                 attempts_allowed += 1
                 # Simulate margin rejection
-                guard.record_attempt("HIMS", success=False, rejection_reason="insufficient margin")
+                guard.record_attempt(
+                    "HIMS", success=False, rejection_reason="insufficient margin"
+                )
 
         # Should have stopped after exactly 3 attempts, not 100
         assert attempts_allowed == 3
@@ -569,11 +580,13 @@ class TestRiskManagerMarginGap:
         This is the gap: check_pre_trade_risk only checks internal limits,
         not actual IBKR margin. The MarginChecker fills this gap.
         """
-        rm = RiskManager({
-            "per_trade": {"max_loss_bps": 10, "max_position_pct": 0.02},
-            "daily": {"max_loss_bps": 100, "max_trades": 100},
-            "position_sizing": {"max_shares": 500, "min_position_value": 100},
-        })
+        rm = RiskManager(
+            {
+                "per_trade": {"max_loss_bps": 10, "max_position_pct": 0.02},
+                "daily": {"max_loss_bps": 100, "max_trades": 100},
+                "position_sizing": {"max_shares": 500, "min_position_value": 100},
+            }
+        )
 
         # Risk manager says OK (internal limits fine)
         allowed, reason = rm.check_pre_trade_risk("HIMS", 255, 26.55, 900000)
@@ -722,7 +735,9 @@ class TestVWAPReversionMarginCheck:
         manager, no circuit breaker. This is the gap the fix addresses.
         """
         # Read the source directly to avoid import path conflicts
-        source_path = Path(__file__).parent.parent / "l2_vwap_reversion" / "src" / "main.py"
+        source_path = (
+            Path(__file__).parent.parent / "l2_vwap_reversion" / "src" / "main.py"
+        )
         source = source_path.read_text()
         # After fix, _execute_signal should contain margin check
         assert "margin_checker" in source
@@ -740,6 +755,7 @@ class TestSharedPositionLedger:
     def _make_ledger(self):
         """Create a ledger with mocked DB connection."""
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         return ledger
 
@@ -752,6 +768,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         ledger.upsert("l2-scalping", "HIMS", 255, 26.55, 5000.0)
 
@@ -769,6 +786,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         ledger.upsert("l2-scalping", "HIMS", 0, 0.0)
 
@@ -785,6 +803,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         total = ledger.get_total_margin()
         assert total == 15000.0
@@ -799,6 +818,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         # 50k used + 10k new = 60k < 80k cap (100k * 0.8)
         allowed, reason = ledger.check_global_margin(10000, 100000)
@@ -814,6 +834,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         # 75k used + 10k new = 85k > 80k cap (100k * 0.8)
         allowed, reason = ledger.check_global_margin(10000, 100000)
@@ -829,6 +850,7 @@ class TestSharedPositionLedger:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         ledger.clear_service("l2-scalping")
         sql = mock_cursor.execute.call_args[0][0]
@@ -846,9 +868,11 @@ class TestCPUSpikeDetector:
 
     def test_no_alert_below_threshold(self):
         from scripts.monitor_vitals import CPUSpikeDetector
+
         alerts = []
         detector = CPUSpikeDetector(
-            system_threshold=90, consecutive=3,
+            system_threshold=90,
+            consecutive=3,
             alert_fn=lambda cpu, dur, proc: alerts.append((cpu, dur, proc)),
         )
         for _ in range(5):
@@ -857,9 +881,11 @@ class TestCPUSpikeDetector:
 
     def test_alert_after_consecutive_spikes(self):
         from scripts.monitor_vitals import CPUSpikeDetector
+
         alerts = []
         detector = CPUSpikeDetector(
-            system_threshold=90, consecutive=3,
+            system_threshold=90,
+            consecutive=3,
             alert_fn=lambda cpu, dur, proc: alerts.append((cpu, dur, proc)),
         )
         detector.check(95.0, {})
@@ -871,9 +897,11 @@ class TestCPUSpikeDetector:
 
     def test_reset_on_normal_reading(self):
         from scripts.monitor_vitals import CPUSpikeDetector
+
         alerts = []
         detector = CPUSpikeDetector(
-            system_threshold=90, consecutive=3,
+            system_threshold=90,
+            consecutive=3,
             alert_fn=lambda cpu, dur, proc: alerts.append((cpu, dur, proc)),
         )
         detector.check(95.0, {})
@@ -885,9 +913,12 @@ class TestCPUSpikeDetector:
 
     def test_per_process_spike_alert(self):
         from scripts.monitor_vitals import CPUSpikeDetector
+
         alerts = []
         detector = CPUSpikeDetector(
-            system_threshold=90, process_threshold=80, consecutive=3,
+            system_threshold=90,
+            process_threshold=80,
+            consecutive=3,
             alert_fn=lambda cpu, dur, proc: alerts.append((cpu, dur, proc)),
         )
         procs = {"l2-scalping": {"cpu": 95, "mem": 10}}
@@ -899,9 +930,11 @@ class TestCPUSpikeDetector:
     def test_feb9_scenario_would_trigger_alert(self):
         """The Feb 9 100% CPU for 2 hours would trigger within 30s."""
         from scripts.monitor_vitals import CPUSpikeDetector
+
         alerts = []
         detector = CPUSpikeDetector(
-            system_threshold=90, consecutive=3,
+            system_threshold=90,
+            consecutive=3,
             alert_fn=lambda cpu, dur, proc: alerts.append((cpu, dur, proc)),
         )
         # Simulate 100% CPU readings (10s interval)
@@ -991,8 +1024,11 @@ class TestStartupReconciliation:
         shared_positions = {"HIMS": {"quantity": 255}, "RIG": {"quantity": 100}}
 
         orphans = [s for s in ibkr_symbols if s not in shared_positions]
-        stale = [s for s, sp in shared_positions.items()
-                 if s not in ibkr_symbols and sp.get("quantity", 0) != 0]
+        stale = [
+            s
+            for s, sp in shared_positions.items()
+            if s not in ibkr_symbols and sp.get("quantity", 0) != 0
+        ]
 
         assert orphans == []
         assert stale == []
@@ -1016,7 +1052,7 @@ class TestSharedLedgerIntegrationL2Scalping:
         source = Path(__file__).parent.parent / "l2_scalping" / "src" / "main.py"
         text = source.read_text()
         # Should upsert after trade_journal.record_trade_entry
-        assert 'shared_ledger.upsert' in text
+        assert "shared_ledger.upsert" in text
         assert '"l2-scalping"' in text
 
     def test_source_removes_on_exit_fill(self):
@@ -1048,7 +1084,7 @@ class TestSharedLedgerIntegrationVWAP:
     def test_source_writes_on_entry(self):
         source = Path(__file__).parent.parent / "l2_vwap_reversion" / "src" / "main.py"
         text = source.read_text()
-        assert 'shared_ledger.upsert' in text
+        assert "shared_ledger.upsert" in text
         assert '"l2-vwap"' in text
 
     def test_source_removes_on_exit(self):
@@ -1081,6 +1117,7 @@ class TestGlobalMarginGateLogic:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         # 75k existing + 10k new = 85k > 80k cap
         allowed, reason = ledger.check_global_margin(10000, 100000)
@@ -1096,6 +1133,7 @@ class TestGlobalMarginGateLogic:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         # 30k existing + 10k new = 40k < 80k cap
         allowed, reason = ledger.check_global_margin(10000, 100000)
@@ -1120,6 +1158,7 @@ class TestGlobalMarginGateLogic:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
         ledger.check_global_margin(5000, 100000)
 
@@ -1141,6 +1180,7 @@ class TestCrossServiceScenario:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
 
         # Step 1: l2-scalping opens position (upsert)
@@ -1163,6 +1203,7 @@ class TestCrossServiceScenario:
         mock_connect.return_value = mock_conn
 
         from cpapi.shared_positions import SharedPositionLedger
+
         ledger = SharedPositionLedger()
 
         # l2-scalping exits (remove)

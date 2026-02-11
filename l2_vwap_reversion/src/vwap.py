@@ -10,7 +10,7 @@ class VWAPState:
     """Per-symbol VWAP state."""
 
     cum_tp_vol: float = 0.0  # sum(typical_price * volume)
-    cum_vol: float = 0.0     # sum(volume)
+    cum_vol: float = 0.0  # sum(volume)
     vwap: float = 0.0
 
 
@@ -31,7 +31,9 @@ class VWAPCalculator:
         """Reset all symbols (call at market open)."""
         self._state.clear()
 
-    def update(self, symbol: str, high: float, low: float, close: float, volume: float) -> float:
+    def update(
+        self, symbol: str, high: float, low: float, close: float, volume: float
+    ) -> float:
         """Update VWAP with new bar data. Returns current VWAP."""
         if symbol not in self._state:
             self._state[symbol] = VWAPState()

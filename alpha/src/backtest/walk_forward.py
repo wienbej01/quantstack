@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from ..backtest.engine import AlphaBacktestEngine, BacktestResult
 
@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Period:
     """A time period for training or validation."""
+
     start_date: str  # YYYY-MM-DD
     end_date: str  # YYYY-MM-DD
     period_type: str  # "train" or "val"
@@ -39,6 +40,7 @@ class Period:
 @dataclass
 class WalkForwardPeriod:
     """A train/validation period pair."""
+
     train_period: Period
     val_period: Period
     period_index: int
@@ -47,6 +49,7 @@ class WalkForwardPeriod:
 @dataclass
 class ConsistencyReport:
     """Report on strategy consistency across validation periods."""
+
     total_periods: int
     profitable_periods: int
     consistency_pct: float
@@ -123,7 +126,9 @@ class WalkForwardValidator:
         while True:
             # Calculate train period
             train_start = current_train_start
-            train_end = self._add_months(train_start, self.train_months) - timedelta(days=1)
+            train_end = self._add_months(train_start, self.train_months) - timedelta(
+                days=1
+            )
 
             # Calculate validation period
             val_start = train_end + timedelta(days=1)
@@ -146,11 +151,13 @@ class WalkForwardValidator:
                 period_type="val",
             )
 
-            periods.append(WalkForwardPeriod(
-                train_period=train_period,
-                val_period=val_period,
-                period_index=period_idx,
-            ))
+            periods.append(
+                WalkForwardPeriod(
+                    train_period=train_period,
+                    val_period=val_period,
+                    period_index=period_idx,
+                )
+            )
 
             # Roll forward by 1 month
             current_train_start = self._add_months(current_train_start, 1)
@@ -170,7 +177,9 @@ class WalkForwardValidator:
     def _days_in_month(year: int, month: int) -> int:
         """Get number of days in a month."""
         if month == 2:
-            return 29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28
+            return (
+                29 if (year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)) else 28
+            )
         elif month in [4, 6, 9, 11]:
             return 30
         else:
@@ -225,12 +234,13 @@ class WalkForwardValidator:
             val_end = pd.Timestamp(wf_period.val_period.end_date)
 
             val_bars = bars_df[
-                (bars_df["ts"] >= val_start) &
-                (bars_df["ts"] <= val_end)
+                (bars_df["ts"] >= val_start) & (bars_df["ts"] <= val_end)
             ]
 
             if val_bars.empty:
-                logger.warning(f"No data for validation period {wf_period.period_index}")
+                logger.warning(
+                    f"No data for validation period {wf_period.period_index}"
+                )
                 continue
 
             # Run backtest on validation period
@@ -238,8 +248,7 @@ class WalkForwardValidator:
             val_l2 = None
             if l2_df is not None and not l2_df.empty:
                 val_l2 = l2_df[
-                    (l2_df["ts_utc"] >= val_start) &
-                    (l2_df["ts_utc"] <= val_end)
+                    (l2_df["ts_utc"] >= val_start) & (l2_df["ts_utc"] <= val_end)
                 ]
             period_result = engine.run(val_bars, l2_df=val_l2, signals=signals)
             results.append(period_result)
@@ -248,15 +257,17 @@ class WalkForwardValidator:
             period_pnl = sum(t.pnl for t in period_result.trades)
             is_profitable = period_pnl > 0
 
-            period_results.append({
-                "period_index": wf_period.period_index,
-                "val_start": wf_period.val_period.start_date,
-                "val_end": wf_period.val_period.end_date,
-                "num_trades": period_result.num_trades,
-                "total_pnl": period_pnl,
-                "is_profitable": is_profitable,
-                "final_equity": period_result.final_equity,
-            })
+            period_results.append(
+                {
+                    "period_index": wf_period.period_index,
+                    "val_start": wf_period.val_period.start_date,
+                    "val_end": wf_period.val_period.end_date,
+                    "num_trades": period_result.num_trades,
+                    "total_pnl": period_pnl,
+                    "is_profitable": is_profitable,
+                    "final_equity": period_result.final_equity,
+                }
+            )
 
             logger.info(
                 f"Period {wf_period.period_index}: "
@@ -293,7 +304,9 @@ class WalkForwardValidator:
 
         passes = consistency >= self.min_profitable_periods
 
-        logger.info(f"Consistency check: {consistency*100:.1f}% ({profitable}/{total}) - {'PASS' if passes else 'FAIL'}")
+        logger.info(
+            f"Consistency check: {consistency*100:.1f}% ({profitable}/{total}) - {'PASS' if passes else 'FAIL'}"
+        )
 
         return ConsistencyReport(
             total_periods=total,
@@ -337,12 +350,14 @@ class WalkForwardValidator:
         second_wr = sum(1 for r in second_half if r["is_profitable"]) / len(second_half)
 
         # Check for significant degradation
-        pnl_degradation = (first_avg - second_avg) / abs(first_avg) if first_avg != 0 else 0
+        pnl_degradation = (
+            (first_avg - second_avg) / abs(first_avg) if first_avg != 0 else 0
+        )
         wr_degradation = first_wr - second_wr
 
         has_degradation = (
-            pnl_degradation > 0.3 or  # P&L degraded by >30%
-            wr_degradation > 0.2  # Win rate degraded by >20%
+            pnl_degradation > 0.3  # P&L degraded by >30%
+            or wr_degradation > 0.2  # Win rate degraded by >20%
         )
 
         return {

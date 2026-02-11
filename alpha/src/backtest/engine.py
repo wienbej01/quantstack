@@ -23,10 +23,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from ..features.flow_features import compute_all_flow_features
 from ..features.l2_features import AlphaL2Features
 from ..features.price_features import compute_all_price_features
-from ..features.flow_features import compute_all_flow_features
-from ..signals.base import Position, Signal, SignalEvent, ExitEvent, SignalSide
+from ..signals.base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Trade:
     """A completed trade (entry + exit)."""
+
     symbol: str
     signal_name: str
     side: SignalSide
@@ -51,6 +52,7 @@ class Trade:
 @dataclass
 class BacktestResult:
     """Results from a backtest run."""
+
     trades: List[Trade] = field(default_factory=list)
     equity_curve: pd.Series = field(default_factory=pd.Series)
     signals_generated: int = 0
@@ -74,6 +76,7 @@ class BacktestResult:
 @dataclass
 class BarData:
     """Container for all data at a single timestamp."""
+
     bars: pd.Series  # Current OHLCV bar
     l2_snapshot: Optional[pd.Series] = None  # L2 snapshot if available
     features: Dict[str, Any] = field(default_factory=dict)  # Computed features
@@ -107,7 +110,9 @@ class AlphaBacktestEngine:
 
         self.initial_capital = config.get("initial_capital", 100000)
         self.commission_per_share = exec_cfg.get("commission_per_share", 0.005)
-        self.slippage_bps = exec_cfg.get("slippage_bps", 5) / 10000  # Convert bps to decimal
+        self.slippage_bps = (
+            exec_cfg.get("slippage_bps", 5) / 10000
+        )  # Convert bps to decimal
         self.position_size_pct = risk_cfg.get("max_position_pct", 0.02)
         self.max_positions = risk_cfg.get("max_positions", 10)
 
@@ -163,7 +168,9 @@ class AlphaBacktestEngine:
 
         # Group by symbol for processing
         symbols = bars_df["symbol"].unique()
-        logger.info(f"Running backtest for {len(symbols)} symbols from {result.start_date} to {result.end_date}")
+        logger.info(
+            f"Running backtest for {len(symbols)} symbols from {result.start_date} to {result.end_date}"
+        )
 
         # Process bars by timestamp (maintain temporal integrity)
         current_ts_idx = 0
@@ -222,22 +229,32 @@ class AlphaBacktestEngine:
         # Match within 1 minute window since bar ts is in ET and L2 ts_utc is in UTC
         if l2_df is not None and not l2_df.empty:
             # Convert bar timestamp to UTC for comparison
-            ts_utc = ts.tz_localize('America/New_York').tz_convert('UTC') if ts.tz is None else ts.tz_convert('UTC')
-            
+            ts_utc = (
+                ts.tz_localize("America/New_York").tz_convert("UTC")
+                if ts.tz is None
+                else ts.tz_convert("UTC")
+            )
+
             symbol_l2 = l2_df[
-                (l2_df["symbol"] == bar["symbol"]) &
-                (l2_df["ts_utc"] >= ts_utc - pd.Timedelta(seconds=30)) &
-                (l2_df["ts_utc"] <= ts_utc + pd.Timedelta(seconds=30))
+                (l2_df["symbol"] == bar["symbol"])
+                & (l2_df["ts_utc"] >= ts_utc - pd.Timedelta(seconds=30))
+                & (l2_df["ts_utc"] <= ts_utc + pd.Timedelta(seconds=30))
             ]
 
             if not symbol_l2.empty:
                 # Use closest snapshot
-                symbol_l2['time_diff'] = abs((symbol_l2['ts_utc'] - ts_utc).dt.total_seconds())
-                closest_idx = symbol_l2['time_diff'].idxmin()
+                symbol_l2["time_diff"] = abs(
+                    (symbol_l2["ts_utc"] - ts_utc).dt.total_seconds()
+                )
+                closest_idx = symbol_l2["time_diff"].idxmin()
                 bar_data.l2_snapshot = symbol_l2.loc[closest_idx]
-                print(f"DEBUG: Loaded L2 snapshot for {bar['symbol']} @ {ts}, {len(symbol_l2)} snapshots in window")
+                print(
+                    f"DEBUG: Loaded L2 snapshot for {bar['symbol']} @ {ts}, {len(symbol_l2)} snapshots in window"
+                )
             else:
-                print(f"DEBUG: No L2 snapshot for {bar['symbol']} @ {ts} (ts_utc={ts_utc})")
+                print(
+                    f"DEBUG: No L2 snapshot for {bar['symbol']} @ {ts} (ts_utc={ts_utc})"
+                )
         else:
             print(f"DEBUG: L2 data is None or empty")
 
@@ -245,27 +262,31 @@ class AlphaBacktestEngine:
         if bar_data.l2_snapshot is not None:
             l2_features = self.l2_engineer.compute_all_features(bar_data.l2_snapshot)
             bar_data.features.update(l2_features)
-            print(f"DEBUG: L2 features computed - spread={l2_features.get('spread'):.4f}, book_imb={l2_features.get('book_imbalance_5'):.3f}")
+            print(
+                f"DEBUG: L2 features computed - spread={l2_features.get('spread'):.4f}, book_imb={l2_features.get('book_imbalance_5'):.3f}"
+            )
         else:
             # Provide fallback values when L2 data unavailable
             # These neutral values won't trigger signals but won't crash either
-            bar_data.features.update({
-                "book_imbalance_5": 0.0,
-                "book_imbalance_10": 0.0,
-                "depth_ratio_5": 1.0,
-                "depth_ratio_10": 1.0,
-                "spread": bar["high"] - bar["low"],  # Approximate spread
-                "bid_slope": 0.0,
-                "ask_slope": 0.0,
-                "has_large_bid": False,
-                "has_large_ask": False,
-                "large_bid_size": 0,
-                "large_ask_size": 0,
-                "bid_drop_pct": 0.0,
-                "ask_drop_pct": 0.0,
-                "trade_imbalance_5": 0.0,
-                "rvol": 1.0,
-            })
+            bar_data.features.update(
+                {
+                    "book_imbalance_5": 0.0,
+                    "book_imbalance_10": 0.0,
+                    "depth_ratio_5": 1.0,
+                    "depth_ratio_10": 1.0,
+                    "spread": bar["high"] - bar["low"],  # Approximate spread
+                    "bid_slope": 0.0,
+                    "ask_slope": 0.0,
+                    "has_large_bid": False,
+                    "has_large_ask": False,
+                    "large_bid_size": 0,
+                    "large_ask_size": 0,
+                    "bid_drop_pct": 0.0,
+                    "ask_drop_pct": 0.0,
+                    "trade_imbalance_5": 0.0,
+                    "rvol": 1.0,
+                }
+            )
 
         # Compute price-based features (always available)
         # These require historical bars, so we'll use simple approximations
@@ -295,7 +316,9 @@ class AlphaBacktestEngine:
                 )
 
                 if signal_event:
-                    print(f"DEBUG: SIGNAL GENERATED! {signal_event.signal_name} {signal_event.side} for {bar['symbol']} @ {bar['ts']}")
+                    print(
+                        f"DEBUG: SIGNAL GENERATED! {signal_event.signal_name} {signal_event.side} for {bar['symbol']} @ {bar['ts']}"
+                    )
                     result.signals_generated += 1
                     self.pending_entries.append(signal_event)
                     logger.debug(
@@ -349,7 +372,11 @@ class AlphaBacktestEngine:
             bar = symbol_bar.iloc[0]
 
             # Calculate position size
-            entry_price = bar["open"] * (1 + self.slippage_bps if signal.side == SignalSide.LONG else 1 - self.slippage_bps)
+            entry_price = bar["open"] * (
+                1 + self.slippage_bps
+                if signal.side == SignalSide.LONG
+                else 1 - self.slippage_bps
+            )
             position_value = self.capital * self.position_size_pct
             quantity = int(position_value / entry_price)
 
@@ -357,11 +384,15 @@ class AlphaBacktestEngine:
                 continue
 
             # Create position
-            position = self._create_position_from_signal(signal, entry_price, bar["ts"], quantity)
+            position = self._create_position_from_signal(
+                signal, entry_price, bar["ts"], quantity
+            )
 
             # Check max positions
             if len(self.positions) >= self.max_positions:
-                logger.debug(f"Max positions reached, skipping entry for {signal.symbol}")
+                logger.debug(
+                    f"Max positions reached, skipping entry for {signal.symbol}"
+                )
                 continue
 
             self.positions[signal.symbol] = position
@@ -373,7 +404,9 @@ class AlphaBacktestEngine:
                 f"{signal.symbol} @ ${entry_price:.2f}"
             )
 
-    def _execute_pending_exits(self, bars_group: pd.DataFrame, result: 'BacktestResult') -> None:
+    def _execute_pending_exits(
+        self, bars_group: pd.DataFrame, result: "BacktestResult"
+    ) -> None:
         """Execute pending exits at this bar's OPEN."""
         if not self.pending_exits:
             return
@@ -410,7 +443,9 @@ class AlphaBacktestEngine:
                 pnl = (position.entry_price - exit_price) * position.quantity
 
             # Subtract commission
-            commission = self.commission_per_share * position.quantity * 2  # Entry + exit
+            commission = (
+                self.commission_per_share * position.quantity * 2
+            )  # Entry + exit
             pnl -= commission
 
             # Update capital
@@ -508,9 +543,13 @@ class AlphaBacktestEngine:
                 current_price = symbol_bar.iloc[0]["close"]
 
                 if position.side == SignalSide.LONG:
-                    unrealized = (current_price - position.entry_price) * position.quantity
+                    unrealized = (
+                        current_price - position.entry_price
+                    ) * position.quantity
                 else:
-                    unrealized = (position.entry_price - current_price) * position.quantity
+                    unrealized = (
+                        position.entry_price - current_price
+                    ) * position.quantity
 
                 equity += unrealized
 

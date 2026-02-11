@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from ib_insync import PnL, PnLSingle
-
 from qx_broker.ibkr.connection import IBKRSession
 
 
@@ -18,7 +17,9 @@ class IBKRAccount:
 
     def account_summary(self):
         if hasattr(self.session.ib, "accountSummaryAsync"):
-            return self.session.call_async(self.session.ib.accountSummaryAsync, timeout=30)
+            return self.session.call_async(
+                self.session.ib.accountSummaryAsync, timeout=30
+            )
         return self.session.call(self.session.ib.accountSummary, timeout=30)
 
     def portfolio(self):
@@ -36,7 +37,9 @@ class IBKRAccount:
         self.session.call(self.session.ib.cancelPnL, account, model_code, timeout=5)
         self._pnl_subscriptions.pop(account, None)
 
-    def subscribe_pnl_single(self, account: str, model_code: str, con_id: int) -> PnLSingle:
+    def subscribe_pnl_single(
+        self, account: str, model_code: str, con_id: int
+    ) -> PnLSingle:
         pnl = self.session.call(
             self.session.ib.reqPnLSingle, account, model_code, con_id, timeout=10
         )

@@ -7,7 +7,6 @@ import time
 from dataclasses import dataclass
 
 from ib_insync import Contract, DOMLevel, Ticker
-
 from qx_broker.ibkr.config import IBKRDepthConfig
 from qx_broker.ibkr.connection import IBKRSession
 
@@ -51,7 +50,10 @@ class IBKRMarketDepth:
             raise ValueError("num_rows must be between 1 and 5")
 
         with self._lock:
-            if contract.symbol not in self._tickers and len(self._tickers) >= self.config.max_symbols:
+            if (
+                contract.symbol not in self._tickers
+                and len(self._tickers) >= self.config.max_symbols
+            ):
                 raise RuntimeError("Exceeded max_symbols for L2 depth subscriptions")
 
         ticker = self.session.call(
@@ -70,7 +72,9 @@ class IBKRMarketDepth:
     def cancel(self, contract: Contract, smart_depth: bool | None = None) -> None:
         if smart_depth is None:
             smart_depth = self.config.smart_depth
-        self.session.call(self.session.ib.cancelMktDepth, contract, smart_depth, timeout=5)
+        self.session.call(
+            self.session.ib.cancelMktDepth, contract, smart_depth, timeout=5
+        )
         with self._lock:
             self._tickers.pop(contract.symbol, None)
             self._last_update.pop(contract.symbol, None)

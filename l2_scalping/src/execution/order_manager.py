@@ -11,15 +11,9 @@ from enum import Enum
 from typing import Callable
 
 from ib_insync import LimitOrder, MarketOrder, Order, Trade
-
-from qx_broker.ibkr import (
-    ContractFactory,
-    IBKRConnectionConfig,
-    IBKROrderConfig,
-    IBKROrderManager as BaseOrderManager,
-    IBKRSession,
-    IBKRSessionConfig,
-)
+from qx_broker.ibkr import ContractFactory, IBKRConnectionConfig, IBKROrderConfig
+from qx_broker.ibkr import IBKROrderManager as BaseOrderManager
+from qx_broker.ibkr import IBKRSession, IBKRSessionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +106,9 @@ class IBKROrderManager:
             allow_client_id_fallback=client_id_fallbacks > 0,
             client_id_fallbacks=client_id_fallbacks,
         )
-        session_cfg = IBKRSessionConfig(system_name=self.SYSTEM_NAME, connection=connection)
+        session_cfg = IBKRSessionConfig(
+            system_name=self.SYSTEM_NAME, connection=connection
+        )
         self.session = IBKRSession(session_cfg)
         self.client_id = base_client_id
 
@@ -124,13 +120,17 @@ class IBKROrderManager:
         order_cfg = IBKROrderConfig(
             order_ref_prefix=str(orders_cfg.get("order_ref_prefix", "L2SCALP")),
             account=account_id,
-            min_cancel_interval_sec=float(orders_cfg.get("min_cancel_interval_sec", 2.0)),
+            min_cancel_interval_sec=float(
+                orders_cfg.get("min_cancel_interval_sec", 2.0)
+            ),
         )
         self._order_manager = BaseOrderManager(self.session, order_cfg)
         self._account_id = order_cfg.account
 
         self._default_tif = str(orders_cfg.get("default_tif", "DAY"))
-        self._exchange = str(orders_cfg.get("exchange", market_data_cfg.get("exchange", "SMART")))
+        self._exchange = str(
+            orders_cfg.get("exchange", market_data_cfg.get("exchange", "SMART"))
+        )
 
         self._contracts = ContractFactory(self.session)
         self._order_queue: queue.Queue[OrderUpdate] = queue.Queue()
@@ -150,7 +150,9 @@ class IBKROrderManager:
         self._attach_events()
         if not self._account_id:
             self._account_id = self._resolve_account_id()
-        logger.info("Order Manager connected (client_id=%s)", self.session.active_client_id)
+        logger.info(
+            "Order Manager connected (client_id=%s)", self.session.active_client_id
+        )
         return True
 
     def disconnect(self) -> None:
@@ -198,7 +200,9 @@ class IBKROrderManager:
     def place_order_safe(self, order_request: OrderRequest) -> PlaceOrderResult:
         """Place an order and return structured result with rejection info."""
         try:
-            contract = self._contracts.stock(order_request.symbol, exchange=self._exchange)
+            contract = self._contracts.stock(
+                order_request.symbol, exchange=self._exchange
+            )
             contract = self._contracts.qualify(contract)
 
             # Check if bracket orders requested
@@ -206,7 +210,11 @@ class IBKROrderManager:
                 oid = self._place_bracket_order(contract, order_request)
                 if oid:
                     return PlaceOrderResult(order_id=oid, success=True)
-                return PlaceOrderResult(order_id=None, success=False, rejection_reason="bracket order failed")
+                return PlaceOrderResult(
+                    order_id=None,
+                    success=False,
+                    rejection_reason="bracket order failed",
+                )
 
             # Simple order
             order = self._build_order(order_request)
@@ -235,7 +243,9 @@ class IBKROrderManager:
         except Exception as exc:
             reason = str(exc)
             logger.error("Order placement error: %s", reason)
-            return PlaceOrderResult(order_id=None, success=False, rejection_reason=reason)
+            return PlaceOrderResult(
+                order_id=None, success=False, rejection_reason=reason
+            )
 
     def _place_bracket_order(self, contract, order_request: OrderRequest) -> str | None:
         """Place bracket order with stop-loss and profit-target."""
@@ -292,7 +302,7 @@ class IBKROrderManager:
             stop_id: str | None = None
             target_id: str | None = None
             for i, child in enumerate(children):
-                child.transmit = (i == len(children) - 1)  # Transmit last
+                child.transmit = i == len(children) - 1  # Transmit last
                 child_result = self._order_manager.place_order(contract, child)
                 child_trade = child_result.trade
                 with self._lock:
@@ -326,7 +336,9 @@ class IBKROrderManager:
     def get_bracket_children(self, parent_id: str) -> dict[str, str | None]:
         """Get bracket child order IDs for a parent order."""
         with self._lock:
-            return self._bracket_children.get(str(parent_id), {"stop_id": None, "target_id": None})
+            return self._bracket_children.get(
+                str(parent_id), {"stop_id": None, "target_id": None}
+            )
 
     def place_oca_exit_orders(
         self,

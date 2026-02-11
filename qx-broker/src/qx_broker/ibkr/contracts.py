@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Optional
 
 from ib_insync import Contract, ContractDetails, Stock
-
 from qx_broker.ibkr.connection import IBKRSession
 
 
@@ -43,7 +42,9 @@ class ContractCache:
 
 
 class ContractFactory:
-    def __init__(self, session: IBKRSession, cache: ContractCache | None = None) -> None:
+    def __init__(
+        self, session: IBKRSession, cache: ContractCache | None = None
+    ) -> None:
         self.session = session
         self.cache = cache or ContractCache()
 

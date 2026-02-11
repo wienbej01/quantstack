@@ -105,13 +105,13 @@ def compute_profit_factor(trades: List[Trade]) -> float:
     losing_trades = [t for t in trades if t.pnl < 0]
 
     if not losing_trades:
-        return float('inf') if winning_trades else 0.0
+        return float("inf") if winning_trades else 0.0
 
     gross_profit = sum(t.pnl for t in winning_trades)
     gross_loss = abs(sum(t.pnl for t in losing_trades))
 
     if gross_loss == 0:
-        return float('inf')
+        return float("inf")
 
     return gross_profit / gross_loss
 
@@ -196,7 +196,11 @@ def compute_all_metrics(
     expectancy = compute_expectancy(trades)
     win_rate = compute_win_rate(trades)
     profit_factor = compute_profit_factor(trades)
-    max_drawdown = compute_max_drawdown(result.equity_curve) if len(result.equity_curve) > 0 else 0.0
+    max_drawdown = (
+        compute_max_drawdown(result.equity_curve)
+        if len(result.equity_curve) > 0
+        else 0.0
+    )
     t_stat = compute_t_stat(trades)
 
     # Additional stats
@@ -219,7 +223,6 @@ def compute_all_metrics(
         "final_equity": final_equity,
         "total_pnl": total_pnl,
         "total_return_pct": total_return * 100,
-
         # Performance metrics
         "sharpe_ratio": sharpe,
         "expectancy": expectancy,
@@ -227,12 +230,10 @@ def compute_all_metrics(
         "profit_factor": profit_factor,
         "max_drawdown_pct": max_drawdown * 100,
         "t_stat": t_stat,
-
         # Trade statistics
         "avg_win": avg_win,
         "avg_loss": avg_loss,
         "avg_hold_minutes": avg_hold_minutes,
-
         # Best/worst
         "best_trade_pnl": best_trade.pnl if best_trade else 0.0,
         "worst_trade_pnl": worst_trade.pnl if worst_trade else 0.0,
@@ -312,10 +313,10 @@ def check_minimum_thresholds(
         "t_stat_pass": metrics["t_stat"] >= min_t_stat,
         "min_trades_pass": metrics["num_trades"] >= min_trades,
         "all_pass": (
-            metrics["sharpe_ratio"] >= min_sharpe and
-            metrics["win_rate"] >= min_win_rate and
-            metrics["profit_factor"] >= min_profit_factor and
-            metrics["t_stat"] >= min_t_stat and
-            metrics["num_trades"] >= min_trades
+            metrics["sharpe_ratio"] >= min_sharpe
+            and metrics["win_rate"] >= min_win_rate
+            and metrics["profit_factor"] >= min_profit_factor
+            and metrics["t_stat"] >= min_t_stat
+            and metrics["num_trades"] >= min_trades
         ),
     }

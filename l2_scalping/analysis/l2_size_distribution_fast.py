@@ -133,8 +133,12 @@ def main():
     # Per-symbol stats
     logger.info("  Per-symbol statistics...")
     for symbol in sorted(symbol_sizes.keys()):
-        results.append(compute_stats_from_sizes(symbol_sizes[symbol]["bid"], f"{symbol}_bid"))
-        results.append(compute_stats_from_sizes(symbol_sizes[symbol]["ask"], f"{symbol}_ask"))
+        results.append(
+            compute_stats_from_sizes(symbol_sizes[symbol]["bid"], f"{symbol}_bid")
+        )
+        results.append(
+            compute_stats_from_sizes(symbol_sizes[symbol]["ask"], f"{symbol}_ask")
+        )
 
     stats_df = pd.DataFrame(results)
 
@@ -166,7 +170,9 @@ def main():
     logger.info(f"  Max: {overall_ask['max']:.0f}")
 
     logger.info(f"\n100 shares = round lot (standard market maker quoting)")
-    logger.info(f"'Large order' threshold: ~{overall_bid['p95']:.0f} shares (95th percentile)")
+    logger.info(
+        f"'Large order' threshold: ~{overall_bid['p95']:.0f} shares (95th percentile)"
+    )
 
     logger.info(f"\nDone! Results saved to {stats_file}")
 

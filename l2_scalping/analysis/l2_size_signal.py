@@ -58,7 +58,9 @@ def load_l2_raw_data() -> pd.DataFrame:
                     # Heartbeat every 100 files
                     if file_count % 100 == 0:
                         elapsed = time.time() - start_time
-                        logger.info(f"    Loaded {file_count} files in {elapsed:.0f}s...")
+                        logger.info(
+                            f"    Loaded {file_count} files in {elapsed:.0f}s..."
+                        )
                         sys.stdout.flush()
                 except Exception as e:
                     pass  # Skip errors silently
@@ -68,7 +70,9 @@ def load_l2_raw_data() -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.concat(all_data, ignore_index=True)
-    logger.info(f"Loaded {len(df):,} L2 snapshots across {df['symbol'].nunique()} symbols")
+    logger.info(
+        f"Loaded {len(df):,} L2 snapshots across {df['symbol'].nunique()} symbols"
+    )
     return df
 
 
@@ -108,7 +112,9 @@ def compute_size_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def compute_percentile_thresholds(df: pd.DataFrame, percentile: float = 95.0) -> dict[str, float]:
+def compute_percentile_thresholds(
+    df: pd.DataFrame, percentile: float = 95.0
+) -> dict[str, float]:
     """Compute percentile-based thresholds per symbol."""
     logger.info(f"Computing {percentile}th percentile thresholds per symbol...")
 
@@ -134,9 +140,7 @@ def compute_percentile_thresholds(df: pd.DataFrame, percentile: float = 95.0) ->
     return thresholds
 
 
-def compute_forward_returns(
-    df: pd.DataFrame, horizons: list[int]
-) -> pd.DataFrame:
+def compute_forward_returns(df: pd.DataFrame, horizons: list[int]) -> pd.DataFrame:
     """Compute forward mid-price returns at given horizons (in seconds)."""
 
     # Convert ts_utc to datetime and sort
@@ -291,22 +295,22 @@ def analyze_size_signals(
                     f"wr={stats['win_rate']:.1%}, n={stats['n_trades']}"
                 )
 
-                signals.append({
-                    "signal": signal_name,
-                    "description": description,
-                    "direction": direction,
-                    "horizon_sec": horizon,
-                    **stats,
-                })
+                signals.append(
+                    {
+                        "signal": signal_name,
+                        "description": description,
+                        "direction": direction,
+                        "horizon_sec": horizon,
+                        **stats,
+                    }
+                )
 
     if signals:
         return pd.DataFrame(signals)
     return pd.DataFrame()
 
 
-def compare_vs_baseline(
-    df: pd.DataFrame, horizons: list[int]
-) -> pd.DataFrame:
+def compare_vs_baseline(df: pd.DataFrame, horizons: list[int]) -> pd.DataFrame:
     """Compare size signals vs baseline (all periods)."""
 
     logger.info(f"\n=== BASELINE COMPARISON ===")
@@ -343,15 +347,17 @@ def compare_vs_baseline(
                     f"({improvement:+.2f}bps vs baseline)"
                 )
 
-                comparisons.append({
-                    "horizon_sec": horizon,
-                    "scenario": "large_bid_vs_baseline",
-                    "signal_expectancy_bps": large_bid_stats["expectancy_bps"],
-                    "baseline_expectancy_bps": baseline_stats["expectancy_bps"],
-                    "diff_bps": improvement,
-                    "signal_n": large_bid_stats["n_trades"],
-                    "baseline_n": baseline_stats["n_trades"],
-                })
+                comparisons.append(
+                    {
+                        "horizon_sec": horizon,
+                        "scenario": "large_bid_vs_baseline",
+                        "signal_expectancy_bps": large_bid_stats["expectancy_bps"],
+                        "baseline_expectancy_bps": baseline_stats["expectancy_bps"],
+                        "diff_bps": improvement,
+                        "signal_n": large_bid_stats["n_trades"],
+                        "baseline_n": baseline_stats["n_trades"],
+                    }
+                )
 
         # Large ask vs baseline (flip for comparison)
         if "large_ask" in df.columns:
@@ -367,15 +373,17 @@ def compare_vs_baseline(
                     f"({improvement:+.2f}bps vs baseline)"
                 )
 
-                comparisons.append({
-                    "horizon_sec": horizon,
-                    "scenario": "large_ask_vs_baseline",
-                    "signal_expectancy_bps": large_ask_stats["expectancy_bps"],
-                    "baseline_expectancy_bps": baseline_stats["expectancy_bps"],
-                    "diff_bps": improvement,
-                    "signal_n": large_ask_stats["n_trades"],
-                    "baseline_n": baseline_stats["n_trades"],
-                })
+                comparisons.append(
+                    {
+                        "horizon_sec": horizon,
+                        "scenario": "large_ask_vs_baseline",
+                        "signal_expectancy_bps": large_ask_stats["expectancy_bps"],
+                        "baseline_expectancy_bps": baseline_stats["expectancy_bps"],
+                        "diff_bps": improvement,
+                        "signal_n": large_ask_stats["n_trades"],
+                        "baseline_n": baseline_stats["n_trades"],
+                    }
+                )
 
     if comparisons:
         return pd.DataFrame(comparisons)

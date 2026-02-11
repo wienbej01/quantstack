@@ -10,6 +10,7 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
+
 try:
     import psycopg2  # type: ignore
 except Exception:  # pragma: no cover - optional dependency under system python
@@ -21,6 +22,7 @@ _DEFAULT_IBKR_PORT = int(os.environ.get("IBKR_GATEWAY_PORT", "7494"))
 _DEFAULT_IBKR_CLIENT_ID = int(os.environ.get("IBKR_HEALTHCHECK_CLIENT_ID", "997"))
 _QX_VENV_PY = "/home/jacobw/quantstack/.venv/bin/python"
 
+
 def _psql_rows(sql: str) -> list[str]:
     """Run a SQL query via psql and return non-empty output lines."""
     result = subprocess.run(
@@ -30,8 +32,11 @@ def _psql_rows(sql: str) -> list[str]:
         timeout=10,
     )
     if result.returncode != 0:
-        raise RuntimeError((result.stderr or result.stdout or "psql failed").strip()[:200])
+        raise RuntimeError(
+            (result.stderr or result.stdout or "psql failed").strip()[:200]
+        )
     return [line.strip() for line in (result.stdout or "").splitlines() if line.strip()]
+
 
 def _user_systemctl_env() -> dict[str, str]:
     """Build env for systemctl --user when running outside a user session."""
@@ -44,6 +49,7 @@ def _user_systemctl_env() -> dict[str, str]:
         env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={runtime_dir}/bus"
     return env
 
+
 def send_ntfy(title: str, message: str, priority: str = "default", tags: str = ""):
     """Send NTFY notification."""
     try:
@@ -55,24 +61,28 @@ def send_ntfy(title: str, message: str, priority: str = "default", tags: str = "
     except Exception as e:
         print(f"Failed to send NTFY: {e}")
 
+
 def check_sip_generation() -> tuple[bool, str]:
     """Check if daily SIP was generated today."""
     today = datetime.now(ET).strftime("%Y-%m-%d")
-    sip_file = Path(f"/home/jacobw/intraday_stack/data/daily_sip/date={today}/sip_universe.json")
-    
+    sip_file = Path(
+        f"/home/jacobw/intraday_stack/data/daily_sip/date={today}/sip_universe.json"
+    )
+
     if not sip_file.exists():
         return False, f"SIP file missing for {today}"
-    
+
     # Check file is recent (within last 2 hours)
     mtime = datetime.fromtimestamp(sip_file.stat().st_mtime, tz=ET)
     age_hours = (datetime.now(ET) - mtime).total_seconds() / 3600
-    
+
     if age_hours > 2:
         return False, f"SIP file is {age_hours:.1f}h old (expected < 2h)"
-    
+
     # Check file has content
     try:
         import json
+
         with open(sip_file) as f:
             data = json.load(f)
         symbols = data.get("symbols", [])
@@ -82,13 +92,18 @@ def check_sip_generation() -> tuple[bool, str]:
     except Exception as e:
         return False, f"SIP file corrupt: {e}"
 
+
 def check_ib_gateway() -> tuple[bool, str]:
     """Check IB Gateway connectivity."""
     try:
         # Use the same connection stack as the trading services (qx_broker.ibkr).
         # This makes failures actionable (e.g. client id in use vs gateway down).
         try:
-            from qx_broker.ibkr import IBKRConnectionConfig, IBKRSession, IBKRSessionConfig
+            from qx_broker.ibkr import (
+                IBKRConnectionConfig,
+                IBKRSession,
+                IBKRSessionConfig,
+            )
         except Exception:
             # If the current interpreter doesn't have qx_broker installed, run the
             # check under the repo venv (common under systemd).
@@ -113,7 +128,10 @@ def check_ib_gateway() -> tuple[bool, str]:
             )
             if result.returncode == 0 and "OK" in (result.stdout or ""):
                 return True, f"✅ Connected ({_DEFAULT_IBKR_HOST}:{_DEFAULT_IBKR_PORT})"
-            return False, f"Connection failed (venv probe): {(result.stderr or result.stdout)[:120]}"
+            return (
+                False,
+                f"Connection failed (venv probe): {(result.stderr or result.stdout)[:120]}",
+            )
 
         from qx_broker.ibkr.errors import is_client_id_in_use
 
@@ -133,17 +151,25 @@ def check_ib_gateway() -> tuple[bool, str]:
                 reconnect_attempts=0,
                 allow_client_id_fallback=False,
             )
-            session = IBKRSession(IBKRSessionConfig(system_name="HEALTHCHECK", connection=connection))
+            session = IBKRSession(
+                IBKRSessionConfig(system_name="HEALTHCHECK", connection=connection)
+            )
             try:
                 if not session.connect():
                     err = session.last_error
                     if err and is_client_id_in_use(err.code):
                         last_err = f"client_id {cid} in use"
                         continue
-                    return False, f"connect failed to {_DEFAULT_IBKR_HOST}:{_DEFAULT_IBKR_PORT} (client_id={cid})"
+                    return (
+                        False,
+                        f"connect failed to {_DEFAULT_IBKR_HOST}:{_DEFAULT_IBKR_PORT} (client_id={cid})",
+                    )
                 accounts = session.call(session.ib.managedAccounts, timeout=5) or []
                 if not accounts:
-                    return False, f"connected but no accounts returned (client_id={cid})"
+                    return (
+                        False,
+                        f"connected but no accounts returned (client_id={cid})",
+                    )
                 return True, f"✅ Connected ({_DEFAULT_IBKR_HOST}:{_DEFAULT_IBKR_PORT})"
             finally:
                 session.disconnect()
@@ -154,6 +180,7 @@ def check_ib_gateway() -> tuple[bool, str]:
         return True, "⚠️ Slow response (but connected)"
     except Exception as e:
         return False, f"Connection error: {str(e)[:100]}"
+
 
 def _systemctl_is_active(unit: str, *, user: bool) -> tuple[bool, str]:
     cmd = ["systemctl"]
@@ -175,6 +202,7 @@ def _systemctl_is_active(unit: str, *, user: bool) -> tuple[bool, str]:
         return False, f"{out or 'inactive'} ({err_last})"
     return False, out or "inactive"
 
+
 def _pgrep_fallback(service: str) -> bool:
     patterns = {
         "l2-scalping": "l2_scalping/src/main.py",
@@ -184,10 +212,13 @@ def _pgrep_fallback(service: str) -> bool:
     }
     pat = patterns.get(service, service)
     try:
-        proc = subprocess.run(["pgrep", "-f", pat], capture_output=True, text=True, timeout=3)
+        proc = subprocess.run(
+            ["pgrep", "-f", pat], capture_output=True, text=True, timeout=3
+        )
         return proc.returncode == 0 and bool(proc.stdout.strip())
     except Exception:
         return False
+
 
 def check_service_running(service: str) -> tuple[bool, str]:
     """Check if systemd service is running."""
@@ -206,7 +237,10 @@ def check_service_running(service: str) -> tuple[bool, str]:
             return True, "✅ Running"
 
         # Fallback: bus may be unavailable under timers; verify by process pattern.
-        if "Failed to connect to bus" in sys_detail or "Failed to connect to bus" in detail_u:
+        if (
+            "Failed to connect to bus" in sys_detail
+            or "Failed to connect to bus" in detail_u
+        ):
             if _pgrep_fallback(service):
                 return True, "✅ Running (pgrep fallback)"
 
@@ -215,42 +249,46 @@ def check_service_running(service: str) -> tuple[bool, str]:
             now_et = datetime.now(ET)
             if now_et.hour == 9 and now_et.minute < 28:
                 return True, "⏳ Not started yet (before 09:28)"
-        
+
         return False, f"Status: {sys_detail}; user: {detail_u}"
     except Exception as e:
         return False, f"Check failed: {e}"
 
+
 def check_l2_data_storage() -> tuple[bool, str]:
     """Check L2 data is being written."""
     today = datetime.now(ET).strftime("%Y-%m-%d")
-    
+
     # Check raw L2 data
     raw_path = Path(f"/home/jacobw/quantstack/data/l2/l2_maximum/raw/date={today}")
-    features_path = Path(f"/home/jacobw/quantstack/data/l2/l2_maximum/features/date={today}")
-    
+    features_path = Path(
+        f"/home/jacobw/quantstack/data/l2/l2_maximum/features/date={today}"
+    )
+
     issues = []
     if not raw_path.exists():
         issues.append("Raw data dir missing")
     if not features_path.exists():
         issues.append("Features dir missing")
-    
+
     if issues:
         return False, ", ".join(issues)
-    
+
     # Check files are recent (within last 5 minutes)
     recent_files = 0
     cutoff = datetime.now(ET) - timedelta(minutes=5)
-    
+
     for path in [raw_path, features_path]:
         for file in path.rglob("*.parquet"):
             mtime = datetime.fromtimestamp(file.stat().st_mtime, tz=ET)
             if mtime > cutoff:
                 recent_files += 1
-    
+
     if recent_files == 0:
         return False, "No recent files (last 5 min)"
-    
+
     return True, f"✅ {recent_files} recent files"
+
 
 def check_trading_activity() -> tuple[bool, str]:
     """Check if systems have traded today."""
@@ -270,16 +308,19 @@ def check_trading_activity() -> tuple[bool, str]:
             conn.close()
         else:
             # Best-effort fallback for the system python used by systemd.
-            rows = _psql_rows("SELECT COUNT(*) FROM trades WHERE entry_time::date = CURRENT_DATE;")
+            rows = _psql_rows(
+                "SELECT COUNT(*) FROM trades WHERE entry_time::date = CURRENT_DATE;"
+            )
             trades_today = int(rows[0]) if rows else 0
-        
+
         if trades_today > 0:
             return True, f"✅ {trades_today} trades today"
-        
+
         # No trades is not a failure condition (systems may simply have no signals).
         return True, "⏳ No trades yet"
     except Exception as e:
         return False, f"DB check failed: {e}"
+
 
 def check_trade_recording() -> tuple[bool, str]:
     """Check trades are being recorded correctly."""
@@ -304,9 +345,13 @@ def check_trade_recording() -> tuple[bool, str]:
                     "GROUP BY system ORDER BY 1;"
                 )
             )
-            v1_total = sum(int(x.split(':', 1)[1]) for x in v1_summary) if v1_summary else 0
+            v1_total = (
+                sum(int(x.split(":", 1)[1]) for x in v1_summary) if v1_summary else 0
+            )
 
-            has_v2 = bool(schema and schema[0].split("|")[0].strip() in {"t", "true", "1"})
+            has_v2 = bool(
+                schema and schema[0].split("|")[0].strip() in {"t", "true", "1"}
+            )
             v2_summary = (
                 _psql_rows(
                     (
@@ -320,7 +365,9 @@ def check_trade_recording() -> tuple[bool, str]:
                 if has_v2
                 else []
             )
-            v2_total = sum(int(x.split(':', 1)[1]) for x in v2_summary) if v2_summary else 0
+            v2_total = (
+                sum(int(x.split(":", 1)[1]) for x in v2_summary) if v2_summary else 0
+            )
 
             if v1_total == 0 and v2_total == 0:
                 return True, "⏳ No trade activity yet"
@@ -334,7 +381,7 @@ def check_trade_recording() -> tuple[bool, str]:
 
         conn = psycopg2.connect(database="trading", user="jacobw")
         cursor = conn.cursor()
-        
+
         # Detect schema: prefer v2 if present, otherwise fall back to v1.
         cursor.execute(
             """
@@ -375,15 +422,26 @@ def check_trade_recording() -> tuple[bool, str]:
 
             v2_trades_today = sum(int(cnt) for _, cnt in results) if results else 0
             if v2_trades_today > 0 or execs_today > 0:
-                trade_summary = ", ".join([f"{sys}: {cnt}" for sys, cnt in results]) or "0 trades"
-                exec_summary = ", ".join(
-                    [f"{sys or 'unknown'}: {cnt}" for sys, cnt in exec_rows[:5]]
-                ) or "0"
-                return True, f"✅ v2 {trade_summary}; executions={execs_today} ({exec_summary})"
+                trade_summary = (
+                    ", ".join([f"{sys}: {cnt}" for sys, cnt in results]) or "0 trades"
+                )
+                exec_summary = (
+                    ", ".join(
+                        [f"{sys or 'unknown'}: {cnt}" for sys, cnt in exec_rows[:5]]
+                    )
+                    or "0"
+                )
+                return (
+                    True,
+                    f"✅ v2 {trade_summary}; executions={execs_today} ({exec_summary})",
+                )
 
         # v1 fallback
         if not has_trades or not has_fills:
-            return False, "DB schema missing expected tables (no v1/v2 trade tables found)"
+            return (
+                False,
+                "DB schema missing expected tables (no v1/v2 trade tables found)",
+            )
 
         cursor.execute(
             """
@@ -406,24 +464,25 @@ def check_trade_recording() -> tuple[bool, str]:
 
         cursor.close()
         conn.close()
-        
+
         if not results and fills_today == 0:
             return True, "⏳ No activity yet"
-        
+
         if not results and fills_today > 0:
             return False, f"{fills_today} fills but 0 trades"
-        
+
         trade_summary = ", ".join([f"{sys}: {cnt}" for sys, cnt in results])
         return True, f"✅ v1 {trade_summary}"
-        
+
     except Exception as e:
         return False, f"DB check failed: {e}"
+
 
 def main():
     """Run all health checks and send notification."""
     now_et = datetime.now(ET)
     print(f"Market Open Health Check - {now_et.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-    
+
     checks = {
         "SIP Generation": check_sip_generation(),
         "IB Gateway": check_ib_gateway(),
@@ -434,52 +493,53 @@ def main():
         "Trading Activity": check_trading_activity(),
         "Trade Recording": check_trade_recording(),
     }
-    
+
     # Analyze results
     passed = sum(1 for ok, _ in checks.values() if ok)
     failed = len(checks) - passed
-    
+
     # Build message
     lines = [f"Market Open Health Check ({now_et.strftime('%H:%M ET')})", ""]
-    
+
     if failed == 0:
         lines.append("🟢 ALL SYSTEMS OPERATIONAL")
         lines.append("")
         for name, (ok, msg) in checks.items():
             lines.append(f"{name}: {msg}")
-        
+
         send_ntfy(
             "✅ Trading Systems Healthy",
             "\n".join(lines),
             priority="default",
-            tags="white_check_mark,chart_with_upwards_trend"
+            tags="white_check_mark,chart_with_upwards_trend",
         )
         print("\n".join(lines))
         return 0
-    
+
     else:
         lines.append(f"🔴 {failed} SYSTEM(S) FAILED")
         lines.append("")
-        
+
         # Failed checks first
         for name, (ok, msg) in checks.items():
             if not ok:
                 lines.append(f"❌ {name}: {msg}")
-        
+
         lines.append("")
         lines.append("Passed:")
         for name, (ok, msg) in checks.items():
             if ok:
                 lines.append(f"✅ {name}: {msg}")
-        
+
         send_ntfy(
             f"⚠️ Trading System Issues ({failed} failed)",
             "\n".join(lines),
             priority="high",
-            tags="warning,rotating_light"
+            tags="warning,rotating_light",
         )
         print("\n".join(lines))
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

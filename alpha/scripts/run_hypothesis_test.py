@@ -21,17 +21,24 @@ import pandas as pd  # ADD THIS LINE - Required for pd.concat()
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data import GoldLoader, SipLoader, L2Loader
-from src.signals import OrderFlowSignal, WhaleDetectSignal, LiquidityFadeSignal
 from src.backtest import AlphaBacktestEngine
-from src.backtest.walk_forward import WalkForwardValidator
 from src.backtest.regime_split import RegimeStratifier
-from src.metrics import compute_all_metrics, format_metrics_report, check_minimum_thresholds
-from src.metrics.diagnostics import generate_trade_attribution, analyze_attribution, save_report
+from src.backtest.walk_forward import WalkForwardValidator
+from src.data import GoldLoader, L2Loader, SipLoader
+from src.metrics import (
+    check_minimum_thresholds,
+    compute_all_metrics,
+    format_metrics_report,
+)
+from src.metrics.diagnostics import (
+    analyze_attribution,
+    generate_trade_attribution,
+    save_report,
+)
+from src.signals import LiquidityFadeSignal, OrderFlowSignal, WhaleDetectSignal
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -188,13 +195,25 @@ def run_single_hypothesis(
     # Print threshold results
     print("\nTHRESHOLD CHECKS")
     print("-" * 40)
-    print(f"Sharpe > {thresholds['min_sharpe']}:        {'✅ PASS' if threshold_check['sharpe_pass'] else '❌ FAIL'}")
-    print(f"Win Rate > {thresholds['min_win_rate']}%:       {'✅ PASS' if threshold_check['win_rate_pass'] else '❌ FAIL'}")
-    print(f"Profit Factor > {thresholds['min_profit_factor']}:  {'✅ PASS' if threshold_check['profit_factor_pass'] else '❌ FAIL'}")
-    print(f"T-Stat > {thresholds['min_t_stat']}:          {'✅ PASS' if threshold_check['t_stat_pass'] else '❌ FAIL'}")
-    print(f"Trades > {thresholds['min_trades']}:           {'✅ PASS' if threshold_check['min_trades_pass'] else '❌ FAIL'}")
+    print(
+        f"Sharpe > {thresholds['min_sharpe']}:        {'✅ PASS' if threshold_check['sharpe_pass'] else '❌ FAIL'}"
+    )
+    print(
+        f"Win Rate > {thresholds['min_win_rate']}%:       {'✅ PASS' if threshold_check['win_rate_pass'] else '❌ FAIL'}"
+    )
+    print(
+        f"Profit Factor > {thresholds['min_profit_factor']}:  {'✅ PASS' if threshold_check['profit_factor_pass'] else '❌ FAIL'}"
+    )
+    print(
+        f"T-Stat > {thresholds['min_t_stat']}:          {'✅ PASS' if threshold_check['t_stat_pass'] else '❌ FAIL'}"
+    )
+    print(
+        f"Trades > {thresholds['min_trades']}:           {'✅ PASS' if threshold_check['min_trades_pass'] else '❌ FAIL'}"
+    )
     print("-" * 40)
-    print(f"\nOverall: {'✅ ALL THRESHOLDS PASSED' if threshold_check['all_pass'] else '❌ SOME THRESHOLDS FAILED'}")
+    print(
+        f"\nOverall: {'✅ ALL THRESHOLDS PASSED' if threshold_check['all_pass'] else '❌ SOME THRESHOLDS FAILED'}"
+    )
 
     # Generate trade attribution
     attribution_df = generate_trade_attribution(result.trades)
@@ -264,10 +283,13 @@ def main():
         output_dir = Path(__file__).parent.parent / "output"
         output_dir.mkdir(exist_ok=True)
 
-        report_path = output_dir / f"{args.hypothesis}_report_{args.start}_to_{args.end}.txt"
+        report_path = (
+            output_dir / f"{args.hypothesis}_report_{args.start}_to_{args.end}.txt"
+        )
         save_report(
-            format_metrics_report(result["metrics"]) + "\n\n" +
-            str(result["threshold_check"]),
+            format_metrics_report(result["metrics"])
+            + "\n\n"
+            + str(result["threshold_check"]),
             report_path,
         )
 

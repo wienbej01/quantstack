@@ -3,13 +3,14 @@ import pytest
 
 from extensions.intraday_ml.backtest import _shift_to_next_bar
 from extensions.intraday_ml.risk_levels import compute_risk_levels
-from extensions.intraday_ml_policies.intraday_ml_decision_policy import IntradayMLDecisionPolicy
+from extensions.intraday_ml_policies.intraday_ml_decision_policy import (
+    IntradayMLDecisionPolicy,
+)
 
 
 def _ts(time_str: str) -> pd.Timestamp:
-    return (
-        pd.Timestamp(f"2025-11-03 {time_str}", tz="America/New_York")
-        .tz_convert("UTC")
+    return pd.Timestamp(f"2025-11-03 {time_str}", tz="America/New_York").tz_convert(
+        "UTC"
     )
 
 

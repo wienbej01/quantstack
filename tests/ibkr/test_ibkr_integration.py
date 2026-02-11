@@ -7,7 +7,6 @@ import time
 
 import pytest
 from ib_insync import LimitOrder
-
 from qx_broker.ibkr import (
     ContractFactory,
     IBKRMarketData,
@@ -63,7 +62,9 @@ def test_l1_l2_flow(ibkr_config):
         while time.time() < deadline and (not l1_ok or not l2_ok):
             snap = market_data.snapshot(symbol)
             depth_snap = depth.snapshot(symbol)
-            if snap and (snap.bid is not None or snap.ask is not None or snap.last is not None):
+            if snap and (
+                snap.bid is not None or snap.ask is not None or snap.last is not None
+            ):
                 l1_ok = True
             if depth_snap and (depth_snap.bids or depth_snap.asks):
                 l2_ok = True
@@ -74,7 +75,9 @@ def test_l1_l2_flow(ibkr_config):
             assert l2_ok, "L2 data not received"
         else:
             if not l1_ok or not l2_ok:
-                pytest.skip("No live L1/L2 data available (market closed or no subscription)")
+                pytest.skip(
+                    "No live L1/L2 data available (market closed or no subscription)"
+                )
     finally:
         session.disconnect()
 

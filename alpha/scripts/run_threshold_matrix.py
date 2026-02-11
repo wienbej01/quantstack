@@ -2,14 +2,16 @@
 """Run backtest with threshold sensitivity matrix."""
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 from datetime import datetime, timedelta
-from src.data import GoldLoader, L2Loader
-from src.signals import OrderFlowSignal, WhaleDetectSignal, LiquidityFadeSignal
+
+import pandas as pd
 from src.backtest import AlphaBacktestEngine
+from src.data import GoldLoader, L2Loader
 from src.metrics import compute_all_metrics
+from src.signals import LiquidityFadeSignal, OrderFlowSignal, WhaleDetectSignal
 
 # Base config
 base_config = {
@@ -18,31 +20,55 @@ base_config = {
     "max_positions": 5,
     "order_flow": {},
     "whale_detect": {},
-    "liquidity_fade": {}
+    "liquidity_fade": {},
 }
 
 # Threshold matrix
 threshold_matrix = {
-    'order_flow': [
-        {'book_imbalance_threshold': 0.20, 'trade_imbalance_threshold': 0.15, 'max_spread_pct': 0.10},
-        {'book_imbalance_threshold': 0.25, 'trade_imbalance_threshold': 0.20, 'max_spread_pct': 0.08},
-        {'book_imbalance_threshold': 0.35, 'trade_imbalance_threshold': 0.25, 'max_spread_pct': 0.05},  # Current
+    "order_flow": [
+        {
+            "book_imbalance_threshold": 0.20,
+            "trade_imbalance_threshold": 0.15,
+            "max_spread_pct": 0.10,
+        },
+        {
+            "book_imbalance_threshold": 0.25,
+            "trade_imbalance_threshold": 0.20,
+            "max_spread_pct": 0.08,
+        },
+        {
+            "book_imbalance_threshold": 0.35,
+            "trade_imbalance_threshold": 0.25,
+            "max_spread_pct": 0.05,
+        },  # Current
     ],
-    'whale_detect': [
-        {'large_order_multiplier': 3.0, 'min_relative_volume': 1.2, 'min_flow_imbalance': 0.05},
-        {'large_order_multiplier': 4.0, 'min_relative_volume': 1.3, 'min_flow_imbalance': 0.08},
-        {'large_order_multiplier': 5.0, 'min_relative_volume': 1.5, 'min_flow_imbalance': 0.10},  # Current
+    "whale_detect": [
+        {
+            "large_order_multiplier": 3.0,
+            "min_relative_volume": 1.2,
+            "min_flow_imbalance": 0.05,
+        },
+        {
+            "large_order_multiplier": 4.0,
+            "min_relative_volume": 1.3,
+            "min_flow_imbalance": 0.08,
+        },
+        {
+            "large_order_multiplier": 5.0,
+            "min_relative_volume": 1.5,
+            "min_flow_imbalance": 0.10,
+        },  # Current
     ],
-    'liquidity_fade': [
-        {'depth_drop_threshold': 0.30, 'price_spike_pct': 0.001},
-        {'depth_drop_threshold': 0.40, 'price_spike_pct': 0.0015},
-        {'depth_drop_threshold': 0.50, 'price_spike_pct': 0.002},  # Current
-    ]
+    "liquidity_fade": [
+        {"depth_drop_threshold": 0.30, "price_spike_pct": 0.001},
+        {"depth_drop_threshold": 0.40, "price_spike_pct": 0.0015},
+        {"depth_drop_threshold": 0.50, "price_spike_pct": 0.002},  # Current
+    ],
 }
 
 # Date range
-start_date = '2025-12-23'
-end_date = '2026-01-20'
+start_date = "2025-12-23"
+end_date = "2026-01-20"
 
 # Load data
 print("Loading data...")
@@ -93,9 +119,9 @@ while current <= end_dt:
     current += timedelta(days=1)
 
 # Filter to L2 dates
-bars_df['date'] = pd.to_datetime(bars_df['ts']).dt.strftime('%Y-%m-%d')
-bars_df = bars_df[bars_df['date'].isin(l2_dates)].copy()
-bars_df = bars_df.drop(columns=['date'])
+bars_df["date"] = pd.to_datetime(bars_df["ts"]).dt.strftime("%Y-%m-%d")
+bars_df = bars_df[bars_df["date"].isin(l2_dates)].copy()
+bars_df = bars_df.drop(columns=["date"])
 
 print(f"Loaded {len(bars_df)} bars across {len(l2_dates)} dates")
 
@@ -123,41 +149,43 @@ results = []
 for hyp_name, threshold_sets in threshold_matrix.items():
     print(f"\n{'='*60}")
     print(f"Testing {hyp_name.upper()}")
-    print('='*60)
-    
+    print("=" * 60)
+
     for i, thresholds in enumerate(threshold_sets, 1):
         # Update config
         config = base_config.copy()
         config[hyp_name].update(thresholds)
-        
+
         # Create signal
-        if hyp_name == 'order_flow':
+        if hyp_name == "order_flow":
             signal = OrderFlowSignal(config)
-        elif hyp_name == 'whale_detect':
+        elif hyp_name == "whale_detect":
             signal = WhaleDetectSignal(config)
         else:
             signal = LiquidityFadeSignal(config)
-        
+
         # Run backtest
         engine = AlphaBacktestEngine(config)
         result = engine.run(bars_df, signals=[signal], l2_df=l2_data)
-        
+
         # Compute metrics
         metrics = compute_all_metrics(result, initial_capital=config["initial_capital"])
-        
+
         # Store results
-        results.append({
-            'hypothesis': hyp_name,
-            'threshold_set': i,
-            'thresholds': str(thresholds),
-            'trades': metrics['num_trades'],
-            'return_pct': metrics['total_return_pct'],
-            'sharpe': metrics['sharpe_ratio'],
-            'win_rate': metrics['win_rate'],
-            'profit_factor': metrics['profit_factor'],
-            'max_drawdown': metrics['max_drawdown_pct']
-        })
-        
+        results.append(
+            {
+                "hypothesis": hyp_name,
+                "threshold_set": i,
+                "thresholds": str(thresholds),
+                "trades": metrics["num_trades"],
+                "return_pct": metrics["total_return_pct"],
+                "sharpe": metrics["sharpe_ratio"],
+                "win_rate": metrics["win_rate"],
+                "profit_factor": metrics["profit_factor"],
+                "max_drawdown": metrics["max_drawdown_pct"],
+            }
+        )
+
         print(f"\nSet {i}: {thresholds}")
         print(f"  Trades: {metrics['num_trades']}")
         print(f"  Return: {metrics['total_return_pct']:.2f}%")
@@ -166,10 +194,10 @@ for hyp_name, threshold_sets in threshold_matrix.items():
 
 # Save results
 results_df = pd.DataFrame(results)
-results_df.to_csv('output/threshold_matrix_results.csv', index=False)
+results_df.to_csv("output/threshold_matrix_results.csv", index=False)
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("THRESHOLD SENSITIVITY MATRIX RESULTS")
-print("="*60)
+print("=" * 60)
 print(results_df.to_string(index=False))
 print(f"\nResults saved to: output/threshold_matrix_results.csv")

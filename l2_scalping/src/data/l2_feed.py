@@ -85,11 +85,15 @@ class L2DataFeed:
             allow_client_id_fallback=client_id_fallbacks > 0,
             client_id_fallbacks=client_id_fallbacks,
         )
-        session_cfg = IBKRSessionConfig(system_name="L2_SCALPING_DATA", connection=connection)
+        session_cfg = IBKRSessionConfig(
+            system_name="L2_SCALPING_DATA", connection=connection
+        )
         self.session = IBKRSession(session_cfg)
 
         max_symbols = int(
-            market_data_cfg.get("max_symbols", config.get("max_symbols", len(self.symbols) or 1))
+            market_data_cfg.get(
+                "max_symbols", config.get("max_symbols", len(self.symbols) or 1)
+            )
         )
         self.market_depth = IBKRMarketDepth(
             self.session,
@@ -204,7 +208,9 @@ class L2DataFeed:
         record = {
             "ts_utc": now.isoformat(),
             "ts_epoch": now.timestamp(),
-            "date_et": now.astimezone(ZoneInfo("America/New_York")).strftime("%Y-%m-%d"),
+            "date_et": now.astimezone(ZoneInfo("America/New_York")).strftime(
+                "%Y-%m-%d"
+            ),
             "symbol": snapshot.symbol,
             "mid": snapshot.mid,
             "spread": snapshot.spread,

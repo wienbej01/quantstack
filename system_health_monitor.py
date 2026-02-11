@@ -21,6 +21,7 @@ import requests
 # Set timezone BEFORE any datetime operations
 os.environ["TZ"] = "America/New_York"
 import time as time_module
+
 time_module.tzset()
 
 from qx_broker.ibkr import IBKRConnectionConfig, IBKRSession, IBKRSessionConfig
@@ -88,7 +89,9 @@ def is_within_startup_window(service: str, current_time: time) -> bool:
 
     # Calculate seconds since scheduled start time
     start_seconds = schedule["start"].hour * 3600 + schedule["start"].minute * 60
-    current_seconds = current_time.hour * 3600 + current_time.minute * 60 + current_time.second
+    current_seconds = (
+        current_time.hour * 3600 + current_time.minute * 60 + current_time.second
+    )
 
     diff_seconds = current_seconds - start_seconds
     return 0 <= diff_seconds <= (STARTUP_WINDOW_MINUTES * 60)
@@ -202,7 +205,9 @@ def main():
         elif not health.get("current_time_ok"):
             issues.append("🔑 Gateway API timeout - Retrying")
         elif not health.get("accounts_available"):
-            issues.append("💳 No IBKR accounts available - check Gateway authentication")
+            issues.append(
+                "💳 No IBKR accounts available - check Gateway authentication"
+            )
         else:
             issues.append(f"⚠️ Gateway unhealthy: {health}")
     elif not prev_state.get("platform_healthy", True):

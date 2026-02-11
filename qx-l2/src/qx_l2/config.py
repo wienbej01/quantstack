@@ -6,7 +6,9 @@ from typing import Any
 
 import yaml
 
-L2_DATA_ROOT = Path(os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")).expanduser()
+L2_DATA_ROOT = Path(
+    os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
+).expanduser()
 
 DEFAULT_CONFIG = {
     "system": {

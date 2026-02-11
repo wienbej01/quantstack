@@ -25,7 +25,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Position, Signal, SignalEvent, SignalSide, ExitEvent
+from .base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +114,8 @@ class OrderFlowSignal(Signal):
             # Confidence based on strength of imbalance
             confidence = min(
                 1.0,
-                (book_imb + trade_imb) / (2 * max(self.book_imb_threshold, self.trade_imb_threshold))
+                (book_imb + trade_imb)
+                / (2 * max(self.book_imb_threshold, self.trade_imb_threshold)),
             )
 
             return SignalEvent(
@@ -141,8 +142,8 @@ class OrderFlowSignal(Signal):
             # Confidence based on strength of imbalance
             confidence = min(
                 1.0,
-                (abs(book_imb) + abs(trade_imb)) /
-                (2 * max(self.book_imb_threshold, self.trade_imb_threshold))
+                (abs(book_imb) + abs(trade_imb))
+                / (2 * max(self.book_imb_threshold, self.trade_imb_threshold)),
             )
 
             return SignalEvent(
@@ -210,7 +211,9 @@ class OrderFlowSignal(Signal):
             return None
 
         # Check for LONG reversal (if we're SHORT)
-        reversal_strength = 1.5 * self.book_imb_threshold  # Need stronger signal to reverse
+        reversal_strength = (
+            1.5 * self.book_imb_threshold
+        )  # Need stronger signal to reverse
 
         if book_imb > reversal_strength and trade_imb > reversal_strength:
             return ExitEvent(

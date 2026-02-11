@@ -36,7 +36,9 @@ def main():
 
     # Create directories
     Path("logs").mkdir(exist_ok=True)
-    l2_root = Path(os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")).expanduser()
+    l2_root = Path(
+        os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
+    ).expanduser()
     (l2_root / "live_l2").mkdir(parents=True, exist_ok=True)
 
     logger.info("🚀 Starting Paper Trading System with L2 Data Collection")

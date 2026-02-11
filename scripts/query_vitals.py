@@ -6,7 +6,6 @@ import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 
-
 DB_PATH = Path.home() / "quantstack" / "data" / "vitals.db"
 
 
@@ -38,24 +37,36 @@ def print_vitals(rows):
         print("No records found")
         return
 
-    print(f"{'Timestamp':<28} {'CPU%':>6} {'Mem%':>6} {'DiskR(MB)':>12} {'DiskW(MB)':>12} Processes")
+    print(
+        f"{'Timestamp':<28} {'CPU%':>6} {'Mem%':>6} {'DiskR(MB)':>12} {'DiskW(MB)':>12} Processes"
+    )
     print("-" * 100)
 
     for row in rows:
         ts, cpu, mem, disk_r, disk_w, procs_json = row
         procs = json.loads(procs_json)
-        proc_summary = ", ".join(f"{k}:{v['cpu']:.1f}%" for k, v in procs.items()) if procs else "none"
-        print(f"{ts:<28} {cpu:>6.1f} {mem:>6.1f} {disk_r:>12.1f} {disk_w:>12.1f} {proc_summary}")
+        proc_summary = (
+            ", ".join(f"{k}:{v['cpu']:.1f}%" for k, v in procs.items())
+            if procs
+            else "none"
+        )
+        print(
+            f"{ts:<28} {cpu:>6.1f} {mem:>6.1f} {disk_r:>12.1f} {disk_w:>12.1f} {proc_summary}"
+        )
 
 
 def main():
     """CLI for querying vitals."""
     parser = argparse.ArgumentParser(description="Query system vitals database")
-    parser.add_argument("--crash-time", help="ISO timestamp of crash (query 30min before)")
+    parser.add_argument(
+        "--crash-time", help="ISO timestamp of crash (query 30min before)"
+    )
     parser.add_argument("--start", help="Start time (ISO format)")
     parser.add_argument("--end", help="End time (ISO format)")
     parser.add_argument("--last-hours", type=int, help="Show last N hours")
-    parser.add_argument("--minutes-before", type=int, default=30, help="Minutes before crash to show")
+    parser.add_argument(
+        "--minutes-before", type=int, default=30, help="Minutes before crash to show"
+    )
 
     args = parser.parse_args()
 

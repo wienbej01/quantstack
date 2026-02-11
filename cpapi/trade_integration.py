@@ -3,27 +3,29 @@
 import logging
 import os
 from typing import Any, Callable, Optional
+
 from ib_insync import IB
-from cpapi.unified_fill_processor import UnifiedFillProcessor
-from cpapi.trade_database import TradeDatabase
+
 from cpapi.position_tracker import PositionTracker
+from cpapi.trade_database import TradeDatabase
+from cpapi.unified_fill_processor import UnifiedFillProcessor
 
 logger = logging.getLogger(__name__)
 
 # Default DB config from environment
 DEFAULT_DB_CONFIG = {
     # Prefer Unix socket to use peer auth without password.
-    'host': os.getenv('POSTGRES_HOST', '/var/run/postgresql'),
-    'port': int(os.getenv('POSTGRES_PORT', '5432')),
-    'database': os.getenv('POSTGRES_DB', 'trading'),
-    'user': os.getenv('POSTGRES_USER', 'jacobw'),
-    'password': os.getenv('POSTGRES_PASSWORD', '')
+    "host": os.getenv("POSTGRES_HOST", "/var/run/postgresql"),
+    "port": int(os.getenv("POSTGRES_PORT", "5432")),
+    "database": os.getenv("POSTGRES_DB", "trading"),
+    "user": os.getenv("POSTGRES_USER", "jacobw"),
+    "password": os.getenv("POSTGRES_PASSWORD", ""),
 }
 
 
 class TradeIntegration:
     """Integrates Trade Database V2 with IB connection and trading systems."""
-    
+
     def __init__(
         self,
         ib: IB,
@@ -37,18 +39,20 @@ class TradeIntegration:
         self.db_config = db_config or DEFAULT_DB_CONFIG
         self.db = TradeDatabase(self.db_config)
         self.positions = PositionTracker(self.db, ib)
-        self.fill_processor = UnifiedFillProcessor(ib, self.db_config, wal_dir, ib_call=ib_call)
-        
+        self.fill_processor = UnifiedFillProcessor(
+            ib, self.db_config, wal_dir, ib_call=ib_call
+        )
+
     def start(self):
         """Start fill capture and processing."""
         self.fill_processor.start()
         logger.info(f"Trade integration started for {self.system_name}")
-        
+
     def stop(self):
         """Stop fill capture and processing."""
         self.fill_processor.stop()
         logger.info(f"Trade integration stopped for {self.system_name}")
-        
+
     def open_trade(
         self,
         symbol: str,
@@ -56,10 +60,11 @@ class TradeIntegration:
         signal_price: float,
         stop_loss: Optional[float] = None,
         take_profit: Optional[float] = None,
-        metadata: Optional[dict] = None
+        metadata: Optional[dict] = None,
     ) -> str:
         """Open new trade and return trade_id."""
         from datetime import datetime
+
         metadata = metadata or {}
         # Normalize direction to lowercase for DB constraint
         direction_normalized = direction.lower()
@@ -69,13 +74,13 @@ class TradeIntegration:
             direction=direction_normalized,
             signal_price=signal_price,
             signal_time=datetime.now(),
-            strategy=metadata.get('rule') or metadata.get('strategy'),
-            substrategy=metadata.get('substrategy'),
+            strategy=metadata.get("rule") or metadata.get("strategy"),
+            substrategy=metadata.get("substrategy"),
             initial_stop=stop_loss,
             initial_target=take_profit,
-            signal_data=metadata
+            signal_data=metadata,
         )
-        
+
     def link_order(self, trade_id: str, order_id: int, is_entry: bool = True):
         """Link IBKR order to trade by order_id."""
         self.db.link_order_to_trade(
@@ -84,15 +89,36 @@ class TradeIntegration:
             is_entry=is_entry,
             system=self.system_name,
         )
-        
+
+    def close_trade(self, trade_id: str, exit_price: float, exit_qty: int, pnl: float, reason: str = "signal"):
+        """Explicitly close a trade (fallback if auto-close from fills didn't trigger)."""
+        conn = self.db.pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """UPDATE trades_v2
+                   SET status = 'CLOSED', exit_price = %s, exit_qty = %s,
+                       net_pnl = %s, exit_time = NOW(), updated_at = NOW()
+                   WHERE trade_id = %s AND status != 'CLOSED'""",
+                (exit_price, exit_qty, pnl, trade_id),
+            )
+            conn.commit()
+            if cur.rowcount:
+                logger.info(f"Trade {trade_id} closed: pnl={pnl:.2f} reason={reason}")
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"Failed to close trade {trade_id}: {e}")
+        finally:
+            self.db.pool.putconn(conn)
+
     def get_open_trades(self):
         """Get all open trades."""
         return self.db.get_open_trades()
-        
+
     def update_stop(self, trade_id: int, new_stop: float, reason: str):
         """Update stop loss for trade."""
         self.db.update_stop(trade_id, new_stop, reason)
-        
+
     def reconcile_positions(self):
         """Reconcile positions with IBKR."""
         return self.positions.reconcile_with_ibkr()

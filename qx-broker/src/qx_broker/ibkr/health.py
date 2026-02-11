@@ -18,7 +18,12 @@ class IBKRHealth:
 
     @property
     def healthy(self) -> bool:
-        return self.connected and self.current_time_ok and not self.l1_stale_symbols and not self.l2_stale_symbols
+        return (
+            self.connected
+            and self.current_time_ok
+            and not self.l1_stale_symbols
+            and not self.l2_stale_symbols
+        )
 
 
 class IBKRHealthChecker:

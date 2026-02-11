@@ -22,7 +22,7 @@ def log(msg: str) -> None:
 
 def check_l2_health() -> tuple[bool, str]:
     """Check L2 scalping health from journalctl.
-    
+
     Returns:
         (is_healthy, reason)
     """
@@ -48,7 +48,10 @@ def check_l2_health() -> tuple[bool, str]:
 
         # Check for Error 309 (max depth reached)
         if "Error 309" in logs and "market depth requests has been reached" in logs:
-            return False, "Error 309: Max depth subscriptions reached (zombie connections)"
+            return (
+                False,
+                "Error 309: Max depth subscriptions reached (zombie connections)",
+            )
 
         # Check for Data: False in recent health checks
         health_lines = [line for line in logs.split("\n") if "System Health" in line]
@@ -70,7 +73,7 @@ def check_l2_health() -> tuple[bool, str]:
 
 def recover_l2_scalping() -> bool:
     """Recover L2 scalping by clearing subscriptions and restarting.
-    
+
     Returns:
         True if recovery successful
     """
@@ -89,7 +92,10 @@ def recover_l2_scalping() -> bool:
         # Clear zombie subscriptions
         log("Clearing zombie depth subscriptions...")
         subprocess.run(
-            ["python3", "/home/jacobw/quantstack/scripts/clear_ibkr_depth_subscriptions.py"],
+            [
+                "python3",
+                "/home/jacobw/quantstack/scripts/clear_ibkr_depth_subscriptions.py",
+            ],
             check=True,
             timeout=30,
         )
@@ -146,19 +152,25 @@ def main():
                 # Check cooldown
                 time_since_recovery = time.time() - last_recovery_time
                 if time_since_recovery < RECOVERY_COOLDOWN:
-                    log(f"Recovery cooldown active ({RECOVERY_COOLDOWN - time_since_recovery:.0f}s remaining)")
+                    log(
+                        f"Recovery cooldown active ({RECOVERY_COOLDOWN - time_since_recovery:.0f}s remaining)"
+                    )
                     time.sleep(MONITOR_INTERVAL)
                     continue
 
                 # Check max attempts
                 if recovery_count >= MAX_RECOVERY_ATTEMPTS:
-                    log(f"Max recovery attempts ({MAX_RECOVERY_ATTEMPTS}) reached - manual intervention required")
+                    log(
+                        f"Max recovery attempts ({MAX_RECOVERY_ATTEMPTS}) reached - manual intervention required"
+                    )
                     time.sleep(MONITOR_INTERVAL)
                     continue
 
                 # Attempt recovery
                 recovery_count += 1
-                log(f"Attempting recovery ({recovery_count}/{MAX_RECOVERY_ATTEMPTS})...")
+                log(
+                    f"Attempting recovery ({recovery_count}/{MAX_RECOVERY_ATTEMPTS})..."
+                )
 
                 if recover_l2_scalping():
                     last_recovery_time = time.time()
@@ -169,7 +181,9 @@ def main():
             else:
                 # Reset recovery count on sustained health
                 if recovery_count > 0:
-                    log(f"System healthy - resetting recovery count (was {recovery_count})")
+                    log(
+                        f"System healthy - resetting recovery count (was {recovery_count})"
+                    )
                     recovery_count = 0
 
             time.sleep(MONITOR_INTERVAL)

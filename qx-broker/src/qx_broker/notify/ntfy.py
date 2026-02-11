@@ -129,7 +129,13 @@ def send_system_start(system_name: str) -> None:
     try:
         now_et = datetime.now().strftime("%H:%M ET")
         body = f"Time: {now_et}\n\n{system_name} is starting for the trading session"
-        _post(NTFY_STATUS, body, f"{system_name} Starting", priority=3, tags="white_check_mark")
+        _post(
+            NTFY_STATUS,
+            body,
+            f"{system_name} Starting",
+            priority=3,
+            tags="white_check_mark",
+        )
         logger.info("System start notification sent: %s", system_name)
     except Exception as exc:
         logger.error("Failed to send system start notification: %s", exc)
@@ -140,7 +146,13 @@ def send_system_end(system_name: str, reason: str = "End of trading session") ->
     try:
         now_et = datetime.now().strftime("%H:%M ET")
         body = f"Time: {now_et}\n\n{system_name} ended\nReason: {reason}"
-        _post(NTFY_STATUS, body, f"{system_name} Ended", priority=3, tags="white_check_mark")
+        _post(
+            NTFY_STATUS,
+            body,
+            f"{system_name} Ended",
+            priority=3,
+            tags="white_check_mark",
+        )
         logger.info("System end notification sent: %s", system_name)
     except Exception as exc:
         logger.error("Failed to send system end notification: %s", exc)
@@ -150,8 +162,16 @@ def send_system_recovery(system_name: str) -> None:
     """Send notification when system recovers from unexpected failure."""
     try:
         now_et = datetime.now().strftime("%H:%M ET")
-        body = f"Time: {now_et}\n\n{system_name} has recovered and is resuming operation"
-        _post(NTFY_STATUS, body, f"{system_name} Recovered", priority=4, tags="rotating_light")
+        body = (
+            f"Time: {now_et}\n\n{system_name} has recovered and is resuming operation"
+        )
+        _post(
+            NTFY_STATUS,
+            body,
+            f"{system_name} Recovered",
+            priority=4,
+            tags="rotating_light",
+        )
         logger.info("System recovery notification sent: %s", system_name)
     except Exception as exc:
         logger.error("Failed to send system recovery notification: %s", exc)

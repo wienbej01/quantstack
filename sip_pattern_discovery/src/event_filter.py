@@ -51,10 +51,12 @@ class EventFilter:
             self.event_keywords = None
 
         self.trigger_keywords = [
-            keyword.lower() for keyword in (trigger_keywords or self.DEFAULT_TRIGGER_KEYWORDS)
+            keyword.lower()
+            for keyword in (trigger_keywords or self.DEFAULT_TRIGGER_KEYWORDS)
         ]
         self.context_keywords = [
-            keyword.lower() for keyword in (context_keywords or self.DEFAULT_CONTEXT_KEYWORDS)
+            keyword.lower()
+            for keyword in (context_keywords or self.DEFAULT_CONTEXT_KEYWORDS)
         ]
         self.require_trigger = require_trigger
 
@@ -78,7 +80,7 @@ class EventFilter:
 
         has_context = any(keyword in rule_lower for keyword in self.context_keywords)
         return has_trigger or has_context
-    
+
     def filter_events(self, patterns: list) -> list:
         """Filter to only event-based patterns."""
-        return [p for p in patterns if self.is_event_based(p['rule'])]
+        return [p for p in patterns if self.is_event_based(p["rule"])]

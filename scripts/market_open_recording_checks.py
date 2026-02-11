@@ -19,10 +19,9 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Iterable
-
-import psycopg2
 from zoneinfo import ZoneInfo
 
+import psycopg2
 from qx_broker.notify import send_status_message
 
 ET = ZoneInfo("America/New_York")
@@ -195,7 +194,12 @@ def check_trade_db(target_date: date, systems: Iterable[str]) -> CheckResult:
 
     summary: dict[str, dict[str, int]] = {}
     for system in systems:
-        summary[system] = {"trades": 0, "missing_entry": 0, "closed_trades": 0, "missing_exit": 0}
+        summary[system] = {
+            "trades": 0,
+            "missing_entry": 0,
+            "closed_trades": 0,
+            "missing_exit": 0,
+        }
 
     try:
         with conn:
@@ -241,7 +245,10 @@ def check_trade_db(target_date: date, systems: Iterable[str]) -> CheckResult:
                     rows = cur.fetchall()
 
                     # Default totals.
-                    totals = {sys: {"trades": 0, "missing_links": 0, "closed_trades": 0} for sys in normalized_systems}
+                    totals = {
+                        sys: {"trades": 0, "missing_links": 0, "closed_trades": 0}
+                        for sys in normalized_systems
+                    }
                     for system, trades, missing_links, closed_trades in rows:
                         if system in totals:
                             totals[system] = {
@@ -270,7 +277,10 @@ def check_trade_db(target_date: date, systems: Iterable[str]) -> CheckResult:
                     detail_parts = []
                     for requested in systems:
                         sys_norm = aliases.get(requested, requested)
-                        t = totals.get(sys_norm, {"trades": 0, "missing_links": 0, "closed_trades": 0})
+                        t = totals.get(
+                            sys_norm,
+                            {"trades": 0, "missing_links": 0, "closed_trades": 0},
+                        )
                         orphan_execs = orphan_rows.get(sys_norm, 0)
                         total_trades += t["trades"]
                         total_missing_links += t["missing_links"]
@@ -287,13 +297,23 @@ def check_trade_db(target_date: date, systems: Iterable[str]) -> CheckResult:
                             f"0 trades for {target_date} ET; order link mapping not validated",
                         )
                     if total_missing_links > 0:
-                        return CheckResult("TradeDB", "FAIL", f"missing order links detected; {details}")
+                        return CheckResult(
+                            "TradeDB",
+                            "FAIL",
+                            f"missing order links detected; {details}",
+                        )
                     if any(orphan_rows.get(sys, 0) > 0 for sys in normalized_systems):
-                        return CheckResult("TradeDB", "WARN", f"orphan executions detected; {details}")
+                        return CheckResult(
+                            "TradeDB", "WARN", f"orphan executions detected; {details}"
+                        )
                     return CheckResult("TradeDB", "OK", details)
 
                 if not has_trades:
-                    return CheckResult("TradeDB", "FAIL", "missing trades tables (neither v1 nor v2 found)")
+                    return CheckResult(
+                        "TradeDB",
+                        "FAIL",
+                        "missing trades tables (neither v1 nor v2 found)",
+                    )
 
                 cur.execute(
                     """

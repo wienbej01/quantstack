@@ -114,7 +114,9 @@ class L2SymbolSelector:
         # Filter for NYSE-only if configured
         if self.nyse_only:
             filtered = [s for s in symbols if s not in self.KNOWN_ARCA]
-            logger.info(f"NYSE filter: {len(symbols)} -> {len(filtered)} symbols (excluded ARCA: {[s for s in symbols if s in self.KNOWN_ARCA]})")
+            logger.info(
+                f"NYSE filter: {len(symbols)} -> {len(filtered)} symbols (excluded ARCA: {[s for s in symbols if s in self.KNOWN_ARCA]})"
+            )
             symbols = filtered
 
         return symbols[: self.max_symbols]

@@ -7,25 +7,24 @@ Following the project policy: no synthetic data for testing when real data is av
 import numpy as np
 import pandas as pd
 import pytest
-
 from src.data import GoldLoader, L2Loader
-from src.features.l2_features import AlphaL2Features
-from src.features.price_features import (
-    compute_vwap,
-    compute_returns,
-    compute_atr,
-    compute_session_range,
-    compute_rsi,
-    compute_bollinger_bands,
-    compute_all_price_features,
-)
 from src.features.flow_features import (
-    compute_trade_imbalance,
+    compute_all_flow_features,
+    compute_order_flow_aggression,
     compute_rvol,
+    compute_trade_imbalance,
     compute_volume_weighted_imbalance,
     detect_sweep,
-    compute_order_flow_aggression,
-    compute_all_flow_features,
+)
+from src.features.l2_features import AlphaL2Features
+from src.features.price_features import (
+    compute_all_price_features,
+    compute_atr,
+    compute_bollinger_bands,
+    compute_returns,
+    compute_rsi,
+    compute_session_range,
+    compute_vwap,
 )
 
 
@@ -323,7 +322,9 @@ class TestFlowFeatures:
 
     def test_order_flow_aggression(self, sample_bars):
         """Order flow aggression metrics."""
-        agg_df = compute_order_flow_aggression(sample_bars, short_period=5, long_period=20)
+        agg_df = compute_order_flow_aggression(
+            sample_bars, short_period=5, long_period=20
+        )
 
         # Check columns
         assert "aggression_short" in agg_df.columns

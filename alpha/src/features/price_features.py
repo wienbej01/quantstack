@@ -93,7 +93,9 @@ def compute_log_returns(
     result = pd.DataFrame(index=bars.index)
 
     for period in periods:
-        result[f"log_ret_{period}"] = np.log(bars[price_col] / bars[price_col].shift(period))
+        result[f"log_ret_{period}"] = np.log(
+            bars[price_col] / bars[price_col].shift(period)
+        )
 
     return result
 
@@ -128,7 +130,9 @@ def compute_atr(
     low_prev_close = np.abs(bars["low"] - prev_close)
 
     # True Range = max of the three
-    true_range = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(axis=1)
+    true_range = pd.concat([high_low, high_prev_close, low_prev_close], axis=1).max(
+        axis=1
+    )
 
     # ATR = rolling mean
     atr = true_range.rolling(window=period).mean()
@@ -268,7 +272,8 @@ def compute_bollinger_bands(
 
     # Position within bands
     result["bb_position"] = (
-        (bars[price_col] - result["bb_lower"]) / (result["bb_upper"] - result["bb_lower"])
+        (bars[price_col] - result["bb_lower"])
+        / (result["bb_upper"] - result["bb_lower"])
     ).fillna(0.5)
 
     return result

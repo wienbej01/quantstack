@@ -86,7 +86,9 @@ def debug_baseline_strategy():
     print("\n2. Signal Analysis:")
     print(f"   Buy signals detected: {buy_signals}/5 expected")
     print(f"   Sell signals detected: {sell_signals}/5 expected")
-    print(f"   Logic appears correct: {'✅' if buy_signals >= 4 and sell_signals >= 4 else '❌'}")
+    print(
+        f"   Logic appears correct: {'✅' if buy_signals >= 4 and sell_signals >= 4 else '❌'}"
+    )
 
     print("\n3. Potential Issues:")
 

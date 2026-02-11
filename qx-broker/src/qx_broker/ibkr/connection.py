@@ -10,7 +10,6 @@ from concurrent.futures import Future
 from typing import Callable, TypeVar
 
 from ib_insync import IB
-
 from qx_broker.ibkr.config import IBKRSessionConfig
 from qx_broker.ibkr.errors import IBKRError, is_client_id_in_use, is_connection_error
 
@@ -65,7 +64,9 @@ class _IBKREventLoop:
         future = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return future.result(timeout)
 
-    def call(self, func: Callable[..., T], *args, timeout: float | None = None, **kwargs) -> T:
+    def call(
+        self, func: Callable[..., T], *args, timeout: float | None = None, **kwargs
+    ) -> T:
         async def _call() -> T:
             return func(*args, **kwargs)
 
@@ -108,6 +109,7 @@ class IBKRSession:
 
         for attempt in range(connection.reconnect_attempts + 1):
             try:
+                logger.info("IBKR connect attempt %s with clientId %s", attempt + 1, client_id)
                 if self._connect_with_client_id(client_id):
                     self._connected = True
                     return True
@@ -116,10 +118,14 @@ class IBKRSession:
 
             if connection.allow_client_id_fallback:
                 client_id += 1
-                if client_id > connection.client_id + connection.client_id_fallbacks:
-                    client_id = connection.client_id
+                max_id = connection.client_id + connection.client_id_fallbacks
+                if client_id > max_id:
+                    logger.warning("Exhausted client_id range %s-%s, giving up", connection.client_id, max_id)
+                    break
 
-            time.sleep(connection.reconnect_backoff_sec * max(1, attempt + 1))
+            backoff = min(connection.reconnect_backoff_sec * (2 ** attempt), 60)
+            logger.info("Reconnect backoff: %.1fs", backoff)
+            time.sleep(backoff)
 
         return False
 
@@ -155,10 +161,18 @@ class IBKRSession:
             logger.warning("IBKR current time check failed: %s", exc)
             return False
 
-    def call(self, func: Callable[..., T], *args, timeout: float | None = None, **kwargs) -> T:
+    def call(
+        self, func: Callable[..., T], *args, timeout: float | None = None, **kwargs
+    ) -> T:
         return self._loop.call(func, *args, timeout=timeout, **kwargs)
 
-    def call_async(self, func: Callable[..., asyncio.Future], *args, timeout: float | None = None, **kwargs):
+    def call_async(
+        self,
+        func: Callable[..., asyncio.Future],
+        *args,
+        timeout: float | None = None,
+        **kwargs,
+    ):
         return self._loop.run_coroutine(func(*args, **kwargs), timeout=timeout)
 
     def call_soon(self, func: Callable[..., None], *args, **kwargs) -> Future:
@@ -198,7 +212,9 @@ class IBKRSession:
                 raiseSyncErrors=True,
             )
         except TypeError:
-            logger.info("ib_insync connectAsync missing raiseSyncErrors; retrying without it")
+            logger.info(
+                "ib_insync connectAsync missing raiseSyncErrors; retrying without it"
+            )
             coro = self._loop.ib.connectAsync(
                 host=connection.host,
                 port=connection.port,
@@ -213,7 +229,9 @@ class IBKRSession:
         self._active_client_id = client_id
         return True
 
-    def _on_error(self, req_id: int, error_code: int, error_string: str, contract) -> None:
+    def _on_error(
+        self, req_id: int, error_code: int, error_string: str, contract
+    ) -> None:
         error = IBKRError(code=error_code, message=error_string, context=str(req_id))
         self._last_error = error
         if is_client_id_in_use(error_code):

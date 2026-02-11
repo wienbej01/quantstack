@@ -55,7 +55,9 @@ def main():
 
         logger.info(f"✅ L2 collection started for {len(symbols)} symbols")
         logger.info(f"📊 Collection windows: 09:30-10:30, 15:00-16:00 ET")
-        logger.info(f"💾 Output: {l2_root}/live_l2/run_id=live_{time.strftime('%Y%m%d')}")
+        logger.info(
+            f"💾 Output: {l2_root}/live_l2/run_id=live_{time.strftime('%Y%m%d')}"
+        )
 
         # Main loop - collect L2 data and log status
         loop_count = 0

@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import yaml
-
 from research.l2_impact import pipeline
 from research.l2_impact.pipeline import (
     EventDefinition,
@@ -21,7 +20,9 @@ from research.l2_impact.pipeline import (
 )
 
 
-def _base_config(session_start: str = "09:30:00", session_end: str = "09:30:05") -> dict:
+def _base_config(
+    session_start: str = "09:30:00", session_end: str = "09:30:05"
+) -> dict:
     return {
         "seed": 7,
         "baseline_window_minutes": 1,
@@ -195,15 +196,21 @@ def test_no_lookahead_baseline_window() -> None:
     )
     group = L2Group(date="2026-01-02", symbol="AAA", files=tuple())
 
-    base_events = compute_events(seconds_df, group, config, [definition], threshold=0.99)
+    base_events = compute_events(
+        seconds_df, group, config, [definition], threshold=0.99
+    )
     cutoff = index[4]
     base_before = [event.event_ts for event in base_events if event.event_ts <= cutoff]
     assert base_before
 
     mutated = seconds_df.copy()
-    mutated.loc[index[5]:, "deep_total"] = 100.0
-    mutated_events = compute_events(mutated, group, config, [definition], threshold=0.99)
-    mutated_before = [event.event_ts for event in mutated_events if event.event_ts <= cutoff]
+    mutated.loc[index[5] :, "deep_total"] = 100.0
+    mutated_events = compute_events(
+        mutated, group, config, [definition], threshold=0.99
+    )
+    mutated_before = [
+        event.event_ts for event in mutated_events if event.event_ts <= cutoff
+    ]
     assert base_before == mutated_before
 
 
@@ -257,7 +264,9 @@ def test_determinism_same_seed_same_result() -> None:
     pd.testing.assert_frame_equal(result_a, result_b, atol=0.0, rtol=0.0)
 
 
-def test_run_experiment_emits_required_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_experiment_emits_required_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     tz = "America/New_York"
     l2_root = tmp_path / "l2"
     _write_l2_parquet(l2_root, "2026-01-02", "TEST", tz)

@@ -108,7 +108,7 @@ class BarFeed:
         # Get the latest bar
         if not bars:
             return
-        
+
         bar = bars[-1]  # Most recent bar
 
         # Convert to Bar dataclass

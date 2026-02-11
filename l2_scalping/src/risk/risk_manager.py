@@ -55,6 +55,11 @@ class RiskManager:
         self.last_reset = time.time()
         self.account_value: float = 0.0
 
+        # Order spam circuit breaker: track (symbol, timestamp) for recent orders
+        self._order_timestamps: Dict[str, list] = {}  # symbol -> [timestamps]
+        self._order_spam_limit = 10  # max orders per symbol in window
+        self._order_spam_window = 600  # 10 minutes
+
         # Risk limits from nested config
         per_trade = config.get("per_trade", {})
         daily = config.get("daily", {})
@@ -79,6 +84,15 @@ class RiskManager:
     ) -> tuple[bool, str]:
         """Check if trade is allowed before execution"""
         self.account_value = account_value
+
+        # Order spam circuit breaker
+        now = time.time()
+        sym_orders = self._order_timestamps.get(symbol, [])
+        sym_orders = [t for t in sym_orders if now - t < self._order_spam_window]
+        self._order_timestamps[symbol] = sym_orders
+        if len(sym_orders) >= self._order_spam_limit:
+            return False, f"Order spam breaker: {len(sym_orders)} orders for {symbol} in {self._order_spam_window}s"
+        sym_orders.append(now)
 
         # Check daily loss limit
         daily_loss_limit = account_value * self.max_daily_loss_bps / 10000
@@ -124,10 +138,10 @@ class RiskManager:
 
         # 2% equity risk per position
         risk_per_trade = account_value * 0.02
-        
+
         # Stop distance (use max_trade_loss_bps as stop %)
         stop_dist = price * (self.max_trade_loss_bps / 10000)
-        
+
         # Calculate shares: risk / stop_distance
         qty_risk = int(risk_per_trade / stop_dist) if stop_dist > 0 else 0
 
@@ -146,7 +160,7 @@ class RiskManager:
         # Ensure minimum viable size
         min_shares = max(1, int(self.min_position_value / price))
         final_shares = max(min_shares, final_shares)
-        
+
         # Cap at 2% of account value in notional
         max_notional_shares = int((account_value * 0.02) / price)
         final_shares = min(final_shares, max_notional_shares, self.max_shares)

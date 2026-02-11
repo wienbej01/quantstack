@@ -43,7 +43,9 @@ def test(name: str, func) -> bool:
 def check_gateway_process():
     """Check if IBKR Gateway is running."""
     for pattern in ("ibgateway", "tws"):
-        result = subprocess.run(["pgrep", "-f", pattern], capture_output=True, text=True)
+        result = subprocess.run(
+            ["pgrep", "-f", pattern], capture_output=True, text=True
+        )
         if result.returncode == 0:
             return
     raise RuntimeError("IBKR Gateway process not running")
@@ -91,7 +93,9 @@ def check_gateway_auth():
 
             accounts = session.call(session.ib.managedAccounts, timeout=5) or []
             if not accounts:
-                raise RuntimeError(f"No accounts available from IBKR Gateway (client_id={cid})")
+                raise RuntimeError(
+                    f"No accounts available from IBKR Gateway (client_id={cid})"
+                )
             return
         except Exception as exc:
             last_exc = exc

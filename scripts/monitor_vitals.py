@@ -9,7 +9,6 @@ from pathlib import Path
 
 import psutil
 
-
 DB_PATH = Path.home() / "quantstack" / "data" / "vitals.db"
 INTERVAL_SECONDS = 10
 TRADING_PROCESSES = ["l2-scalping", "l2-vwap-reversal", "intraday-paper", "ibgateway"]
@@ -35,7 +34,8 @@ def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("""
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS vitals (
             timestamp TEXT PRIMARY KEY,
             cpu_percent REAL,
@@ -44,7 +44,8 @@ def init_db():
             disk_write_mb REAL,
             processes TEXT
         )
-    """)
+    """
+    )
     conn.commit()
     return conn
 
@@ -108,7 +109,8 @@ def record_vitals(conn):
 def cleanup_old_records(conn, days=30):
     """Remove records older than specified days."""
     conn.execute(
-        "DELETE FROM vitals WHERE timestamp < datetime('now', '-' || ? || ' days')", (days,)
+        "DELETE FROM vitals WHERE timestamp < datetime('now', '-' || ? || ' days')",
+        (days,),
     )
     conn.commit()
 
@@ -116,10 +118,13 @@ def cleanup_old_records(conn, days=30):
 class CPUSpikeDetector:
     """Tracks consecutive high CPU readings and fires alerts."""
 
-    def __init__(self, system_threshold: float = CPU_SPIKE_SYSTEM_PCT,
-                 process_threshold: float = CPU_SPIKE_PROCESS_PCT,
-                 consecutive: int = CPU_SPIKE_CONSECUTIVE,
-                 alert_fn=None):
+    def __init__(
+        self,
+        system_threshold: float = CPU_SPIKE_SYSTEM_PCT,
+        process_threshold: float = CPU_SPIKE_PROCESS_PCT,
+        consecutive: int = CPU_SPIKE_CONSECUTIVE,
+        alert_fn=None,
+    ):
         self.system_threshold = system_threshold
         self.process_threshold = process_threshold
         self.consecutive = consecutive
@@ -148,9 +153,16 @@ class CPUSpikeDetector:
             active.add(name)
             cpu = stats.get("cpu", 0) or 0
             if cpu >= self.process_threshold:
-                self._process_high_counts[name] = self._process_high_counts.get(name, 0) + 1
-                if self._process_high_counts[name] >= self.consecutive and self.alert_fn:
-                    self.alert_fn(cpu, self._process_high_counts[name] * INTERVAL_SECONDS, name)
+                self._process_high_counts[name] = (
+                    self._process_high_counts.get(name, 0) + 1
+                )
+                if (
+                    self._process_high_counts[name] >= self.consecutive
+                    and self.alert_fn
+                ):
+                    self.alert_fn(
+                        cpu, self._process_high_counts[name] * INTERVAL_SECONDS, name
+                    )
                     self._process_high_counts[name] = 0
             else:
                 self._process_high_counts[name] = 0
@@ -170,6 +182,7 @@ def main():
     try:
         sys.path.insert(0, str(Path(__file__).parent.parent))
         from cpapi.emergency_alerts import EmergencyAlerts
+
         alerts = EmergencyAlerts()
         spike_detector = CPUSpikeDetector(alert_fn=alerts.cpu_spike)
         print("CPU spike alerting enabled")

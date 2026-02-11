@@ -30,8 +30,9 @@ class L2Loader:
 
     # Base path for L2 data
     DEFAULT_L2_PATH = (
-        Path(os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2"))
-        .expanduser()
+        Path(
+            os.environ.get("L2_DATA_ROOT", "/home/jacobw/quantstack/data/l2")
+        ).expanduser()
         / "l2_maximum"
         / "raw"
     )
@@ -99,9 +100,7 @@ class L2Loader:
         parquet_files = list(symbol_dir.glob("*.parquet"))
 
         if not parquet_files:
-            raise FileNotFoundError(
-                f"No parquet files found in {symbol_dir}"
-            )
+            raise FileNotFoundError(f"No parquet files found in {symbol_dir}")
 
         # Load and concatenate all parquet files
         all_dfs = []
@@ -115,38 +114,36 @@ class L2Loader:
                 logger.warning(f"Failed to read {file_path}: {e}")
 
         if not all_dfs:
-            raise FileNotFoundError(
-                f"Failed to load any data from {symbol_dir}"
-            )
+            raise FileNotFoundError(f"Failed to load any data from {symbol_dir}")
 
         # Concatenate all dataframes
         result = pd.concat(all_dfs, ignore_index=True)
 
         # Convert ts_utc to datetime if needed
-        if not pd.api.types.is_datetime64_any_dtype(result['ts_utc']):
-            result['ts_utc'] = pd.to_datetime(result['ts_utc'])
+        if not pd.api.types.is_datetime64_any_dtype(result["ts_utc"]):
+            result["ts_utc"] = pd.to_datetime(result["ts_utc"])
 
         # Filter by time range if specified
         if start_time or end_time:
             # Extract time from ts_utc
-            result['time'] = result['ts_utc'].dt.time
+            result["time"] = result["ts_utc"].dt.time
 
             if start_time:
                 try:
                     start_dt = datetime.strptime(start_time, "%H:%M:%S").time()
-                    result = result[result['time'] >= start_dt]
+                    result = result[result["time"] >= start_dt]
                 except ValueError as e:
                     raise ValueError(f"Invalid start_time format. Use HH:MM:SS: {e}")
 
             if end_time:
                 try:
                     end_dt = datetime.strptime(end_time, "%H:%M:%S").time()
-                    result = result[result['time'] <= end_dt]
+                    result = result[result["time"] <= end_dt]
                 except ValueError as e:
                     raise ValueError(f"Invalid end_time format. Use HH:MM:SS: {e}")
 
             # Drop temporary time column
-            result = result.drop(columns=['time'])
+            result = result.drop(columns=["time"])
 
         # Filter by minimum depth if specified
         if min_depth > 0:
@@ -155,24 +152,22 @@ class L2Loader:
             ask_cols = [f"ask_px_{i}" for i in range(1, 11)]
 
             # Count non-NaN bid and ask levels
-            result['_bid_levels'] = result[bid_cols].notna().sum(axis=1)
-            result['_ask_levels'] = result[ask_cols].notna().sum(axis=1)
+            result["_bid_levels"] = result[bid_cols].notna().sum(axis=1)
+            result["_ask_levels"] = result[ask_cols].notna().sum(axis=1)
 
             # Keep snapshots with at least min_depth levels on both sides
             result = result[
-                (result['_bid_levels'] >= min_depth) &
-                (result['_ask_levels'] >= min_depth)
+                (result["_bid_levels"] >= min_depth)
+                & (result["_ask_levels"] >= min_depth)
             ]
 
             # Drop temporary columns
-            result = result.drop(columns=['_bid_levels', '_ask_levels'])
+            result = result.drop(columns=["_bid_levels", "_ask_levels"])
 
         # Sort by timestamp
-        result = result.sort_values('ts_utc').reset_index(drop=True)
+        result = result.sort_values("ts_utc").reset_index(drop=True)
 
-        logger.info(
-            f"Loaded {len(result)} L2 snapshots for {symbol} on {date}"
-        )
+        logger.info(f"Loaded {len(result)} L2 snapshots for {symbol} on {date}")
 
         return result
 
@@ -209,7 +204,7 @@ class L2Loader:
             return pd.DataFrame()
 
         result = pd.concat(all_dfs, ignore_index=True)
-        result = result.sort_values(['ts_utc', 'symbol']).reset_index(drop=True)
+        result = result.sort_values(["ts_utc", "symbol"]).reset_index(drop=True)
 
         logger.info(
             f"Loaded {len(result)} total L2 snapshots for {len(symbols)} symbols on {date}"
@@ -227,7 +222,11 @@ class L2Loader:
             return []
 
         # Find all date= directories
-        date_dirs = [d for d in self.l2_path.iterdir() if d.is_dir() and d.name.startswith("date=")]
+        date_dirs = [
+            d
+            for d in self.l2_path.iterdir()
+            if d.is_dir() and d.name.startswith("date=")
+        ]
 
         # Extract dates
         dates = []
@@ -252,7 +251,9 @@ class L2Loader:
             return []
 
         # Find all symbol= directories
-        symbol_dirs = [d for d in date_dir.iterdir() if d.is_dir() and d.name.startswith("symbol=")]
+        symbol_dirs = [
+            d for d in date_dir.iterdir() if d.is_dir() and d.name.startswith("symbol=")
+        ]
 
         # Extract symbols
         symbols = []
@@ -308,7 +309,9 @@ class L2Loader:
                 }
 
             # Calculate percentage with depth
-            has_depth_pct = (df['has_depth'].sum() / len(df) * 100) if len(df) > 0 else 0
+            has_depth_pct = (
+                (df["has_depth"].sum() / len(df) * 100) if len(df) > 0 else 0
+            )
 
             return {
                 "date": date,

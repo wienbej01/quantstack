@@ -177,10 +177,10 @@ def detect_sweep(
             return "flat"
 
         # Check if strictly declining
-        declining = all(sizes[i] > sizes[i+1] for i in range(len(sizes) - 1))
+        declining = all(sizes[i] > sizes[i + 1] for i in range(len(sizes) - 1))
 
         # Check if strictly increasing
-        increasing = all(sizes[i] < sizes[i+1] for i in range(len(sizes) - 1))
+        increasing = all(sizes[i] < sizes[i + 1] for i in range(len(sizes) - 1))
 
         if declining:
             return "declining"
@@ -241,15 +241,13 @@ def compute_order_flow_aggression(
     # Short-term aggregation
     result["aggression_short"] = direction.rolling(window=short_period).sum()
     result["aggression_short"] = (
-        result["aggression_short"] /
-        bars["volume"].rolling(window=short_period).sum()
+        result["aggression_short"] / bars["volume"].rolling(window=short_period).sum()
     )
 
     # Long-term aggregation
     result["aggression_long"] = direction.rolling(window=long_period).sum()
     result["aggression_long"] = (
-        result["aggression_long"] /
-        bars["volume"].rolling(window=long_period).sum()
+        result["aggression_long"] / bars["volume"].rolling(window=long_period).sum()
     )
 
     # Delta

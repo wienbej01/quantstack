@@ -220,7 +220,9 @@ def test_mcp_server():
                 if response["success"] and response["row_count"] > 0:
                     print(f"✅ Query execution works ({response['row_count']} rows)")
                 else:
-                    print(f"❌ Query execution failed: {response.get('error', 'Unknown error')}")
+                    print(
+                        f"❌ Query execution failed: {response.get('error', 'Unknown error')}"
+                    )
                     return False
 
                 # Test views
@@ -266,7 +268,9 @@ def test_lineage_tracking():
                     print(f"✅ Run tracking works: {run_id}")
 
                     # Test reproducibility check
-                    repro_check = lineage_ingestor.verify_experiment_reproducibility(exp_id)
+                    repro_check = lineage_ingestor.verify_experiment_reproducibility(
+                        exp_id
+                    )
                     if "reproducible" in repro_check:
                         status = (
                             "✅ REPRODUCIBLE"
@@ -352,7 +356,9 @@ def test_mcp_functions():
             print("✅ get_schema() function accessible")
         except Exception as e:
             if "not found" in str(e):
-                print("✅ get_schema() function accessible (warehouse missing is expected)")
+                print(
+                    "✅ get_schema() function accessible (warehouse missing is expected)"
+                )
             else:
                 print(f"❌ get_schema() function failed: {e}")
                 return False
@@ -363,7 +369,9 @@ def test_mcp_functions():
             print(f"✅ list_views() function accessible (returned {len(views)} views)")
         except Exception as e:
             if "not found" in str(e):
-                print("✅ list_views() function accessible (warehouse missing is expected)")
+                print(
+                    "✅ list_views() function accessible (warehouse missing is expected)"
+                )
             else:
                 print(f"❌ list_views() function failed: {e}")
                 return False

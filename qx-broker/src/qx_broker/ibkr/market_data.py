@@ -8,9 +8,8 @@ import time
 from dataclasses import dataclass
 
 from ib_insync import Contract, Ticker
-
-from qx_broker.ibkr.connection import IBKRSession
 from qx_broker.ibkr.config import IBKRMarketDataConfig
+from qx_broker.ibkr.connection import IBKRSession
 
 
 @dataclass(frozen=True)
@@ -37,7 +36,11 @@ class IBKRMarketData:
         self._event_hooked = False
 
     def set_market_data_type(self, market_data_type: int | None = None) -> None:
-        data_type = market_data_type if market_data_type is not None else self.config.market_data_type
+        data_type = (
+            market_data_type
+            if market_data_type is not None
+            else self.config.market_data_type
+        )
         self.session.call(self.session.ib.reqMarketDataType, data_type, timeout=5)
 
     def subscribe(self, contract: Contract, snapshot: bool | None = None) -> Ticker:

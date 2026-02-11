@@ -7,16 +7,15 @@ Tests verify:
 - Target/stop/time limit exits work correctly
 """
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
-
-from src.backtest.engine import AlphaBacktestEngine, BarData, BacktestResult, Trade
-from src.backtest.execution_sim import L2ExecutionSimulator, FillResult
-from src.signals.base import Position, SignalSide, SignalEvent, ExitEvent
+from src.backtest.engine import AlphaBacktestEngine, BacktestResult, BarData, Trade
+from src.backtest.execution_sim import FillResult, L2ExecutionSimulator
+from src.signals.base import ExitEvent, Position, SignalEvent, SignalSide
 from src.signals.order_flow import OrderFlowSignal
-
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -51,15 +50,17 @@ def sample_bars():
 
     for i in range(100):
         ts = base_time + timedelta(minutes=i)
-        bars.append({
-            "ts": ts,
-            "symbol": "AAPL",
-            "open": 150.0 + np.random.randn() * 0.1,
-            "high": 150.2 + np.random.randn() * 0.1,
-            "low": 149.8 + np.random.randn() * 0.1,
-            "close": 150.0 + np.random.randn() * 0.1,
-            "volume": 10000,
-        })
+        bars.append(
+            {
+                "ts": ts,
+                "symbol": "AAPL",
+                "open": 150.0 + np.random.randn() * 0.1,
+                "high": 150.2 + np.random.randn() * 0.1,
+                "low": 149.8 + np.random.randn() * 0.1,
+                "close": 150.0 + np.random.randn() * 0.1,
+                "volume": 10000,
+            }
+        )
 
     return pd.DataFrame(bars)
 
@@ -67,23 +68,25 @@ def sample_bars():
 @pytest.fixture
 def sample_l2_snapshot():
     """Create sample L2 snapshot for testing."""
-    return pd.Series({
-        "ts_utc": pd.Timestamp("2024-01-02 09:30:00"),
-        "symbol": "AAPL",
-        "bid_px_1": 149.95,
-        "bid_sz_1": 1000,
-        "ask_px_1": 150.05,
-        "ask_sz_1": 1000,
-        "bid_px_2": 149.94,
-        "bid_sz_2": 500,
-        "ask_px_2": 150.06,
-        "ask_sz_2": 500,
-        "bid_px_3": 149.93,
-        "bid_sz_3": 200,
-        "ask_px_3": 150.07,
-        "ask_sz_3": 200,
-        "has_depth": True,
-    })
+    return pd.Series(
+        {
+            "ts_utc": pd.Timestamp("2024-01-02 09:30:00"),
+            "symbol": "AAPL",
+            "bid_px_1": 149.95,
+            "bid_sz_1": 1000,
+            "ask_px_1": 150.05,
+            "ask_sz_1": 1000,
+            "bid_px_2": 149.94,
+            "bid_sz_2": 500,
+            "ask_px_2": 150.06,
+            "ask_sz_2": 500,
+            "bid_px_3": 149.93,
+            "bid_sz_3": 200,
+            "ask_px_3": 150.07,
+            "ask_sz_3": 200,
+            "has_depth": True,
+        }
+    )
 
 
 class TestExecutionSimulator:
@@ -125,15 +128,17 @@ class TestExecutionSimulator:
         sim = L2ExecutionSimulator(latency_ms=75)
 
         # Create shallow book
-        shallow_book = pd.Series({
-            "ts_utc": pd.Timestamp("2024-01-02 09:30:00"),
-            "symbol": "AAPL",
-            "bid_px_1": 149.95,
-            "bid_sz_1": 100,
-            "ask_px_1": 150.05,
-            "ask_sz_1": 100,
-            "has_depth": True,
-        })
+        shallow_book = pd.Series(
+            {
+                "ts_utc": pd.Timestamp("2024-01-02 09:30:00"),
+                "symbol": "AAPL",
+                "bid_px_1": 149.95,
+                "bid_sz_1": 100,
+                "ask_px_1": 150.05,
+                "ask_sz_1": 100,
+                "has_depth": True,
+            }
+        )
 
         result = sim.simulate_fill(
             order_side="BUY",
@@ -200,7 +205,9 @@ class TestBacktestEngine:
         """Test engine handles empty data gracefully."""
         engine = AlphaBacktestEngine(DEFAULT_CONFIG)
 
-        empty_df = pd.DataFrame(columns=["ts", "symbol", "open", "high", "low", "close", "volume"])
+        empty_df = pd.DataFrame(
+            columns=["ts", "symbol", "open", "high", "low", "close", "volume"]
+        )
         result = engine.run(empty_df)
 
         assert result.num_trades == 0
@@ -209,15 +216,17 @@ class TestBacktestEngine:
         """Test bar data preparation with L2."""
         engine = AlphaBacktestEngine(DEFAULT_CONFIG)
 
-        bar = pd.Series({
-            "ts": pd.Timestamp("2024-01-02 09:30:00"),
-            "symbol": "AAPL",
-            "open": 150.0,
-            "high": 150.2,
-            "low": 149.8,
-            "close": 150.1,
-            "volume": 10000,
-        })
+        bar = pd.Series(
+            {
+                "ts": pd.Timestamp("2024-01-02 09:30:00"),
+                "symbol": "AAPL",
+                "open": 150.0,
+                "high": 150.2,
+                "low": 149.8,
+                "close": 150.1,
+                "volume": 10000,
+            }
+        )
 
         # Create L2 DataFrame
         l2_df = pd.DataFrame([sample_l2_snapshot])
@@ -324,15 +333,17 @@ class TestIntegration:
 
         # Starting price
         for i in range(10):
-            bars.append({
-                "ts": base_time + timedelta(minutes=i),
-                "symbol": "AAPL",
-                "open": 150.0 + i * 0.01,  # Rising
-                "high": 150.1 + i * 0.01,
-                "low": 149.9 + i * 0.01,
-                "close": 150.0 + i * 0.01,
-                "volume": 10000,
-            })
+            bars.append(
+                {
+                    "ts": base_time + timedelta(minutes=i),
+                    "symbol": "AAPL",
+                    "open": 150.0 + i * 0.01,  # Rising
+                    "high": 150.1 + i * 0.01,
+                    "low": 149.9 + i * 0.01,
+                    "close": 150.0 + i * 0.01,
+                    "volume": 10000,
+                }
+            )
 
         df = pd.DataFrame(bars)
 

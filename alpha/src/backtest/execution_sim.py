@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FillResult:
     """Result of simulating a fill."""
+
     fill_price: float
     slippage_bps: float  # Slippage in basis points
     walked_levels: int  # How many levels were consumed
@@ -223,7 +224,9 @@ class L2ExecutionSimulator:
             return 0.01  # 1% impact if no depth
 
         # Simple model: impact proportional to size / depth
-        impact = (quantity / available_depth) * 0.001  # Baseline 0.1% for full consumption
+        impact = (
+            quantity / available_depth
+        ) * 0.001  # Baseline 0.1% for full consumption
 
         return min(impact, 0.05)  # Cap at 5%
 
@@ -327,8 +330,7 @@ def simulate_execution_batch(
 
         # Find L2 snapshot for this symbol and time
         snapshot = l2_data[
-            (l2_data["symbol"] == symbol) &
-            (l2_data["ts_utc"] == timestamp)
+            (l2_data["symbol"] == symbol) & (l2_data["ts_utc"] == timestamp)
         ]
 
         if snapshot.empty:

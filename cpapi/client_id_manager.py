@@ -40,7 +40,9 @@ class ClientIDManager:
                 data = json.loads(self.state_file.read_text())
                 order_id = data.get("order", self.order_base)
                 data_id = data.get("data", self.data_base)
-                logger.info(f"[{self.service_name}] Loaded client IDs: order={order_id}, data={data_id}")
+                logger.info(
+                    f"[{self.service_name}] Loaded client IDs: order={order_id}, data={data_id}"
+                )
                 return order_id, data_id
         except Exception as e:
             logger.warning(f"[{self.service_name}] Could not load client IDs: {e}")
@@ -50,10 +52,14 @@ class ClientIDManager:
         """Save current client IDs to state file."""
         try:
             STATE_DIR.mkdir(parents=True, exist_ok=True)
-            self.state_file.write_text(json.dumps({
-                "order": self.current_order_id,
-                "data": self.current_data_id,
-            }))
+            self.state_file.write_text(
+                json.dumps(
+                    {
+                        "order": self.current_order_id,
+                        "data": self.current_data_id,
+                    }
+                )
+            )
         except Exception as e:
             logger.error(f"[{self.service_name}] Could not save client IDs: {e}")
 
@@ -63,7 +69,9 @@ class ClientIDManager:
         if self.current_order_id > min(self.data_base - 1, self.max_id):
             self.current_order_id = self.order_base
         self._save_state()
-        logger.info(f"[{self.service_name}] Allocated order client ID: {self.current_order_id}")
+        logger.info(
+            f"[{self.service_name}] Allocated order client ID: {self.current_order_id}"
+        )
         return self.current_order_id
 
     def get_data_id(self) -> int:
@@ -72,7 +80,9 @@ class ClientIDManager:
         if self.current_data_id > self.max_id:
             self.current_data_id = self.data_base
         self._save_state()
-        logger.info(f"[{self.service_name}] Allocated data client ID: {self.current_data_id}")
+        logger.info(
+            f"[{self.service_name}] Allocated data client ID: {self.current_data_id}"
+        )
         return self.current_data_id
 
     @classmethod

@@ -118,7 +118,9 @@ def analyze_performance_metrics(runs_data):
             "median_return": statistics.median(returns_list),
             "max_return": max(returns_list),
             "min_return": min(returns_list),
-            "std_return": (statistics.stdev(returns_list) if len(returns_list) > 1 else 0),
+            "std_return": (
+                statistics.stdev(returns_list) if len(returns_list) > 1 else 0
+            ),
             "positive_returns": sum(1 for r in returns_list if r > 0),
             "negative_returns": sum(1 for r in returns_list if r < 0),
         }
@@ -307,8 +309,12 @@ def main():
     if "return_stats" in performance_analysis:
         rs = performance_analysis["return_stats"]
         print("\nReturn Statistics:")
-        print(f"  Mean return: {rs['mean_return']:.4f} ({rs['mean_return'] * 100:.2f}%)")
-        print(f"  Median return: {rs['median_return']:.4f} ({rs['median_return'] * 100:.2f}%)")
+        print(
+            f"  Mean return: {rs['mean_return']:.4f} ({rs['mean_return'] * 100:.2f}%)"
+        )
+        print(
+            f"  Median return: {rs['median_return']:.4f} ({rs['median_return'] * 100:.2f}%)"
+        )
         print(f"  Best return: {rs['max_return']:.4f} ({rs['max_return'] * 100:.2f}%)")
         print(f"  Worst return: {rs['min_return']:.4f} ({rs['min_return'] * 100:.2f}%)")
         print(

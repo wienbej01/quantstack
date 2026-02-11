@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RegimeClassification:
     """Classification for a specific date."""
+
     date: str
     regime: str  # bull_low_vol, bull_high_vol, bear_low_vol, bear_high_vol
     spy_close: float
@@ -35,6 +36,7 @@ class RegimeClassification:
 @dataclass
 class RegimeStats:
     """Statistics for a single regime."""
+
     regime: str
     num_trades: int
     total_pnl: float
@@ -48,6 +50,7 @@ class RegimeStats:
 @dataclass
 class RobustnessReport:
     """Report on regime robustness."""
+
     num_regimes_tested: int
     num_profitable_regimes: int
     min_required: int
@@ -149,7 +152,9 @@ class RegimeStratifier:
 
         # Calculate SMA20
         spy_data = spy_data.sort_values("ts").reset_index(drop=True)
-        spy_data["spy_sma20"] = spy_data["close"].rolling(window=self.spy_sma_period).mean()
+        spy_data["spy_sma20"] = (
+            spy_data["close"].rolling(window=self.spy_sma_period).mean()
+        )
 
         # Classify each row
         regimes = []

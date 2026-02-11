@@ -20,6 +20,7 @@ if _intraday_path not in sys.path:
 
 try:
     from journal.event_store import EventStore
+
     SHARED_EVENT_STORE = True
 except ImportError:
     SHARED_EVENT_STORE = False
@@ -27,6 +28,7 @@ except ImportError:
 
 try:
     from notifications.ntfy_notifier import NTFYNotifier
+
     NTFY_AVAILABLE = True
 except ImportError:
     NTFY_AVAILABLE = False
@@ -36,6 +38,7 @@ except ImportError:
 sys.path.insert(0, "/home/jacobw/quantstack/cpapi")
 try:
     from audit_logger import AuditLogger, EventType, Severity
+
     AUDIT_AVAILABLE = True
 except ImportError:
     AUDIT_AVAILABLE = False
@@ -50,6 +53,7 @@ STRATEGY_NAME = "l2_vwap_reversion"
 @dataclass
 class LocalTradeRecord:
     """Fallback local trade record."""
+
     timestamp: str
     symbol: str
     side: str
@@ -72,8 +76,7 @@ class TradeJournal:
         # Shared PostgreSQL event store
         if SHARED_EVENT_STORE:
             self.event_store = EventStore(
-                use_postgres=True,
-                pg_config={'database': 'trading', 'user': 'jacobw'}
+                use_postgres=True, pg_config={"database": "trading", "user": "jacobw"}
             )
             logger.info("Using shared PostgreSQL event store")
         else:
@@ -110,7 +113,7 @@ class TradeJournal:
         entry_order_id: int | None = None,
     ) -> str | None:
         """Log trade entry to event store and send notification."""
-        
+
         signal_id = f"vwap_{symbol}_{datetime.now(ET).strftime('%H%M%S')}"
         trade_id = None
 
@@ -139,7 +142,9 @@ class TradeJournal:
                     strategy=STRATEGY_NAME,
                     direction="long" if side == "LONG" else "short",
                     signal_id=signal_id,
-                    entry_order_id=int(entry_order_id) if entry_order_id is not None else 0,
+                    entry_order_id=(
+                        int(entry_order_id) if entry_order_id is not None else 0
+                    ),
                     entry_price=price,
                     entry_qty=quantity,
                     signal_price=price,
@@ -158,7 +163,7 @@ class TradeJournal:
                     direction=side,
                     price=price,
                     quantity=quantity,
-                    system="l2-vwap-reversion"
+                    system="l2-vwap-reversion",
                 )
             except Exception as e:
                 logger.warning(f"NTFY notification failed: {e}")
@@ -174,18 +179,29 @@ class TradeJournal:
             )
 
         # Local fallback
-        self._local_trades.append(LocalTradeRecord(
-            timestamp=datetime.now(ET).isoformat(),
-            symbol=symbol,
-            side=side,
-            quantity=quantity,
-            entry_price=price,
-            vwap=vwap,
-            l2_ratio=l2_ratio,
-        ))
-        self._write_local({"event": "ENTRY", "symbol": symbol, "side": side, 
-                          "price": price, "quantity": quantity, "vwap": vwap,
-                          "l2_ratio": l2_ratio, "timestamp": datetime.now(ET).isoformat()})
+        self._local_trades.append(
+            LocalTradeRecord(
+                timestamp=datetime.now(ET).isoformat(),
+                symbol=symbol,
+                side=side,
+                quantity=quantity,
+                entry_price=price,
+                vwap=vwap,
+                l2_ratio=l2_ratio,
+            )
+        )
+        self._write_local(
+            {
+                "event": "ENTRY",
+                "symbol": symbol,
+                "side": side,
+                "price": price,
+                "quantity": quantity,
+                "vwap": vwap,
+                "l2_ratio": l2_ratio,
+                "timestamp": datetime.now(ET).isoformat(),
+            }
+        )
 
         return trade_id
 
@@ -209,7 +225,9 @@ class TradeJournal:
             try:
                 self.event_store.close_trade(
                     trade_id=trade_id,
-                    exit_order_id=int(exit_order_id) if exit_order_id is not None else 0,
+                    exit_order_id=(
+                        int(exit_order_id) if exit_order_id is not None else 0
+                    ),
                     exit_price=exit_price,
                     exit_qty=quantity,
                     exit_reason=reason,
@@ -224,10 +242,7 @@ class TradeJournal:
         if self.notifier:
             try:
                 self.notifier.trade_exit(
-                    symbol=symbol,
-                    pnl=pnl,
-                    reason=reason,
-                    system="l2-vwap-reversion"
+                    symbol=symbol, pnl=pnl, reason=reason, system="l2-vwap-reversion"
                 )
             except Exception as e:
                 logger.warning(f"NTFY notification failed: {e}")
@@ -244,10 +259,19 @@ class TradeJournal:
             )
 
         # Local fallback
-        self._write_local({"event": "EXIT", "symbol": symbol, "side": side,
-                          "entry_price": entry_price, "exit_price": exit_price,
-                          "quantity": quantity, "reason": reason, "pnl": pnl,
-                          "timestamp": datetime.now(ET).isoformat()})
+        self._write_local(
+            {
+                "event": "EXIT",
+                "symbol": symbol,
+                "side": side,
+                "entry_price": entry_price,
+                "exit_price": exit_price,
+                "quantity": quantity,
+                "reason": reason,
+                "pnl": pnl,
+                "timestamp": datetime.now(ET).isoformat(),
+            }
+        )
 
     def log_service_start(self, symbols: list[str]) -> None:
         """Log service startup."""

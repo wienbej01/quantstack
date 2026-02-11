@@ -2,15 +2,16 @@
 """Debug why signals aren't generating with detailed logging."""
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pandas as pd
-from src.data import L2Loader, GoldLoader
+from src.data import GoldLoader, L2Loader
 from src.features.l2_features import AlphaL2Features
 
 # Load data
-symbol = 'HAL'
-date = '2025-12-23'
+symbol = "HAL"
+date = "2025-12-23"
 
 l2_loader = L2Loader()
 gold_loader = GoldLoader()
@@ -41,17 +42,17 @@ print(f"  book_imbalance_5: {features.get('book_imbalance_5')}")
 print(f"  book_imbalance_10: {features.get('book_imbalance_10')}")
 
 # Find a bar close to this L2 snapshot
-snapshot_time = pd.to_datetime(snapshot['ts_utc'])
-bars['time_diff'] = abs((bars['ts'] - snapshot_time).dt.total_seconds())
-closest_bar = bars.loc[bars['time_diff'].idxmin()]
+snapshot_time = pd.to_datetime(snapshot["ts_utc"])
+bars["time_diff"] = abs((bars["ts"] - snapshot_time).dt.total_seconds())
+closest_bar = bars.loc[bars["time_diff"].idxmin()]
 
 print(f"\nClosest bar @ {closest_bar['ts']}:")
 print(f"  close: {closest_bar['close']}")
 print(f"  spread_pct: {features.get('spread') / closest_bar['close'] * 100:.4f}%")
 
 # Check signal conditions
-book_imb = features.get('book_imbalance_5')
-spread_pct = features.get('spread') / closest_bar['close'] * 100
+book_imb = features.get("book_imbalance_5")
+spread_pct = features.get("spread") / closest_bar["close"] * 100
 
 print(f"\nSignal Check (relaxed thresholds):")
 print(f"  |book_imb| > 0.20: {abs(book_imb) > 0.20} (value: {book_imb:.3f})")

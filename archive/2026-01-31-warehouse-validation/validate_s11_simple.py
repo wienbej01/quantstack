@@ -98,7 +98,9 @@ def test_ingestor_syntax():
     """Test that ingestor has valid Python syntax."""
     print("\n🔍 Testing Ingestor Syntax...")
 
-    ingestor_file = pathlib.Path("~/strategy_repo/ingestors/ingest_runs.py").expanduser()
+    ingestor_file = pathlib.Path(
+        "~/strategy_repo/ingestors/ingest_runs.py"
+    ).expanduser()
 
     if not ingestor_file.exists():
         print("   ❌ Ingestor file missing")

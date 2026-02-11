@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Test IOC price improvement configuration"""
 
-import yaml
 from pathlib import Path
+
+import yaml
 
 config_dir = Path("/home/jacobw/quantstack/l2_scalping/config")
 
@@ -17,7 +18,9 @@ print()
 orders_config = ibkr_config.get("orders", {})
 print("=== Orders Configuration ===")
 print(f"use_ioc_for_scalping: {orders_config.get('use_ioc_for_scalping')}")
-print(f"ioc_price_improvement_ticks: {orders_config.get('ioc_price_improvement_ticks')}")
+print(
+    f"ioc_price_improvement_ticks: {orders_config.get('ioc_price_improvement_ticks')}"
+)
 print(f"tick_size: {orders_config.get('tick_size')}")
 print()
 

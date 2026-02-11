@@ -105,7 +105,7 @@ def get_scalping_symbols(max_symbols: int = 3) -> list[str]:
 
     # CRITICAL: Limit to max_symbols to avoid IBKR Error 309 (max 3 depth subscriptions)
     limited_symbols = nyse_symbols[:max_symbols]
-    
+
     logger.info(
         f"Filtered {len(limited_symbols)} NYSE symbols from {len(sip_symbols)} SIP symbols: {limited_symbols}"
     )

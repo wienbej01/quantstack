@@ -7,7 +7,6 @@ from typing import Any, Optional
 
 import numpy as np
 from ib_insync import MarketOrder
-
 from qx_broker.ibkr import (
     ContractFactory,
     IBKRAccount,
@@ -135,7 +134,9 @@ class PaperTrader:
         self.logger = logging.getLogger(__name__)
 
         connection = IBKRConnectionConfig(host=host, port=port, client_id=client_id)
-        session_cfg = IBKRSessionConfig(system_name="INTRADAY_PAPER", connection=connection)
+        session_cfg = IBKRSessionConfig(
+            system_name="INTRADAY_PAPER", connection=connection
+        )
         self.session = IBKRSession(session_cfg)
         self.contracts = ContractFactory(self.session)
         self.account = IBKRAccount(self.session)

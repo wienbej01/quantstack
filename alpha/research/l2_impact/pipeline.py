@@ -198,7 +198,9 @@ def load_l2_seconds(
 
     bid_sz_cols = [f"bid_sz_{lvl}" for lvl in range(1, deep_max + 1)]
     ask_sz_cols = [f"ask_sz_{lvl}" for lvl in range(1, deep_max + 1)]
-    optional_cols = [col for col in ["bid_px_1", "ask_px_1", "has_depth"] if col in schema_union]
+    optional_cols = [
+        col for col in ["bid_px_1", "ask_px_1", "has_depth"] if col in schema_union
+    ]
 
     frames = []
     for file_path, schema_cols in valid_files:
@@ -232,7 +234,9 @@ def load_l2_seconds(
         l2 = l2[l2["has_depth"]]
 
     if l2.empty:
-        raise RuntimeError(f"No L2 snapshots in session for {group.symbol} on {group.date}")
+        raise RuntimeError(
+            f"No L2 snapshots in session for {group.symbol} on {group.date}"
+        )
 
     l2["ts_sec"] = l2["ts_et"].dt.floor("s")
     l2 = l2.sort_values("ts_sec")
@@ -338,27 +342,35 @@ def compute_events(
 
     events: List[EventRecord] = []
 
-    session_start = pd.Timestamp(f"{group.date} {config['session_start']}", tz=seconds_df.index.tz)
-    session_end = pd.Timestamp(f"{group.date} {config['session_end']}", tz=seconds_df.index.tz)
+    session_start = pd.Timestamp(
+        f"{group.date} {config['session_start']}", tz=seconds_df.index.tz
+    )
+    session_end = pd.Timestamp(
+        f"{group.date} {config['session_end']}", tz=seconds_df.index.tz
+    )
 
     earliest = session_start + pd.Timedelta(minutes=config["exclude_first_minutes"])
     latest = session_end - pd.Timedelta(minutes=config["exclude_last_minutes"])
 
     for definition in definitions:
         if definition.key == "def_a":
-            q99 = deep_total.rolling(window=window, min_periods=min_periods).quantile(threshold)
+            q99 = deep_total.rolling(window=window, min_periods=min_periods).quantile(
+                threshold
+            )
             unusual = deep_total >= q99
             if robust_z is not None:
-                unusual = unusual | ((q99.isna()) & (robust_z >= config["robust_z_threshold"]))
+                unusual = unusual | (
+                    (q99.isna()) & (robust_z >= config["robust_z_threshold"])
+                )
             signal = unusual
             threshold_value = threshold
         elif definition.key == "def_b":
             q_ratio = ratio.rolling(window=window, min_periods=min_periods).quantile(
                 definition.percentile_ratio
             )
-            q_deep = deep_total.rolling(window=window, min_periods=min_periods).quantile(
-                definition.percentile_deep
-            )
+            q_deep = deep_total.rolling(
+                window=window, min_periods=min_periods
+            ).quantile(definition.percentile_deep)
             signal = (ratio >= q_ratio) & (deep_total >= q_deep)
             threshold_value = definition.percentile_ratio or 0.0
         else:
@@ -428,7 +440,9 @@ def fetch_polygon_ohlcv(
     }
     response = requests.get(url, params=params, timeout=30)
     if response.status_code != 200:
-        raise RuntimeError(f"Polygon request failed ({response.status_code}): {response.text}")
+        raise RuntimeError(
+            f"Polygon request failed ({response.status_code}): {response.text}"
+        )
 
     payload = response.json()
     if "results" not in payload:
@@ -510,12 +524,16 @@ def compute_minute_panel(
     panel["date"] = date
 
     for definition, event_minutes in events_by_def.items():
-        panel[f"event_{definition}"] = panel["ts_minute"].isin(event_minutes).astype(int)
+        panel[f"event_{definition}"] = (
+            panel["ts_minute"].isin(event_minutes).astype(int)
+        )
 
     return panel
 
 
-def demean_two_way(df: pd.DataFrame, cols: List[str], group_a: str, group_b: str) -> pd.DataFrame:
+def demean_two_way(
+    df: pd.DataFrame, cols: List[str], group_a: str, group_b: str
+) -> pd.DataFrame:
     overall = df[cols].mean()
     mean_a = df.groupby(group_a)[cols].transform("mean")
     mean_b = df.groupby(group_b)[cols].transform("mean")
@@ -702,7 +720,14 @@ def per_symbol_effects(
 
     if not rows:
         return pd.DataFrame(
-            columns=["symbol", "definition", "coef_event", "ci_low", "ci_high", "n_events"]
+            columns=[
+                "symbol",
+                "definition",
+                "coef_event",
+                "ci_low",
+                "ci_high",
+                "n_events",
+            ]
         )
 
     return pd.DataFrame(rows)
@@ -757,16 +782,24 @@ def build_event_counts(events: List[EventRecord]) -> pd.DataFrame:
         ]
     )
     counts = df.groupby(["symbol", "definition"]).size().reset_index(name="n_events")
-    days = df.groupby(["symbol", "definition"])['date'].nunique().reset_index(name="n_days")
+    days = (
+        df.groupby(["symbol", "definition"])["date"]
+        .nunique()
+        .reset_index(name="n_days")
+    )
     merged = counts.merge(days, on=["symbol", "definition"])
-    merged["avg_events_per_day"] = merged["n_events"] / merged["n_days"].replace(0, np.nan)
+    merged["avg_events_per_day"] = merged["n_events"] / merged["n_days"].replace(
+        0, np.nan
+    )
     totals = (
         merged.groupby("definition")
         .agg(n_events=("n_events", "sum"), n_days=("n_days", "sum"))
         .reset_index()
     )
     totals["symbol"] = "TOTAL"
-    totals["avg_events_per_day"] = totals["n_events"] / totals["n_days"].replace(0, np.nan)
+    totals["avg_events_per_day"] = totals["n_events"] / totals["n_days"].replace(
+        0, np.nan
+    )
     merged = pd.concat([merged, totals], ignore_index=True)
     return merged
 
@@ -778,13 +811,19 @@ def markdown_table(df: pd.DataFrame) -> str:
     rows = [headers] + df.astype(str).values.tolist()
     widths = [max(len(str(row[i])) for row in rows) for i in range(len(headers))]
     lines = []
-    header_line = "| " + " | ".join(str(headers[i]).ljust(widths[i]) for i in range(len(headers))) + " |"
+    header_line = (
+        "| "
+        + " | ".join(str(headers[i]).ljust(widths[i]) for i in range(len(headers)))
+        + " |"
+    )
     sep_line = "| " + " | ".join("-" * widths[i] for i in range(len(headers))) + " |"
     lines.append(header_line)
     lines.append(sep_line)
     for row in rows[1:]:
         lines.append(
-            "| " + " | ".join(str(row[i]).ljust(widths[i]) for i in range(len(headers))) + " |"
+            "| "
+            + " | ".join(str(row[i]).ljust(widths[i]) for i in range(len(headers)))
+            + " |"
         )
     return "\n".join(lines)
 
@@ -869,7 +908,9 @@ def run_experiment(
             event_records.extend(
                 compute_events(seconds_df, group, config, [definitions[0]], threshold)
             )
-        event_records.extend(compute_events(seconds_df, group, config, [definitions[1]], thresholds[0]))
+        event_records.extend(
+            compute_events(seconds_df, group, config, [definitions[1]], thresholds[0])
+        )
 
         events.extend(event_records)
 
@@ -880,7 +921,9 @@ def run_experiment(
             events_by_def[record.definition].append(record.event_minute)
 
         ohlcv = fetch_polygon_ohlcv(group.symbol, group.date, tz, config, cache_dir)
-        panel = compute_minute_panel(ohlcv, group.symbol, group.date, tz, config, events_by_def)
+        panel = compute_minute_panel(
+            ohlcv, group.symbol, group.date, tz, config, events_by_def
+        )
 
         for definition in ("def_a", "def_b"):
             mask = (panel[f"event_{definition}"] == 1) & panel["ret_300s"].isna()
@@ -917,7 +960,9 @@ def run_experiment(
             ]
         )
 
-    panel_df = pd.concat(panel_frames, ignore_index=True) if panel_frames else pd.DataFrame()
+    panel_df = (
+        pd.concat(panel_frames, ignore_index=True) if panel_frames else pd.DataFrame()
+    )
 
     events_path = output_dir / "events.parquet"
     panel_path = output_dir / "panel.parquet"
@@ -1041,7 +1086,11 @@ def run_experiment(
 
     primary_df = pd.concat(analysis_results, ignore_index=True)
     pretrend_df = pd.concat(pretrend_results, ignore_index=True)
-    placebo_df = pd.concat(placebo_results, ignore_index=True) if placebo_results else pd.DataFrame()
+    placebo_df = (
+        pd.concat(placebo_results, ignore_index=True)
+        if placebo_results
+        else pd.DataFrame()
+    )
     falsification_df = (
         pd.concat(falsification_results, ignore_index=True)
         if falsification_results
@@ -1070,17 +1119,19 @@ def run_experiment(
     if not events_df.empty:
         main_threshold = thresholds[0]
         def_a_main = events_df[
-            (events_df["definition"] == "def_a") & (events_df["threshold"] == main_threshold)
+            (events_df["definition"] == "def_a")
+            & (events_df["threshold"] == main_threshold)
         ]
         if fallback_threshold and len(def_a_main) < config["min_events_target"]:
             for threshold in thresholds:
                 if threshold == main_threshold:
                     continue
                 event_minutes = events_df[
-                    (events_df["definition"] == "def_a") & (events_df["threshold"] == threshold)
+                    (events_df["definition"] == "def_a")
+                    & (events_df["threshold"] == threshold)
                 ]["event_minute"]
-                panel_df["event_sensitivity"] = panel_df["ts_minute"].isin(event_minutes).astype(
-                    int
+                panel_df["event_sensitivity"] = (
+                    panel_df["ts_minute"].isin(event_minutes).astype(int)
                 )
                 result = compute_effect_table(
                     panel_df,
@@ -1099,7 +1150,11 @@ def run_experiment(
         if sensitivity_results:
             sensitivity_df = pd.concat(sensitivity_results, ignore_index=True)
 
-    regime_df = pd.concat(regime_results, ignore_index=True) if regime_results else pd.DataFrame()
+    regime_df = (
+        pd.concat(regime_results, ignore_index=True)
+        if regime_results
+        else pd.DataFrame()
+    )
 
     metrics_frames = [
         primary_df.assign(analysis="primary"),
@@ -1145,13 +1200,17 @@ def run_experiment(
             f"Skipped L2 groups with no data: {len(skipped_groups)}\n"
         )
     if sensitivity_df.shape[0] > 0:
-        results_sections.append("Fallback threshold applied for Definition A due to low counts.\n")
+        results_sections.append(
+            "Fallback threshold applied for Definition A due to low counts.\n"
+        )
 
     results_path.write_text("\n".join(results_sections), encoding="utf-8")
 
     run_meta = {
         "run_id": run_id,
-        "mode": "placebo" if placebo else "falsification" if falsification else "primary",
+        "mode": (
+            "placebo" if placebo else "falsification" if falsification else "primary"
+        ),
         "placebo": placebo,
         "falsification": falsification,
         "config": config,
@@ -1175,7 +1234,9 @@ def run_experiment(
     ticket_summary_path = output_dir.parent / "l2_deep_liquidity_300s_summary.md"
     ticket_results_path = output_dir.parent / "l2_deep_liquidity_300s_results.csv"
     ticket_placebo_path = output_dir.parent / "l2_deep_liquidity_300s_placebo.csv"
-    ticket_falsification_path = output_dir.parent / "l2_deep_liquidity_300s_falsification.csv"
+    ticket_falsification_path = (
+        output_dir.parent / "l2_deep_liquidity_300s_falsification.csv"
+    )
     ticket_metadata_path = output_dir.parent / "l2_deep_liquidity_300s_metadata.json"
 
     ticket_summary_path.write_text("\n".join(results_sections), encoding="utf-8")

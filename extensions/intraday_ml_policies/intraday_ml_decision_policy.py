@@ -5,11 +5,11 @@ Intraday ML Decision Policy for generating execution orders from model predictio
 
 from __future__ import annotations
 
+import math
 from collections import Counter
 from dataclasses import dataclass
 from datetime import date
 from numbers import Integral
-import math
 
 import pandas as pd
 
@@ -26,7 +26,10 @@ from extensions.intraday_ml.policy.rejection_reasons import (
     REJECTION_REASON_TO_COLUMN,
     categorize_rejection_reason,
 )
-from extensions.intraday_ml.policy.tod_utils import build_tod_profiles, get_active_profile
+from extensions.intraday_ml.policy.tod_utils import (
+    build_tod_profiles,
+    get_active_profile,
+)
 from extensions.intraday_ml.risk_levels import compute_risk_levels
 
 from .calibration import SymbolThresholdCalibrator
@@ -74,9 +77,15 @@ class IntradayMLDecisionPolicy:
         self.prob_threshold_short = float(config.get("prob_threshold_short", 0.55))
         self.cooldown_minutes = float(config.get("cooldown_minutes", 30))
         time_filter_cfg = config.get("time_filter", {})
-        min_time_str = time_filter_cfg.get("min_time", config.get("min_time", "09:45:00"))
-        max_time_str = time_filter_cfg.get("max_time", config.get("max_time", "15:45:00"))
-        tz_name = time_filter_cfg.get("timezone", config.get("session_timezone", "America/New_York"))
+        min_time_str = time_filter_cfg.get(
+            "min_time", config.get("min_time", "09:45:00")
+        )
+        max_time_str = time_filter_cfg.get(
+            "max_time", config.get("max_time", "15:45:00")
+        )
+        tz_name = time_filter_cfg.get(
+            "timezone", config.get("session_timezone", "America/New_York")
+        )
         self.tod_filter_enabled = bool(config.get("tod_filter_enabled", True))
         self.min_time = pd.to_datetime(min_time_str).time()
         self.max_time = pd.to_datetime(max_time_str).time()
@@ -91,29 +100,43 @@ class IntradayMLDecisionPolicy:
         self.min_directional_gap = float(config.get("min_directional_gap", 0.05))
         self.min_conviction_score = float(config.get("min_conviction_score", 0.0))
         self.max_entries_per_day = self._as_int(config.get("max_entries_per_day"))
-        self.max_open_positions_global = self._as_int(config.get("max_open_positions_global"))
+        self.max_open_positions_global = self._as_int(
+            config.get("max_open_positions_global")
+        )
         self.max_trades_per_symbol_per_day = self._as_int(
             config.get("max_trades_per_symbol_per_day")
         )
-        self.max_trades_per_bar_global = self._as_int(config.get("max_trades_per_bar_global"))
+        self.max_trades_per_bar_global = self._as_int(
+            config.get("max_trades_per_bar_global")
+        )
         lifecycle_cfg = config.get("lifecycle", {})
         self.early_loss_cut_r = self._maybe_float(lifecycle_cfg.get("early_loss_cut_r"))
-        self.early_loss_cut_minutes = self._as_int(lifecycle_cfg.get("early_loss_cut_minutes"))
-        self.dead_trade_exit_minutes = self._as_int(lifecycle_cfg.get("dead_trade_exit_minutes"))
-        self.dead_trade_pnl_band_r = self._maybe_float(lifecycle_cfg.get("dead_trade_pnl_band_r"))
+        self.early_loss_cut_minutes = self._as_int(
+            lifecycle_cfg.get("early_loss_cut_minutes")
+        )
+        self.dead_trade_exit_minutes = self._as_int(
+            lifecycle_cfg.get("dead_trade_exit_minutes")
+        )
+        self.dead_trade_pnl_band_r = self._maybe_float(
+            lifecycle_cfg.get("dead_trade_pnl_band_r")
+        )
         self.max_hold_minutes_flat_or_loser = float(
             lifecycle_cfg.get("max_hold_minutes_flat_or_loser", self.max_hold_minutes)
         )
         self.max_hold_minutes_in_the_money = float(
             lifecycle_cfg.get("max_hold_minutes_in_the_money", self.max_hold_minutes)
         )
-        self.trail_activation_r = self._maybe_float(lifecycle_cfg.get("trail_activation_r"))
+        self.trail_activation_r = self._maybe_float(
+            lifecycle_cfg.get("trail_activation_r")
+        )
         self.trail_stop_r = self._maybe_float(lifecycle_cfg.get("trail_stop_r"))
         cooldown_half = max(self.cooldown_minutes / 2.0, 1.0)
         self.gap_exit_delay_minutes = float(
             config.get("gap_exit_delay_minutes", max(5.0, cooldown_half))
         )
-        self.force_flat_time = pd.to_datetime(config.get("force_flat_time", "15:59:59")).time()
+        self.force_flat_time = pd.to_datetime(
+            config.get("force_flat_time", "15:59:59")
+        ).time()
         self.session_timezone = tz_name
         self.conviction_decay_min_hold_minutes = float(
             config.get(
@@ -142,14 +165,18 @@ class IntradayMLDecisionPolicy:
         self.use_dynamic_risk = True
         self.risk_atr_feature = risk_cfg.get("atr_feature", "f__vol__atr_6")
         self.risk_support_long_feature = risk_cfg.get("support_feature_long", "low")
-        self.risk_resistance_short_feature = risk_cfg.get("resistance_feature_short", "high")
+        self.risk_resistance_short_feature = risk_cfg.get(
+            "resistance_feature_short", "high"
+        )
         self.risk_stop_atr_multiple = float(
             risk_cfg.get(
                 "stop_atr_multiple",
                 risk_cfg.get("max_atr_multiple", 1.0),
             )
         )
-        self.risk_max_atr_multiple = float(risk_cfg.get("max_atr_multiple", self.risk_stop_atr_multiple))
+        self.risk_max_atr_multiple = float(
+            risk_cfg.get("max_atr_multiple", self.risk_stop_atr_multiple)
+        )
         self.risk_buffer_atr = float(risk_cfg.get("support_buffer_atr", 0.1))
         self.risk_target_r_multiple = float(
             risk_cfg.get(
@@ -160,18 +187,22 @@ class IntradayMLDecisionPolicy:
         self.risk_target_r_multiple = max(self.risk_target_r_multiple, 1.0)
         self.risk_min_stop_pct = float(risk_cfg.get("min_stop_pct", 0.0005))
         self.risk_max_stop_pct = float(risk_cfg.get("max_stop_pct", 0.05))
-        self.risk_allow_missing_support = bool(risk_cfg.get("allow_missing_support", True))
-        self.min_expected_r = float(risk_cfg.get("min_expected_r", self.risk_target_r_multiple))
+        self.risk_allow_missing_support = bool(
+            risk_cfg.get("allow_missing_support", True)
+        )
+        self.min_expected_r = float(
+            risk_cfg.get("min_expected_r", self.risk_target_r_multiple)
+        )
         self._risk_helper_config = {
             "price_column": "close",
             "atr_feature": self.risk_atr_feature,
             "support_feature_long": self.risk_support_long_feature,
             "resistance_feature_short": self.risk_resistance_short_feature,
             "max_atr_multiple": self.risk_max_atr_multiple,
-             "stop_atr_multiple": self.risk_stop_atr_multiple,
+            "stop_atr_multiple": self.risk_stop_atr_multiple,
             "support_buffer_atr": self.risk_buffer_atr,
             "target_r_multiple": self.risk_target_r_multiple,
-             "tp_r_multiple": self.risk_target_r_multiple,
+            "tp_r_multiple": self.risk_target_r_multiple,
             "min_stop_pct": self.risk_min_stop_pct,
             "max_stop_pct": self.risk_max_stop_pct,
             "allow_missing_support": self.risk_allow_missing_support,
@@ -181,13 +212,17 @@ class IntradayMLDecisionPolicy:
         self.daily_realized_r = 0.0
 
         # State tracking
-        self.last_trade_ts: dict[tuple[str, str], pd.Timestamp] = {}  # cooldown per symbol+strategy
-        self.position_state: dict[
-            tuple[str, str], dict[str, object]
-        ] = {}  # (symbol,strategy) -> {"side": str, "entry_ts": ts, ...}
+        self.last_trade_ts: dict[tuple[str, str], pd.Timestamp] = (
+            {}
+        )  # cooldown per symbol+strategy
+        self.position_state: dict[tuple[str, str], dict[str, object]] = (
+            {}
+        )  # (symbol,strategy) -> {"side": str, "entry_ts": ts, ...}
         self.entries_per_day: dict[tuple[str, str, pd.Timestamp], int] = {}
         self.symbol_thresholds: dict[str, dict[str, float]] = {}
-        self.strategy_checks = StrategyCheckRegistry(config.get("enabled_strategies", []))
+        self.strategy_checks = StrategyCheckRegistry(
+            config.get("enabled_strategies", [])
+        )
         self.required_feature_columns = set(self.strategy_checks.required_columns)
         self.required_feature_columns.update(
             {
@@ -215,7 +250,9 @@ class IntradayMLDecisionPolicy:
         }
 
         calibration_config = config.get("calibration")
-        self.calibrator = SymbolThresholdCalibrator(calibration_config, self.base_thresholds)
+        self.calibrator = SymbolThresholdCalibrator(
+            calibration_config, self.base_thresholds
+        )
 
         self.policy_mode = str(config.get("policy_mode", "baseline")).lower()
         self.bigmove_adapter: BigMovePolicyAdapter | None = None
@@ -223,7 +260,9 @@ class IntradayMLDecisionPolicy:
             self.bigmove_adapter = BigMovePolicyAdapter(config.get("bigmove_policy"))
         self._rejection_reason_counts: Counter[str] = Counter()
 
-    def process_signals(self, signals: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    def process_signals(
+        self, signals: pd.DataFrame
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
         """
         Processes a DataFrame of signals to generate orders and rejection logs.
 
@@ -254,7 +293,9 @@ class IntradayMLDecisionPolicy:
                 self._sync_trading_day(dt_et.date())
                 trading_day = dt_et.date()
 
-                force_flat_keys = self._force_flat_if_needed(symbol, dt_utc, dt_et, orders)
+                force_flat_keys = self._force_flat_if_needed(
+                    symbol, dt_utc, dt_et, orders
+                )
                 if force_flat_keys:
                     for key in force_flat_keys:
                         self.last_trade_ts[key] = dt_utc
@@ -273,13 +314,19 @@ class IntradayMLDecisionPolicy:
                 score_margin = thresholds["score_margin"]
                 min_directional_gap = thresholds["min_directional_gap"]
                 min_conviction_score = thresholds["min_conviction_score"]
-                gap_exit_delay = thresholds.get("gap_exit_delay_minutes", self.gap_exit_delay_minutes)
-                gap_exit_delay = float(gap_exit_delay) if gap_exit_delay is not None else None
+                gap_exit_delay = thresholds.get(
+                    "gap_exit_delay_minutes", self.gap_exit_delay_minutes
+                )
+                gap_exit_delay = (
+                    float(gap_exit_delay) if gap_exit_delay is not None else None
+                )
 
                 current_time = dt_et.time()
                 profile = get_active_profile(self.tod_profiles, current_time)
 
-                if self.tod_filter_enabled and not (self.min_time <= current_time <= self.max_time):
+                if self.tod_filter_enabled and not (
+                    self.min_time <= current_time <= self.max_time
+                ):
                     self._append_rejection_record(
                         rejections,
                         dt_utc,
@@ -297,9 +344,13 @@ class IntradayMLDecisionPolicy:
                 positions = self._positions_for_symbol(symbol)
                 holding_keys: set[tuple[str, str]] = set()
                 for position_key, position in positions:
-                    hold_duration = (dt_utc - position["entry_ts"]).total_seconds() / 60.0
+                    hold_duration = (
+                        dt_utc - position["entry_ts"]
+                    ).total_seconds() / 60.0
                     entry_gap = float(position.get("entry_gap", directional_gap))
-                    entry_conviction = float(position.get("entry_conviction", conviction_score))
+                    entry_conviction = float(
+                        position.get("entry_conviction", conviction_score)
+                    )
                     pnl_r: float | None = None
                     if current_price is not None:
                         pnl_r = self._compute_position_pnl_r(position, current_price)
@@ -329,9 +380,13 @@ class IntradayMLDecisionPolicy:
                     hold_limit = max_hold_minutes
                     if pnl_r is not None:
                         if pnl_r >= 1.0:
-                            hold_limit = max(hold_limit, self.max_hold_minutes_in_the_money)
+                            hold_limit = max(
+                                hold_limit, self.max_hold_minutes_in_the_money
+                            )
                         elif pnl_r <= 0.0:
-                            hold_limit = min(hold_limit, self.max_hold_minutes_flat_or_loser)
+                            hold_limit = min(
+                                hold_limit, self.max_hold_minutes_flat_or_loser
+                            )
 
                     exit_decision = self._evaluate_position_exit(
                         position=position,
@@ -372,7 +427,11 @@ class IntradayMLDecisionPolicy:
                             self.daily_realized_r += pnl_r
                         self.last_trade_ts[position_key] = dt_utc
                     else:
-                        hold_reason = "holding_short" if position["side"] == "short" else "holding_long"
+                        hold_reason = (
+                            "holding_short"
+                            if position["side"] == "short"
+                            else "holding_long"
+                        )
                         self._append_rejection_record(
                             rejections,
                             dt_utc,
@@ -401,9 +460,14 @@ class IntradayMLDecisionPolicy:
                     rejections=rejections,
                 )
                 if candidate is not None:
-                    position_key = self._position_key(candidate.symbol, candidate.strategy_name)
+                    position_key = self._position_key(
+                        candidate.symbol, candidate.strategy_name
+                    )
                     last_trade = self.last_trade_ts.get(position_key)
-                    if last_trade is not None and (dt_utc - last_trade) < cooldown_duration:
+                    if (
+                        last_trade is not None
+                        and (dt_utc - last_trade) < cooldown_duration
+                    ):
                         self._append_rejection_record(
                             rejections,
                             dt_utc,
@@ -418,7 +482,11 @@ class IntradayMLDecisionPolicy:
                     if position_key in self.position_state:
                         if position_key not in holding_keys:
                             position = self.position_state[position_key]
-                            hold_reason = "holding_short" if position["side"] == "short" else "holding_long"
+                            hold_reason = (
+                                "holding_short"
+                                if position["side"] == "short"
+                                else "holding_long"
+                            )
                             self._append_rejection_record(
                                 rejections,
                                 dt_utc,
@@ -484,7 +552,9 @@ class IntradayMLDecisionPolicy:
         if rejections_df.empty:
             return pd.DataFrame(columns=rejection_columns)
 
-        rejections_df["timestamp"] = pd.to_datetime(rejections_df["timestamp"], utc=True)
+        rejections_df["timestamp"] = pd.to_datetime(
+            rejections_df["timestamp"], utc=True
+        )
         rejections_df["ts"] = rejections_df["timestamp"].astype("int64")
         for column in rejection_columns:
             if column not in rejections_df.columns:
@@ -588,14 +658,22 @@ class IntradayMLDecisionPolicy:
             reason_key=reason_key,
         )
 
-    def _entry_block_reason(self, entries_this_bar: int, strategy_name: str) -> str | None:
-        if self.max_trades_per_bar_global and entries_this_bar >= self.max_trades_per_bar_global:
+    def _entry_block_reason(
+        self, entries_this_bar: int, strategy_name: str
+    ) -> str | None:
+        if (
+            self.max_trades_per_bar_global
+            and entries_this_bar >= self.max_trades_per_bar_global
+        ):
             return "max_trades_per_bar_reached"
         if self.max_open_positions_global:
             open_positions = self._count_positions_for_strategy(strategy_name)
             if open_positions >= self.max_open_positions_global:
                 return "max_open_positions_reached"
-        if self.max_entries_per_day and self.global_entries_today >= self.max_entries_per_day:
+        if (
+            self.max_entries_per_day
+            and self.global_entries_today >= self.max_entries_per_day
+        ):
             return "max_entries_reached_global"
         return None
 
@@ -611,7 +689,9 @@ class IntradayMLDecisionPolicy:
 
         entry_candidates.sort(key=lambda candidate: candidate.score, reverse=True)
         for candidate in entry_candidates:
-            block_reason = self._entry_block_reason(entries_this_bar, candidate.strategy_name)
+            block_reason = self._entry_block_reason(
+                entries_this_bar, candidate.strategy_name
+            )
             symbol_day_count = self.entries_per_day.get(candidate.day_key, 0)
             if block_reason:
                 self._append_candidate_rejection(
@@ -780,7 +860,10 @@ class IntradayMLDecisionPolicy:
         score_margin: float,
         rejections: list[dict[str, object]],
     ) -> EntryCandidate | None:
-        if self.max_entries_per_day and self.global_entries_today >= self.max_entries_per_day:
+        if (
+            self.max_entries_per_day
+            and self.global_entries_today >= self.max_entries_per_day
+        ):
             self._append_rejection_record(
                 rejections,
                 dt_utc,
@@ -856,11 +939,21 @@ class IntradayMLDecisionPolicy:
             profile,
             "prob_threshold_short",
         )
-        min_gap_long = self._apply_profile_override(base_gap, profile, "min_directional_gap_long")
-        min_gap_short = self._apply_profile_override(base_gap, profile, "min_directional_gap_short")
-        min_conv_long = self._apply_profile_override(base_conv, profile, "min_conviction_long")
-        min_conv_short = self._apply_profile_override(base_conv, profile, "min_conviction_short")
-        min_expected_r_long = self._apply_profile_override(base_expected_r, profile, "min_expected_r_long")
+        min_gap_long = self._apply_profile_override(
+            base_gap, profile, "min_directional_gap_long"
+        )
+        min_gap_short = self._apply_profile_override(
+            base_gap, profile, "min_directional_gap_short"
+        )
+        min_conv_long = self._apply_profile_override(
+            base_conv, profile, "min_conviction_long"
+        )
+        min_conv_short = self._apply_profile_override(
+            base_conv, profile, "min_conviction_short"
+        )
+        min_expected_r_long = self._apply_profile_override(
+            base_expected_r, profile, "min_expected_r_long"
+        )
         min_expected_r_short = self._apply_profile_override(
             base_expected_r, profile, "min_expected_r_short"
         )
@@ -964,7 +1057,9 @@ class IntradayMLDecisionPolicy:
             )
             return None
 
-        valid_strategy, strategy_name, strategy_detail = self.strategy_checks.validate(row, side)
+        valid_strategy, strategy_name, strategy_detail = self.strategy_checks.validate(
+            row, side
+        )
         if not valid_strategy:
             self._append_rejection_record(
                 rejections,
@@ -981,7 +1076,8 @@ class IntradayMLDecisionPolicy:
         day_key = (symbol, strategy_name, pd.Timestamp(trading_day))
         if (
             self.max_trades_per_symbol_per_day
-            and self.entries_per_day.get(day_key, 0) >= self.max_trades_per_symbol_per_day
+            and self.entries_per_day.get(day_key, 0)
+            >= self.max_trades_per_symbol_per_day
         ):
             self._append_rejection_record(
                 rejections,
@@ -1096,7 +1192,9 @@ class IntradayMLDecisionPolicy:
             if "timestamp" in signals.columns:
                 signals = signals.rename(columns={"timestamp": "ts"})
             else:
-                raise KeyError("Signals DataFrame must contain either 'ts' or 'timestamp'")
+                raise KeyError(
+                    "Signals DataFrame must contain either 'ts' or 'timestamp'"
+                )
 
         prepared = signals.copy()
         if self.bigmove_adapter is not None:
@@ -1258,8 +1356,14 @@ class IntradayMLDecisionPolicy:
         metadata: dict[str, object] | None = None,
     ) -> dict[str, object]:
         """Construct a deterministic order dictionary."""
-        sl_pct = float(stop_loss_pct) if stop_loss_pct is not None else self.stop_loss_pct
-        tp_pct = float(take_profit_pct) if take_profit_pct is not None else self.take_profit_pct
+        sl_pct = (
+            float(stop_loss_pct) if stop_loss_pct is not None else self.stop_loss_pct
+        )
+        tp_pct = (
+            float(take_profit_pct)
+            if take_profit_pct is not None
+            else self.take_profit_pct
+        )
 
         order = {
             "ts": dt_utc.value,

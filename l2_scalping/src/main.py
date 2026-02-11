@@ -16,8 +16,19 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 import yaml
 from data.l2_feed import L2DataFeed, L2Snapshot
-from execution.order_manager import IBKROrderManager, OrderRequest, OrderSide, OrderType, PlaceOrderResult
+from execution.order_manager import (
+    IBKROrderManager,
+    OrderRequest,
+    OrderSide,
+    OrderType,
+    PlaceOrderResult,
+)
 from exit_guard import ExitGuard
+from fill_processor import FillProcessor
+from order_tracker import OrderTracker
+
+# Import new position tracking components
+from position_manager import PositionManager
 from reporting.performance_reporter import PerformanceReporter
 from reporting.trade_journal import TradeJournal
 from risk.risk_manager import CircuitBreaker, RiskManager
@@ -28,19 +39,20 @@ from signals.context_filter import ContextFeatureComputer, ContextFilter, TradeT
 from signals.l2_signals import L2SignalGenerator
 from signals.l2_signals import L2Snapshot as SignalSnapshot
 from signals.l2_signals import SignalValidator
-from signals.pattern_rules import MultiRuleSignalGenerator, RuleName, SizeSignalGenerator, ResistanceSignalGenerator
+from signals.pattern_rules import (
+    MultiRuleSignalGenerator,
+    ResistanceSignalGenerator,
+    RuleName,
+    SizeSignalGenerator,
+)
 
-# Import new position tracking components
-from position_manager import PositionManager
-from order_tracker import OrderTracker
-from fill_processor import FillProcessor
+from cpapi.audit_logger import get_audit_logger
+from cpapi.emergency_alerts import EmergencyAlerts
+from cpapi.margin_check import MarginChecker
+from cpapi.shared_positions import SharedPositionLedger
 
 # Import Trade Database V2
 from cpapi.trade_integration import TradeIntegration
-from cpapi.audit_logger import get_audit_logger
-from cpapi.margin_check import MarginChecker
-from cpapi.emergency_alerts import EmergencyAlerts
-from cpapi.shared_positions import SharedPositionLedger
 
 _audit = get_audit_logger("l2-scalping")
 
@@ -74,12 +86,14 @@ class ScalpingSystem:
 
         # Pattern-based rules (new)
         self.multi_rule_generator = MultiRuleSignalGenerator(self.config["strategy"])
-        
+
         # Size signal generator (large order detection)
         self.size_signal_generator = SizeSignalGenerator(self.config["strategy"])
-        
+
         # Resistance signal generator (AAA quality trades)
-        self.resistance_signal_generator = ResistanceSignalGenerator(self.config["strategy"])
+        self.resistance_signal_generator = ResistanceSignalGenerator(
+            self.config["strategy"]
+        )
 
         # Data feed (production only - mock data must not be enabled)
         if self.config["strategy"].get("mock_data", {}).get("enabled", False):
@@ -120,7 +134,7 @@ class ScalpingSystem:
         self.position_manager = PositionManager()
         self.order_tracker = OrderTracker()
         # FillProcessor will be initialized after order_manager connection
-        
+
         # Trade Database V2 integration (will be initialized after connection)
         self.trade_db = None
 
@@ -146,7 +160,9 @@ class ScalpingSystem:
         self.pending_entries: dict[int, dict] = {}
         self.scheduled_exits: dict[str, float] = {}  # symbol -> scheduled_exit_time
         self.eod_flattened = False
-        self.active_trades: dict[str, int] = {}  # symbol -> trade_id (int) for Trade DB V2
+        self.active_trades: dict[str, int] = (
+            {}
+        )  # symbol -> trade_id (int) for Trade DB V2
         self._last_exit_check: float = 0.0  # rate-limit exit checks to 1/sec
 
         # Performance tracking
@@ -169,17 +185,17 @@ class ScalpingSystem:
         """Check if we can open a new position using new position manager"""
         # Only check our own tracked positions, not global IBKR positions
         # This allows multiple strategies to trade the same symbol independently
-        
+
         # Check new position manager
         if self.position_manager.has_open_position(symbol):
             return False
         if self.position_manager.has_pending_entry(symbol):
             return False
-        
+
         # Also check legacy active positions for backward compatibility
         if symbol in self.active_positions:
             return False
-        
+
         return True
 
     def _load_config(self) -> dict:
@@ -244,7 +260,9 @@ class ScalpingSystem:
         orders_cfg = self.config.get("ibkr", {}).get("orders", {})
         return str(orders_cfg.get("entry_order_type", "IOC")).upper()
 
-    def _check_margin_gates(self, symbol: str, quantity: int, price: float, side: str) -> tuple[bool, str]:
+    def _check_margin_gates(
+        self, symbol: str, quantity: int, price: float, side: str
+    ) -> tuple[bool, str]:
         """Run margin check + global margin budget check before entry.
 
         Returns (allowed, reason).
@@ -252,7 +270,8 @@ class ScalpingSystem:
         # Individual margin check via IBKR whatIfOrder
         if self.margin_checker:
             try:
-                from ib_insync import Stock, MarketOrder
+                from ib_insync import MarketOrder, Stock
+
                 contract = Stock(symbol, "SMART", "USD")
                 order = MarketOrder(side, quantity)
                 result = self.margin_checker.check(contract, order, symbol)
@@ -456,9 +475,9 @@ class ScalpingSystem:
 
         # Register fill callback
         self.order_manager.add_fill_callback(self._on_order_fill)
-        
+
         # Register order status callback (if available)
-        if hasattr(self.order_manager, 'add_order_status_callback'):
+        if hasattr(self.order_manager, "add_order_status_callback"):
             self.order_manager.add_order_status_callback(self._on_order_status)
 
         # Sync existing IBKR positions to active_positions
@@ -508,7 +527,7 @@ class ScalpingSystem:
 
         # Close all positions
         self._close_all_positions()
-        
+
         # Stop Trade Database V2
         if self.trade_db:
             try:
@@ -562,6 +581,14 @@ class ScalpingSystem:
                 self.risk_manager.update_position_pnl(snapshot.symbol, snapshot.mid)
                 return  # Don't generate new signals if we have a position
 
+            # Block if entry order is pending (prevents race condition accumulation)
+            if any(p["symbol"] == snapshot.symbol for p in self.pending_entries.values()):
+                return
+
+            # Hard cap: block ALL entries if total IBKR exposure exceeds 10% of account
+            if hasattr(self, '_ibkr_exposure_pct') and self._ibkr_exposure_pct > 0.10:
+                return
+
             # Block new entries near EOD or after flatten trigger
             if self.eod_flattened or self.scheduler.is_entry_cutoff_reached():
                 return
@@ -586,7 +613,9 @@ class ScalpingSystem:
                 # Check context gates
                 ctx = self.context_computer.compute(snapshot.symbol)
                 if ctx is not None:
-                    ctx_result = self.context_filter.evaluate(ctx, signal.signal_type.value)
+                    ctx_result = self.context_filter.evaluate(
+                        ctx, signal.signal_type.value
+                    )
                     if ctx_result.tier == TradeTier.BLOCKED:
                         logger.info(
                             f"Trade BLOCKED [{snapshot.symbol}]: {ctx_result.reasons}"
@@ -600,7 +629,7 @@ class ScalpingSystem:
                             ctx,
                             ctx_result,
                         )
-            
+
             # === NEW PATTERN-BASED RULES ===
             extended_snap = self.multi_rule_generator.create_extended_snapshot(
                 symbol=snapshot.symbol,
@@ -613,9 +642,11 @@ class ScalpingSystem:
                 depth_ask=snapshot.depth_ask,
                 pressure=snapshot.pressure,
             )
-            
-            pattern_signals = self.multi_rule_generator.generate_pattern_signals(extended_snap)
-            
+
+            pattern_signals = self.multi_rule_generator.generate_pattern_signals(
+                extended_snap
+            )
+
             # === SIZE SIGNAL (large order detection) ===
             size_signal = self.size_signal_generator.generate_signal(
                 symbol=snapshot.symbol,
@@ -626,18 +657,28 @@ class ScalpingSystem:
             )
             if size_signal:
                 pattern_signals.append(size_signal)
-            
+
             # === RESISTANCE SIGNAL (AAA quality trades) ===
             # Compute depth imbalance
             depth_total = snapshot.depth_bid + snapshot.depth_ask
-            depth_imbalance = (snapshot.depth_bid - snapshot.depth_ask) / depth_total if depth_total > 0 else 0.0
-            
+            depth_imbalance = (
+                (snapshot.depth_bid - snapshot.depth_ask) / depth_total
+                if depth_total > 0
+                else 0.0
+            )
+
             # Get 99th percentile threshold for large order detection
-            large_order_threshold = self.size_signal_generator._get_percentile_threshold(snapshot.symbol, "ask")
+            large_order_threshold = (
+                self.size_signal_generator._get_percentile_threshold(
+                    snapshot.symbol, "ask"
+                )
+            )
             if large_order_threshold is None:
                 # During warmup, use price-based estimate
-                large_order_threshold = self.size_signal_generator._get_warmup_threshold(snapshot.symbol)
-            
+                large_order_threshold = (
+                    self.size_signal_generator._get_warmup_threshold(snapshot.symbol)
+                )
+
             resistance_signal = self.resistance_signal_generator.generate_signal(
                 symbol=snapshot.symbol,
                 timestamp=snapshot.timestamp,
@@ -648,23 +689,29 @@ class ScalpingSystem:
             )
             if resistance_signal:
                 pattern_signals.append(resistance_signal)
-            
+
             for rule_signal in pattern_signals:
-                # Skip if we already have a position
+                # Skip if we already have a position or pending entry
                 if snapshot.symbol in self.active_positions:
                     break
-                
+                if any(p["symbol"] == snapshot.symbol for p in self.pending_entries.values()):
+                    break
+                if hasattr(self, '_ibkr_exposure_pct') and self._ibkr_exposure_pct > 0.10:
+                    break
+
                 # Check context gates for pattern rules too
                 ctx = self.context_computer.compute(snapshot.symbol)
                 ctx_result = None
                 if ctx is not None:
-                    ctx_result = self.context_filter.evaluate(ctx, rule_signal.direction)
+                    ctx_result = self.context_filter.evaluate(
+                        ctx, rule_signal.direction
+                    )
                     if ctx_result.tier == TradeTier.BLOCKED:
                         logger.debug(
                             f"Pattern rule BLOCKED [{rule_signal.rule_name.value}]: {ctx_result.reasons}"
                         )
                         continue
-                
+
                 # Execute pattern rule signal
                 self._execute_pattern_signal(
                     rule_signal,
@@ -689,7 +736,9 @@ class ScalpingSystem:
         try:
             # Check if we can open a new position (new position tracking)
             if not self._can_open_position(signal.symbol):
-                logger.debug(f"Cannot open position for {signal.symbol} - existing position or pending entry")
+                logger.debug(
+                    f"Cannot open position for {signal.symbol} - existing position or pending entry"
+                )
                 return
 
             # Check entry curfew
@@ -742,7 +791,9 @@ class ScalpingSystem:
 
             orders_cfg = self.config["ibkr"]["orders"]
             entry_order_type = self._entry_order_type()
-            exit_price_source = str(orders_cfg.get("exit_price_source", "signal")).lower()
+            exit_price_source = str(
+                orders_cfg.get("exit_price_source", "signal")
+            ).lower()
             use_fill_exits = exit_price_source == "fill"
             use_ioc = entry_order_type == "IOC"
             use_market = entry_order_type == "MKT"
@@ -771,7 +822,9 @@ class ScalpingSystem:
             stop_loss_price = None
             profit_target_price = None
             if use_market:
-                logger.info("MKT order: %s %s qty=%s", signal.symbol, side.value, quantity)
+                logger.info(
+                    "MKT order: %s %s qty=%s", signal.symbol, side.value, quantity
+                )
             else:
                 logger.info(
                     "%s order: %s limit_price=%.4f",
@@ -790,13 +843,17 @@ class ScalpingSystem:
                     entry_price=entry_price_for_exits,
                     side=side.value,
                     max_loss_bps=self.config["risk"]["per_trade"]["max_loss_bps"],
-                    profit_target_bps=self.config["risk"]["per_trade"]["profit_target_bps"],
+                    profit_target_bps=self.config["risk"]["per_trade"][
+                        "profit_target_bps"
+                    ],
                     tick_size=tick_size,
                 )
 
             # Log price improvement if applied
             if price_improvement > 0:
-                logger.debug(f"IOC price improvement: {price_improvement:.4f} ({improvement_ticks} ticks)")
+                logger.debug(
+                    f"IOC price improvement: {price_improvement:.4f} ({improvement_ticks} ticks)"
+                )
 
             # Build signal id for correlation and logging
             signal_id = self._build_signal_id(rule_name.value, signal.symbol)
@@ -827,7 +884,11 @@ class ScalpingSystem:
                 side=side,
                 quantity=quantity,
                 price=limit_price,
-                order_type=OrderType.MKT if use_market else (OrderType.IOC if use_ioc else OrderType.LIMIT),
+                order_type=(
+                    OrderType.MKT
+                    if use_market
+                    else (OrderType.IOC if use_ioc else OrderType.LIMIT)
+                ),
                 time_in_force=None if use_market else ("IOC" if use_ioc else "DAY"),
                 client_order_id=self._build_order_ref(
                     signal.symbol, "ENTRY", side.value, rule_name.value
@@ -842,7 +903,7 @@ class ScalpingSystem:
             if order_id:
                 # Generate trade ID and create position tracking
                 trade_id = self._generate_trade_id()
-                
+
                 # Open trade in Trade Database V2
                 db_trade_id = None
                 if self.trade_db:
@@ -857,32 +918,38 @@ class ScalpingSystem:
                                 "rule": rule_name.value,
                                 "strength": signal.strength,
                                 "confidence": signal.confidence,
-                                "legacy_trade_id": trade_id
-                            }
+                                "legacy_trade_id": trade_id,
+                            },
                         )
-                        self.trade_db.link_order(db_trade_id, int(order_id), is_entry=True)
+                        self.trade_db.link_order(
+                            db_trade_id, int(order_id), is_entry=True
+                        )
                         # Link bracket child orders (stop/target) for exit fills
                         children = self.order_manager.get_bracket_children(order_id)
                         stop_id = children.get("stop_id")
                         target_id = children.get("target_id")
                         if stop_id:
-                            self.trade_db.link_order(db_trade_id, int(stop_id), is_entry=False)
+                            self.trade_db.link_order(
+                                db_trade_id, int(stop_id), is_entry=False
+                            )
                         if target_id:
-                            self.trade_db.link_order(db_trade_id, int(target_id), is_entry=False)
+                            self.trade_db.link_order(
+                                db_trade_id, int(target_id), is_entry=False
+                            )
                         self.active_trades[signal.symbol] = db_trade_id
                         logger.info(f"Trade DB V2: opened trade_id={db_trade_id}")
                     except Exception as e:
                         logger.error(f"Failed to record trade in DB V2: {e}")
-                
+
                 # Create position in new position manager
                 position = self.position_manager.create_position(
                     entry_order_id=order_id,
                     trade_id=trade_id,
                     symbol=signal.symbol,
                     direction="long" if side == OrderSide.BUY else "short",
-                    target_qty=quantity
+                    target_qty=quantity,
                 )
-                
+
                 # Track order in new order tracker
                 self.order_tracker.add_order(
                     order_id=order_id,
@@ -892,20 +959,36 @@ class ScalpingSystem:
                     side=side.value,
                     quantity=quantity,
                     order_type=order_request.order_type.value,
-                    limit_price=limit_price if limit_price else 0.0
+                    limit_price=limit_price if limit_price else 0.0,
                 )
 
                 self.signals_traded += 1
-                improvement_str = f" +{price_improvement:.4f}" if price_improvement > 0 else ""
-                price_str = "MKT" if use_market else f"{limit_price:.4f}{improvement_str}"
-                stop_str = "N/A" if stop_loss_price is None else f"{stop_loss_price:.4f}"
-                target_str = "N/A" if profit_target_price is None else f"{profit_target_price:.4f}"
+                improvement_str = (
+                    f" +{price_improvement:.4f}" if price_improvement > 0 else ""
+                )
+                price_str = (
+                    "MKT" if use_market else f"{limit_price:.4f}{improvement_str}"
+                )
+                stop_str = (
+                    "N/A" if stop_loss_price is None else f"{stop_loss_price:.4f}"
+                )
+                target_str = (
+                    "N/A"
+                    if profit_target_price is None
+                    else f"{profit_target_price:.4f}"
+                )
                 logger.info(
                     f"TRADE [{rule_name.value}]: {signal.symbol} {side.value} {quantity}@{price_str} "
                     f"[stop={stop_str}, target={target_str}] trade_id={trade_id[:8]}"
                 )
-                _audit.trade_open(signal.symbol, side.value, quantity, limit_price or snapshot.mid, trade_id)
-                
+                _audit.trade_open(
+                    signal.symbol,
+                    side.value,
+                    quantity,
+                    limit_price or snapshot.mid,
+                    trade_id,
+                )
+
                 # Maintain legacy pending_entries for backward compatibility
                 self.pending_entries[str(order_id)] = {
                     "symbol": signal.symbol,
@@ -913,12 +996,16 @@ class ScalpingSystem:
                     "quantity": quantity,
                     "rule_name": rule_name.value,
                     "signal_id": signal_id,
-                    "signal_price": snapshot.ask if side == OrderSide.BUY else snapshot.bid,
+                    "signal_price": (
+                        snapshot.ask if side == OrderSide.BUY else snapshot.bid
+                    ),
                     "entry_order_type": entry_order_type,
                     "exit_price_source": exit_price_source,
                     "tick_size": tick_size,
                     "max_loss_bps": self.config["risk"]["per_trade"]["max_loss_bps"],
-                    "profit_target_bps": self.config["risk"]["per_trade"]["profit_target_bps"],
+                    "profit_target_bps": self.config["risk"]["per_trade"][
+                        "profit_target_bps"
+                    ],
                     "filled_qty": 0,
                     "total_value": 0.0,
                     "exit_order_ids": [],
@@ -942,7 +1029,9 @@ class ScalpingSystem:
         try:
             # Check if we can open a new position (new position tracking)
             if not self._can_open_position(snapshot.symbol):
-                logger.debug(f"Cannot open position for {snapshot.symbol} - existing position or pending entry")
+                logger.debug(
+                    f"Cannot open position for {snapshot.symbol} - existing position or pending entry"
+                )
                 return
 
             # Check entry curfew
@@ -997,17 +1086,26 @@ class ScalpingSystem:
             is_aaa = rule_signal.confidence >= 0.90
             if is_aaa:
                 max_loss_bps = self.config["risk"]["per_trade"]["aaa_max_loss_bps"]
-                profit_target_bps = self.config["risk"]["per_trade"]["aaa_profit_target_bps"]
+                profit_target_bps = self.config["risk"]["per_trade"][
+                    "aaa_profit_target_bps"
+                ]
                 quantity = min(
-                    int(quantity * self.config["risk"]["per_trade"]["aaa_size_multiplier"]),
+                    int(
+                        quantity
+                        * self.config["risk"]["per_trade"]["aaa_size_multiplier"]
+                    ),
                     self.risk_manager.max_shares,
                 )
             else:
                 max_loss_bps = self.config["risk"]["per_trade"]["max_loss_bps"]
-                profit_target_bps = self.config["risk"]["per_trade"]["profit_target_bps"]
+                profit_target_bps = self.config["risk"]["per_trade"][
+                    "profit_target_bps"
+                ]
 
             orders_cfg = self.config["ibkr"]["orders"]
-            exit_price_source = str(orders_cfg.get("exit_price_source", "signal")).lower()
+            exit_price_source = str(
+                orders_cfg.get("exit_price_source", "signal")
+            ).lower()
             use_fill_exits = exit_price_source == "fill"
             entry_order_type = self._entry_order_type()
             use_ioc = entry_order_type == "IOC"
@@ -1037,7 +1135,12 @@ class ScalpingSystem:
             stop_loss_price = None
             profit_target_price = None
             if use_market:
-                logger.info("[RULE] MKT order: %s %s qty=%s", snapshot.symbol, side.value, quantity)
+                logger.info(
+                    "[RULE] MKT order: %s %s qty=%s",
+                    snapshot.symbol,
+                    side.value,
+                    quantity,
+                )
             else:
                 logger.info(
                     "[RULE] %s order: %s limit_price=%.4f",
@@ -1061,7 +1164,9 @@ class ScalpingSystem:
                 )
 
             # Build signal id for correlation and logging
-            signal_id = self._build_signal_id(rule_signal.rule_name.value, snapshot.symbol)
+            signal_id = self._build_signal_id(
+                rule_signal.rule_name.value, snapshot.symbol
+            )
             self._log_trade_decision(
                 symbol=snapshot.symbol,
                 direction="long" if rule_signal.direction > 0 else "short",
@@ -1083,7 +1188,11 @@ class ScalpingSystem:
                 side=side,
                 quantity=quantity,
                 price=limit_price,
-                order_type=OrderType.MKT if use_market else (OrderType.IOC if use_ioc else OrderType.LIMIT),
+                order_type=(
+                    OrderType.MKT
+                    if use_market
+                    else (OrderType.IOC if use_ioc else OrderType.LIMIT)
+                ),
                 time_in_force=None if use_market else ("IOC" if use_ioc else "DAY"),
                 client_order_id=self._build_order_ref(
                     snapshot.symbol, "ENTRY", side.value, rule_signal.rule_name.value
@@ -1098,16 +1207,16 @@ class ScalpingSystem:
             if order_id:
                 # Generate trade ID and create position tracking
                 trade_id = self._generate_trade_id()
-                
+
                 # Create position in new position manager
                 position = self.position_manager.create_position(
                     entry_order_id=order_id,
                     trade_id=trade_id,
                     symbol=snapshot.symbol,
                     direction="long" if rule_signal.direction > 0 else "short",
-                    target_qty=quantity
+                    target_qty=quantity,
                 )
-                
+
                 # Track order in new order tracker
                 self.order_tracker.add_order(
                     order_id=order_id,
@@ -1117,18 +1226,24 @@ class ScalpingSystem:
                     side=side.value,
                     quantity=quantity,
                     order_type=order_request.order_type.value,
-                    limit_price=limit_price if limit_price else 0.0
+                    limit_price=limit_price if limit_price else 0.0,
                 )
 
                 self.signals_traded += 1
                 price_str = "MKT" if use_market else f"{limit_price:.4f}"
-                stop_str = "N/A" if stop_loss_price is None else f"{stop_loss_price:.4f}"
-                target_str = "N/A" if profit_target_price is None else f"{profit_target_price:.4f}"
+                stop_str = (
+                    "N/A" if stop_loss_price is None else f"{stop_loss_price:.4f}"
+                )
+                target_str = (
+                    "N/A"
+                    if profit_target_price is None
+                    else f"{profit_target_price:.4f}"
+                )
                 logger.info(
                     f"TRADE [{rule_signal.rule_name.value}]: {snapshot.symbol} {side.value} "
                     f"{quantity}@{price_str} [stop={stop_str}, target={target_str}] ({rule_signal.reason}) trade_id={trade_id[:8]}"
                 )
-                
+
                 # Maintain legacy pending_entries for backward compatibility
                 self.pending_entries[str(order_id)] = {
                     "symbol": snapshot.symbol,
@@ -1136,7 +1251,9 @@ class ScalpingSystem:
                     "quantity": quantity,
                     "rule_name": rule_signal.rule_name.value,
                     "signal_id": signal_id,
-                    "signal_price": snapshot.ask if side == OrderSide.BUY else snapshot.bid,
+                    "signal_price": (
+                        snapshot.ask if side == OrderSide.BUY else snapshot.bid
+                    ),
                     "entry_order_type": entry_order_type,
                     "exit_price_source": exit_price_source,
                     "tick_size": tick_size,
@@ -1167,7 +1284,9 @@ class ScalpingSystem:
             # Get tracked order to determine trade_id
             tracked_order = self.order_tracker.get_order(order_id)
             if not tracked_order:
-                logger.warning(f"Fill for untracked order {order_id} - using legacy handler")
+                logger.warning(
+                    f"Fill for untracked order {order_id} - using legacy handler"
+                )
                 self._legacy_fill_handler(trade, fill)
                 return
 
@@ -1180,7 +1299,7 @@ class ScalpingSystem:
                 side=side,
                 qty=filled_qty,
                 price=fill_price,
-                is_partial=is_partial
+                is_partial=is_partial,
             )
 
             # Record fill to journal (maintain existing functionality)
@@ -1213,12 +1332,12 @@ class ScalpingSystem:
 
     def _extract_rule_from_ref(self, order_ref: str) -> str:
         """Extract rule name from order reference.
-        
+
         Example: 'L2SCALP_high_obi_depth_ENTRY_BUY_JOBY_...' -> 'high_obi_depth'
         """
         if not order_ref or "L2SCALP_" not in order_ref:
             return "unknown"
-        
+
         parts = order_ref.split("_")
         if len(parts) >= 3:
             # L2SCALP_<rule_name>_ENTRY/EXIT_...
@@ -1263,22 +1382,24 @@ class ScalpingSystem:
 
                 # Check if fully filled
                 order_filled = getattr(trade.orderStatus, "filled", 0) or 0
-                total_qty = getattr(trade.order, "totalQuantity", expected_qty) or expected_qty
+                total_qty = (
+                    getattr(trade.order, "totalQuantity", expected_qty) or expected_qty
+                )
                 remaining = getattr(trade.orderStatus, "remaining", None)
                 status = str(getattr(trade.orderStatus, "status", "") or "")
-                fully_filled = (
-                    pending["filled_qty"] >= expected_qty
-                    or float(order_filled) >= float(total_qty)
-                )
-                terminal = (
-                    status in {"Cancelled", "Inactive", "ApiCancelled"}
-                    or (remaining is not None and float(remaining) == 0.0)
+                fully_filled = pending["filled_qty"] >= expected_qty or float(
+                    order_filled
+                ) >= float(total_qty)
+                terminal = status in {"Cancelled", "Inactive", "ApiCancelled"} or (
+                    remaining is not None and float(remaining) == 0.0
                 )
 
                 if fully_filled or terminal:
                     self.pending_entries.pop(order_id, None)
-                    logger.info(f"Legacy entry fill completed: {symbol} {filled_qty}@{fill_price}")
-                    
+                    logger.info(
+                        f"Legacy entry fill completed: {symbol} {filled_qty}@{fill_price}"
+                    )
+
                     # Record trade entry to database
                     rule_name = self._extract_rule_from_ref(order_ref)
                     try:
@@ -1290,17 +1411,20 @@ class ScalpingSystem:
                             order_id=order_id,
                             rule_name=rule_name,
                             signal_id=f"l2_{rule_name}_{symbol}_{int(time.time())}",
-                            signal_price=avg_fill_price
+                            signal_price=avg_fill_price,
                         )
-                        
+
                         if trade_id:
                             self.active_trades[symbol] = trade_id
                             logger.info(f"L2 Trade opened: {trade_id} for {symbol}")
                         else:
                             logger.error(f"Failed to open trade for {symbol}")
                     except Exception as exc:
-                        logger.error(f"Error recording trade entry for {symbol}: {exc}", exc_info=True)
-            
+                        logger.error(
+                            f"Error recording trade entry for {symbol}: {exc}",
+                            exc_info=True,
+                        )
+
             # Handle completely untracked ENTRY orders (e.g., after restart)
             elif "ENTRY" in order_ref and symbol not in self.active_positions:
                 position_side = "SHORT" if side == "SLD" else "LONG"
@@ -1316,15 +1440,17 @@ class ScalpingSystem:
                     "exit_filled_qty": 0,
                     "exit_total_value": 0.0,
                     "exit_reason": None,
-                    "rule_name": order_ref.split("_")[1] if "_" in order_ref else "unknown",
+                    "rule_name": (
+                        order_ref.split("_")[1] if "_" in order_ref else "unknown"
+                    ),
                 }
                 self.risk_manager.upsert_position(
-                    symbol, 
-                    -filled_qty if side == "SLD" else filled_qty, 
-                    fill_price
+                    symbol, -filled_qty if side == "SLD" else filled_qty, fill_price
                 )
-                logger.info(f"Created position from untracked entry: {symbol} {position_side} {filled_qty}@{fill_price}")
-                
+                logger.info(
+                    f"Created position from untracked entry: {symbol} {position_side} {filled_qty}@{fill_price}"
+                )
+
                 # Record trade entry for untracked orders too
                 rule_name = self._extract_rule_from_ref(order_ref)
                 try:
@@ -1336,14 +1462,19 @@ class ScalpingSystem:
                         order_id=order_id,
                         rule_name=rule_name,
                         signal_id=f"l2_{rule_name}_{symbol}_{int(time.time())}",
-                        signal_price=fill_price
+                        signal_price=fill_price,
                     )
-                    
+
                     if trade_id:
                         self.active_trades[symbol] = trade_id
-                        logger.info(f"L2 Trade opened (untracked): {trade_id} for {symbol}")
+                        logger.info(
+                            f"L2 Trade opened (untracked): {trade_id} for {symbol}"
+                        )
                 except Exception as exc:
-                    logger.error(f"Error recording untracked trade entry for {symbol}: {exc}", exc_info=True)
+                    logger.error(
+                        f"Error recording untracked trade entry for {symbol}: {exc}",
+                        exc_info=True,
+                    )
 
         except Exception as e:
             logger.error(f"Error in legacy fill handler: {e}", exc_info=True)
@@ -1353,20 +1484,20 @@ class ScalpingSystem:
         try:
             order_id = int(trade.order.orderId)
             status = trade.orderStatus.status
-            
+
             # Update order tracker
             tracked_order = self.order_tracker.get_order(order_id)
             if tracked_order:
                 self.order_tracker.update_status(order_id, status)
                 logger.debug(f"Order {order_id} status: {status}")
-                
+
                 if status == "Filled":
                     self._handle_order_filled(trade)
                 elif status == "Cancelled":
                     self._handle_order_cancelled(trade)
             else:
                 logger.debug(f"Status update for untracked order {order_id}: {status}")
-                
+
         except Exception as e:
             logger.error(f"Error processing order status: {e}", exc_info=True)
 
@@ -1374,7 +1505,7 @@ class ScalpingSystem:
         """Handle order filled status"""
         order_id = int(trade.order.orderId)
         tracked_order = self.order_tracker.get_order(order_id)
-        
+
         if tracked_order and tracked_order.intent == "ENTRY":
             logger.info(f"Entry order {order_id} fully filled")
         elif tracked_order and tracked_order.intent in ("TP", "SL"):
@@ -1384,16 +1515,18 @@ class ScalpingSystem:
         """Handle order cancelled status"""
         order_id = int(trade.order.orderId)
         tracked_order = self.order_tracker.get_order(order_id)
-        
+
         if tracked_order:
             logger.info(f"Order {order_id} ({tracked_order.intent}) cancelled")
-            
+
             # If entry order cancelled, clean up position
             if tracked_order.intent == "ENTRY":
                 position = self.position_manager.get_position_by_order(order_id)
                 if position and position.filled_qty == 0:
                     self.position_manager.close_position(order_id)
-                    logger.info(f"Cleaned up unfilled position for {tracked_order.symbol}")
+                    logger.info(
+                        f"Cleaned up unfilled position for {tracked_order.symbol}"
+                    )
 
     def _handle_fill(self, trade) -> None:
         """Handle order fill"""
@@ -1450,19 +1583,22 @@ class ScalpingSystem:
                 )
 
                 order_filled = getattr(trade.orderStatus, "filled", 0) or 0
-                total_qty = getattr(trade.order, "totalQuantity", expected_qty) or expected_qty
+                total_qty = (
+                    getattr(trade.order, "totalQuantity", expected_qty) or expected_qty
+                )
                 remaining = getattr(trade.orderStatus, "remaining", None)
                 status = str(getattr(trade.orderStatus, "status", "") or "")
-                fully_filled = (
-                    pending["filled_qty"] >= expected_qty
-                    or float(order_filled) >= float(total_qty)
-                )
-                terminal = (
-                    status in {"Cancelled", "Inactive", "ApiCancelled"}
-                    or (remaining is not None and float(remaining) == 0.0)
+                fully_filled = pending["filled_qty"] >= expected_qty or float(
+                    order_filled
+                ) >= float(total_qty)
+                terminal = status in {"Cancelled", "Inactive", "ApiCancelled"} or (
+                    remaining is not None and float(remaining) == 0.0
                 )
 
-                if pending.get("exit_price_source") == "fill" and pending["filled_qty"] > 0:
+                if (
+                    pending.get("exit_price_source") == "fill"
+                    and pending["filled_qty"] > 0
+                ):
                     stop_loss_price, profit_target_price = self._compute_exit_prices(
                         entry_price=avg_fill_price,
                         side=entry_side,
@@ -1482,14 +1618,20 @@ class ScalpingSystem:
                             stop_loss_price=stop_loss_price,
                             profit_target_price=profit_target_price,
                         )
-                        pending["exit_order_ids"] = [oid for oid in exit_ids.values() if oid]
+                        pending["exit_order_ids"] = [
+                            oid for oid in exit_ids.values() if oid
+                        ]
                         pending["exit_order_qty"] = desired_exit_qty
-                        pending["exit_order_time"] = time.time()  # Track when exit orders placed
+                        pending["exit_order_time"] = (
+                            time.time()
+                        )  # Track when exit orders placed
 
                 signed_delta = fill_qty if entry_side.upper() == "BUY" else -fill_qty
 
                 if symbol not in self.active_positions:
-                    self.risk_manager.upsert_position(symbol, signed_delta, float(fill_price))
+                    self.risk_manager.upsert_position(
+                        symbol, signed_delta, float(fill_price)
+                    )
                     position_side = "LONG" if entry_side.upper() == "BUY" else "SHORT"
                     self.active_positions[symbol] = {
                         "quantity": int(pending["filled_qty"]),
@@ -1500,7 +1642,9 @@ class ScalpingSystem:
                         "entry_order_id": order_id,
                         "exit_order_id": None,
                         "exit_order_ids": pending.get("exit_order_ids", []),
-                        "exit_order_time": pending.get("exit_order_time"),  # Track exit order time
+                        "exit_order_time": pending.get(
+                            "exit_order_time"
+                        ),  # Track exit order time
                         "exit_filled_qty": 0,
                         "exit_total_value": 0.0,
                         "exit_reason": None,
@@ -1508,7 +1652,9 @@ class ScalpingSystem:
                         "signal_id": pending.get("signal_id"),
                     }
 
-                    hold_seconds = self.config["strategy"]["strategy"].get("default_hold_seconds", 300)
+                    hold_seconds = self.config["strategy"]["strategy"].get(
+                        "default_hold_seconds", 300
+                    )
                     self.scheduled_exits[symbol] = time.time() + hold_seconds
                     logger.info(f"Scheduled exit for {symbol} in {hold_seconds}s")
 
@@ -1528,8 +1674,10 @@ class ScalpingSystem:
                     if self.shared_ledger:
                         try:
                             self.shared_ledger.upsert(
-                                "l2-scalping", symbol,
-                                int(pending["filled_qty"]), avg_fill_price,
+                                "l2-scalping",
+                                symbol,
+                                int(pending["filled_qty"]),
+                                avg_fill_price,
                             )
                         except Exception as e:
                             logger.debug("Shared ledger upsert failed: %s", e)
@@ -1539,8 +1687,12 @@ class ScalpingSystem:
                     prev_qty = position["quantity"]
                     delta_qty = int(pending["filled_qty"]) - prev_qty
                     if delta_qty != 0:
-                        delta_signed = delta_qty if entry_side.upper() == "BUY" else -delta_qty
-                        self.risk_manager.upsert_position(symbol, delta_signed, float(fill_price))
+                        delta_signed = (
+                            delta_qty if entry_side.upper() == "BUY" else -delta_qty
+                        )
+                        self.risk_manager.upsert_position(
+                            symbol, delta_signed, float(fill_price)
+                        )
                         position["quantity"] = int(pending["filled_qty"])
                         position["entry_price"] = avg_fill_price
                         position["initial_quantity"] = max(
@@ -1570,19 +1722,25 @@ class ScalpingSystem:
             # Exit fill
             position = self.active_positions.get(symbol)
             exit_ids = position.get("exit_order_ids", []) if position else []
-            if position and (position.get("exit_order_id") == order_id or order_id in exit_ids):
+            if position and (
+                position.get("exit_order_id") == order_id or order_id in exit_ids
+            ):
                 exit_fill_qty = int(filled_qty)
                 if exit_fill_qty <= 0:
                     return
 
-                position["exit_filled_qty"] = int(position.get("exit_filled_qty", 0)) + exit_fill_qty
-                position["exit_total_value"] = float(position.get("exit_total_value", 0.0)) + (
-                    exit_fill_qty * float(fill_price)
+                position["exit_filled_qty"] = (
+                    int(position.get("exit_filled_qty", 0)) + exit_fill_qty
                 )
+                position["exit_total_value"] = float(
+                    position.get("exit_total_value", 0.0)
+                ) + (exit_fill_qty * float(fill_price))
 
                 remaining_qty = position["quantity"] - exit_fill_qty
                 if remaining_qty > 0:
-                    self.risk_manager.reduce_position(symbol, exit_fill_qty, float(fill_price))
+                    self.risk_manager.reduce_position(
+                        symbol, exit_fill_qty, float(fill_price)
+                    )
                     position["quantity"] = remaining_qty
                     logger.info(
                         "Partial exit fill: %s %s filled=%s remaining=%s",
@@ -1606,12 +1764,12 @@ class ScalpingSystem:
                     pnl = (entry_price - avg_exit_price) * total_qty
 
                 commission = self._estimate_commission(total_qty)
-                
+
                 # Get trade_id from active_trades dict
                 trade_id = self.active_trades.get(symbol, "")
                 exit_reason = self._determine_exit_reason(order_ref)
                 rule_name = position.get("rule_name", "obi_momentum")
-                
+
                 if trade_id:
                     try:
                         self.trade_journal.record_trade_exit(
@@ -1625,13 +1783,34 @@ class ScalpingSystem:
                             exit_reason=exit_reason,
                             exit_order_id=order_id,
                         )
-                        logger.info(f"L2 Trade closed: {trade_id} for {symbol} @ {avg_exit_price}")
-                        _audit.trade_close(symbol, position["side"], total_qty, avg_exit_price, pnl, trade_id)
+                        logger.info(
+                            f"L2 Trade closed: {trade_id} for {symbol} @ {avg_exit_price}"
+                        )
+                        _audit.trade_close(
+                            symbol,
+                            position["side"],
+                            total_qty,
+                            avg_exit_price,
+                            pnl,
+                            trade_id,
+                        )
+                        # Close in Trade DB V2 (fallback if auto-close didn't trigger)
+                        db_trade_id = self.active_trades.get(symbol)
+                        if self.trade_db and db_trade_id:
+                            try:
+                                self.trade_db.close_trade(db_trade_id, avg_exit_price, total_qty, pnl, exit_reason)
+                            except Exception as db_exc:
+                                logger.error(f"DB V2 close_trade failed for {symbol}: {db_exc}")
                         del self.active_trades[symbol]
                     except Exception as exc:
-                        logger.error(f"Error recording trade exit for {symbol}: {exc}", exc_info=True)
+                        logger.error(
+                            f"Error recording trade exit for {symbol}: {exc}",
+                            exc_info=True,
+                        )
                 else:
-                    logger.warning(f"Exit fill for {symbol} but no active trade_id found")
+                    logger.warning(
+                        f"Exit fill for {symbol} but no active trade_id found"
+                    )
                     # Fallback to old method for backward compatibility
                     self.trade_journal.record_trade_exit(
                         trade_id=position.get("trade_id", ""),
@@ -1672,7 +1851,9 @@ class ScalpingSystem:
         """Check if positions should be exited"""
         current_time = time.time()
         exit_price_source = str(
-            self.config.get("ibkr", {}).get("orders", {}).get("exit_price_source", "signal")
+            self.config.get("ibkr", {})
+            .get("orders", {})
+            .get("exit_price_source", "signal")
         ).lower()
 
         for symbol in list(self.active_positions.keys()):
@@ -1683,7 +1864,9 @@ class ScalpingSystem:
                     entry_price=position["entry_price"],
                     side="BUY" if position["side"] == "LONG" else "SELL",
                     max_loss_bps=self.config["risk"]["per_trade"]["max_loss_bps"],
-                    profit_target_bps=self.config["risk"]["per_trade"]["profit_target_bps"],
+                    profit_target_bps=self.config["risk"]["per_trade"][
+                        "profit_target_bps"
+                    ],
                     tick_size=self.config["ibkr"]["orders"].get("tick_size", 0.01),
                 )
                 exit_ids = self.order_manager.place_oca_exit_orders(
@@ -1720,14 +1903,20 @@ class ScalpingSystem:
                 # Check if we already have exit orders working
                 if position.get("exit_order_ids"):
                     # OCA orders exist - check how long they've been there
-                    exit_order_time = position.get("exit_order_time", position["entry_time"])
+                    exit_order_time = position.get(
+                        "exit_order_time", position["entry_time"]
+                    )
                     exit_order_age = current_time - exit_order_time
                     # Only force cancel if exit orders have been pending for > 60 seconds
                     if exit_order_age < 60:
-                        logger.info(f"{symbol}: Max hold exceeded but exit orders working ({exit_order_age:.0f}s old)")
+                        logger.info(
+                            f"{symbol}: Max hold exceeded but exit orders working ({exit_order_age:.0f}s old)"
+                        )
                         continue
                     else:
-                        logger.warning(f"FORCE EXIT: {symbol} exit orders stale ({exit_order_age:.0f}s)")
+                        logger.warning(
+                            f"FORCE EXIT: {symbol} exit orders stale ({exit_order_age:.0f}s)"
+                        )
                         should_exit = True
                         force_exit = True
                         exit_reason = f"MAX_HOLD_EXCEEDED ({hold_time:.0f}s >= {max_hold}s), exit orders stale"
@@ -1748,7 +1937,11 @@ class ScalpingSystem:
             if exit_price_source == "fill" and position.get("exit_order_ids"):
                 if should_exit and force_exit:
                     # Only force market exit if explicitly forcing
-                    self._exit_position(symbol, snapshot.mid, exit_reason, force_market=True)
+                    self._exit_position(
+                        symbol, snapshot.mid, exit_reason, force_market=True
+                    )
+                    # Reset exit_order_time to prevent re-triggering on next tick
+                    position["exit_order_time"] = current_time
                 # Otherwise let OCA orders work
                 continue
 
@@ -1768,11 +1961,15 @@ class ScalpingSystem:
 
             # Exit position
             if should_exit:
-                self._exit_position(symbol, snapshot.mid, exit_reason, force_market=force_exit)
+                self._exit_position(
+                    symbol, snapshot.mid, exit_reason, force_market=force_exit
+                )
 
-    def _exit_position(self, symbol: str, exit_price: float, reason: str, force_market: bool = False) -> None:
+    def _exit_position(
+        self, symbol: str, exit_price: float, reason: str, force_market: bool = False
+    ) -> None:
         """Exit a position
-        
+
         Args:
             symbol: Symbol to exit
             exit_price: Current market price
@@ -1807,7 +2004,9 @@ class ScalpingSystem:
                     try:
                         self.order_manager.cancel_order(position["exit_order_id"])
                     except Exception as e:
-                        logger.debug(f"Could not cancel exit order {position['exit_order_id']}: {e}")
+                        logger.debug(
+                            f"Could not cancel exit order {position['exit_order_id']}: {e}"
+                        )
                     position["exit_order_id"] = None
             elif position.get("exit_order_id"):
                 # Exit order already exists and we're not forcing - skip
@@ -1883,7 +2082,9 @@ class ScalpingSystem:
 
         # Global cancel first to clear all pending orders
         try:
-            if hasattr(self.order_manager, '_order_manager') and hasattr(self.order_manager._order_manager, 'ib'):
+            if hasattr(self.order_manager, "_order_manager") and hasattr(
+                self.order_manager._order_manager, "ib"
+            ):
                 self.order_manager._order_manager.ib.reqGlobalCancel()
                 logger.info("EOD FLATTEN: reqGlobalCancel sent")
                 time.sleep(1)  # Brief pause for cancels to propagate
@@ -1901,7 +2102,9 @@ class ScalpingSystem:
             if not remaining:
                 break
             if attempt > 0:
-                logger.warning(f"EOD FLATTEN: Retry attempt {attempt + 1} for {remaining}")
+                logger.warning(
+                    f"EOD FLATTEN: Retry attempt {attempt + 1} for {remaining}"
+                )
                 time.sleep(2)
                 self.exit_guard.reset_all()
 
@@ -1916,7 +2119,9 @@ class ScalpingSystem:
                         force_market=True,
                     )
                     # Check if exit was blocked by guard (margin rejection)
-                    if symbol in self.active_positions and not self.active_positions[symbol].get("exit_order_id"):
+                    if symbol in self.active_positions and not self.active_positions[
+                        symbol
+                    ].get("exit_order_id"):
                         still_open.append(symbol)
             remaining = still_open
 
@@ -1942,22 +2147,28 @@ class ScalpingSystem:
         try:
             # Wait for IBKR to send position data
             import time as time_module
+
             time_module.sleep(2)
-            
+
             positions = self.order_manager.get_positions()
             logger.info(f"Got {len(positions) if positions else 0} positions from IBKR")
             if not positions:
                 logger.info("No existing IBKR positions to sync")
                 return
-            
+
             # Get symbols we're trading today
-            trading_symbols = set(self.data_feed.symbols) if hasattr(self.data_feed, 'symbols') else set()
+            trading_symbols = (
+                set(self.data_feed.symbols)
+                if hasattr(self.data_feed, "symbols")
+                else set()
+            )
             logger.info(f"Trading symbols: {trading_symbols}")
 
             # Load shared positions for reconciliation
             shared_pos = {}
             try:
                 from cpapi.shared_positions import SharedPositionLedger
+
                 ledger = SharedPositionLedger()
                 for sp in ledger.get_all("l2-scalping"):
                     shared_pos[sp["symbol"]] = sp
@@ -1969,21 +2180,23 @@ class ScalpingSystem:
                 symbol = pos["symbol"]
                 qty = int(pos["quantity"])
                 avg_price = float(pos["avg_price"])
-                
+
                 if qty == 0:
                     continue
 
                 ibkr_symbols.add(symbol)
-                
+
                 # Always sync ALL IBKR positions to risk manager to prevent
                 # re-entry after restarts (even for non-trading symbols)
                 self.risk_manager.upsert_position(symbol, qty, avg_price)
 
                 # Only add to active_positions if we're trading this symbol
                 if trading_symbols and symbol not in trading_symbols:
-                    logger.warning(f"IBKR position in non-trading symbol {symbol} qty={qty} — tracked in risk manager only")
+                    logger.warning(
+                        f"IBKR position in non-trading symbol {symbol} qty={qty} — tracked in risk manager only"
+                    )
                     continue
-                
+
                 if symbol not in self.active_positions:
                     position_side = "SHORT" if qty < 0 else "LONG"
                     self.active_positions[symbol] = {
@@ -2001,9 +2214,13 @@ class ScalpingSystem:
                         "rule_name": "synced_from_ibkr",
                     }
                     self.risk_manager.upsert_position(symbol, qty, avg_price)
-                    logger.info(f"Synced IBKR position: {symbol} {position_side} {abs(qty)}@{avg_price:.4f}")
-            
-            logger.info(f"Position sync complete: {len(self.active_positions)} active positions")
+                    logger.info(
+                        f"Synced IBKR position: {symbol} {position_side} {abs(qty)}@{avg_price:.4f}"
+                    )
+
+            logger.info(
+                f"Position sync complete: {len(self.active_positions)} active positions"
+            )
 
             # Reconcile: shared_positions entries not in IBKR → mark closed
             for sym, sp in shared_pos.items():
@@ -2014,6 +2231,7 @@ class ScalpingSystem:
                     )
                     try:
                         from cpapi.shared_positions import SharedPositionLedger
+
                         SharedPositionLedger().remove("l2-scalping", sym)
                     except Exception:
                         pass
@@ -2027,10 +2245,13 @@ class ScalpingSystem:
                     )
                     try:
                         from cpapi.shared_positions import SharedPositionLedger
+
                         pos_data = self.active_positions[sym]
                         SharedPositionLedger().upsert(
-                            "l2-scalping", sym,
-                            pos_data["quantity"], pos_data["entry_price"],
+                            "l2-scalping",
+                            sym,
+                            pos_data["quantity"],
+                            pos_data["entry_price"],
                         )
                     except Exception:
                         pass
@@ -2042,8 +2263,24 @@ class ScalpingSystem:
         """Background monitoring loop"""
         while self.is_running:
             try:
-                # Log system health every 60 seconds
                 time.sleep(60)
+
+                # Query IBKR positions and compute total exposure
+                try:
+                    positions = self.order_manager.get_positions()
+                    total_notional = sum(
+                        abs(int(p["quantity"])) * float(p["avg_price"])
+                        for p in (positions or [])
+                        if int(p["quantity"]) != 0
+                    )
+                    self._ibkr_exposure_pct = total_notional / max(1, self.account_value)
+                    if self._ibkr_exposure_pct > 0.05:
+                        logger.warning(
+                            "IBKR exposure %.1f%% of account ($%.0f / $%.0f)",
+                            self._ibkr_exposure_pct * 100, total_notional, self.account_value,
+                        )
+                except Exception as e:
+                    logger.debug("IBKR exposure check failed: %s", e)
 
                 risk_metrics = self.risk_manager.get_risk_metrics(self.account_value)
                 data_health = self.data_feed.health_check()
@@ -2057,7 +2294,8 @@ class ScalpingSystem:
                     f"Risk: {risk_metrics.risk_status.value}, "
                     f"Data: {data_health.get('data_healthy', data_health.get('connected', False))}, "
                     f"Fresh: {data_health.get('fresh_snapshots', 0)}/{data_health.get('symbols_subscribed', 0)}, "
-                    f"Orders: {order_health['connected']}"
+                    f"Orders: {order_health['connected']}, "
+                    f"IBKR_Exposure: {getattr(self, '_ibkr_exposure_pct', 0):.1%}"
                 )
 
             except Exception as e:
@@ -2090,7 +2328,9 @@ class ScalpingSystem:
         logger.info(f"Received signal {signum}")
         self.is_running = False
 
-    def _build_order_ref(self, symbol: str, intent: str, side: str, rule_name: str = "obi_momentum") -> str:
+    def _build_order_ref(
+        self, symbol: str, intent: str, side: str, rule_name: str = "obi_momentum"
+    ) -> str:
         """Build order reference for tagging with rule name"""
         prefix = self.config["ibkr"]["orders"].get("order_ref_prefix", "L2SCALP")
         return f"{prefix}_{rule_name}_{intent}_{side}_{symbol}_{int(time.time()*1000)}"

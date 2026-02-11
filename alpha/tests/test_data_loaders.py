@@ -6,8 +6,7 @@ Following the project policy: no synthetic data for testing when real data is av
 
 import pandas as pd
 import pytest
-
-from src.data import GoldLoader, SipLoader, L2Loader
+from src.data import GoldLoader, L2Loader, SipLoader
 
 
 class TestGoldLoader:
@@ -33,7 +32,9 @@ class TestGoldLoader:
         assert pd.api.types.is_numeric_dtype(df["close"]), "close should be numeric"
 
         # Verify no null values in core columns
-        assert df[required_cols].notna().all().all(), "Core columns should not have nulls"
+        assert (
+            df[required_cols].notna().all().all()
+        ), "Core columns should not have nulls"
 
     def test_gold_loader_date_range(self):
         """Load 1 week, verify continuity and sorting."""
@@ -48,7 +49,9 @@ class TestGoldLoader:
         assert df["ts"].is_monotonic_increasing, "Timestamps should be sorted"
 
         # Verify no duplicates
-        assert len(df) == len(df.drop_duplicates(subset=["ts"])), "No duplicate timestamps"
+        assert len(df) == len(
+            df.drop_duplicates(subset=["ts"])
+        ), "No duplicate timestamps"
 
     def test_gold_loader_spy(self):
         """Load SPY for regime classification."""
@@ -188,14 +191,20 @@ class TestL2Loader:
             assert col in df.columns, f"Missing depth column: {col}"
 
         # Verify has_depth is boolean or can be treated as such
-        assert df["has_depth"].dtype in [bool, "bool", "object"], "has_depth should be bool-like"
+        assert df["has_depth"].dtype in [
+            bool,
+            "bool",
+            "object",
+        ], "has_depth should be bool-like"
 
     def test_l2_loader_time_filter(self):
         """Test filtering by time range."""
         loader = L2Loader()
 
         # Load with time filter
-        df = loader.load_snapshots("LUV", "2025-12-19", start_time="09:30:00", end_time="10:00:00")
+        df = loader.load_snapshots(
+            "LUV", "2025-12-19", start_time="09:30:00", end_time="10:00:00"
+        )
 
         # Verify we got filtered data
         # (May be empty if no data in that time range, but shouldn't error)

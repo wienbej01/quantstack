@@ -50,8 +50,12 @@ class AlphaL2Features:
         self.history: deque = deque(maxlen=self.history_len)
 
         # Track average sizes for large order detection
-        self.avg_bid_sizes: Dict[int, deque] = {i: deque(maxlen=50) for i in range(1, 11)}
-        self.avg_ask_sizes: Dict[int, deque] = {i: deque(maxlen=50) for i in range(1, 11)}
+        self.avg_bid_sizes: Dict[int, deque] = {
+            i: deque(maxlen=50) for i in range(1, 11)
+        }
+        self.avg_ask_sizes: Dict[int, deque] = {
+            i: deque(maxlen=50) for i in range(1, 11)
+        }
 
     def compute_book_imbalance(self, snapshot: pd.Series, levels: int = 5) -> float:
         """Compute order book imbalance at specified levels.
@@ -125,7 +129,9 @@ class AlphaL2Features:
 
         return total_bid / total_ask
 
-    def compute_book_slope(self, snapshot: pd.Series, levels: int = 5) -> Tuple[float, float]:
+    def compute_book_slope(
+        self, snapshot: pd.Series, levels: int = 5
+    ) -> Tuple[float, float]:
         """Compute order book slope (price decay across levels).
 
         Slope measures how quickly prices deteriorate as you go deeper into the book.
@@ -337,10 +343,12 @@ class AlphaL2Features:
             bid_depth += bid_sz
             ask_depth += ask_sz
 
-        self.history.append({
-            "bid_depth": bid_depth,
-            "ask_depth": ask_depth,
-        })
+        self.history.append(
+            {
+                "bid_depth": bid_depth,
+                "ask_depth": ask_depth,
+            }
+        )
 
     def compute_all_features(
         self,
@@ -357,10 +365,15 @@ class AlphaL2Features:
         features = {}
 
         # Compute spread from bid_px_1 and ask_px_1 (fallback to l1_bid/l1_ask if available)
-        bid_price = snapshot.get('bid_px_1') or snapshot.get('l1_bid')
-        ask_price = snapshot.get('ask_px_1') or snapshot.get('l1_ask')
-        
-        if bid_price and ask_price and not pd.isna(bid_price) and not pd.isna(ask_price):
+        bid_price = snapshot.get("bid_px_1") or snapshot.get("l1_bid")
+        ask_price = snapshot.get("ask_px_1") or snapshot.get("l1_ask")
+
+        if (
+            bid_price
+            and ask_price
+            and not pd.isna(bid_price)
+            and not pd.isna(ask_price)
+        ):
             features["spread"] = float(ask_price - bid_price)
             features["mid_price"] = float((bid_price + ask_price) / 2)
         else:
@@ -369,7 +382,9 @@ class AlphaL2Features:
 
         # Basic book imbalance at multiple levels
         for levels in [1, 3, 5, 10]:
-            features[f"book_imbalance_{levels}"] = self.compute_book_imbalance(snapshot, levels)
+            features[f"book_imbalance_{levels}"] = self.compute_book_imbalance(
+                snapshot, levels
+            )
 
         # Depth ratio
         features["depth_ratio_5"] = self.compute_depth_ratio(snapshot, levels=5)

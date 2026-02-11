@@ -38,7 +38,9 @@ def _coerce_rule_value(value: Any) -> Any:
     return value
 
 
-def _extract_rule_conditions(pattern: dict[str, Any]) -> tuple[list[tuple[str, Any]], str | None]:
+def _extract_rule_conditions(
+    pattern: dict[str, Any]
+) -> tuple[list[tuple[str, Any]], str | None]:
     rule_type = pattern.get("rule_type")
     if rule_type == "single":
         col = pattern.get("rule_col")
@@ -288,5 +290,7 @@ def validate_patterns(
     val_df: pd.DataFrame,
     validation_gate,
 ) -> list[dict[str, Any]]:
-    validated, _ = validate_patterns_with_diagnostics(patterns, scan_df, val_df, validation_gate)
+    validated, _ = validate_patterns_with_diagnostics(
+        patterns, scan_df, val_df, validation_gate
+    )
     return validated

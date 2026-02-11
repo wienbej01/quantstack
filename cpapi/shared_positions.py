@@ -34,8 +34,14 @@ class SharedPositionLedger:
         finally:
             conn.close()
 
-    def upsert(self, service: str, symbol: str, quantity: int,
-               avg_price: float, margin_used: float = 0.0) -> None:
+    def upsert(
+        self,
+        service: str,
+        symbol: str,
+        quantity: int,
+        avg_price: float,
+        margin_used: float = 0.0,
+    ) -> None:
         """Insert or update a position."""
         with self._conn() as conn:
             with conn.cursor() as cur:
@@ -78,11 +84,17 @@ class SharedPositionLedger:
         """Get total margin used across all services."""
         with self._conn() as conn:
             with conn.cursor() as cur:
-                cur.execute("SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions")
+                cur.execute(
+                    "SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions"
+                )
                 return float(cur.fetchone()[0])
 
-    def check_global_margin(self, new_margin: float, account_equity: float,
-                            cap_pct: float = GLOBAL_MARGIN_CAP_PCT) -> tuple[bool, str]:
+    def check_global_margin(
+        self,
+        new_margin: float,
+        account_equity: float,
+        cap_pct: float = GLOBAL_MARGIN_CAP_PCT,
+    ) -> tuple[bool, str]:
         """Check if adding new_margin would exceed the global cap.
 
         Uses advisory lock for atomicity across concurrent services.
@@ -92,7 +104,9 @@ class SharedPositionLedger:
             with conn.cursor() as cur:
                 # Advisory lock to prevent race between services
                 cur.execute("SELECT pg_advisory_xact_lock(8675309)")
-                cur.execute("SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions")
+                cur.execute(
+                    "SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions"
+                )
                 total = float(cur.fetchone()[0])
 
                 cap = account_equity * cap_pct

@@ -40,7 +40,9 @@ class CheckResult:
     fixed: bool = False
 
 
-def _run(cmd: list[str], *, timeout: int = 12, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _run(
+    cmd: list[str], *, timeout: int = 12, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         capture_output=True,
@@ -177,10 +179,14 @@ def _ib_gateway_probe() -> CheckResult:
                 if err and is_client_id_in_use(err.code):
                     last_err = f"client_id {cid} in use"
                     continue
-                return CheckResult(False, f"connect failed to {host}:{port} (client_id={cid})")
+                return CheckResult(
+                    False, f"connect failed to {host}:{port} (client_id={cid})"
+                )
             accounts = session.call(session.ib.managedAccounts, timeout=5) or []
             if not accounts:
-                return CheckResult(False, f"connected but no accounts returned (client_id={cid})")
+                return CheckResult(
+                    False, f"connected but no accounts returned (client_id={cid})"
+                )
             return CheckResult(True, f"connected {host}:{port} (client_id={cid})")
         except Exception as exc:
             last_err = str(exc)[:120]
@@ -202,7 +208,9 @@ def _wal_growth_check() -> CheckResult:
     try:
         proc = _run(["wc", "-l", str(wal_path)], timeout=10)
         if proc.returncode != 0:
-            return CheckResult(False, f"wc failed: {(proc.stderr or proc.stdout)[:120]}")
+            return CheckResult(
+                False, f"wc failed: {(proc.stderr or proc.stdout)[:120]}"
+            )
         n = int((proc.stdout or "0").strip().split()[0])
     except Exception as exc:
         return CheckResult(False, f"WAL check failed: {exc}")
@@ -228,7 +236,9 @@ def _wal_growth_check() -> CheckResult:
         return CheckResult(True, f"WAL stable (lines={n}, delta={delta})")
     # If dedup is working, growth should be low unless there are new executions.
     if delta > 5000:
-        return CheckResult(False, f"WAL growing fast (lines={n}, +{delta} since last check)")
+        return CheckResult(
+            False, f"WAL growing fast (lines={n}, +{delta} since last check)"
+        )
     return CheckResult(True, f"WAL growth OK (lines={n}, +{delta})")
 
 
@@ -237,7 +247,11 @@ def _service_check_and_fix(name: str) -> CheckResult:
     unit_map: dict[str, tuple[str, bool, str]] = {
         "l2-scalping": ("l2-scalping.service", False, "l2_scalping/src/main.py"),
         "intraday-paper": ("intraday-paper.service", False, "paper_trade.py"),
-        "l2-vwap-reversion": ("l2-vwap-reversion.service", True, "l2_vwap_reversion/src/main.py"),
+        "l2-vwap-reversion": (
+            "l2-vwap-reversion.service",
+            True,
+            "l2_vwap_reversion/src/main.py",
+        ),
     }
     unit, is_user, pat = unit_map[name]
     ok, detail = _systemctl_is_active(unit, user=is_user)
@@ -288,7 +302,9 @@ def _db_activity_check() -> CheckResult:
         return CheckResult(False, f"db check failed: {exc}")
 
 
-def _send_ntfy(title: str, message: str, *, priority: str = "default", tags: str = "") -> None:
+def _send_ntfy(
+    title: str, message: str, *, priority: str = "default", tags: str = ""
+) -> None:
     # Best-effort: avoid failing the run if ntfy is down.
     try:
         cmd = ["curl", "-H", f"Title: {title}", "-H", f"Priority: {priority}"]
@@ -330,7 +346,12 @@ def main() -> int:
         for name, res in checks:
             suffix = " (fixed)" if res.fixed else ""
             lines.append(f"✅ {name}: {res.msg}{suffix}")
-        _send_ntfy("✅ Ops Check OK", "\n".join(lines), priority="default", tags="white_check_mark")
+        _send_ntfy(
+            "✅ Ops Check OK",
+            "\n".join(lines),
+            priority="default",
+            tags="white_check_mark",
+        )
         print("\n".join(lines))
         return 0
 
@@ -345,14 +366,22 @@ def main() -> int:
     lines.append("All checks:")
     for name, res in checks:
         icon = "✅" if res.ok else "❌"
-        suffix = " (fixed)" if res.fixed and res.ok else " (fix attempted)" if res.fixed else ""
+        suffix = (
+            " (fixed)"
+            if res.fixed and res.ok
+            else " (fix attempted)" if res.fixed else ""
+        )
         lines.append(f"{icon} {name}: {res.msg}{suffix}")
 
-    _send_ntfy("⚠️ Ops Check Issues", "\n".join(lines), priority="high", tags="warning,rotating_light")
+    _send_ntfy(
+        "⚠️ Ops Check Issues",
+        "\n".join(lines),
+        priority="high",
+        tags="warning,rotating_light",
+    )
     print("\n".join(lines))
     return 1
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

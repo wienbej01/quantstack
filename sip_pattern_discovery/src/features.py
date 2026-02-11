@@ -31,13 +31,19 @@ def compute_momentum_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
 
         # EVENT features: Momentum sign changes
         positive = ret > 0
-        group[f"ret_{window}m_turned_positive"] = positive & ~positive.shift(1).fillna(True)
-        group[f"ret_{window}m_turned_negative"] = ~positive & positive.shift(1).fillna(False)
+        group[f"ret_{window}m_turned_positive"] = positive & ~positive.shift(1).fillna(
+            True
+        )
+        group[f"ret_{window}m_turned_negative"] = ~positive & positive.shift(1).fillna(
+            False
+        )
 
     return group
 
 
-def compute_relative_strength_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.DataFrame:
+def compute_relative_strength_features(
+    df: pd.DataFrame, spy_df: pd.DataFrame
+) -> pd.DataFrame:
     """Compute cross-ticker relative strength vs SPY.
 
     This is a HIGH ALPHA feature - stocks that underperform SPY tend to catch up.
@@ -70,7 +76,9 @@ def compute_relative_strength_features(df: pd.DataFrame, spy_df: pd.DataFrame) -
 
     # Relative strength = stock return - SPY return
     # Positive = outperforming, Negative = underperforming
-    result["rel_strength_60m"] = result["ret_60m"] * 100 - result["spy_ret_60m_pct"].fillna(0)
+    result["rel_strength_60m"] = result["ret_60m"] * 100 - result[
+        "spy_ret_60m_pct"
+    ].fillna(0)
 
     # EVENT: Extreme underperformance (>1% below SPY) = mean reversion opportunity
     result["rel_underperform_extreme"] = result["rel_strength_60m"] < -1.0
@@ -140,8 +148,12 @@ def compute_session_range_features_for_symbol(symbol_group: tuple) -> pd.DataFra
         # EVENT: New session high/low
         prev_high = session_high.shift(1)
         prev_low = session_low.shift(1)
-        group.loc[session_group.index, "new_session_high"] = session_group["high"] > prev_high
-        group.loc[session_group.index, "new_session_low"] = session_group["low"] < prev_low
+        group.loc[session_group.index, "new_session_high"] = (
+            session_group["high"] > prev_high
+        )
+        group.loc[session_group.index, "new_session_low"] = (
+            session_group["low"] < prev_low
+        )
 
     # Drop heavy datetime columns to reduce memory footprint.
     group = group.drop(columns=["dt", "dt_et", "session_date"], errors="ignore")
@@ -157,7 +169,9 @@ def compute_momentum_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFr
     symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
 
     if n_workers <= 1:
-        results = [compute_momentum_features_for_symbol(group) for group in symbol_groups]
+        results = [
+            compute_momentum_features_for_symbol(group) for group in symbol_groups
+        ]
     else:
         with Pool(n_workers) as pool:
             results = pool.map(compute_momentum_features_for_symbol, symbol_groups)
@@ -165,7 +179,9 @@ def compute_momentum_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFr
     return pd.concat(results, ignore_index=True)
 
 
-def compute_vwap_features_for_symbol(symbol_group: tuple, window: int = 30) -> pd.DataFrame:
+def compute_vwap_features_for_symbol(
+    symbol_group: tuple, window: int = 30
+) -> pd.DataFrame:
     """Compute VWAP features for a single symbol."""
     symbol, group = symbol_group
     group = group.sort_values("ts").copy()
@@ -189,7 +205,9 @@ def compute_vwap_features_for_symbol(symbol_group: tuple, window: int = 30) -> p
     return group
 
 
-def compute_vwap_features(df: pd.DataFrame, window: int = 30, n_workers: int = 6) -> pd.DataFrame:
+def compute_vwap_features(
+    df: pd.DataFrame, window: int = 30, n_workers: int = 6
+) -> pd.DataFrame:
     """Compute VWAP and price deviation in parallel."""
     symbols = df["symbol"].unique()
     print(f"  Computing VWAP for {len(symbols)} symbols using {n_workers} workers...")
@@ -256,7 +274,9 @@ def compute_volume_features(
     return pd.concat(results, ignore_index=True)
 
 
-def compute_atr_features_for_symbol(symbol_group: tuple, window: int = 14) -> pd.DataFrame:
+def compute_atr_features_for_symbol(
+    symbol_group: tuple, window: int = 14
+) -> pd.DataFrame:
     """Compute ATR for a single symbol."""
     symbol, group = symbol_group
     group = group.sort_values("ts").copy()
@@ -273,7 +293,9 @@ def compute_atr_features_for_symbol(symbol_group: tuple, window: int = 14) -> pd
     return group
 
 
-def compute_atr_features(df: pd.DataFrame, window: int = 14, n_workers: int = 6) -> pd.DataFrame:
+def compute_atr_features(
+    df: pd.DataFrame, window: int = 14, n_workers: int = 6
+) -> pd.DataFrame:
     """Compute ATR (Average True Range) in parallel."""
     symbols = df["symbol"].unique()
     print(f"  Computing ATR for {len(symbols)} symbols using {n_workers} workers...")
@@ -315,12 +337,12 @@ def compute_session_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
 
         # EVENT: Session AVWAP crosses
         above_avwap = session_group["close"] > session_avwap
-        group.loc[session_group.index, "avwap_cross_up"] = above_avwap & ~above_avwap.shift(
-            1
-        ).fillna(False)
-        group.loc[session_group.index, "avwap_cross_down"] = ~above_avwap & above_avwap.shift(
-            1
-        ).fillna(True)
+        group.loc[session_group.index, "avwap_cross_up"] = (
+            above_avwap & ~above_avwap.shift(1).fillna(False)
+        )
+        group.loc[session_group.index, "avwap_cross_down"] = (
+            ~above_avwap & above_avwap.shift(1).fillna(True)
+        )
 
     # Drop heavy datetime columns to reduce memory footprint.
     group = group.drop(columns=["dt", "dt_et", "session_date"], errors="ignore")
@@ -331,12 +353,16 @@ def compute_session_features_for_symbol(symbol_group: tuple) -> pd.DataFrame:
 def compute_session_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFrame:
     """Compute session-anchored features in parallel."""
     symbols = df["symbol"].unique()
-    print(f"  Computing session features for {len(symbols)} symbols using {n_workers} workers...")
+    print(
+        f"  Computing session features for {len(symbols)} symbols using {n_workers} workers..."
+    )
 
     symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
 
     if n_workers <= 1:
-        results = [compute_session_features_for_symbol(group) for group in symbol_groups]
+        results = [
+            compute_session_features_for_symbol(group) for group in symbol_groups
+        ]
     else:
         with Pool(n_workers) as pool:
             results = pool.map(compute_session_features_for_symbol, symbol_groups)
@@ -356,9 +382,9 @@ def compute_time_features(df: pd.DataFrame, inplace: bool = False) -> pd.DataFra
     result["minute_et"] = result["dt_et"].dt.minute
 
     # State features (for regime filtering)
-    result["is_first_hour"] = ((result["hour_et"] == 9) & (result["minute_et"] >= 30)) | (
-        result["hour_et"] == 10
-    )
+    result["is_first_hour"] = (
+        (result["hour_et"] == 9) & (result["minute_et"] >= 30)
+    ) | (result["hour_et"] == 10)
     result["is_power_hour"] = result["hour_et"] == 15
 
     # EVENT features (actual entry signals)
@@ -370,7 +396,9 @@ def compute_time_features(df: pd.DataFrame, inplace: bool = False) -> pd.DataFra
     result["last_30min_start"] = (result["hour_et"] == 15) & (result["minute_et"] == 30)
 
     # Drop heavy datetime columns to reduce memory footprint.
-    result = result.drop(columns=["dt", "dt_et", "hour_et", "minute_et"], errors="ignore")
+    result = result.drop(
+        columns=["dt", "dt_et", "hour_et", "minute_et"], errors="ignore"
+    )
 
     return result
 
@@ -398,7 +426,9 @@ def compute_spy_regime_features(df: pd.DataFrame, spy_df: pd.DataFrame) -> pd.Da
     low_close = abs(spy["low"] - spy["close"].shift(1))
     tr = pd.concat([high_low, high_close, low_close], axis=1).max(axis=1)
     spy["atr_20"] = tr.rolling(20, min_periods=1).mean()
-    spy["atr_percentile"] = spy["atr_20"].rolling(252 * 60, min_periods=100).rank(pct=True)
+    spy["atr_percentile"] = (
+        spy["atr_20"].rolling(252 * 60, min_periods=100).rank(pct=True)
+    )
     spy["spy_high_vol"] = spy["atr_percentile"] > 0.7
 
     # Merge on ts (nearest match)
@@ -439,7 +469,9 @@ def compute_volume_price_features(df: pd.DataFrame, n_workers: int = 6) -> pd.Da
     symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
 
     if n_workers <= 1:
-        results = [compute_volume_price_features_for_symbol(group) for group in symbol_groups]
+        results = [
+            compute_volume_price_features_for_symbol(group) for group in symbol_groups
+        ]
     else:
         with Pool(n_workers) as pool:
             results = pool.map(compute_volume_price_features_for_symbol, symbol_groups)
@@ -447,7 +479,9 @@ def compute_volume_price_features(df: pd.DataFrame, n_workers: int = 6) -> pd.Da
     return pd.concat(results, ignore_index=True)
 
 
-def compute_session_range_features(df: pd.DataFrame, n_workers: int = 6) -> pd.DataFrame:
+def compute_session_range_features(
+    df: pd.DataFrame, n_workers: int = 6
+) -> pd.DataFrame:
     """Compute session range features in parallel."""
     symbols = df["symbol"].unique()
     print(f"  Computing session range for {len(symbols)} symbols...")
@@ -455,7 +489,9 @@ def compute_session_range_features(df: pd.DataFrame, n_workers: int = 6) -> pd.D
     symbol_groups = [(symbol, group) for symbol, group in df.groupby("symbol")]
 
     if n_workers <= 1:
-        results = [compute_session_range_features_for_symbol(group) for group in symbol_groups]
+        results = [
+            compute_session_range_features_for_symbol(group) for group in symbol_groups
+        ]
     else:
         with Pool(n_workers) as pool:
             results = pool.map(compute_session_range_features_for_symbol, symbol_groups)
@@ -662,7 +698,9 @@ class MonthlyFeatureCache:
 
         feature_kwargs = dict(kwargs)
         if "n_workers" in feature_kwargs and feature_kwargs["n_workers"] != 1:
-            print("  Forcing feature n_workers=1 inside monthly cache to avoid nested pools.")
+            print(
+                "  Forcing feature n_workers=1 inside monthly cache to avoid nested pools."
+            )
             feature_kwargs["n_workers"] = 1
 
         # Process uncached months (can parallelize)
@@ -692,7 +730,9 @@ class MonthlyFeatureCache:
             for month in months_to_process:
                 month_str = month.strftime("%Y_%m")
                 n_bars = (df["date"] == month).sum()
-                print(f"  Computing {feature_name} for {month_str} ({n_bars:,} bars)...")
+                print(
+                    f"  Computing {feature_name} for {month_str} ({n_bars:,} bars)..."
+                )
 
                 # MEMORY FIX: Filter and copy ONLY this month (1-2GB, not 50GB)
                 month_df = df[df["date"] == month].copy()

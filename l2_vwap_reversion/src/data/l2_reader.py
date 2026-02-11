@@ -47,9 +47,14 @@ class L2DataReader:
         current_mtime = latest_file.stat().st_mtime
         cache_key = f"{symbol}_{trade_date}"
 
-        if cache_key in self._cache and self._last_file_mtime.get(cache_key) == current_mtime:
+        if (
+            cache_key in self._cache
+            and self._last_file_mtime.get(cache_key) == current_mtime
+        ):
             # Check if there are newer files
-            if len(parquet_files) == len([f for f in parquet_files if f.stat().st_mtime <= current_mtime]):
+            if len(parquet_files) == len(
+                [f for f in parquet_files if f.stat().st_mtime <= current_mtime]
+            ):
                 return self._cache[cache_key]
 
         # Load all parquet files for today

@@ -311,9 +311,9 @@ def compute_volume_baseline(
         if daily_df.empty:
             continue
 
-        daily_df["dt_et"] = pd.to_datetime(daily_df["ts"], unit="ns", utc=True).dt.tz_convert(
-            "America/New_York"
-        )
+        daily_df["dt_et"] = pd.to_datetime(
+            daily_df["ts"], unit="ns", utc=True
+        ).dt.tz_convert("America/New_York")
         daily_df["minute_of_day"] = (
             daily_df["dt_et"].dt.hour * 60 + daily_df["dt_et"].dt.minute
         )
@@ -421,6 +421,7 @@ def load_sip_filtered_data(
             # Use output_dir for temp files (avoids /tmp filesystem corruption issues)
             if output_dir is None:
                 import tempfile
+
                 temp_dir = Path(tempfile.gettempdir()) / "sip_pattern_discovery_temp"
             else:
                 temp_dir = output_dir / ".temp_daily_files"
@@ -430,11 +431,13 @@ def load_sip_filtered_data(
             daily_df.to_parquet(daily_file, index=False)
             daily_files.append(daily_file)
 
-            print(f"  Loaded {loaded}/{len(symbols)} symbols, {total_bars:,} total bars (cached day to {daily_file.name})")
+            print(
+                f"  Loaded {loaded}/{len(symbols)} symbols, {total_bars:,} total bars (cached day to {daily_file.name})"
+            )
 
         # Clear memory for this day
         del daily_bars
-        if 'daily_df' in locals():
+        if "daily_df" in locals():
             del daily_df
 
     if not daily_files:
@@ -449,8 +452,11 @@ def load_sip_filtered_data(
 
     # Clean up temp files directory (only .temp dirs, not output_dir itself)
     import shutil
+
     temp_dir = daily_files[0].parent
-    if temp_dir.name.startswith('.temp') or 'sip_pattern_discovery_temp' in str(temp_dir):
+    if temp_dir.name.startswith(".temp") or "sip_pattern_discovery_temp" in str(
+        temp_dir
+    ):
         shutil.rmtree(temp_dir, ignore_errors=True)
         print(f"Cleaned up {len(daily_files)} temporary daily files")
 

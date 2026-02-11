@@ -13,11 +13,13 @@ import logging
 import signal
 import sys
 import time
-from datetime import datetime, time as dt_time
+from datetime import datetime
+from datetime import time as dt_time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import nest_asyncio
+
 nest_asyncio.apply()
 
 import yaml
@@ -27,14 +29,16 @@ sys.path.insert(0, str(Path(__file__).parent))
 # Add parent for cpapi imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from qx_broker.ibkr import IBKRConnectionConfig, IBKRSession, IBKRSessionConfig
-from strategy import Strategy, Side, Signal
 from data.bar_feed import AggregatedBarFeed
-from execution.order_manager import OrderManager, OrderSide, BracketOrderResult, round_to_tick_size
+from execution.order_manager import (
+    BracketOrderResult,
+    OrderManager,
+    OrderSide,
+    round_to_tick_size,
+)
+from qx_broker.ibkr import IBKRConnectionConfig, IBKRSession, IBKRSessionConfig
 from reporting.trade_journal import TradeJournal
-
-# Import Trade Database V2
-from cpapi.trade_integration import TradeIntegration
+from strategy import Side, Signal, Strategy
 
 # Import Client ID Manager
 from cpapi.client_id_manager import ClientIDManager
@@ -42,6 +46,9 @@ from cpapi.client_id_manager import ClientIDManager
 # Import margin checker (Feb 9 incident fix)
 from cpapi.margin_check import MarginChecker
 from cpapi.shared_positions import SharedPositionLedger
+
+# Import Trade Database V2
+from cpapi.trade_integration import TradeIntegration
 
 # Import SIP integration from l2-scalping
 sys.path.insert(0, "/home/jacobw/quantstack/l2_scalping/src/data")
@@ -71,7 +78,7 @@ class VWAPReversionSystem:
 
         # Trade journal with PostgreSQL + audit logging
         self.journal = TradeJournal()
-        
+
         # Trade Database V2 (will be initialized after connection)
         self.trade_db = None
 
@@ -101,7 +108,7 @@ class VWAPReversionSystem:
 
         # Initialize IBKR sessions with dynamic client IDs
         ibkr_cfg = config.get("ibkr", {})
-        
+
         # Client ID manager for dynamic allocation
         self.client_id_mgr = ClientIDManager.from_config("l2_vwap", config)
         data_client_id = self.client_id_mgr.get_data_id()
@@ -155,14 +162,24 @@ class VWAPReversionSystem:
 
         # Register bar callback
         self.bar_feed.add_callback(self._on_bar)
-        
+
         # Register fill callback
         self.order_manager.set_fill_callback(self._on_fill)
 
-    def _on_fill(self, order_id: int, symbol: str, side: str, filled_qty: int, avg_price: float, is_entry: bool) -> None:
+    def _on_fill(
+        self,
+        order_id: int,
+        symbol: str,
+        side: str,
+        filled_qty: int,
+        avg_price: float,
+        is_entry: bool,
+    ) -> None:
         """Handle fill events - update position with actual fill prices."""
-        logger.info(f"Fill: {symbol} {side} {filled_qty}@{avg_price:.4f} (entry={is_entry})")
-        
+        logger.info(
+            f"Fill: {symbol} {side} {filled_qty}@{avg_price:.4f} (entry={is_entry})"
+        )
+
         if is_entry:
             self._entry_fill_price = avg_price
             # Update position entry_price with actual fill
@@ -203,7 +220,7 @@ class VWAPReversionSystem:
     def _on_bar(self, bar) -> None:
         """Handle incoming bar data."""
         logger.info(f"_on_bar called: {bar.symbol} @ {bar.close:.2f}")
-        
+
         # Only process bars for our SIP symbols
         if bar.symbol not in self.symbols:
             logger.warning(f"{bar.symbol} not in SIP symbols {self.symbols}")
@@ -231,18 +248,22 @@ class VWAPReversionSystem:
             return
 
         # Calculate position size: 2% equity risk
-        equity = getattr(self, '_account_equity', None) or self.config.get("risk", {}).get("account_equity", 100000)
+        equity = getattr(self, "_account_equity", None) or self.config.get(
+            "risk", {}
+        ).get("account_equity", 100000)
         risk_per_trade = equity * 0.02
-        
+
         # Stop loss distance
         if signal.side == Side.LONG:
             stop_pct = 1.0 - self.sl_long  # e.g., 0.995 -> 0.005 = 0.5%
         else:
             stop_pct = self.sl_short - 1.0  # e.g., 1.005 -> 0.005 = 0.5%
-        
+
         stop_distance = signal.price * stop_pct
-        position_size = int(risk_per_trade / stop_distance) if stop_distance > 0 else 100
-        
+        position_size = (
+            int(risk_per_trade / stop_distance) if stop_distance > 0 else 100
+        )
+
         # Cap at 2% of equity in notional
         max_notional = int((equity * 0.02) / signal.price)
         position_size = min(position_size, max_notional, 10000)  # Max 10k shares
@@ -250,10 +271,12 @@ class VWAPReversionSystem:
         if self.strategy.position is None:
             # Only check our own tracked position, not global IBKR positions
             # This allows multiple strategies to trade the same symbol independently
-            
+
             # Pre-trade margin check (Feb 9 incident fix)
             if self.margin_checker:
-                from ib_insync import Stock, MarketOrder as IB_MarketOrder
+                from ib_insync import MarketOrder as IB_MarketOrder
+                from ib_insync import Stock
+
                 check_contract = Stock(signal.symbol, "SMART", "USD")
                 check_action = "BUY" if signal.side == Side.LONG else "SELL"
                 check_order = IB_MarketOrder(check_action, position_size)
@@ -264,7 +287,9 @@ class VWAPReversionSystem:
                     self._consecutive_margin_rejections += 1
                     logger.warning(
                         "MARGIN CHECK BLOCKED entry %s %s %d: %s (rejection %d/%d)",
-                        signal.side.value, signal.symbol, position_size,
+                        signal.side.value,
+                        signal.symbol,
+                        position_size,
                         margin_result.reason,
                         self._consecutive_margin_rejections,
                         self._max_margin_rejections,
@@ -277,7 +302,9 @@ class VWAPReversionSystem:
                 try:
                     equity = self.config.get("risk", {}).get("account_equity", 100000)
                     est_margin = signal.price * position_size * 0.25
-                    allowed, reason = self.shared_ledger.check_global_margin(est_margin, equity)
+                    allowed, reason = self.shared_ledger.check_global_margin(
+                        est_margin, equity
+                    )
                     if not allowed:
                         logger.warning("Global margin cap blocked entry: %s", reason)
                         return
@@ -318,11 +345,14 @@ class VWAPReversionSystem:
                 if self.shared_ledger:
                     try:
                         self.shared_ledger.upsert(
-                            "l2-vwap", signal.symbol, position_size, signal.price,
+                            "l2-vwap",
+                            signal.symbol,
+                            position_size,
+                            signal.price,
                         )
                     except Exception as e:
                         logger.debug("Shared ledger upsert failed: %s", e)
-                
+
                 # Open trade in Trade Database V2
                 if self.trade_db:
                     try:
@@ -336,9 +366,11 @@ class VWAPReversionSystem:
                                 "strategy": "vwap_reversion",
                                 "vwap": signal.vwap,
                                 "l2_ratio": signal.l2_ratio,
-                            }
+                            },
                         )
-                        self.trade_db.link_order(self._current_db_trade_id, result.parent_id, is_entry=True)
+                        self.trade_db.link_order(
+                            self._current_db_trade_id, result.parent_id, is_entry=True
+                        )
                         if result.stop_loss_id:
                             self.trade_db.link_order(
                                 self._current_db_trade_id,
@@ -351,10 +383,12 @@ class VWAPReversionSystem:
                                 result.take_profit_id,
                                 is_entry=False,
                             )
-                        logger.info(f"Trade DB V2: opened trade_id={self._current_db_trade_id}")
+                        logger.info(
+                            f"Trade DB V2: opened trade_id={self._current_db_trade_id}"
+                        )
                     except Exception as e:
                         logger.error(f"Failed to record trade in DB V2: {e}")
-                
+
                 # Log to trade database and audit
                 self._current_trade_id = self.journal.log_entry(
                     symbol=signal.symbol,
@@ -442,18 +476,28 @@ class VWAPReversionSystem:
         try:
             ib = self.order_session.ib
             ib.reqAccountSummary()
-            import time as _t; _t.sleep(2)
+            import time as _t
+
+            _t.sleep(2)
             for item in ib.accountSummary():
                 if item.tag == "NetLiquidation":
                     self._account_equity = float(item.value)
                     logger.info(f"Account equity: ${self._account_equity:,.0f}")
                     break
             else:
-                self._account_equity = self.config.get("risk", {}).get("account_equity", 100000)
-                logger.warning(f"Could not fetch account equity, using config: ${self._account_equity:,.0f}")
+                self._account_equity = self.config.get("risk", {}).get(
+                    "account_equity", 100000
+                )
+                logger.warning(
+                    f"Could not fetch account equity, using config: ${self._account_equity:,.0f}"
+                )
         except Exception as e:
-            self._account_equity = self.config.get("risk", {}).get("account_equity", 100000)
-            logger.warning(f"Account equity fetch failed ({e}), using config: ${self._account_equity:,.0f}")
+            self._account_equity = self.config.get("risk", {}).get(
+                "account_equity", 100000
+            )
+            logger.warning(
+                f"Account equity fetch failed ({e}), using config: ${self._account_equity:,.0f}"
+            )
 
         return True
 
@@ -494,7 +538,7 @@ class VWAPReversionSystem:
             )
             self.trade_db.start()
             logger.info("Trade Database V2 initialized")
-            
+
             # Register fill callback for immediate fill notification
             self.order_manager.set_fill_callback(self._on_fill)
             logger.info("Fill callback registered")
@@ -516,7 +560,9 @@ class VWAPReversionSystem:
 
         # Log service start
         self.journal.log_service_start(self.symbols)
-        logger.info(f"Subscribing to bars for {len(self.symbols)} SIP symbols: {self.symbols}")
+        logger.info(
+            f"Subscribing to bars for {len(self.symbols)} SIP symbols: {self.symbols}"
+        )
         self.bar_feed.subscribe(self.symbols)
 
         try:
@@ -544,7 +590,7 @@ class VWAPReversionSystem:
         """Stop the trading system."""
         logger.info("Stopping trading system...")
         self._running = False
-        
+
         # Stop Trade Database V2
         if self.trade_db:
             try:

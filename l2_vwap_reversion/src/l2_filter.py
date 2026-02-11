@@ -44,7 +44,9 @@ class L2Filter:
 
         passes = ratio >= self.ratio_long
         if passes:
-            logger.info(f"L2 LONG filter PASS: {symbol} ratio={ratio:.3f} >= {self.ratio_long}")
+            logger.info(
+                f"L2 LONG filter PASS: {symbol} ratio={ratio:.3f} >= {self.ratio_long}"
+            )
         return passes
 
     def check_short(self, symbol: str, trade_date: date) -> bool:
@@ -59,7 +61,9 @@ class L2Filter:
 
         passes = ratio <= self.ratio_short
         if passes:
-            logger.info(f"L2 SHORT filter PASS: {symbol} ratio={ratio:.3f} <= {self.ratio_short}")
+            logger.info(
+                f"L2 SHORT filter PASS: {symbol} ratio={ratio:.3f} <= {self.ratio_short}"
+            )
         return passes
 
     def reset_day(self) -> None:

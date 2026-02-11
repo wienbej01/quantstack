@@ -107,13 +107,18 @@ class IBKRConfig:
     def from_dict(cls, data: dict) -> "IBKRConfig":
         session_cfg = data.get("session", {})
         ibkr_cfg = data.get("ibkr", {})
-        conn_cfg = {**ibkr_cfg, **session_cfg.get("connection", data.get("connection", {}))}
+        conn_cfg = {
+            **ibkr_cfg,
+            **session_cfg.get("connection", data.get("connection", {})),
+        }
         market_cfg = data.get("market_data", data.get("marketData", {}))
         depth_cfg = data.get("depth", data.get("market_depth", {}))
         orders_cfg = data.get("orders", data.get("order", {}))
 
         session = IBKRSessionConfig(
-            system_name=str(session_cfg.get("system_name", session_cfg.get("name", "IBKR"))),
+            system_name=str(
+                session_cfg.get("system_name", session_cfg.get("name", "IBKR"))
+            ),
             connection=IBKRConnectionConfig(
                 host=str(conn_cfg.get("host", "127.0.0.1")),
                 port=int(conn_cfg.get("port", 7497)),
@@ -125,7 +130,9 @@ class IBKRConfig:
                 timezone_tws=conn_cfg.get("timezone_tws"),
                 reconnect_attempts=int(conn_cfg.get("reconnect_attempts", 5)),
                 reconnect_backoff_sec=float(conn_cfg.get("reconnect_backoff_sec", 2.0)),
-                allow_client_id_fallback=bool(conn_cfg.get("allow_client_id_fallback", True)),
+                allow_client_id_fallback=bool(
+                    conn_cfg.get("allow_client_id_fallback", True)
+                ),
                 client_id_fallbacks=int(conn_cfg.get("client_id_fallbacks", 5)),
             ),
         )
@@ -145,9 +152,13 @@ class IBKRConfig:
         orders = IBKROrderConfig(
             order_ref_prefix=str(orders_cfg.get("order_ref_prefix", "SYSTEM")),
             account=orders_cfg.get("account"),
-            min_cancel_interval_sec=float(orders_cfg.get("min_cancel_interval_sec", 2.0)),
+            min_cancel_interval_sec=float(
+                orders_cfg.get("min_cancel_interval_sec", 2.0)
+            ),
         )
 
-        config = cls(session=session, market_data=market_data, depth=depth, orders=orders)
+        config = cls(
+            session=session, market_data=market_data, depth=depth, orders=orders
+        )
         config.validate()
         return config

@@ -70,18 +70,22 @@ class SipLoader:
             )
 
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 data = json.load(f)
 
             # Validate structure
             if "symbols" not in data:
-                raise ValueError(f"Invalid SIP JSON: missing 'symbols' key in {file_path}")
+                raise ValueError(
+                    f"Invalid SIP JSON: missing 'symbols' key in {file_path}"
+                )
 
             symbols = data["symbols"]
 
             # Validate symbols is a list of strings
             if not isinstance(symbols, list):
-                raise ValueError(f"Invalid SIP JSON: 'symbols' must be a list in {file_path}")
+                raise ValueError(
+                    f"Invalid SIP JSON: 'symbols' must be a list in {file_path}"
+                )
 
             # Filter out any non-string or empty symbols
             symbols = [s for s in symbols if isinstance(s, str) and s.strip()]
@@ -167,7 +171,11 @@ class SipLoader:
             return []
 
         # Find all date= directories
-        date_dirs = [d for d in self.sip_path.iterdir() if d.is_dir() and d.name.startswith("date=")]
+        date_dirs = [
+            d
+            for d in self.sip_path.iterdir()
+            if d.is_dir() and d.name.startswith("date=")
+        ]
 
         # Extract dates
         dates = []
@@ -212,7 +220,9 @@ class SipLoader:
         # Missing dates
         missing_dates = sorted(expected_dates - found_dates)
 
-        coverage_pct = (len(found_dates) / len(expected_dates) * 100) if expected_dates else 0
+        coverage_pct = (
+            (len(found_dates) / len(expected_dates) * 100) if expected_dates else 0
+        )
 
         return {
             "expected_dates": len(expected_dates),

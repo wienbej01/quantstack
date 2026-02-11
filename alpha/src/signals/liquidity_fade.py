@@ -24,7 +24,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Position, Signal, SignalEvent, SignalSide, ExitEvent
+from .base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 
 logger = logging.getLogger(__name__)
 

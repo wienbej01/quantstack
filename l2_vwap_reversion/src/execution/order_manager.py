@@ -9,8 +9,8 @@ from datetime import datetime
 from enum import Enum
 
 from ib_insync import LimitOrder, MarketOrder, Order, Stock, Trade
-
 from qx_broker.ibkr.rate_limit import CancelRateLimiter
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,7 +107,9 @@ class OrderManager:
         filled = trade.orderStatus.filled
         avg_price = trade.orderStatus.avgFillPrice
 
-        logger.info(f"Order {order_id} status: {status}, filled={filled}, avgPrice={avg_price:.2f}")
+        logger.info(
+            f"Order {order_id} status: {status}, filled={filled}, avgPrice={avg_price:.2f}"
+        )
 
         # Fire fill callback on Filled status
         if status == "Filled" and filled > 0 and avg_price > 0 and self._fill_callback:
@@ -132,7 +134,9 @@ class OrderManager:
                         side = trade.order.action
                         is_entry = False
             try:
-                self._fill_callback(order_id, symbol, side, int(filled), float(avg_price), is_entry)
+                self._fill_callback(
+                    order_id, symbol, side, int(filled), float(avg_price), is_entry
+                )
             except Exception as e:
                 logger.error(f"Fill callback error: {e}")
 
@@ -169,7 +173,9 @@ class OrderManager:
             if self._account_id:
                 parent.account = self._account_id
 
-            parent_trade = self.session.call(self.session.ib.placeOrder, contract, parent, timeout=10)
+            parent_trade = self.session.call(
+                self.session.ib.placeOrder, contract, parent, timeout=10
+            )
             parent_id = parent_trade.order.orderId
 
             # Stop-loss order
@@ -185,7 +191,9 @@ class OrderManager:
             if self._account_id:
                 stop.account = self._account_id
 
-            stop_trade = self.session.call(self.session.ib.placeOrder, contract, stop, timeout=10)
+            stop_trade = self.session.call(
+                self.session.ib.placeOrder, contract, stop, timeout=10
+            )
             stop_id = stop_trade.order.orderId
 
             # Take-profit order (transmit=True to send all)
@@ -201,7 +209,9 @@ class OrderManager:
             if self._account_id:
                 target.account = self._account_id
 
-            target_trade = self.session.call(self.session.ib.placeOrder, contract, target, timeout=10)
+            target_trade = self.session.call(
+                self.session.ib.placeOrder, contract, target, timeout=10
+            )
             target_id = target_trade.order.orderId
 
             result = BracketOrderResult(
@@ -248,7 +258,9 @@ class OrderManager:
             if self._account_id:
                 order.account = self._account_id
 
-            trade = self.session.call(self.session.ib.placeOrder, contract, order, timeout=10)
+            trade = self.session.call(
+                self.session.ib.placeOrder, contract, order, timeout=10
+            )
 
             order_id = trade.order.orderId
             with self._lock:

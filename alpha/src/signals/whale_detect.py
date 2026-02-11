@@ -25,7 +25,7 @@ from typing import Optional
 
 import pandas as pd
 
-from .base import Position, Signal, SignalEvent, SignalSide, ExitEvent
+from .base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 
 logger = logging.getLogger(__name__)
 
@@ -100,9 +100,7 @@ class WhaleDetectSignal(Signal):
 
         # Check LONG entry
         long_condition = (
-            has_large_bid
-            and trade_imb > self.min_flow_imb
-            and rvol > self.min_rvol
+            has_large_bid and trade_imb > self.min_flow_imb and rvol > self.min_rvol
         )
 
         if long_condition:
@@ -126,9 +124,7 @@ class WhaleDetectSignal(Signal):
 
         # Check SHORT entry
         short_condition = (
-            has_large_ask
-            and trade_imb < -self.min_flow_imb
-            and rvol > self.min_rvol
+            has_large_ask and trade_imb < -self.min_flow_imb and rvol > self.min_rvol
         )
 
         if short_condition:

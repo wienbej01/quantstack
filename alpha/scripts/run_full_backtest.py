@@ -17,21 +17,20 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import pandas as pd
 from datetime import timedelta
-import numpy as np
 
-from src.data import GoldLoader, L2Loader
-from src.signals import OrderFlowSignal, WhaleDetectSignal, LiquidityFadeSignal
+import numpy as np
+import pandas as pd
 from src.backtest import AlphaBacktestEngine
-from src.backtest.walk_forward import WalkForwardValidator
 from src.backtest.regime_split import RegimeStratifier
-from src.metrics import compute_all_metrics, check_minimum_thresholds
+from src.backtest.walk_forward import WalkForwardValidator
+from src.data import GoldLoader, L2Loader
+from src.metrics import check_minimum_thresholds, compute_all_metrics
 from src.metrics.diagnostics import generate_summary_report, save_report
+from src.signals import LiquidityFadeSignal, OrderFlowSignal, WhaleDetectSignal
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -134,12 +133,13 @@ def run_full_backtest(
 
     # Get symbols from L2 data (not SIP) - only test symbols with L2 coverage
     l2_path = Path("~/quantstack/data/l2/l2_maximum/raw").expanduser()
-    
+
     # Collect all symbol-date combinations with L2 data
     from datetime import datetime, timedelta
+
     start_dt = datetime.strptime(start_date, "%Y-%m-%d")
     end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    
+
     symbols_with_l2 = set()
     current = start_dt
     while current <= end_dt:
@@ -151,7 +151,7 @@ def run_full_backtest(
                     symbol = sym_dir.name.replace("symbol=", "")
                     symbols_with_l2.add(symbol)
         current += timedelta(days=1)
-    
+
     symbols = sorted(symbols_with_l2)
     logger.info(f"Found {len(symbols)} symbols with L2 data in date range")
 
@@ -172,7 +172,7 @@ def run_full_backtest(
 
     # Combine all bars and filter to only dates with L2 data
     bars_df = pd.concat(all_bars, ignore_index=True)
-    
+
     # Get all dates with L2 data
     l2_dates = set()
     current = start_dt
@@ -182,12 +182,12 @@ def run_full_backtest(
         if date_path.exists():
             l2_dates.add(date_str)
         current += timedelta(days=1)
-    
+
     # Filter bars to only L2 dates
-    bars_df['date'] = pd.to_datetime(bars_df['ts']).dt.strftime('%Y-%m-%d')
-    bars_df = bars_df[bars_df['date'].isin(l2_dates)].copy()
-    bars_df = bars_df.drop(columns=['date'])
-    
+    bars_df["date"] = pd.to_datetime(bars_df["ts"]).dt.strftime("%Y-%m-%d")
+    bars_df = bars_df[bars_df["date"].isin(l2_dates)].copy()
+    bars_df = bars_df.drop(columns=["date"])
+
     logger.info(f"Total bars: {len(bars_df)} across {len(l2_dates)} dates with L2 data")
     logger.info(f"L2 dates: {sorted(l2_dates)}")
 
@@ -203,10 +203,14 @@ def run_full_backtest(
                     try:
                         l2_df = l2_loader.load_snapshots(symbol, date_str)
                         all_l2.append(l2_df)
-                        logger.info(f"  Loaded {len(l2_df)} L2 snapshots for {symbol} on {date_str}")
+                        logger.info(
+                            f"  Loaded {len(l2_df)} L2 snapshots for {symbol} on {date_str}"
+                        )
                     except Exception as e:
-                        logger.warning(f"  Failed to load L2 for {symbol} on {date_str}: {e}")
-    
+                        logger.warning(
+                            f"  Failed to load L2 for {symbol} on {date_str}: {e}"
+                        )
+
     l2_data = pd.concat(all_l2, ignore_index=True) if all_l2 else None
     logger.info(f"Total L2 snapshots: {len(l2_data) if l2_data is not None else 0}")
 
@@ -217,7 +221,7 @@ def run_full_backtest(
     for hyp_name, signal in signals.items():
         logger.info(f"\n{'=' * 50}")
         logger.info(f"Testing Hypothesis: {hyp_name}")
-        logger.info('=' * 50)
+        logger.info("=" * 50)
 
         # Run backtest with L2 data
         engine = AlphaBacktestEngine(config)
@@ -243,28 +247,37 @@ def run_full_backtest(
     print("=" * 60)
 
     # Comparison table
-    print(f"\n{'Hypothesis':<20} {'Trades':>10} {'Return':>10} {'Sharpe':>10} {'WR':>8} {'PF':>8}")
+    print(
+        f"\n{'Hypothesis':<20} {'Trades':>10} {'Return':>10} {'Sharpe':>10} {'WR':>8} {'PF':>8}"
+    )
     print("-" * 70)
 
     for hyp_name, metrics in metrics_dict.items():
-        threshold_check = check_minimum_thresholds(metrics, **config["validation"]["thresholds"])
+        threshold_check = check_minimum_thresholds(
+            metrics, **config["validation"]["thresholds"]
+        )
         status = "✅" if threshold_check["all_pass"] else "❌"
 
-        print(f"{hyp_name:<20} {metrics['num_trades']:>10} {metrics['total_return_pct']:>9.1f}% "
-              f"{metrics['sharpe_ratio']:>9.2f} {metrics['win_rate']:>7.1f}% "
-              f"{metrics['profit_factor']:>6.1f} {status}")
+        print(
+            f"{hyp_name:<20} {metrics['num_trades']:>10} {metrics['total_return_pct']:>9.1f}% "
+            f"{metrics['sharpe_ratio']:>9.2f} {metrics['win_rate']:>7.1f}% "
+            f"{metrics['profit_factor']:>6.1f} {status}"
+        )
 
     # Check thresholds
     print("\nTHRESHOLD CHECKS:")
     print("-" * 40)
     for hyp_name, metrics in metrics_dict.items():
-        threshold_check = check_minimum_thresholds(metrics, **config["validation"]["thresholds"])
+        threshold_check = check_minimum_thresholds(
+            metrics, **config["validation"]["thresholds"]
+        )
         status = "PASS" if threshold_check["all_pass"] else "FAIL"
         print(f"  {hyp_name}: {status}")
 
     # Count passing
     passing = sum(
-        1 for m in metrics_dict.values()
+        1
+        for m in metrics_dict.values()
         if check_minimum_thresholds(m, **config["validation"]["thresholds"])["all_pass"]
     )
 
@@ -275,7 +288,9 @@ def run_full_backtest(
     output_dir.mkdir(exist_ok=True)
 
     report = generate_summary_report(results, config)
-    save_report(report, str(output_dir / f"full_backtest_{start_date}_to_{end_date}.txt"))
+    save_report(
+        report, str(output_dir / f"full_backtest_{start_date}_to_{end_date}.txt")
+    )
 
     print(f"\nReport saved to: {output_dir}")
 
@@ -315,8 +330,10 @@ def main():
 
         # Exit with appropriate code
         passing = sum(
-            1 for r in results.values()
-            if len([t for t in r.trades if t.pnl > 0]) > len(r.trades) / 2  # Simple check
+            1
+            for r in results.values()
+            if len([t for t in r.trades if t.pnl > 0])
+            > len(r.trades) / 2  # Simple check
         )
 
         if passing >= 1:

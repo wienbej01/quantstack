@@ -4,16 +4,15 @@ Tests verify signal entry/exit logic with valid and invalid conditions.
 Uses synthetic data for signals since we need specific feature values.
 """
 
+from datetime import datetime, timedelta
+
 import numpy as np
 import pandas as pd
 import pytest
-from datetime import datetime, timedelta
-
 from src.signals.base import Position, SignalSide
+from src.signals.liquidity_fade import LiquidityFadeSignal
 from src.signals.order_flow import OrderFlowSignal
 from src.signals.whale_detect import WhaleDetectSignal
-from src.signals.liquidity_fade import LiquidityFadeSignal
-
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -48,15 +47,17 @@ DEFAULT_CONFIG = {
 @pytest.fixture
 def sample_bar():
     """Create sample bar data."""
-    return pd.Series({
-        "ts": pd.Timestamp("2024-01-02 10:00:00"),
-        "symbol": "AAPL",
-        "open": 150.0,
-        "high": 150.5,
-        "low": 149.5,
-        "close": 150.25,
-        "volume": 10000,
-    })
+    return pd.Series(
+        {
+            "ts": pd.Timestamp("2024-01-02 10:00:00"),
+            "symbol": "AAPL",
+            "open": 150.0,
+            "high": 150.5,
+            "low": 149.5,
+            "close": 150.25,
+            "volume": 10000,
+        }
+    )
 
 
 class TestOrderFlowSignal:

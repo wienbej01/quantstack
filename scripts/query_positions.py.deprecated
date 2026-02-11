@@ -10,9 +10,10 @@ Usage:
 """
 
 import argparse
-import psycopg2
-from datetime import datetime, date
+from datetime import date, datetime
 from pathlib import Path
+
+import psycopg2
 
 
 def get_positions(
@@ -21,9 +22,9 @@ def get_positions(
     open_only: bool = False,
 ) -> list[dict]:
     """Query positions with matched entry/exit pairs."""
-    conn = psycopg2.connect(database='trading', user='jacobw')
+    conn = psycopg2.connect(database="trading", user="jacobw")
     cursor = conn.cursor()
-    
+
     query = """
     SELECT 
         trade_id,
@@ -50,47 +51,56 @@ def get_positions(
     FROM trades
     WHERE 1=1
     """
-    
+
     params = []
-    
+
     if target_date:
         query += " AND entry_time::date = %s"
         params.append(target_date.isoformat())
-    
+
     if system:
         query += " AND system = %s"
         params.append(system)
-    
+
     if open_only:
         query += " AND (exit_time IS NULL OR exit_time = '')"
-    
+
     query += " ORDER BY entry_time DESC"
-    
+
     cursor.execute(query, params)
     columns = [desc[0] for desc in cursor.description]
     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
-    
+
     return rows
+
 
 def format_position(pos: dict) -> str:
     """Format a single position for display."""
     status_icon = "🟢" if pos["position_status"] == "OPEN" else "⚪"
     direction_icon = "📈" if pos["direction"] == "LONG" else "📉"
-    
+
     # Entry info
     entry_time = pos["entry_time"][:19] if pos["entry_time"] else "N/A"
     entry_price = f"${pos['entry_price']:.2f}" if pos["entry_price"] else "N/A"
-    
+
     # Exit info
     if pos["exit_time"]:
         exit_time = pos["exit_time"][:19]
         exit_price = f"${pos['exit_price']:.2f}" if pos["exit_price"] else "N/A"
         exit_reason = pos["exit_reason"] or "N/A"
-        hold_time = f"{pos['actual_hold_seconds']:.0f}s" if pos["actual_hold_seconds"] else "N/A"
-        
+        hold_time = (
+            f"{pos['actual_hold_seconds']:.0f}s"
+            if pos["actual_hold_seconds"]
+            else "N/A"
+        )
+
         # Detect SYNC issue (exit_price == entry_price with non-zero hold time)
-        if pos["exit_price"] and pos["entry_price"] and pos["exit_price"] == pos["entry_price"]:
+        if (
+            pos["exit_price"]
+            and pos["entry_price"]
+            and pos["exit_price"] == pos["entry_price"]
+        ):
             if pos["exit_reason"] == "SYNC":
                 exit_price += " ⚠️ SYNC (no real exit)"
     else:
@@ -98,15 +108,19 @@ def format_position(pos: dict) -> str:
         exit_price = "---"
         exit_reason = "---"
         hold_time = "ACTIVE"
-    
+
     # P&L
     pnl_str = f"${pos['net_pnl']:.2f}" if pos["net_pnl"] is not None else "---"
     pnl_color = "" if pos["net_pnl"] is None else ("+" if pos["net_pnl"] >= 0 else "")
-    
+
     # Flag suspicious $0 P&L with hold time
-    if pos["net_pnl"] == 0 and pos["actual_hold_seconds"] and pos["actual_hold_seconds"] > 60:
+    if (
+        pos["net_pnl"] == 0
+        and pos["actual_hold_seconds"]
+        and pos["actual_hold_seconds"] > 60
+    ):
         pnl_str += " ⚠️ (likely SYNC issue)"
-    
+
     return f"""
 {status_icon} {pos['symbol']} {direction_icon} {pos['direction']} [{pos['system'] or 'unknown'}]
    Trade ID: {pos['trade_id'][:12]}...
@@ -128,16 +142,20 @@ def print_summary(positions: list[dict]) -> None:
     if not positions:
         print("\nNo positions found.")
         return
-    
+
     open_pos = [p for p in positions if p["position_status"] == "OPEN"]
     closed_pos = [p for p in positions if p["position_status"] == "CLOSED"]
-    
+
     total_pnl = sum(p["net_pnl"] or 0 for p in closed_pos)
     winners = [p for p in closed_pos if (p["net_pnl"] or 0) > 0]
     losers = [p for p in closed_pos if (p["net_pnl"] or 0) < 0]
-    
-    avg_hold = sum(p["actual_hold_seconds"] or 0 for p in closed_pos) / len(closed_pos) if closed_pos else 0
-    
+
+    avg_hold = (
+        sum(p["actual_hold_seconds"] or 0 for p in closed_pos) / len(closed_pos)
+        if closed_pos
+        else 0
+    )
+
     print("\n" + "=" * 50)
     print("POSITION SUMMARY")
     print("=" * 50)
@@ -154,28 +172,32 @@ def print_summary(positions: list[dict]) -> None:
 def export_csv(positions: list[dict], filepath: str) -> None:
     """Export positions to CSV."""
     import csv
-    
+
     if not positions:
         print("No positions to export.")
         return
-    
+
     with open(filepath, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=positions[0].keys())
         writer.writeheader()
         writer.writerows(positions)
-    
+
     print(f"Exported {len(positions)} positions to {filepath}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Query trading positions")
     parser.add_argument("--date", "-d", help="Date (YYYY-MM-DD), default: today")
-    parser.add_argument("--system", "-s", help="Filter by system (l2-scalping, intraday-paper)")
-    parser.add_argument("--open", "-o", action="store_true", help="Show only open positions")
+    parser.add_argument(
+        "--system", "-s", help="Filter by system (l2-scalping, intraday-paper)"
+    )
+    parser.add_argument(
+        "--open", "-o", action="store_true", help="Show only open positions"
+    )
     parser.add_argument("--export", "-e", help="Export to CSV file")
     parser.add_argument("--all", "-a", action="store_true", help="Show all dates")
     args = parser.parse_args()
-    
+
     # Parse date
     target_date = None
     if not args.all:
@@ -183,14 +205,14 @@ def main():
             target_date = datetime.strptime(args.date, "%Y-%m-%d").date()
         else:
             target_date = date.today()
-    
+
     # Query positions
     positions = get_positions(
         target_date=target_date,
         system=args.system,
         open_only=args.open,
     )
-    
+
     # Display
     if args.export:
         export_csv(positions, args.export)
@@ -198,10 +220,10 @@ def main():
         date_str = target_date.isoformat() if target_date else "ALL"
         print(f"\n📊 POSITION REPORT - {date_str}")
         print("-" * 50)
-        
+
         for pos in positions:
             print(format_position(pos))
-        
+
         print_summary(positions)
 
 

@@ -292,7 +292,9 @@ def test_init_order_manager():
     om = IBKROrderManager(CONFIG)
     assert om.host == "127.0.0.1"
     assert om.port == 7494
-    expected_id = CONFIG["ibkr"].get("order_client_id_base", CONFIG["ibkr"].get("order_client_id"))
+    expected_id = CONFIG["ibkr"].get(
+        "order_client_id_base", CONFIG["ibkr"].get("order_client_id")
+    )
     assert om.client_id == expected_id
 
 

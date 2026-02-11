@@ -81,7 +81,9 @@ def load_monthly_cache(
         dfs.append(month_df)
 
     if not dfs:
-        raise RuntimeError("No monthly cache files loaded for the requested date range.")
+        raise RuntimeError(
+            "No monthly cache files loaded for the requested date range."
+        )
 
     return pd.concat(dfs, ignore_index=True)
 
@@ -146,16 +148,15 @@ def build_monthly_feature_target_cache(
             missing = missing_columns(month_file, keep_cols)
             if missing is None or not missing:
                 continue
-            print(
-                f"  ⚠️ {month_file.name} missing {len(missing)} columns; rebuilding"
-            )
+            print(f"  ⚠️ {month_file.name} missing {len(missing)} columns; rebuilding")
 
         month_period = pd.Period(month_key.replace("_", "-"), freq="M")
         month_start = month_period.start_time.date()
         month_end = month_period.end_time.date()
 
         month_days = [
-            day for day in trading_days
+            day
+            for day in trading_days
             if month_start <= pd.to_datetime(day).date() <= month_end
         ]
         if not month_days:
@@ -247,7 +248,9 @@ def apply_aaa_filters(
     patterns_df = patterns_df.copy()
     initial_count = len(patterns_df)
 
-    patterns_df["is_event_based"] = patterns_df["rule"].apply(event_filter.is_event_based)
+    patterns_df["is_event_based"] = patterns_df["rule"].apply(
+        event_filter.is_event_based
+    )
     patterns_df["passes_event_filter"] = True
     if require_event:
         patterns_df["passes_event_filter"] = patterns_df["is_event_based"]
@@ -265,7 +268,9 @@ def apply_aaa_filters(
 
     patterns_df["passes_regime_filter"] = True
     if require_regime_match and current_regime:
-        patterns_df["passes_regime_filter"] = patterns_df.get("regime") == current_regime
+        patterns_df["passes_regime_filter"] = (
+            patterns_df.get("regime") == current_regime
+        )
 
     patterns_df["passes_aaa_score"] = True
     if min_aaa_score is not None:
@@ -292,7 +297,9 @@ def apply_aaa_filters(
     patterns_df["passes_aaa_filters"] = mask
     filtered = patterns_df[mask].copy() if filter_out else patterns_df.copy()
 
-    print(f"  Event filter: {patterns_df['passes_event_filter'].sum()}/{initial_count} pass")
+    print(
+        f"  Event filter: {patterns_df['passes_event_filter'].sum()}/{initial_count} pass"
+    )
     print(
         f"  Overfit filter ({overfit_policy_normalized}): "
         f"{patterns_df['passes_overfit_filter'].sum()}/{initial_count} pass"
@@ -331,7 +338,9 @@ def main():
     )
     parser.add_argument("--output-dir", default="output_aaa", help="Output directory")
     parser.add_argument("--skip-llm", action="store_true", help="Skip LLM analysis")
-    parser.add_argument("--skip-validation", action="store_true", help="Skip 3-period validation")
+    parser.add_argument(
+        "--skip-validation", action="store_true", help="Skip 3-period validation"
+    )
     parser.add_argument(
         "--use-aaa-scoring",
         action="store_true",
@@ -425,9 +434,9 @@ def main():
     )
 
     event_filter_cfg = config.get("event_filter", {})
-    event_keywords = event_filter_cfg.get("keywords") or config.get("aaa_criteria", {}).get(
-        "event_keywords"
-    )
+    event_keywords = event_filter_cfg.get("keywords") or config.get(
+        "aaa_criteria", {}
+    ).get("event_keywords")
     event_filter = EventFilter(
         event_keywords=event_keywords,
         trigger_keywords=event_filter_cfg.get("trigger_keywords"),
@@ -492,7 +501,9 @@ def main():
         + config["temporal_periods"]["oos_months"]
         + 1
     ) * 30
-    spy_start = (pd.to_datetime(args.start_date) - pd.Timedelta(days=lookback_days + 60)).date()
+    spy_start = (
+        pd.to_datetime(args.start_date) - pd.Timedelta(days=lookback_days + 60)
+    ).date()
     spy_df = load_symbol_bars_range(
         "SPY",
         spy_start.strftime("%Y-%m-%d"),
@@ -726,7 +737,9 @@ def main():
     ]
 
     feature_cols = [
-        f for f in high_alpha_events + state_features + time_context if f in scan_df.columns
+        f
+        for f in high_alpha_events + state_features + time_context
+        if f in scan_df.columns
     ]
 
     # Define regimes from scan_df (memory-efficient: avoid keeping full df in memory)
@@ -757,7 +770,9 @@ def main():
         )
     )
     actionable_bin_values = discovery_cfg.get("actionable_bin_values")
-    include_false_for_binary = bool(discovery_cfg.get("include_false_for_binary", False))
+    include_false_for_binary = bool(
+        discovery_cfg.get("include_false_for_binary", False)
+    )
     max_candidate_rules = discovery_cfg.get("max_candidate_rules")
     if max_candidate_rules is not None:
         max_candidate_rules = int(max_candidate_rules)
@@ -780,17 +795,27 @@ def main():
             val_df_regime = None
             if val_df_path is not None:
                 # MEMORY-OPTIMIZED: Load only needed columns and filter by regime
-                val_cols = ["ts", "symbol", return_col, "spy_above_sma20", "spy_high_vol"]
+                val_cols = [
+                    "ts",
+                    "symbol",
+                    return_col,
+                    "spy_above_sma20",
+                    "spy_high_vol",
+                ]
                 val_cols += feature_cols
                 val_cols = [col for col in val_cols if col in scan_df.columns]
                 val_df_full = pd.read_parquet(val_df_path, columns=val_cols)
                 val_spy_above = val_df_full.get("spy_above_sma20", True)
                 val_spy_high_vol = val_df_full.get("spy_high_vol", False)
                 val_regime_mask = {
-                    "bull_low_vol": (val_spy_above == True) & (val_spy_high_vol == False),
-                    "bull_high_vol": (val_spy_above == True) & (val_spy_high_vol == True),
-                    "bear_low_vol": (val_spy_above == False) & (val_spy_high_vol == False),
-                    "bear_high_vol": (val_spy_above == False) & (val_spy_high_vol == True),
+                    "bull_low_vol": (val_spy_above == True)
+                    & (val_spy_high_vol == False),
+                    "bull_high_vol": (val_spy_above == True)
+                    & (val_spy_high_vol == True),
+                    "bear_low_vol": (val_spy_above == False)
+                    & (val_spy_high_vol == False),
+                    "bear_high_vol": (val_spy_above == False)
+                    & (val_spy_high_vol == True),
                 }[regime_name]
                 val_df_regime = val_df_full[val_regime_mask].copy()
                 del val_df_full  # Free immediately
@@ -870,7 +895,9 @@ def main():
                 and val_df_regime is not None
                 and not long_candidates.empty
             ):
-                to_validate = long_candidates[long_candidates["passes_aaa_filters"]].copy()
+                to_validate = long_candidates[
+                    long_candidates["passes_aaa_filters"]
+                ].copy()
                 if not to_validate.empty:
                     print(
                         f"\n  Validating {len(to_validate)} LONG patterns on holdout period..."
@@ -905,7 +932,9 @@ def main():
                 long_final = long_final[final_mask].copy()
 
             if diagnostics_enabled:
-                candidates_file = segments_dir / f"{segment_key_base}__long_candidates.csv"
+                candidates_file = (
+                    segments_dir / f"{segment_key_base}__long_candidates.csv"
+                )
                 long_candidates.to_csv(candidates_file, index=False)
 
             long_summary: dict = {
@@ -914,30 +943,47 @@ def main():
                 "direction": "LONG",
                 "return_col": return_col,
                 "n_rows_scan": int(len(df_regime)),
-                "n_rows_val": int(len(val_df_regime)) if val_df_regime is not None else 0,
+                "n_rows_val": (
+                    int(len(val_df_regime)) if val_df_regime is not None else 0
+                ),
                 "n_patterns_raw": int(len(long_raw)),
-                "n_pass_event_filter": int(long_candidates["passes_event_filter"].sum())
-                if not long_candidates.empty
-                else 0,
-                "n_pass_overfit_filter": int(long_candidates["passes_overfit_filter"].sum())
-                if not long_candidates.empty
-                else 0,
-                "n_pass_regime_filter": int(long_candidates["passes_regime_filter"].sum())
-                if not long_candidates.empty
-                else 0,
-                "n_pass_aaa_score": int(long_candidates["passes_aaa_score"].sum())
-                if (not long_candidates.empty and "passes_aaa_score" in long_candidates)
-                else 0,
-                "n_pass_aaa_filters": int(long_candidates["passes_aaa_filters"].sum())
-                if not long_candidates.empty
-                else 0,
-                "n_pass_validation": int(long_final["validation_passed"].sum())
-                if (
-                    not args.skip_validation
-                    and val_df_regime is not None
-                    and not long_final.empty
-                )
-                else (int(len(long_final)) if not long_final.empty else 0),
+                "n_pass_event_filter": (
+                    int(long_candidates["passes_event_filter"].sum())
+                    if not long_candidates.empty
+                    else 0
+                ),
+                "n_pass_overfit_filter": (
+                    int(long_candidates["passes_overfit_filter"].sum())
+                    if not long_candidates.empty
+                    else 0
+                ),
+                "n_pass_regime_filter": (
+                    int(long_candidates["passes_regime_filter"].sum())
+                    if not long_candidates.empty
+                    else 0
+                ),
+                "n_pass_aaa_score": (
+                    int(long_candidates["passes_aaa_score"].sum())
+                    if (
+                        not long_candidates.empty
+                        and "passes_aaa_score" in long_candidates
+                    )
+                    else 0
+                ),
+                "n_pass_aaa_filters": (
+                    int(long_candidates["passes_aaa_filters"].sum())
+                    if not long_candidates.empty
+                    else 0
+                ),
+                "n_pass_validation": (
+                    int(long_final["validation_passed"].sum())
+                    if (
+                        not args.skip_validation
+                        and val_df_regime is not None
+                        and not long_final.empty
+                    )
+                    else (int(len(long_final)) if not long_final.empty else 0)
+                ),
             }
             if (
                 diagnostics_enabled
@@ -956,7 +1002,10 @@ def main():
                 and "validation_reason" in long_validation_diag_df
             ):
                 long_summary["top_validation_reasons"] = (
-                    long_validation_diag_df["validation_reason"].value_counts().head(10).to_dict()
+                    long_validation_diag_df["validation_reason"]
+                    .value_counts()
+                    .head(10)
+                    .to_dict()
                 )
 
             segment_summaries.append(long_summary)
@@ -1017,7 +1066,9 @@ def main():
                 and val_df_regime is not None
                 and not short_candidates.empty
             ):
-                to_validate = short_candidates[short_candidates["passes_aaa_filters"]].copy()
+                to_validate = short_candidates[
+                    short_candidates["passes_aaa_filters"]
+                ].copy()
                 if not to_validate.empty:
                     print(
                         f"\n  Validating {len(to_validate)} SHORT patterns on holdout period..."
@@ -1050,7 +1101,9 @@ def main():
                 short_final = short_final[final_mask].copy()
 
             if diagnostics_enabled:
-                candidates_file = segments_dir / f"{segment_key_base}__short_candidates.csv"
+                candidates_file = (
+                    segments_dir / f"{segment_key_base}__short_candidates.csv"
+                )
                 short_candidates.to_csv(candidates_file, index=False)
 
             short_summary: dict = {
@@ -1059,30 +1112,47 @@ def main():
                 "direction": "SHORT",
                 "return_col": return_col,
                 "n_rows_scan": int(len(df_regime)),
-                "n_rows_val": int(len(val_df_regime)) if val_df_regime is not None else 0,
+                "n_rows_val": (
+                    int(len(val_df_regime)) if val_df_regime is not None else 0
+                ),
                 "n_patterns_raw": int(len(short_raw)),
-                "n_pass_event_filter": int(short_candidates["passes_event_filter"].sum())
-                if not short_candidates.empty
-                else 0,
-                "n_pass_overfit_filter": int(short_candidates["passes_overfit_filter"].sum())
-                if not short_candidates.empty
-                else 0,
-                "n_pass_regime_filter": int(short_candidates["passes_regime_filter"].sum())
-                if not short_candidates.empty
-                else 0,
-                "n_pass_aaa_score": int(short_candidates["passes_aaa_score"].sum())
-                if (not short_candidates.empty and "passes_aaa_score" in short_candidates)
-                else 0,
-                "n_pass_aaa_filters": int(short_candidates["passes_aaa_filters"].sum())
-                if not short_candidates.empty
-                else 0,
-                "n_pass_validation": int(short_final["validation_passed"].sum())
-                if (
-                    not args.skip_validation
-                    and val_df_regime is not None
-                    and not short_final.empty
-                )
-                else (int(len(short_final)) if not short_final.empty else 0),
+                "n_pass_event_filter": (
+                    int(short_candidates["passes_event_filter"].sum())
+                    if not short_candidates.empty
+                    else 0
+                ),
+                "n_pass_overfit_filter": (
+                    int(short_candidates["passes_overfit_filter"].sum())
+                    if not short_candidates.empty
+                    else 0
+                ),
+                "n_pass_regime_filter": (
+                    int(short_candidates["passes_regime_filter"].sum())
+                    if not short_candidates.empty
+                    else 0
+                ),
+                "n_pass_aaa_score": (
+                    int(short_candidates["passes_aaa_score"].sum())
+                    if (
+                        not short_candidates.empty
+                        and "passes_aaa_score" in short_candidates
+                    )
+                    else 0
+                ),
+                "n_pass_aaa_filters": (
+                    int(short_candidates["passes_aaa_filters"].sum())
+                    if not short_candidates.empty
+                    else 0
+                ),
+                "n_pass_validation": (
+                    int(short_final["validation_passed"].sum())
+                    if (
+                        not args.skip_validation
+                        and val_df_regime is not None
+                        and not short_final.empty
+                    )
+                    else (int(len(short_final)) if not short_final.empty else 0)
+                ),
             }
             if (
                 diagnostics_enabled
@@ -1101,7 +1171,10 @@ def main():
                 and "validation_reason" in short_validation_diag_df
             ):
                 short_summary["top_validation_reasons"] = (
-                    short_validation_diag_df["validation_reason"].value_counts().head(10).to_dict()
+                    short_validation_diag_df["validation_reason"]
+                    .value_counts()
+                    .head(10)
+                    .to_dict()
                 )
 
             segment_summaries.append(short_summary)
@@ -1131,12 +1204,24 @@ def main():
         totals = {
             "segments": len(segment_summaries),
             "raw_patterns": sum(s.get("n_patterns_raw", 0) for s in segment_summaries),
-            "pass_event": sum(s.get("n_pass_event_filter", 0) for s in segment_summaries),
-            "pass_overfit": sum(s.get("n_pass_overfit_filter", 0) for s in segment_summaries),
-            "pass_regime": sum(s.get("n_pass_regime_filter", 0) for s in segment_summaries),
-            "pass_aaa_score": sum(s.get("n_pass_aaa_score", 0) for s in segment_summaries),
-            "pass_aaa_filters": sum(s.get("n_pass_aaa_filters", 0) for s in segment_summaries),
-            "pass_validation": sum(s.get("n_pass_validation", 0) for s in segment_summaries),
+            "pass_event": sum(
+                s.get("n_pass_event_filter", 0) for s in segment_summaries
+            ),
+            "pass_overfit": sum(
+                s.get("n_pass_overfit_filter", 0) for s in segment_summaries
+            ),
+            "pass_regime": sum(
+                s.get("n_pass_regime_filter", 0) for s in segment_summaries
+            ),
+            "pass_aaa_score": sum(
+                s.get("n_pass_aaa_score", 0) for s in segment_summaries
+            ),
+            "pass_aaa_filters": sum(
+                s.get("n_pass_aaa_filters", 0) for s in segment_summaries
+            ),
+            "pass_validation": sum(
+                s.get("n_pass_validation", 0) for s in segment_summaries
+            ),
         }
 
         overfit_reasons: Counter[str] = Counter()
@@ -1213,7 +1298,9 @@ def main():
         # LLM analysis
         if not args.skip_llm:
             print("\nRunning LLM analysis on top patterns...")
-            top_patterns = all_patterns_df.head(config["llm_analysis"]["max_patterns_to_analyze"])
+            top_patterns = all_patterns_df.head(
+                config["llm_analysis"]["max_patterns_to_analyze"]
+            )
             llm_output = format_patterns_for_llm(
                 top_patterns,
                 "AAA Patterns",

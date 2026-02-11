@@ -81,7 +81,9 @@ class L2Collector:
             connect_timeout=min(10.0, timeout),
             request_timeout=timeout,
         )
-        session_cfg = IBKRSessionConfig(system_name=self.system_name, connection=connection)
+        session_cfg = IBKRSessionConfig(
+            system_name=self.system_name, connection=connection
+        )
         self.session = IBKRSession(session_cfg)
 
         # Market data + depth
@@ -137,7 +139,9 @@ class L2Collector:
                 count += 1
                 logger.info("[%s] Subscribed to %s", self.system_tag, symbol)
             except Exception as exc:
-                logger.error("[%s] Subscription failed for %s: %s", self.system_tag, symbol, exc)
+                logger.error(
+                    "[%s] Subscription failed for %s: %s", self.system_tag, symbol, exc
+                )
         return count
 
     def _unsubscribe_all(self) -> None:
@@ -146,7 +150,9 @@ class L2Collector:
                 self.market_depth.cancel(contract)
                 self.market_data.cancel(contract)
             except Exception as exc:
-                logger.warning("[%s] Unsubscribe failed for %s: %s", self.system_tag, symbol, exc)
+                logger.warning(
+                    "[%s] Unsubscribe failed for %s: %s", self.system_tag, symbol, exc
+                )
         self._states.clear()
         self._contracts.clear()
 
@@ -202,21 +208,21 @@ class L2Collector:
         """Run one collection cycle for all subscribed symbols."""
         raw_snapshots = []
         feature_records = []
-        
+
         for symbol in list(self._states.keys()):
             if not self._running:
                 break
             snapshot = self._collect_snapshot(symbol)
             if snapshot:
                 raw_snapshots.append(snapshot)
-                
+
                 # Compute features if enabled
                 feat_cfg = self.config.get("features", {})
                 if feat_cfg.get("enabled", True):
                     features = self.feature_engineer.compute(snapshot, self.levels)
                     if features:
                         feature_records.append(features)
-        
+
         # Write both raw and features
         if raw_snapshots:
             self.storage.write_batch(raw_snapshots, data_type="raw")

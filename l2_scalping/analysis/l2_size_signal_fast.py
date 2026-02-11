@@ -111,8 +111,16 @@ def process_date_file(
                     df["ts"] = pd.to_datetime(df["ts_utc"])
 
                     # Compute max sizes
-                    bid_cols = [f"bid_sz_{i}" for i in range(1, 6) if f"bid_sz_{i}" in df.columns]
-                    ask_cols = [f"ask_sz_{i}" for i in range(1, 6) if f"ask_sz_{i}" in df.columns]
+                    bid_cols = [
+                        f"bid_sz_{i}"
+                        for i in range(1, 6)
+                        if f"bid_sz_{i}" in df.columns
+                    ]
+                    ask_cols = [
+                        f"ask_sz_{i}"
+                        for i in range(1, 6)
+                        if f"ask_sz_{i}" in df.columns
+                    ]
 
                     if bid_cols:
                         df["max_bid_sz"] = df[bid_cols].max(axis=1)
@@ -125,8 +133,12 @@ def process_date_file(
 
                     symbol_data[symbol]["ts"].extend(df["ts"].tolist())
                     symbol_data[symbol]["mid"].extend(df["mid"].tolist())
-                    symbol_data[symbol]["max_bid_sz"].extend(df.get("max_bid_sz", 0).tolist())
-                    symbol_data[symbol]["max_ask_sz"].extend(df.get("max_ask_sz", 0).tolist())
+                    symbol_data[symbol]["max_bid_sz"].extend(
+                        df.get("max_bid_sz", 0).tolist()
+                    )
+                    symbol_data[symbol]["max_ask_sz"].extend(
+                        df.get("max_ask_sz", 0).tolist()
+                    )
                     symbol_data[symbol]["large_bid"].extend(df["large_bid"].tolist())
                     symbol_data[symbol]["large_ask"].extend(df["large_ask"].tolist())
 
@@ -201,14 +213,16 @@ def main():
         if len(data["mid"]) < 1000:
             continue
 
-        df = pd.DataFrame({
-            "ts": data["ts"],
-            "mid": data["mid"],
-            "max_bid_sz": data["max_bid_sz"],
-            "max_ask_sz": data["max_ask_sz"],
-            "large_bid": data["large_bid"],
-            "large_ask": data["large_ask"],
-        })
+        df = pd.DataFrame(
+            {
+                "ts": data["ts"],
+                "mid": data["mid"],
+                "max_bid_sz": data["max_bid_sz"],
+                "max_ask_sz": data["max_ask_sz"],
+                "large_bid": data["large_bid"],
+                "large_ask": data["large_ask"],
+            }
+        )
         df = df.sort_values("ts")
 
         # Compute forward returns
@@ -222,24 +236,28 @@ def main():
             stats_bid = compute_signal_stats(large_bid_returns.tolist())
 
             if stats_bid:
-                signals.append({
-                    "signal": "large_bid",
-                    "symbol": symbol,
-                    "horizon_sec": horizon,
-                    **stats_bid,
-                })
+                signals.append(
+                    {
+                        "signal": "large_bid",
+                        "symbol": symbol,
+                        "horizon_sec": horizon,
+                        **stats_bid,
+                    }
+                )
 
             # Large ask signal (flip for short)
             large_ask_returns = -df.loc[df["large_ask"], f"fwd_ret_{horizon}s"].values
             stats_ask = compute_signal_stats(large_ask_returns.tolist())
 
             if stats_ask:
-                signals.append({
-                    "signal": "large_ask",
-                    "symbol": symbol,
-                    "horizon_sec": horizon,
-                    **stats_ask,
-                })
+                signals.append(
+                    {
+                        "signal": "large_ask",
+                        "symbol": symbol,
+                        "horizon_sec": horizon,
+                        **stats_ask,
+                    }
+                )
 
     if not signals:
         logger.error("No signals found!")
@@ -254,7 +272,10 @@ def main():
 
     for signal_name in ["large_bid", "large_ask"]:
         for horizon in args.horizons:
-            subset = signals_df[(signals_df["signal"] == signal_name) & (signals_df["horizon_sec"] == horizon)]
+            subset = signals_df[
+                (signals_df["signal"] == signal_name)
+                & (signals_df["horizon_sec"] == horizon)
+            ]
 
             if len(subset) == 0:
                 continue
@@ -263,7 +284,13 @@ def main():
             all_returns = []
             for _, row in subset.iterrows():
                 symbol_data = all_symbol_data[row["symbol"]]
-                df = pd.DataFrame({"mid": symbol_data["mid"], "large_bid": symbol_data["large_bid"], "large_ask": symbol_data["large_ask"]})
+                df = pd.DataFrame(
+                    {
+                        "mid": symbol_data["mid"],
+                        "large_bid": symbol_data["large_bid"],
+                        "large_ask": symbol_data["large_ask"],
+                    }
+                )
                 df = df.sort_values("mid")  # Need ts, using index as proxy
 
                 # Recompute forward returns for this symbol
@@ -284,11 +311,13 @@ def main():
             combined_stats = compute_signal_stats(all_returns, min_samples=10)
 
             if combined_stats:
-                agg_results.append({
-                    "signal": signal_name,
-                    "horizon_sec": horizon,
-                    **combined_stats,
-                })
+                agg_results.append(
+                    {
+                        "signal": signal_name,
+                        "horizon_sec": horizon,
+                        **combined_stats,
+                    }
+                )
 
     agg_df = pd.DataFrame(agg_results)
 
@@ -314,9 +343,15 @@ def main():
 
     for _, row in agg_df.iterrows():
         direction = "LONG" if row["signal"] == "large_bid" else "SHORT"
-        sig = "***" if abs(row["t_stat"]) >= 2 else "  " if abs(row["t_stat"]) >= 1.5 else ""
+        sig = (
+            "***"
+            if abs(row["t_stat"]) >= 2
+            else "  " if abs(row["t_stat"]) >= 1.5 else ""
+        )
 
-        print(f"\n{row['signal'].upper()} → {direction} ({row['horizon_sec']}s horizon): {sig}")
+        print(
+            f"\n{row['signal'].upper()} → {direction} ({row['horizon_sec']}s horizon): {sig}"
+        )
         print(f"  t-stat:      {row['t_stat']:+.2f}")
         print(f"  expectancy:  {row['expectancy_bps']:+.2f} bps")
         print(f"  win rate:    {row['win_rate']:.1%}")

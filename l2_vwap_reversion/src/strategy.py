@@ -9,9 +9,9 @@ from enum import Enum
 from typing import Callable
 from zoneinfo import ZoneInfo
 
-from vwap import VWAPCalculator
-from l2_filter import L2Filter
 from data.bar_feed import Bar
+from l2_filter import L2Filter
+from vwap import VWAPCalculator
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +99,11 @@ class Strategy:
 
     def on_bar(self, bar: Bar) -> Signal | None:
         """Process incoming bar, return signal if generated."""
-        now_et = bar.timestamp.astimezone(ET) if bar.timestamp.tzinfo else bar.timestamp.replace(tzinfo=ET)
+        now_et = (
+            bar.timestamp.astimezone(ET)
+            if bar.timestamp.tzinfo
+            else bar.timestamp.replace(tzinfo=ET)
+        )
         current_time = now_et.time()
         trade_date = now_et.date()
 
@@ -126,7 +130,9 @@ class Strategy:
 
         return None
 
-    def _check_entry(self, bar: Bar, vwap: float, current_time: time, trade_date: date) -> Signal | None:
+    def _check_entry(
+        self, bar: Bar, vwap: float, current_time: time, trade_date: date
+    ) -> Signal | None:
         """Check entry conditions."""
         # Time window check
         if not (self.entry_start <= current_time <= self.entry_end):
@@ -138,8 +144,10 @@ class Strategy:
             return None
 
         deviation = bar.close / vwap if vwap > 0 else 1.0
-        
-        logger.info(f"{bar.symbol}: C={bar.close:.2f} VWAP={vwap:.2f} dev={deviation:.4f}")
+
+        logger.info(
+            f"{bar.symbol}: C={bar.close:.2f} VWAP={vwap:.2f} dev={deviation:.4f}"
+        )
 
         # Long entry: close <= VWAP * 0.995
         if deviation <= self.deviation_long:
@@ -153,7 +161,9 @@ class Strategy:
                     vwap=vwap,
                     l2_ratio=l2_ratio,
                 )
-                logger.info(f"LONG signal: {bar.symbol} @ {bar.close:.2f}, VWAP={vwap:.2f}, L2={l2_ratio}")
+                logger.info(
+                    f"LONG signal: {bar.symbol} @ {bar.close:.2f}, VWAP={vwap:.2f}, L2={l2_ratio}"
+                )
                 return signal
 
         # Short entry: close >= VWAP * 1.005
@@ -168,7 +178,9 @@ class Strategy:
                     vwap=vwap,
                     l2_ratio=l2_ratio,
                 )
-                logger.info(f"SHORT signal: {bar.symbol} @ {bar.close:.2f}, VWAP={vwap:.2f}, L2={l2_ratio}")
+                logger.info(
+                    f"SHORT signal: {bar.symbol} @ {bar.close:.2f}, VWAP={vwap:.2f}, L2={l2_ratio}"
+                )
                 return signal
 
         return None

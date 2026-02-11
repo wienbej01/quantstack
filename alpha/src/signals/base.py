@@ -19,6 +19,7 @@ import pandas as pd
 
 class SignalSide(Enum):
     """Signal direction."""
+
     LONG = "long"
     SHORT = "short"
 
@@ -29,6 +30,7 @@ class SignalEvent:
 
     Note: Trade executes at next bar's open with slippage.
     """
+
     symbol: str
     timestamp: pd.Timestamp
     side: SignalSide
@@ -42,7 +44,9 @@ class SignalEvent:
             raise ValueError(f"Confidence must be in [0, 1], got {self.confidence}")
 
         if self.confidence == 0:
-            raise ValueError("Confidence of 0 means no signal - don't create SignalEvent")
+            raise ValueError(
+                "Confidence of 0 means no signal - don't create SignalEvent"
+            )
 
 
 @dataclass
@@ -51,6 +55,7 @@ class ExitEvent:
 
     Note: Trade executes at next bar's open with slippage.
     """
+
     symbol: str
     timestamp: pd.Timestamp
     reason: str  # "target", "stop", "time_limit", "signal_reverse"
@@ -64,6 +69,7 @@ class Position:
     Note: Entry price is the actual execution price (next bar open + slippage),
     not the signal bar's close.
     """
+
     symbol: str
     side: SignalSide
     entry_price: float  # Actual execution price (open of bar after signal)

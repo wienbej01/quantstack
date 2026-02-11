@@ -76,7 +76,9 @@ def diagnose_trade_gates(df):
 
     # Filter to warmed-up bars only
     warmed = df[df["f__warmup_ok"]].copy()
-    print(f"\n[2] Warmed-up bars: {len(warmed)}/{len(df)} ({len(warmed) / len(df) * 100:.1f}%)")
+    print(
+        f"\n[2] Warmed-up bars: {len(warmed)}/{len(df)} ({len(warmed) / len(df) * 100:.1f}%)"
+    )
 
     if len(warmed) == 0:
         print("❌ NO WARMED-UP BARS - Cannot proceed")
@@ -95,7 +97,9 @@ def diagnose_trade_gates(df):
         for regime, count in regime_dist.items():
             print(f"      {regime}: {count} bars ({count / len(warmed) * 100:.1f}%)")
     else:
-        print("   ⚠️  CRITICAL: Regime field missing - policies will see RegimeType.OFF!")
+        print(
+            "   ⚠️  CRITICAL: Regime field missing - policies will see RegimeType.OFF!"
+        )
 
     # Check regime feature values
     print("\n[4] Checking regime feature values (sample of 5 bars after warmup)...")
@@ -169,10 +173,18 @@ def diagnose_trade_gates(df):
         fvg_bull = warmed["f__ict__fvg_bull_active"].sum()
         fvg_bear = warmed["f__ict__fvg_bear_active"].sum()
 
-        print(f"   In discount zone: {in_discount} bars ({in_discount / len(warmed) * 100:.1f}%)")
-        print(f"   In premium zone: {in_premium} bars ({in_premium / len(warmed) * 100:.1f}%)")
-        print(f"   Bullish FVG active: {fvg_bull} bars ({fvg_bull / len(warmed) * 100:.1f}%)")
-        print(f"   Bearish FVG active: {fvg_bear} bars ({fvg_bear / len(warmed) * 100:.1f}%)")
+        print(
+            f"   In discount zone: {in_discount} bars ({in_discount / len(warmed) * 100:.1f}%)"
+        )
+        print(
+            f"   In premium zone: {in_premium} bars ({in_premium / len(warmed) * 100:.1f}%)"
+        )
+        print(
+            f"   Bullish FVG active: {fvg_bull} bars ({fvg_bull / len(warmed) * 100:.1f}%)"
+        )
+        print(
+            f"   Bearish FVG active: {fvg_bear} bars ({fvg_bear / len(warmed) * 100:.1f}%)"
+        )
     else:
         print("   ❌ ICT features missing!")
 
@@ -180,7 +192,9 @@ def diagnose_trade_gates(df):
     print("\n[8] Checking ATR (minimum 0.5 required for trade)...")
     if "f__vol__atr_14" in warmed.columns:
         atr_ok = (warmed["f__vol__atr_14"] >= 0.5).sum()
-        print(f"   ATR >= 0.5: {atr_ok}/{len(warmed)} bars ({atr_ok / len(warmed) * 100:.1f}%)")
+        print(
+            f"   ATR >= 0.5: {atr_ok}/{len(warmed)} bars ({atr_ok / len(warmed) * 100:.1f}%)"
+        )
         print(
             f"   ATR range: {warmed['f__vol__atr_14'].min():.3f} - {warmed['f__vol__atr_14'].max():.3f}"
         )
@@ -189,7 +203,9 @@ def diagnose_trade_gates(df):
 
     # Test a specific bar against entry logic
     print("\n[9] Testing entry logic on a sample bar...")
-    test_bar = warmed.iloc[100].to_dict() if len(warmed) > 100 else warmed.iloc[0].to_dict()
+    test_bar = (
+        warmed.iloc[100].to_dict() if len(warmed) > 100 else warmed.iloc[0].to_dict()
+    )
 
     # Add regime if missing
     if "f__regime__current" not in test_bar:

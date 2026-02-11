@@ -57,7 +57,9 @@ def load_l2_raw_data() -> pd.DataFrame:
                     # Heartbeat every 100 files
                     if file_count % 100 == 0:
                         elapsed = time.time() - start_time
-                        logger.info(f"    Loaded {file_count} files in {elapsed:.0f}s...")
+                        logger.info(
+                            f"    Loaded {file_count} files in {elapsed:.0f}s..."
+                        )
                         sys.stdout.flush()
                 except Exception as e:
                     logger.warning(f"    Error loading {pq_file}: {e}")
@@ -67,7 +69,9 @@ def load_l2_raw_data() -> pd.DataFrame:
         return pd.DataFrame()
 
     df = pd.concat(all_data, ignore_index=True)
-    logger.info(f"Loaded {len(df):,} L2 snapshots across {df['symbol'].nunique()} symbols")
+    logger.info(
+        f"Loaded {len(df):,} L2 snapshots across {df['symbol'].nunique()} symbols"
+    )
     return df
 
 
@@ -127,9 +131,7 @@ def compute_size_stats(sizes: list[float], name: str) -> dict[str, Any]:
     return stats_dict
 
 
-def analyze_symbol_sizes(
-    df: pd.DataFrame, symbol: str
-) -> dict[str, dict[str, Any]]:
+def analyze_symbol_sizes(df: pd.DataFrame, symbol: str) -> dict[str, dict[str, Any]]:
     """Analyze size distribution for a specific symbol."""
     symbol_df = df[df["symbol"] == symbol]
 
@@ -169,13 +171,17 @@ def compute_aggregate_statistics(
     logger.info(f"  Unique values: {bid_stats['unique_count']}")
     logger.info(f"  Mode: {bid_stats['mode']:.0f} ({bid_stats['mode_pct']:.1f}%)")
     logger.info(f"  Mean: {bid_stats['mean']:.1f}")
-    logger.info(f"  50th/75th/90th/95th: {bid_stats['p50']:.0f} / {bid_stats['p75']:.0f} / {bid_stats['p90']:.0f} / {bid_stats['p95']:.0f}")
+    logger.info(
+        f"  50th/75th/90th/95th: {bid_stats['p50']:.0f} / {bid_stats['p75']:.0f} / {bid_stats['p90']:.0f} / {bid_stats['p95']:.0f}"
+    )
 
     logger.info(f"\nAsk Sizes:")
     logger.info(f"  Unique values: {ask_stats['unique_count']}")
     logger.info(f"  Mode: {ask_stats['mode']:.0f} ({ask_stats['mode_pct']:.1f}%)")
     logger.info(f"  Mean: {ask_stats['mean']:.1f}")
-    logger.info(f"  50th/75th/90th/95th: {ask_stats['p50']:.0f} / {ask_stats['p75']:.0f} / {ask_stats['p90']:.0f} / {ask_stats['p95']:.0f}")
+    logger.info(
+        f"  50th/75th/90th/95th: {ask_stats['p50']:.0f} / {ask_stats['p75']:.0f} / {ask_stats['p90']:.0f} / {ask_stats['p95']:.0f}"
+    )
 
     # Per-symbol statistics
     logger.info("\n=== PER-SYMBOL STATISTICS ===")
@@ -253,7 +259,9 @@ def analyze_time_of_day_patterns(df: pd.DataFrame) -> pd.DataFrame:
     all_sizes = all_sizes[all_sizes > 0]
     large_threshold = float(np.percentile(all_sizes, 95))
 
-    logger.info(f"Using large order threshold: >{large_threshold:.0f} shares (95th percentile)")
+    logger.info(
+        f"Using large order threshold: >{large_threshold:.0f} shares (95th percentile)"
+    )
 
     # Count large orders by hour
     hour_stats = []
@@ -272,12 +280,14 @@ def analyze_time_of_day_patterns(df: pd.DataFrame) -> pd.DataFrame:
                     large_count += (sizes > large_threshold).sum()
 
         if total_levels > 0:
-            hour_stats.append({
-                "hour": hour,
-                "total_levels": total_levels,
-                "large_count": large_count,
-                "large_pct": large_count / total_levels * 100,
-            })
+            hour_stats.append(
+                {
+                    "hour": hour,
+                    "total_levels": total_levels,
+                    "large_count": large_count,
+                    "large_pct": large_count / total_levels * 100,
+                }
+            )
 
     hour_df_result = pd.DataFrame(hour_stats)
 

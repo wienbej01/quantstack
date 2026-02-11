@@ -32,7 +32,9 @@ class MarketScheduler:
         self.post_market_buffer = schedule_config.get("post_market_buffer_minutes", 5)
 
         # Optional EOD flatten time override (HH:MM)
-        self.eod_flatten_time = self._parse_time(schedule_config.get("eod_flatten_time"))
+        self.eod_flatten_time = self._parse_time(
+            schedule_config.get("eod_flatten_time")
+        )
 
         logger.info(f"Market scheduler initialized - auto_start: {self.auto_start}")
 
@@ -88,19 +90,19 @@ class MarketScheduler:
 
     def can_open_new_position(self, max_hold_seconds: int) -> tuple[bool, str]:
         """Check if sufficient time remains to open a new position.
-        
+
         Args:
             max_hold_seconds: Maximum hold time for position
-            
+
         Returns:
             (can_open, reason) tuple
         """
         if not self.is_market_day():
             return False, "Not a market day"
-        
+
         et_now = self.get_et_time()
         current_time = et_now.time()
-        
+
         # Calculate time until effective close (EOD flatten if configured)
         effective_close = self.eod_flatten_time or self.market_close
         market_close_dt = et_now.replace(
@@ -109,16 +111,19 @@ class MarketScheduler:
             second=0,
             microsecond=0,
         )
-        
+
         seconds_until_close = (market_close_dt - et_now).total_seconds()
-        
+
         # Need enough time for max hold + buffer
         buffer_seconds = 60  # 1-minute buffer
         required_seconds = max_hold_seconds + buffer_seconds
-        
+
         if seconds_until_close < required_seconds:
-            return False, f"Insufficient time: {seconds_until_close:.0f}s until close, need {required_seconds}s"
-        
+            return (
+                False,
+                f"Insufficient time: {seconds_until_close:.0f}s until close, need {required_seconds}s",
+            )
+
         return True, "OK"
 
     def is_eod_flatten_time(self) -> bool:

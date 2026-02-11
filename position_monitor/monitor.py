@@ -14,6 +14,7 @@ from qx_broker.ibkr import (
     IBKRSession,
     IBKRSessionConfig,
 )
+
 from position_monitor.models import PnLData, Position, PositionsOutput
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,9 @@ class PositionMonitor:
         self.account_id = account_id
 
         connection = IBKRConnectionConfig(host=host, port=port, client_id=client_id)
-        session_cfg = IBKRSessionConfig(system_name="POSITION_MONITOR", connection=connection)
+        session_cfg = IBKRSessionConfig(
+            system_name="POSITION_MONITOR", connection=connection
+        )
         self.session = IBKRSession(session_cfg)
         self.account = IBKRAccount(self.session)
         self._pnl_subscription = None
@@ -151,7 +154,9 @@ class PositionMonitor:
             daily = float(pnl.dailyPnL or 0.0)
             realized = float(pnl.realizedPnL or 0.0)
             unrealized = float(pnl.unrealizedPnL or 0.0)
-            return PnLData(daily_pnl=daily, realized_pnl=realized, unrealized_pnl=unrealized)
+            return PnLData(
+                daily_pnl=daily, realized_pnl=realized, unrealized_pnl=unrealized
+            )
         except Exception as exc:
             logger.error("Failed to get P&L: %s", exc)
             return PnLData(daily_pnl=0.0)
@@ -194,7 +199,9 @@ class PositionMonitor:
             with open(self.output_file, "w") as f:
                 json.dump(output.to_dict(), f, indent=2)
 
-            logger.debug("Wrote %s positions to %s", len(output.positions), self.output_file)
+            logger.debug(
+                "Wrote %s positions to %s", len(output.positions), self.output_file
+            )
             return True
 
         except Exception as exc:

@@ -49,9 +49,10 @@ def emergency_close_positions():
     # Step 1: Cancel all open orders via IBKR
     try:
         from ib_insync import IB, MarketOrder
+
         ib = IB()
-        ib.connect('127.0.0.1', 7494, clientId=997)
-        
+        ib.connect("127.0.0.1", 7494, clientId=997)
+
         open_orders = ib.openOrders()
         if open_orders:
             logger.warning(f"⚠️  CANCELLING {len(open_orders)} OPEN ORDERS")
@@ -72,19 +73,22 @@ def emergency_close_positions():
                     action = "SELL" if qty > 0 else "BUY"
                     order = MarketOrder(action, abs(qty))
                     ib.placeOrder(pos.contract, order)
-                    logger.warning(f"  MKT CLOSE: {pos.contract.symbol} {action} {abs(qty)}")
+                    logger.warning(
+                        f"  MKT CLOSE: {pos.contract.symbol} {action} {abs(qty)}"
+                    )
             else:
                 logger.info("✓ No IBKR positions")
         except Exception as e:
             logger.error(f"Failed to close live positions via IBKR: {e}")
-        
+
         ib.disconnect()
     except Exception as e:
         logger.error(f"Failed to cancel orders via IBKR: {e}")
 
     # Step 2: Get open positions from database
     import psycopg2
-    conn = psycopg2.connect(database='trading', user='jacobw')
+
+    conn = psycopg2.connect(database="trading", user="jacobw")
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM trades WHERE status = 'OPEN'")

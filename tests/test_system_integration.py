@@ -4,8 +4,8 @@ Integration Test: Load actual L2ScalpingSystem and verify config
 This simulates exactly what happens when the service starts.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Set up environment exactly like production
@@ -16,6 +16,7 @@ sys.path.insert(0, "/home/jacobw/quantstack/l2_scalping/src")
 # Import the actual system
 from main import ScalpingSystem
 
+
 def _run_config_check() -> None:
     """Run config validation and assert expectations."""
 
@@ -23,19 +24,21 @@ def _run_config_check() -> None:
     print("INTEGRATION TEST: ScalpingSystem Config Loading")
     print("=" * 70)
     print()
-    
+
     # Create system instance (same as production)
     config_dir = Path("config")
     print(f"Config directory: {config_dir.absolute()}")
     print()
-    
+
     system = ScalpingSystem(config_dir=config_dir)
 
     orders_cfg = system.config["ibkr"]["orders"]
     entry_order_type = str(orders_cfg.get("entry_order_type", "IOC")).upper()
     improvement_ticks = orders_cfg.get("ioc_price_improvement_ticks", 0)
     tick_size = orders_cfg.get("tick_size", 0.01)
-    price_improvement = improvement_ticks * tick_size if entry_order_type == "IOC" else 0.0
+    price_improvement = (
+        improvement_ticks * tick_size if entry_order_type == "IOC" else 0.0
+    )
     expected_improvement = price_improvement
 
     print("LOADED CONFIG VALUES:")
@@ -70,6 +73,7 @@ def _run_config_check() -> None:
 
     print("✅ SUCCESS: Config loaded correctly, price improvement consistent")
     print()
+
 
 def test_actual_system_config():
     """Test that the actual system loads config correctly."""

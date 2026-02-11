@@ -42,8 +42,12 @@ def debug_trading_gates():
 
     # Check price ranges
     print("\n3. Price analysis:")
-    print(f"   Close price range: ${data['close'].min():.2f} - ${data['close'].max():.2f}")
-    print(f"   Price change: {((data['close'].iloc[-1] / data['close'].iloc[0]) - 1) * 100:.2f}%")
+    print(
+        f"   Close price range: ${data['close'].min():.2f} - ${data['close'].max():.2f}"
+    )
+    print(
+        f"   Price change: {((data['close'].iloc[-1] / data['close'].iloc[0]) - 1) * 100:.2f}%"
+    )
 
     # Apply features
     print("\n4. Applying features...")
@@ -109,7 +113,9 @@ def debug_trading_gates():
                             f"     {timestamp}: Close=${close_price:.2f}, VWAP=${vwap_price:.2f}, Deviation={deviation:.2f}%"
                         )
             else:
-                print("❌ No trading signals detected - deviation threshold too strict?")
+                print(
+                    "❌ No trading signals detected - deviation threshold too strict?"
+                )
                 print("   Consider loosening thresholds from ±0.5% to ±0.1%")
         else:
             print("❌ No VWAP data available")
@@ -123,7 +129,9 @@ def debug_trading_gates():
         if vwap_col in data_with_features.columns
         else "   Features applied: ❌"
     )
-    print(f"   Trading signals: {'✅' if buy_signals > 0 or sell_signals > 0 else '❌'}")
+    print(
+        f"   Trading signals: {'✅' if buy_signals > 0 or sell_signals > 0 else '❌'}"
+    )
 
     if buy_signals == 0 and sell_signals == 0:
         print("\n🚨 DIAGNOSIS: No trading signals detected!")
