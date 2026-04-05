@@ -50,7 +50,7 @@
 │   │   ├── __init__.py
 │   │   ├── gold_loader.py      # Load 1m OHLCV from ~/gcs-mount/gold
 │   │   ├── sip_loader.py       # Load daily SIP from ~/intraday_stack/data/daily_sip
-│   │   └── l2_loader.py        # Load L2 data from ~/quantstack/data/l2
+│   │   └── l2_loader.py        # Multi-source L2 loader (quantstack-v2 + quantstack)
 │   ├── features/
 │   │   ├── __init__.py
 │   │   ├── l2_features.py      # Order book features (extend qx-l2)
@@ -93,7 +93,14 @@
 | Gold 1m | `~/gcs-mount/gold/stocks/` | 1m OHLCV bars | Price features, targets |
 | SPY 1m | `~/gcs-mount/gold/stocks/SPY/` | SPY 1m bars | Regime detection |
 | Daily SIP | `~/intraday_stack/data/daily_sip/` | Daily stock selection | Universe filter |
-| L2 Data | `~/quantstack/data/l2/` | Order book snapshots | L2 features |
+| L2 Data (multi-source) | `~/quantstack-v2/data/l2/` + `~/quantstack/data/l2/` | Order book snapshots + pre-computed features | L2 features |
+
+**L2 Data Priority (automatic fallback):**
+1. `~/quantstack-v2/data/l2/l2_maximum/features` - Pre-computed features (fastest)
+2. `~/quantstack-v2/data/l2/l2_maximum/raw` - Full order book depth (10 levels)
+3. `~/quantstack/data/l2/l2_maximum/raw` - Full order book depth (legacy)
+
+**L2 Coverage:** 34 dates (2025-12-19 to 2026-03-09), 100+ symbols
 
 ## Existing Modules to Reuse
 

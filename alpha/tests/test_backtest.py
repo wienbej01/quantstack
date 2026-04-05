@@ -70,7 +70,7 @@ def sample_l2_snapshot():
     """Create sample L2 snapshot for testing."""
     return pd.Series(
         {
-            "ts_utc": pd.Timestamp("2024-01-02 09:30:00"),
+            "ts_utc": pd.Timestamp("2024-01-02 14:30:00+00:00"),
             "symbol": "AAPL",
             "bid_px_1": 149.95,
             "bid_sz_1": 1000,
@@ -237,6 +237,44 @@ class TestBacktestEngine:
         assert bar_data.l2_snapshot is not None
         assert isinstance(bar_data.features, dict)
 
+    def test_prepare_bar_data_adds_causal_bar_features_when_history_available(
+        self, sample_l2_snapshot
+    ):
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        bars = pd.DataFrame(
+            [
+                {
+                    "ts": pd.Timestamp("2024-01-02 09:30:00"),
+                    "symbol": "AAPL",
+                    "open": 150.0,
+                    "high": 150.2,
+                    "low": 149.8,
+                    "close": 150.1,
+                    "volume": 10000,
+                },
+                {
+                    "ts": pd.Timestamp("2024-01-02 09:31:00"),
+                    "symbol": "AAPL",
+                    "open": 150.1,
+                    "high": 150.4,
+                    "low": 150.0,
+                    "close": 150.3,
+                    "volume": 12000,
+                },
+            ]
+        )
+        l2_df = pd.DataFrame([sample_l2_snapshot])
+
+        bar_data = engine._prepare_bar_data(
+            bars.iloc[-1],
+            l2_df,
+            bars.iloc[-1]["ts"],
+            bar_history=bars,
+        )
+
+        assert "dist_vwap_bps" in bar_data.features
+        assert "volume_rel_20" in bar_data.features
+
     def test_calculate_equity(self, sample_bars):
         """Test equity calculation with and without positions."""
         engine = AlphaBacktestEngine(DEFAULT_CONFIG)
@@ -285,6 +323,260 @@ class TestBacktestEngine:
         assert position.quantity == 100
         assert position.target_price > position.entry_price
         assert position.stop_price < position.entry_price
+
+    def test_create_position_delegates_to_signal_impl(self):
+        """Engine should honor signal-specific position construction when available."""
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+
+        class CustomSignal:
+            signal_name = "CustomSignal"
+
+            def create_position(self, signal, entry_price, entry_time, quantity):
+                return Position(
+                    symbol=signal.symbol,
+                    side=signal.side,
+                    entry_price=entry_price,
+                    entry_time=entry_time,
+                    quantity=quantity,
+                    target_price=entry_price * 1.01,
+                    stop_price=entry_price * 0.99,
+                    time_limit_minutes=7,
+                    signal_name=self.signal_name,
+                )
+
+        engine._signals_by_name = {"CustomSignal": CustomSignal()}
+        signal = SignalEvent(
+            symbol="AAPL",
+            timestamp=pd.Timestamp("2024-01-02 09:30:00"),
+            side=SignalSide.LONG,
+            confidence=0.8,
+            features={},
+            signal_name="CustomSignal",
+        )
+
+        position = engine._create_position_from_signal(
+            signal,
+            entry_price=150.0,
+            entry_time=pd.Timestamp("2024-01-02 09:31:00"),
+            quantity=100,
+        )
+
+        assert position.time_limit_minutes == 7
+        assert position.target_price == pytest.approx(151.5)
+
+    def test_prepare_bar_data_uses_only_current_bar_l2_context(self):
+        """L2 matching may use the completed current bar, but not the next bar."""
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        engine._build_l2_index(
+            pd.DataFrame(
+                [
+                    {
+                        "ts_utc": pd.Timestamp("2024-01-02 14:29:45+00:00"),
+                        "symbol": "AAPL",
+                        "bid_px_1": 149.95,
+                        "bid_sz_1": 1000,
+                        "ask_px_1": 150.05,
+                        "ask_sz_1": 1000,
+                        "has_depth": True,
+                    },
+                    {
+                        "ts_utc": pd.Timestamp("2024-01-02 14:30:15+00:00"),
+                        "symbol": "AAPL",
+                        "bid_px_1": 149.85,
+                        "bid_sz_1": 900,
+                        "ask_px_1": 149.95,
+                        "ask_sz_1": 900,
+                        "has_depth": True,
+                    },
+                    {
+                        "ts_utc": pd.Timestamp("2024-01-02 14:31:00+00:00"),
+                        "symbol": "AAPL",
+                        "bid_px_1": 149.75,
+                        "bid_sz_1": 800,
+                        "ask_px_1": 149.85,
+                        "ask_sz_1": 800,
+                        "has_depth": True,
+                    },
+                ]
+            )
+        )
+        bar = pd.Series(
+            {
+                "ts": pd.Timestamp("2024-01-02 09:30:00"),
+                "symbol": "AAPL",
+                "open": 150.0,
+                "high": 150.2,
+                "low": 149.8,
+                "close": 150.1,
+                "volume": 10000,
+            }
+        )
+
+        bar_data = engine._prepare_bar_data(bar, None, bar["ts"])
+
+        assert bar_data.l2_snapshot is not None
+        assert bar_data.l2_snapshot["ts_utc"] == pd.Timestamp(
+            "2024-01-02 14:30:15+00:00"
+        )
+
+    def test_normalize_ml_window_preserves_precomputed_micro_off(self):
+        """Precomputed feature inputs should not have micro_off overwritten to zero."""
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        window = pd.DataFrame(
+            [
+                {
+                    "ts_utc": pd.Timestamp("2024-01-02 14:29:45+00:00"),
+                    "symbol": "AAPL",
+                    "mid": 150.0,
+                    "spread": 0.10,
+                    "depth_bid_k": 1500,
+                    "depth_ask_k": 1400,
+                    "depth_imb_k": 0.034483,
+                    "pressure_k": 100.0,
+                    "obi_1": 0.10,
+                    "obi_2": 0.08,
+                    "obi_3": 0.07,
+                    "obi_5": 0.06,
+                    "obi_10": 0.05,
+                    "microprice": 150.03,
+                    "micro_off": 0.03,
+                }
+            ]
+        )
+
+        normalized = engine._normalize_ml_window(
+            window, symbol="AAPL", date="2024-01-02"
+        )
+
+        assert normalized["microprice"].iloc[0] == pytest.approx(150.03)
+        assert normalized["micro_off"].iloc[0] == pytest.approx(0.03)
+
+    def test_normalize_ml_window_sanitizes_inverted_precomputed_l1(self):
+        """Precomputed feature inputs should not feed inverted or absurd L1 values downstream."""
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        window = pd.DataFrame(
+            [
+                {
+                    "ts_utc": pd.Timestamp("2024-01-02 14:29:45+00:00"),
+                    "symbol": "AAPL",
+                    "mid": 23.805,
+                    "spread": -26.51,
+                    "depth_bid": 514637.0,
+                    "depth_ask": 134683.0,
+                    "pressure": 0.5851,
+                    "obi_1": 0.0,
+                    "obi_2": 0.47,
+                    "obi_3": 0.62,
+                    "obi_5": 0.19,
+                    "microprice": 23.805,
+                    "micro_off": 0.0,
+                    "bid": 37.06,
+                    "ask": 10.55,
+                    "bid_size": 400.0,
+                    "ask_size": 400.0,
+                }
+            ]
+        )
+
+        normalized = engine._normalize_ml_window(
+            window, symbol="AAPL", date="2024-01-02"
+        )
+
+        assert normalized["mid"].iloc[0] == pytest.approx(23.805)
+        assert normalized["spread"].iloc[0] == pytest.approx(0.0)
+        assert normalized["microprice"].iloc[0] == pytest.approx(23.805)
+        assert normalized["micro_off"].iloc[0] == pytest.approx(0.0)
+
+    def test_prepare_bar_data_preserves_ml_feature_view_over_l2_snapshot_keys(
+        self, monkeypatch
+    ):
+        """Stateful snapshot diagnostics must not overwrite the ML feature vector."""
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        bar = pd.Series(
+            {
+                "ts": pd.Timestamp("2024-01-02 09:30:00"),
+                "symbol": "AAPL",
+                "open": 150.0,
+                "high": 150.2,
+                "low": 149.8,
+                "close": 150.1,
+                "volume": 10000,
+            }
+        )
+        l2_df = pd.DataFrame(
+            [
+                {
+                    "ts_utc": pd.Timestamp("2024-01-02 14:30:15+00:00"),
+                    "symbol": "AAPL",
+                    "bid_px_1": 149.95,
+                    "bid_sz_1": 1000,
+                    "ask_px_1": 150.05,
+                    "ask_sz_1": 1000,
+                    "has_depth": True,
+                }
+            ]
+        )
+
+        monkeypatch.setattr(
+            engine,
+            "_compute_ml_feature_view",
+            lambda window, symbol, date, bar_history=None: {
+                "spread": 0.12,
+                "mid": 150.0,
+                "pressure_k": 25.0,
+            },
+        )
+        monkeypatch.setattr(
+            engine.l2_engineer,
+            "compute_all_features",
+            lambda snapshot: {
+                "spread": 99.0,
+                "mid": 99.0,
+                "pressure_k": -99.0,
+                "book_imbalance_5": 0.5,
+            },
+        )
+
+        bar_data = engine._prepare_bar_data(
+            bar, l2_df, bar["ts"], bar_history=pd.DataFrame([bar])
+        )
+
+        assert bar_data.features["spread"] == pytest.approx(0.12)
+        assert bar_data.features["mid"] == pytest.approx(150.0)
+        assert bar_data.features["pressure_k"] == pytest.approx(25.0)
+        assert bar_data.features["book_imbalance_5"] == pytest.approx(0.5)
+
+    def test_prepare_bar_data_marks_ml_not_ready_before_first_l2_snapshot(self):
+        engine = AlphaBacktestEngine(DEFAULT_CONFIG)
+        bar = pd.Series(
+            {
+                "ts": pd.Timestamp("2024-01-02 09:30:00"),
+                "symbol": "AAPL",
+                "open": 150.0,
+                "high": 150.2,
+                "low": 149.8,
+                "close": 150.1,
+                "volume": 10000,
+            }
+        )
+        l2_df = pd.DataFrame(
+            [
+                {
+                    "ts_utc": pd.Timestamp("2024-01-02 14:48:24+00:00"),
+                    "symbol": "AAPL",
+                    "bid_px_1": 149.95,
+                    "bid_sz_1": 1000,
+                    "ask_px_1": 150.05,
+                    "ask_sz_1": 1000,
+                    "has_depth": True,
+                }
+            ]
+        )
+
+        bar_data = engine._prepare_bar_data(bar, l2_df, bar["ts"])
+
+        assert bar_data.l2_snapshot is None
+        assert bar_data.features["_ml_features_ready"] is False
 
 
 class TestBacktestResult:
@@ -376,8 +668,12 @@ class TestIntegration:
         engine = AlphaBacktestEngine(DEFAULT_CONFIG)
         result = engine.run(df, signals=[MockSignal()])
 
-        # Should have executed at least one trade
-        assert result.entries_executed >= 0
+        # Result counters should mirror engine counters for observability.
+        assert result.entries_executed == engine.entries_executed
+        assert result.exits_executed == engine.exits_executed
+        assert result.entries_executed > 0
+        assert result.exits_executed > 0
+        assert result.num_trades > 0
         assert isinstance(result, BacktestResult)
 
     def test_pnl_calculation(self):

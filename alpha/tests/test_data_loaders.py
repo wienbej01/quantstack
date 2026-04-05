@@ -4,9 +4,13 @@ Tests use real data from the data mounts to ensure loaders work correctly.
 Following the project policy: no synthetic data for testing when real data is available.
 """
 
+from datetime import datetime
+
 import pandas as pd
 import pytest
+
 from src.data import GoldLoader, L2Loader, SipLoader
+from src.data.gold_loader import _next_month
 
 
 class TestGoldLoader:
@@ -94,6 +98,12 @@ class TestGoldLoader:
 
         # Verify we found some data
         assert coverage["found_bars"] > 0
+
+    def test_next_month_handles_month_end(self):
+        """Month stepping should not fail on 29th/30th/31st dates."""
+        assert _next_month(datetime(2026, 1, 31)) == datetime(2026, 2, 1)
+        assert _next_month(datetime(2024, 2, 29)) == datetime(2024, 3, 1)
+        assert _next_month(datetime(2026, 12, 31)) == datetime(2027, 1, 1)
 
 
 class TestSipLoader:

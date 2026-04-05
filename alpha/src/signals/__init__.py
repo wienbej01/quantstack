@@ -2,6 +2,7 @@
 
 from .base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 from .liquidity_fade import LiquidityFadeSignal
+from .ml_signal import MLSignal
 from .order_flow import OrderFlowSignal
 from .whale_detect import WhaleDetectSignal
 
@@ -11,6 +12,7 @@ __all__ = [
     "ExitEvent",
     "Position",
     "SignalSide",
+    "MLSignal",
     "OrderFlowSignal",
     "WhaleDetectSignal",
     "LiquidityFadeSignal",

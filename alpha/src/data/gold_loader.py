@@ -20,6 +20,13 @@ import pyarrow.dataset as ds
 logger = logging.getLogger(__name__)
 
 
+def _next_month(dt: datetime) -> datetime:
+    """Advance to the first day of the next month without day overflow."""
+    if dt.month == 12:
+        return dt.replace(year=dt.year + 1, month=1, day=1)
+    return dt.replace(month=dt.month + 1, day=1)
+
+
 class GoldLoader:
     """Load 1-minute OHLCV bars from Gold data store."""
 
@@ -107,10 +114,7 @@ class GoldLoader:
                 logger.debug(f"File not found: {file_path}")
 
             # Move to next month
-            if month == 12:
-                current_date = current_date.replace(year=year + 1, month=1)
-            else:
-                current_date = current_date.replace(month=month + 1)
+            current_date = _next_month(current_date)
 
         if not all_dfs:
             raise FileNotFoundError(
@@ -194,10 +198,7 @@ class GoldLoader:
                 logger.debug(f"SPY file not found: {file_path}")
 
             # Move to next month
-            if month == 12:
-                current_date = current_date.replace(year=year + 1, month=1)
-            else:
-                current_date = current_date.replace(month=month + 1)
+            current_date = _next_month(current_date)
 
         if not all_dfs:
             raise FileNotFoundError(

@@ -6,14 +6,15 @@ Level 2 Order Flow Alpha Backtesting System for testing three hypotheses:
 2. **Whale Following** - Large institutional orders signal informed trading
 3. **Liquidity Fade** - Sudden liquidity withdrawal creates mean-reversion opportunity
 
-## Status: System Operational, Signal Tuning Required
+## Status: System Operational, Multi-Location L2 Support Added
 
-**Last Run:** 2026-01-21
+**Last Update:** 2026-03-10
 - ✅ Data pipeline: Bronze → Gold conversion working
 - ✅ Backtest engine: Runs on all L2 dates
-- ✅ 17 symbols with L2 data processed
-- ✅ 9 trading dates (Dec 23, Jan 8-9, 13-16, 19-20)
-- ❌ 0 trades generated - signal thresholds too strict
+- ✅ L2 loader: Multi-location support (quantstack + quantstack-v2)
+- ✅ **100+ symbols** with L2 data across **34 dates**
+- ✅ Pre-computed feature support for faster backtesting
+- ❌ 0 trades generated - signal thresholds too strict (needs tuning)
 
 ## Quick Start
 
@@ -49,14 +50,21 @@ python fix_migration.py  # Converts all bronze to gold with checkpoint/resume
 
 | Source | Path | Content | Status |
 |--------|------|---------|--------|
-| Gold 1m | `~/gcs-mount/gold/stocks/` | 1m OHLCV bars | ✅ Through Jan 20 |
-| L2 Data | `~/quantstack/data/l2_maximum/raw/` | Order book snapshots | ✅ 9 dates |
+| Gold 1m | `~/gcs-mount/gold/stocks/` | 1m OHLCV bars | ✅ Through Mar 2026 |
+| L2 Data (multi) | `~/quantstack-v2/data/l2/` + `~/quantstack/data/l2/` | Order book snapshots + features | ✅ 34 dates |
 | Bronze | `~/gcs-mount/bronze/stocks/` | Raw Polygon data | ✅ Archived |
 
-**L2 Coverage:**
-- Dec 23: 390 minutes (full day) - 3 symbols (HAL, LUV, PFE)
-- Jan 8-9, 13-16, 19-20: 338-390 minutes each - 2-3 symbols per day
-- Total: 17 unique symbols with L2 data
+**L2 Coverage (Combined Locations):**
+- **34 unique dates** from 2025-12-19 to 2026-03-09
+- **100+ unique symbols** including: ACHR, ACLX, AMPX, BE, CCL, DDOG, F, FCX, GM, HAL, HIMS, INTC, KO, LUV, NVDA, PFE, PLTR, SBUX, SMR, T, VST, XOM, etc.
+- **Two data types:**
+  - **Raw**: Full order book depth (10 levels bid/ask)
+  - **Features**: Pre-computed (obi_1, obi_5, mid, spread, pressure) for faster loading
+
+**L2 Loader automatically tries these sources in order:**
+1. `~/quantstack-v2/data/l2/l2_maximum/features` (pre-computed, fastest)
+2. `~/quantstack-v2/data/l2/l2_maximum/raw` (full depth, newer)
+3. `~/quantstack/data/l2/l2_maximum/raw` (full depth, legacy)
 
 ## Signal Configuration
 
@@ -107,8 +115,15 @@ alpha/
 ## Known Issues
 
 1. **Zero Trades**: Signal thresholds too strict for current L2 data patterns
-2. **Sparse L2 Coverage**: Only 9 dates with L2 data (IBKR 3-symbol limit)
-3. **Date Gaps**: No L2 data for Jan 2-7, 10-12, 17-18
+2. **Signal Tuning**: Need to analyze L2 data patterns and calibrate thresholds
+3. **Date Gaps**: No L2 data for some periods (IBKR symbol limits during collection)
+
+## Recent Enhancements (2026-03-10)
+
+- ✅ **Multi-location L2 support**: Loader now searches both `~/quantstack-v2/data/l2/` and `~/quantstack/data/l2/`
+- ✅ **Pre-computed features**: Faster loading when features are available
+- ✅ **Expanded coverage**: 34 dates and 100+ symbols vs original 9 dates / 17 symbols
+- ✅ **Backward compatibility**: Existing code continues to work unchanged
 
 ## Next Steps
 

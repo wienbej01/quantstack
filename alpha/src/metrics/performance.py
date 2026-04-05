@@ -45,7 +45,7 @@ def compute_sharpe(
     mean_excess = excess_returns.mean()
     std_excess = excess_returns.std()
 
-    if std_excess == 0:
+    if not np.isfinite(std_excess) or std_excess <= 1e-12:
         return 0.0
 
     sharpe = mean_excess / std_excess

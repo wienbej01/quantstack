@@ -9,7 +9,7 @@
 
 ## Progress Summary
 
-**Overall Completion: 100% (6 of 6 sprints completed)**
+**Overall Completion: 100% (6 of 6 sprints completed) + Post-Sprint Enhancements**
 
 - ✅ Sprint 1: Data Infrastructure (21 tests passing)
 - ✅ Sprint 2: Feature Engineering (20 tests passing)
@@ -17,9 +17,11 @@
 - ✅ Sprint 4: Backtest Engine (16 tests passing)
 - ✅ Sprint 5: Validation Framework (17 tests passing)
 - ✅ Sprint 6: Integration & Analysis (scripts functional)
+- ✅ **Post-Sprint: L2 Multi-Location Support (2026-03-10)**
 
 **Test Status: 92 tests passing**
 **Integration Status: Fixed per FIX_SPRINT_PLAN.md**
+**Data Status: Expanded to 34 dates, 100+ symbols via multi-location support**
 
 ---
 
@@ -520,3 +522,56 @@ Go/No-Go after 16 weeks based on:
 - Sharpe > 0.75 in paper trading
 - Execution quality acceptable
 - No systematic issues
+
+---
+
+## Post-Sprint Enhancements (2026-03-10)
+
+### L2 Multi-Location Support
+
+**Status:** ✅ Completed
+
+Enhanced the L2 data loader to support multiple data sources with automatic fallback logic.
+
+#### Data Coverage Expansion
+
+| Metric | Before | After | Change |
+|--------|--------|-------|--------|
+| Unique Dates | 9 | 34 | +278% |
+| Unique Symbols | 17 | 100+ | +488% |
+| Date Range | 2025-12-23 to 2026-01-20 | 2025-12-19 to 2026-03-09 | Extended |
+
+#### New Features
+
+1. **Multi-Source L2 Loader** (`src/data/l2_loader.py`)
+   - Priority-based fallback across 3 data sources
+   - Support for raw depth and pre-computed features
+   - Inventory discovery via `get_data_inventory()`
+
+2. **Pre-Computed Feature Support** (`src/features/l2_features.py`)
+   - Automatic detection of feature vs raw data
+   - Faster loading when features available
+
+3. **Updated Configuration** (`config/backtest_config.yaml`)
+   - `l2_sources` list with priority order
+   - `l2_prefer_features` toggle
+
+#### Source Priority Order
+
+1. `~/quantstack-v2/data/l2/l2_maximum/features` (pre-computed, fastest)
+2. `~/quantstack-v2/data/l2/l2_maximum/raw` (full depth, newer)
+3. `~/quantstack/data/l2/l2_maximum/raw` (full depth, legacy)
+
+#### Files Modified
+
+- `src/data/l2_loader.py` - Complete rewrite with `L2Source` dataclass
+- `src/features/l2_features.py` - Added pre-computed feature handling
+- `config/backtest_config.yaml` - New L2 source configuration
+- `README.md` - Updated documentation
+- `SESSION_PROGRESS_2026-03-10.md` - Session notes for next Claude Code
+
+### Next Steps
+
+1. **Signal Threshold Tuning** - Current thresholds too strict (0 trades)
+2. **Run Threshold Matrix** - Grid search for optimal values
+3. **Analyze Feature Distributions** - Understand L2 data patterns

@@ -23,8 +23,11 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import pandas as pd
 
+from ..data.ml_compact_cache import compute_event_score
+from ..data.ml_dataset import FEATURE_COLS, compute_features_from_raw
 from ..features.flow_features import compute_all_flow_features
 from ..features.l2_features import AlphaL2Features
+from ..features.ml_features import compute_ml_features
 from ..features.price_features import compute_all_price_features
 from ..signals.base import ExitEvent, Position, Signal, SignalEvent, SignalSide
 
@@ -123,6 +126,17 @@ class AlphaBacktestEngine:
         self.pending_exits: List[ExitEvent] = []  # Exits to execute at next bar
         self.entries_executed: int = 0
         self.exits_executed: int = 0
+        self._signals_by_name: Dict[str, Signal] = {}
+        self._l2_by_symbol: Dict[str, pd.DataFrame] = {}
+        self._l2_ts_by_symbol: Dict[str, np.ndarray] = {}
+        ml_cfg = config.get("ml", {})
+        self._ml_lookback_seconds = int(ml_cfg.get("backtest_lookback_seconds", 300))
+        self._l2_staleness_seconds = int(
+            ml_cfg.get("backtest_snapshot_staleness_seconds", 60)
+        )
+        self._bar_interval_seconds = int(
+            ml_cfg.get("backtest_bar_interval_seconds", 60)
+        )
 
         # Feature engineers
         self.l2_engineer = AlphaL2Features(config)
@@ -151,6 +165,10 @@ class AlphaBacktestEngine:
         self.pending_exits = []
         self.entries_executed = 0
         self.exits_executed = 0
+        self._signals_by_name = {
+            signal.signal_name: signal for signal in (signals or [])
+        }
+        self._build_l2_index(l2_df)
 
         result = BacktestResult()
 
@@ -165,6 +183,11 @@ class AlphaBacktestEngine:
 
         # Sort by timestamp
         bars_df = bars_df.sort_values("ts").reset_index(drop=True)
+        bars_df["_symbol_bar_idx"] = bars_df.groupby("symbol").cumcount()
+        bars_by_symbol = {
+            str(symbol): group.reset_index(drop=True)
+            for symbol, group in bars_df.groupby("symbol", sort=False)
+        }
 
         # Group by symbol for processing
         symbols = bars_df["symbol"].unique()
@@ -191,7 +214,14 @@ class AlphaBacktestEngine:
 
             # Check signals and generate new entries
             for _, bar in group.iterrows():
-                bar_data = self._prepare_bar_data(bar, l2_df, ts)
+                symbol_history = (
+                    bars_by_symbol[str(bar["symbol"])]
+                    .iloc[: int(bar["_symbol_bar_idx"]) + 1]
+                    .copy()
+                )
+                bar_data = self._prepare_bar_data(
+                    bar, l2_df, ts, bar_history=symbol_history
+                )
                 self._process_bar(bar_data, signals, result)
 
             # Update equity
@@ -208,6 +238,8 @@ class AlphaBacktestEngine:
 
         # Build equity curve
         result.equity_curve = pd.Series(equity_values, index=equity_timestamps)
+        result.entries_executed = self.entries_executed
+        result.exits_executed = self.exits_executed
 
         logger.info(
             f"Backtest complete: {result.num_trades} trades, "
@@ -216,55 +248,302 @@ class AlphaBacktestEngine:
 
         return result
 
+    def _build_l2_index(self, l2_df: Optional[pd.DataFrame]) -> None:
+        """Pre-index L2 snapshots by symbol for causal lookups."""
+        self._l2_by_symbol = {}
+        self._l2_ts_by_symbol = {}
+
+        if l2_df is None or l2_df.empty:
+            return
+
+        indexed = l2_df.copy()
+        indexed["ts_utc"] = pd.to_datetime(indexed["ts_utc"], utc=True)
+        for symbol, group in indexed.groupby("symbol", sort=False):
+            ordered = group.sort_values("ts_utc").reset_index(drop=True)
+            self._l2_by_symbol[str(symbol)] = ordered
+            self._l2_ts_by_symbol[str(symbol)] = (
+                ordered["ts_utc"].astype("int64").to_numpy()
+            )
+
+    def _lookup_l2_context(
+        self,
+        symbol: str,
+        ts_utc: pd.Timestamp,
+    ) -> tuple[pd.DataFrame, Optional[pd.Series]]:
+        """Return a causal lookback window and the latest non-stale snapshot."""
+        symbol_key = str(symbol)
+        if symbol_key not in self._l2_by_symbol:
+            return pd.DataFrame(), None
+
+        ts_ns = int(ts_utc.value)
+        timestamps = self._l2_ts_by_symbol[symbol_key]
+        end = int(np.searchsorted(timestamps, ts_ns, side="right"))
+        if end <= 0:
+            return pd.DataFrame(), None
+
+        latest_ts_ns = int(timestamps[end - 1])
+        if ts_ns - latest_ts_ns > self._l2_staleness_seconds * 1_000_000_000:
+            return pd.DataFrame(), None
+
+        start_ns = ts_ns - self._ml_lookback_seconds * 1_000_000_000
+        start = int(np.searchsorted(timestamps, start_ns, side="left"))
+        window = self._l2_by_symbol[symbol_key].iloc[start:end].copy()
+        latest = window.iloc[-1].copy() if not window.empty else None
+        return window, latest
+
+    def _decision_cutoff_utc(
+        self,
+        ts: pd.Timestamp,
+        bar_history: Optional[pd.DataFrame] = None,
+    ) -> pd.Timestamp:
+        """Return the latest timestamp that is causally available for the current bar decision.
+
+        Minute bars in this repo are bucket-labelled by their start time, while signal generation
+        happens after the bar is complete. We therefore allow L2 context up to the end of the
+        current bar, but exclude the next bar's opening snapshot.
+        """
+        if ts.tz is None:
+            ts_utc = ts.tz_localize("America/New_York").tz_convert("UTC")
+        else:
+            ts_utc = ts.tz_convert("UTC")
+
+        interval_seconds = self._bar_interval_seconds
+        if (
+            bar_history is not None
+            and not bar_history.empty
+            and "ts" in bar_history.columns
+        ):
+            ordered = pd.to_datetime(bar_history["ts"]).sort_values().drop_duplicates()
+            if len(ordered) >= 2:
+                delta = ordered.iloc[-1] - ordered.iloc[-2]
+                if delta > pd.Timedelta(0):
+                    interval_seconds = max(int(delta.total_seconds()), 1)
+
+        return (
+            ts_utc
+            + pd.Timedelta(seconds=interval_seconds)
+            - pd.Timedelta(nanoseconds=1)
+        )
+
+    @staticmethod
+    def _series_from_frame(
+        frame: pd.DataFrame,
+        column: str,
+        default: float = 0.0,
+    ) -> pd.Series:
+        if column in frame.columns:
+            return pd.to_numeric(frame[column], errors="coerce").fillna(default)
+        return pd.Series(default, index=frame.index, dtype=np.float32)
+
+    def _normalize_ml_window(
+        self,
+        window: pd.DataFrame,
+        symbol: str,
+        date: str,
+    ) -> pd.DataFrame:
+        """Normalize raw or pre-computed L2 rows into the training feature schema."""
+        cols = set(window.columns)
+        if any(col.startswith("bid_px_") for col in cols):
+            normalized = compute_features_from_raw(window).copy()
+            if "ts_epoch" not in normalized.columns:
+                normalized["ts_epoch"] = (
+                    pd.to_datetime(normalized["ts_utc"], utc=True).astype("int64") / 1e9
+                )
+        else:
+            normalized = window.copy()
+            normalized["ts_utc"] = pd.to_datetime(normalized["ts_utc"], utc=True)
+            if "ts_epoch" not in normalized.columns:
+                normalized["ts_epoch"] = normalized["ts_utc"].astype("int64") / 1e9
+            normalized["mid"] = self._series_from_frame(normalized, "mid")
+            normalized["spread"] = self._series_from_frame(normalized, "spread")
+
+            depth_bid = self._series_from_frame(normalized, "depth_bid_k")
+            if "depth_bid_k" not in normalized.columns:
+                depth_bid = self._series_from_frame(normalized, "depth_bid")
+            depth_ask = self._series_from_frame(normalized, "depth_ask_k")
+            if "depth_ask_k" not in normalized.columns:
+                depth_ask = self._series_from_frame(normalized, "depth_ask")
+
+            normalized["depth_bid_k"] = depth_bid
+            normalized["depth_ask_k"] = depth_ask
+            total_depth = depth_bid + depth_ask
+            normalized["depth_imb_k"] = np.where(
+                total_depth > 0,
+                (depth_bid - depth_ask) / total_depth,
+                0.0,
+            )
+            normalized["pressure_k"] = self._series_from_frame(normalized, "pressure_k")
+            if "pressure_k" not in normalized.columns:
+                normalized["pressure_k"] = self._series_from_frame(
+                    normalized, "pressure", 0.0
+                )
+                if "pressure" not in normalized.columns:
+                    normalized["pressure_k"] = depth_bid - depth_ask
+
+            normalized["obi_1"] = self._series_from_frame(normalized, "obi_1")
+            normalized["obi_2"] = self._series_from_frame(normalized, "obi_2")
+            if "obi_2" not in normalized.columns:
+                normalized["obi_2"] = normalized["obi_1"]
+            normalized["obi_3"] = self._series_from_frame(normalized, "obi_3")
+            if "obi_3" not in normalized.columns:
+                normalized["obi_3"] = normalized["obi_1"]
+            normalized["obi_5"] = self._series_from_frame(normalized, "obi_5")
+            normalized["obi_10"] = self._series_from_frame(normalized, "obi_10")
+            if "obi_10" not in normalized.columns:
+                normalized["obi_10"] = normalized["obi_5"]
+
+            bid = self._series_from_frame(normalized, "bid")
+            ask = self._series_from_frame(normalized, "ask")
+            bid_size = self._series_from_frame(normalized, "bid_size")
+            ask_size = self._series_from_frame(normalized, "ask_size")
+            if {"l1_bid", "l1_ask"} <= cols:
+                bid = self._series_from_frame(normalized, "l1_bid")
+                ask = self._series_from_frame(normalized, "l1_ask")
+                bid_size = self._series_from_frame(normalized, "l1_bid_size")
+                ask_size = self._series_from_frame(normalized, "l1_ask_size")
+
+            has_l1 = (bid > 0) & (ask > 0)
+            inverted_l1 = has_l1 & (ask < bid)
+            clean_bid = bid.where(~inverted_l1, ask)
+            clean_ask = ask.where(~inverted_l1, bid)
+            derived_mid = (clean_bid + clean_ask) / 2.0
+            derived_spread = clean_ask - clean_bid
+            absurd_l1 = has_l1 & (
+                (derived_mid <= 0)
+                | (derived_spread <= 0)
+                | ((derived_spread / np.maximum(np.abs(derived_mid), 1e-6)) > 0.50)
+            )
+            sane_l1 = has_l1 & ~absurd_l1
+
+            normalized["mid"] = normalized["mid"].where(~sane_l1, derived_mid)
+            normalized["spread"] = normalized["spread"].where(~sane_l1, derived_spread)
+            normalized["spread"] = normalized["spread"].where(
+                normalized["spread"] >= 0, 0.0
+            )
+
+            total_l1 = bid_size + ask_size
+            normalized["microprice"] = self._series_from_frame(normalized, "microprice")
+            derived_microprice = np.where(
+                total_l1 > 0,
+                (clean_bid * ask_size + clean_ask * bid_size) / total_l1,
+                normalized["mid"],
+            )
+            if "microprice" not in cols:
+                normalized["microprice"] = derived_microprice
+            else:
+                out_of_book = sane_l1 & (
+                    (normalized["microprice"] < clean_bid)
+                    | (normalized["microprice"] > clean_ask)
+                )
+                normalized["microprice"] = normalized["microprice"].where(
+                    ~(out_of_book | absurd_l1),
+                    derived_microprice,
+                )
+
+            normalized["micro_off"] = normalized["microprice"] - normalized["mid"]
+
+        normalized["symbol"] = symbol
+        normalized["date"] = date
+        if "source_type" not in normalized.columns:
+            normalized["source_type"] = "backtest"
+        for column in FEATURE_COLS:
+            if column not in normalized.columns:
+                normalized[column] = 0.0
+        keep = ["ts_utc", "ts_epoch", "symbol", "date", "source_type", *FEATURE_COLS]
+        normalized = normalized[keep].sort_values("ts_utc").reset_index(drop=True)
+        return normalized
+
+    def _compute_ml_feature_view(
+        self,
+        window: pd.DataFrame,
+        symbol: str,
+        date: str,
+        bar_history: Optional[pd.DataFrame] = None,
+    ) -> Dict[str, Any]:
+        """Compute the latest ML feature vector from a causal L2 lookback window."""
+        normalized = self._normalize_ml_window(window, symbol=symbol, date=date)
+        featured = compute_ml_features(normalized)
+        featured["event_score"] = compute_event_score(featured)
+        latest = featured.iloc[-1]
+        numeric_cols = featured.select_dtypes(include=[np.number, bool]).columns
+        features = {column: latest[column] for column in numeric_cols}
+        if bar_history is not None and not bar_history.empty:
+            features.update(self._compute_causal_bar_feature_view(bar_history))
+        return features
+
+    def _compute_causal_bar_feature_view(
+        self, bar_history: pd.DataFrame
+    ) -> Dict[str, Any]:
+        """Compute OHLCV-derived features from completed bars only.
+
+        This intentionally excludes the current decision bar so the causal price-feature
+        branch remains safe even when bar timestamps are minute labels rather than explicit
+        close timestamps.
+        """
+        required_cols = {"open", "high", "low", "close", "volume", "ts"}
+        if not required_cols.issubset(bar_history.columns):
+            return {}
+
+        bars = bar_history.sort_values("ts").reset_index(drop=True).copy()
+        completed = bars.iloc[:-1].copy()
+        if completed.empty:
+            return {}
+        completed["ts_utc"] = pd.to_datetime(completed["ts"], utc=True)
+        featured = compute_ml_features(completed)
+        latest = featured.iloc[-1]
+        numeric_cols = featured.select_dtypes(include=[np.number, bool]).columns
+        return {
+            column: latest[column]
+            for column in numeric_cols
+            if column not in {"ts_epoch"}
+        }
+
     def _prepare_bar_data(
         self,
         bar: pd.Series,
         l2_df: Optional[pd.DataFrame],
         ts: pd.Timestamp,
+        bar_history: Optional[pd.DataFrame] = None,
     ) -> BarData:
         """Prepare BarData with features for current bar."""
         bar_data = BarData(bars=bar)
+        bar_data.features["_ml_features_ready"] = False
 
-        # Find L2 snapshot for this symbol and timestamp
-        # Match within 1 minute window since bar ts is in ET and L2 ts_utc is in UTC
-        if l2_df is not None and not l2_df.empty:
-            # Convert bar timestamp to UTC for comparison
-            ts_utc = (
-                ts.tz_localize("America/New_York").tz_convert("UTC")
-                if ts.tz is None
-                else ts.tz_convert("UTC")
-            )
+        if l2_df is not None and not self._l2_by_symbol:
+            self._build_l2_index(l2_df)
 
-            symbol_l2 = l2_df[
-                (l2_df["symbol"] == bar["symbol"])
-                & (l2_df["ts_utc"] >= ts_utc - pd.Timedelta(seconds=30))
-                & (l2_df["ts_utc"] <= ts_utc + pd.Timedelta(seconds=30))
-            ]
-
-            if not symbol_l2.empty:
-                # Use closest snapshot
-                symbol_l2["time_diff"] = abs(
-                    (symbol_l2["ts_utc"] - ts_utc).dt.total_seconds()
-                )
-                closest_idx = symbol_l2["time_diff"].idxmin()
-                bar_data.l2_snapshot = symbol_l2.loc[closest_idx]
-                print(
-                    f"DEBUG: Loaded L2 snapshot for {bar['symbol']} @ {ts}, {len(symbol_l2)} snapshots in window"
+        # Find the latest non-stale L2 context available by the end of the current bar.
+        ts_utc = self._decision_cutoff_utc(ts, bar_history=bar_history)
+        symbol_l2_window, latest_snapshot = self._lookup_l2_context(
+            bar["symbol"], ts_utc
+        )
+        if latest_snapshot is not None:
+            bar_data.l2_snapshot = latest_snapshot
+            if bar_history is not None:
+                feature_view = self._compute_ml_feature_view(
+                    symbol_l2_window,
+                    symbol=str(bar["symbol"]),
+                    date=ts.strftime("%Y-%m-%d"),
+                    bar_history=bar_history,
                 )
             else:
-                print(
-                    f"DEBUG: No L2 snapshot for {bar['symbol']} @ {ts} (ts_utc={ts_utc})"
+                feature_view = self._compute_ml_feature_view(
+                    symbol_l2_window,
+                    symbol=str(bar["symbol"]),
+                    date=ts.strftime("%Y-%m-%d"),
                 )
-        else:
-            print(f"DEBUG: L2 data is None or empty")
+            bar_data.features.update(feature_view)
+            bar_data.features["_ml_features_ready"] = True
+        elif bar_history is not None and not bar_history.empty:
+            bar_data.features.update(self._compute_causal_bar_feature_view(bar_history))
 
         # Compute L2 features if snapshot available
         if bar_data.l2_snapshot is not None:
             l2_features = self.l2_engineer.compute_all_features(bar_data.l2_snapshot)
-            bar_data.features.update(l2_features)
-            print(
-                f"DEBUG: L2 features computed - spread={l2_features.get('spread'):.4f}, book_imb={l2_features.get('book_imbalance_5'):.3f}"
-            )
+            # Preserve the causal ML feature view when it already populated a feature name.
+            # Snapshot-level diagnostics are still added for non-overlapping keys.
+            for key, value in l2_features.items():
+                bar_data.features.setdefault(key, value)
         else:
             # Provide fallback values when L2 data unavailable
             # These neutral values won't trigger signals but won't crash either
@@ -316,9 +595,6 @@ class AlphaBacktestEngine:
                 )
 
                 if signal_event:
-                    print(
-                        f"DEBUG: SIGNAL GENERATED! {signal_event.signal_name} {signal_event.side} for {bar['symbol']} @ {bar['ts']}"
-                    )
                     result.signals_generated += 1
                     self.pending_entries.append(signal_event)
                     logger.debug(
@@ -495,6 +771,12 @@ class AlphaBacktestEngine:
         """
         # Get target/stop from signal's signal
         # For now, use defaults based on signal name
+        signal_impl = self._signals_by_name.get(signal.signal_name)
+        if signal_impl is not None and hasattr(signal_impl, "create_position"):
+            return signal_impl.create_position(
+                signal, entry_price, entry_time, quantity
+            )
+
         if signal.signal_name == "OrderFlowSignal":
             target_pct = 0.004
             stop_pct = 0.0025

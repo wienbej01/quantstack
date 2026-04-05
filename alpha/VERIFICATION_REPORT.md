@@ -3,6 +3,9 @@
 **Date:** 2026-01-19
 **Status:** ✅ ALL CRITICAL FIXES VERIFIED
 
+**Last Updated:** 2026-03-10
+**Enhancement:** ✅ Multi-location L2 data support added
+
 ---
 
 ## Test Results
@@ -107,6 +110,35 @@ The engine provides L2 fallbacks but doesn't compute price-based features like `
 Run with Dec 2025 dates where L2 data exists:
 ```bash
 python scripts/run_full_backtest.py --start 2025-12-19 --end 2025-12-23
+```
+
+---
+
+## System Enhancements (2026-03-10)
+
+### Multi-Location L2 Data Support
+
+Enhanced the L2 data loader to support multiple data sources with automatic fallback:
+
+| Priority | Source | Type | Dates | Symbols |
+|----------|--------|------|-------|---------|
+| 1 | `~/quantstack-v2/data/l2/l2_maximum/features` | Pre-computed | 13 | 31 |
+| 2 | `~/quantstack-v2/data/l2/l2_maximum/raw` | Raw depth | 1 | 5 |
+| 3 | `~/quantstack/data/l2/l2_maximum/raw` | Raw depth | 20 | 91 |
+
+**Total Coverage:** 34 unique dates (2025-12-19 to 2026-03-09), 100+ unique symbols
+
+#### Files Modified
+- `src/data/l2_loader.py` - Multi-source loader with `L2Source` dataclass
+- `src/features/l2_features.py` - Pre-computed feature support
+- `config/backtest_config.yaml` - L2 source configuration
+
+#### Verification
+```python
+from src.data.l2_loader import get_default_loader
+loader = get_default_loader()
+inventory = loader.get_data_inventory()
+# Returns: 34 dates across multiple sources
 ```
 
 ---

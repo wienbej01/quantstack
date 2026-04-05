@@ -356,58 +356,114 @@ class AlphaL2Features:
     ) -> Dict[str, any]:
         """Compute all L2 features for a snapshot.
 
+        Handles both raw L2 data (with full depth) and pre-computed features.
+
         Args:
-            snapshot: L2 snapshot as pandas Series
+            snapshot: L2 snapshot as pandas Series. Can be:
+                - Raw data: bid_sz_N, ask_sz_N, bid_px_N, ask_px_N for N=1..10
+                - Pre-computed features: obi_1, obi_5, mid, spread, depth_bid, depth_ask, pressure
 
         Returns:
             Dict of all computed features
         """
         features = {}
 
-        # Compute spread from bid_px_1 and ask_px_1 (fallback to l1_bid/l1_ask if available)
-        bid_price = snapshot.get("bid_px_1") or snapshot.get("l1_bid")
-        ask_price = snapshot.get("ask_px_1") or snapshot.get("l1_ask")
+        # Check if this is pre-computed feature data or raw data
+        is_precomputed = "obi_5" in snapshot.index or "obi_1" in snapshot.index
 
-        if (
-            bid_price
-            and ask_price
-            and not pd.isna(bid_price)
-            and not pd.isna(ask_price)
-        ):
-            features["spread"] = float(ask_price - bid_price)
-            features["mid_price"] = float((bid_price + ask_price) / 2)
+        if is_precomputed:
+            # Use pre-computed features directly (faster, already computed)
+            logger.debug("Using pre-computed L2 features")
+
+            # Order book imbalance (pre-computed)
+            features["book_imbalance_1"] = float(snapshot.get("obi_1", 0))
+            features["book_imbalance_5"] = float(snapshot.get("obi_5", 0))
+            # Estimate other levels from available
+            features["book_imbalance_3"] = features["book_imbalance_1"]  # Approximation
+            features["book_imbalance_10"] = features[
+                "book_imbalance_5"
+            ]  # Approximation
+
+            # Depth ratio from pre-computed depth values
+            depth_bid = float(snapshot.get("depth_bid", 0))
+            depth_ask = float(snapshot.get("depth_ask", 0))
+            if depth_ask > 0:
+                features["depth_ratio_5"] = depth_bid / depth_ask
+            else:
+                features["depth_ratio_5"] = 1.0
+
+            # Spread and mid price (pre-computed)
+            features["spread"] = float(snapshot.get("spread", 0))
+            features["mid_price"] = float(snapshot.get("mid", 0))
+
+            # Pressure metric (if available)
+            if "pressure" in snapshot.index:
+                features["pressure"] = float(snapshot.get("pressure", 0))
+
+            # Bid/Ask prices and sizes (L1 level)
+            features["bid_price"] = float(snapshot.get("bid", 0))
+            features["ask_price"] = float(snapshot.get("ask", 0))
+            features["bid_size"] = float(snapshot.get("bid_size", 0))
+            features["ask_size"] = float(snapshot.get("ask_size", 0))
+
+            # For pre-computed features, we can't compute slope, large orders, or depth drop
+            # Set reasonable defaults
+            features["bid_slope_5"] = 0.0
+            features["ask_slope_5"] = 0.0
+            features["has_large_bid"] = False
+            features["has_large_ask"] = False
+            features["large_bid_count"] = 0
+            features["large_ask_count"] = 0
+            features["depth_drop_detected"] = False
+            features["bid_drop_pct"] = 0.0
+            features["ask_drop_pct"] = 0.0
+
         else:
-            features["spread"] = 0.0
-            features["mid_price"] = 0.0
+            # Compute features from raw L2 data
+            # Compute spread from bid_px_1 and ask_px_1 (fallback to l1_bid/l1_ask if available)
+            bid_price = snapshot.get("bid_px_1") or snapshot.get("l1_bid")
+            ask_price = snapshot.get("ask_px_1") or snapshot.get("l1_ask")
 
-        # Basic book imbalance at multiple levels
-        for levels in [1, 3, 5, 10]:
-            features[f"book_imbalance_{levels}"] = self.compute_book_imbalance(
-                snapshot, levels
-            )
+            if (
+                bid_price
+                and ask_price
+                and not pd.isna(bid_price)
+                and not pd.isna(ask_price)
+            ):
+                features["spread"] = float(ask_price - bid_price)
+                features["mid_price"] = float((bid_price + ask_price) / 2)
+            else:
+                features["spread"] = 0.0
+                features["mid_price"] = 0.0
 
-        # Depth ratio
-        features["depth_ratio_5"] = self.compute_depth_ratio(snapshot, levels=5)
+            # Basic book imbalance at multiple levels
+            for levels in [1, 3, 5, 10]:
+                features[f"book_imbalance_{levels}"] = self.compute_book_imbalance(
+                    snapshot, levels
+                )
 
-        # Book slope
-        bid_slope, ask_slope = self.compute_book_slope(snapshot, levels=5)
-        features["bid_slope_5"] = bid_slope
-        features["ask_slope_5"] = ask_slope
+            # Depth ratio
+            features["depth_ratio_5"] = self.compute_depth_ratio(snapshot, levels=5)
 
-        # Large order detection
-        large_orders = self.detect_large_orders(snapshot)
-        features["has_large_bid"] = large_orders["has_large_bid"]
-        features["has_large_ask"] = large_orders["has_large_ask"]
-        features["large_bid_count"] = len(large_orders["large_bid_levels"])
-        features["large_ask_count"] = len(large_orders["large_ask_levels"])
+            # Book slope
+            bid_slope, ask_slope = self.compute_book_slope(snapshot, levels=5)
+            features["bid_slope_5"] = bid_slope
+            features["ask_slope_5"] = ask_slope
 
-        # Depth drop detection
-        depth_drop = self.detect_depth_drop(snapshot)
-        features["depth_drop_detected"] = depth_drop["depth_drop_detected"]
-        features["bid_drop_pct"] = depth_drop["bid_drop_pct"]
-        features["ask_drop_pct"] = depth_drop["ask_drop_pct"]
+            # Large order detection
+            large_orders = self.detect_large_orders(snapshot)
+            features["has_large_bid"] = large_orders["has_large_bid"]
+            features["has_large_ask"] = large_orders["has_large_ask"]
+            features["large_bid_count"] = len(large_orders["large_bid_levels"])
+            features["large_ask_count"] = len(large_orders["large_ask_levels"])
 
-        # Update history for next iteration
-        self.update_history(snapshot)
+            # Depth drop detection
+            depth_drop = self.detect_depth_drop(snapshot)
+            features["depth_drop_detected"] = depth_drop["depth_drop_detected"]
+            features["bid_drop_pct"] = depth_drop["bid_drop_pct"]
+            features["ask_drop_pct"] = depth_drop["ask_drop_pct"]
+
+            # Update history for next iteration
+            self.update_history(snapshot)
 
         return features

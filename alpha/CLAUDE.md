@@ -54,7 +54,12 @@ Data Sources (external) → Data Loaders → Features → Signals → Backtest E
 | Gold 1m | `~/gcs-mount/gold/stocks/` | 1m OHLCV bars |
 | SPY 1m | `~/gcs-mount/gold/stocks/SPY/` | SPY for regime classification |
 | Daily SIP | `~/intraday_stack/data/daily_sip/` | Stock universe selection |
-| L2 Data | `~/quantstack/data/l2/` | Order book snapshots |
+| L2 Data (multi-source) | `~/quantstack-v2/data/l2/` + `~/quantstack/data/l2/` | Order book snapshots + pre-computed features |
+
+**L2 Data Priority:** The loader automatically tries these sources in order:
+1. `~/quantstack-v2/data/l2/l2_maximum/features` - Pre-computed features (fastest)
+2. `~/quantstack-v2/data/l2/l2_maximum/raw` - Full order book depth (10 levels)
+3. `~/quantstack/data/l2/l2_maximum/raw` - Full order book depth (legacy)
 
 ### Directory Structure
 ```
@@ -117,4 +122,6 @@ class Signal(ABC):
 
 ## Sprint Status
 
-This is Sprint 1 of a 6-sprint implementation plan (see SPRINT_PLAN.md). Current directory structure is a skeleton awaiting implementation.
+**All 6 sprints completed** (see SPRINT_PLAN.md). Post-sprint enhancements added 2026-03-10:
+- Multi-location L2 data support (34 dates, 100+ symbols)
+- Pre-computed feature support for faster backtesting

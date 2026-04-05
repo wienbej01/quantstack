@@ -4,7 +4,30 @@ data:
   gold_path: "~/gcs-mount/gold/stocks"
   spy_path: "~/gcs-mount/gold/stocks/SPY"
   sip_path: "~/intraday_stack/data/daily_sip"
-  l2_path: "~/quantstack/data/l2/l2_maximum/raw"
+
+  # L2 data configuration - supports multiple sources with fallback
+  # The loader will automatically try these sources in priority order
+  l2_sources:
+    - path: "~/quantstack-v2/data/l2/l2_maximum/features"
+      type: "features"
+      priority: 1
+      name: "quantstack-v2-features"
+    - path: "~/quantstack-v2/data/l2/l2_maximum/raw"
+      type: "raw"
+      priority: 2
+      name: "quantstack-v2-raw"
+    - path: "~/quantstack/data/l2/l2_maximum/raw"
+      type: "raw"
+      priority: 3
+      name: "quantstack-raw"
+
+  # Legacy single path (for backward compatibility)
+  # If specified, overrides l2_sources
+  l2_path: null  # Set to path string to use single source
+
+  # L2 data loading preferences
+  l2_prefer_features: true  # Use pre-computed features when available (faster)
+  l2_allow_raw_fallback: true  # Fall back to raw data if features not found
 
 validation:
   walk_forward:
@@ -54,3 +77,72 @@ risk:
   max_position_pct: 0.02  # 2% of capital per trade
   max_total_exposure_pct: 0.15  # 15% total
   max_daily_loss_pct: 0.03  # 3% daily loss halt
+
+# --- ML / RL Configuration ---
+
+ml:
+  horizons_seconds: [60, 180, 300]
+  label_threshold_method: "fixed"
+  label_fixed_bps: 10
+  rolling_windows: [10, 30, 60, 300]
+  train_pct: 0.65
+  val_pct: 0.20
+  test_pct: 0.15
+  symbol_holdout_pct: 0.20
+  walk_forward_folds: 5
+  max_feature_correlation: 0.95
+  min_snapshots_per_symbol_day: 100
+
+  model:
+    type: "xgboost"
+    max_depth: 3
+    n_estimators: 120
+    learning_rate: 0.05
+    subsample: 0.7
+    colsample_bytree: 0.5
+    min_child_weight: 100
+    gamma: 1.0
+    reg_alpha: 0.5
+    reg_lambda: 2.0
+    early_stopping_rounds: 20
+
+  grid_search:
+    max_depth: [2, 3]
+    n_estimators: [80, 120]
+    min_child_weight: [80, 100]
+    colsample_bytree: [0.4, 0.5]
+
+signals:
+  ml:
+    model_path: "models/xgb_h60_grid_fixedlabels_2026-03-12.pkl"
+    confidence_threshold: 0.45
+    long_confidence_threshold: 0.45
+    short_confidence_threshold: 0.45
+    min_probability_gap: 0.00
+    max_flat_probability: 1.00
+    target_pct: 0.00
+    stop_pct: 0.00
+    time_limit_minutes: 8
+    cooldown_seconds: 60
+    exit_mode: "time_only"
+    position_size_method: "confidence_scaled"
+
+rl:
+  env:
+    reward_type: "shaped"
+    holding_penalty_per_step: 0.0001
+    max_episode_steps: 10000
+    observation_norm: "zscore"
+  dqn:
+    replay_buffer_size: 100000
+    target_update_freq: 1000
+    epsilon_start: 1.0
+    epsilon_end: 0.05
+    epsilon_decay_steps: 50000
+    hidden_dims: [128, 64]
+    learning_rate: 0.0003
+    batch_size: 64
+    gamma: 0.99
+  imitation:
+    warmstart_episodes: 500
+    policy: "xgboost"
