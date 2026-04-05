@@ -382,6 +382,55 @@ def load_polygon_bars(
     return result
 
 
+def load_bars_with_fallback(
+    *,
+    symbol: str,
+    start_date: str,
+    end_date: str,
+    config: dict,
+    gold_loader: GoldLoader,
+) -> tuple[pd.DataFrame, str]:
+    """Load minute bars from the preferred source with an automatic fallback.
+
+    The homeserver currently has complete cached Polygon bars for the active 2026
+    alpha windows, while the historical Gold/SPY store is incomplete for those
+    dates. To keep the same command line usable across machines, we try the
+    configured source first and then fall back to the alternate source.
+    """
+    preferred = config.get("data", {}).get("bar_source", "gold")
+    if preferred not in {"gold", "polygon"}:
+        raise ValueError(f"Unsupported bar_source: {preferred}")
+
+    source_loaders = {
+        "gold": lambda: gold_loader.load_bars(symbol, start_date, end_date),
+        "polygon": lambda: load_polygon_bars(symbol, start_date, end_date, config),
+    }
+    attempted_errors: list[str] = []
+    for source_name in [preferred, "polygon" if preferred == "gold" else "gold"]:
+        try:
+            frame = source_loaders[source_name]()
+            if frame.empty:
+                attempted_errors.append(f"{source_name}: returned 0 rows")
+                continue
+            if source_name != preferred:
+                logger.warning(
+                    "Falling back to %s bars for %s (%s to %s); preferred source was %s",
+                    source_name,
+                    symbol,
+                    start_date,
+                    end_date,
+                    preferred,
+                )
+            return frame, source_name
+        except Exception as exc:
+            attempted_errors.append(f"{source_name}: {exc}")
+
+    raise FileNotFoundError(
+        f"No bars available for {symbol} between {start_date} and {end_date}. "
+        f"Attempts: {'; '.join(attempted_errors)}"
+    )
+
+
 def _contiguous_date_windows(dates: list[str]) -> list[list[str]]:
     """Split sorted YYYY-MM-DD dates into contiguous windows."""
     ordered = pd.to_datetime(sorted(set(dates)))
@@ -627,15 +676,24 @@ def run_single_hypothesis(
             day_l2_frames = []
             for symbol in day_symbols:
                 try:
-                    if bar_source == "polygon":
-                        bars = load_polygon_bars(symbol, date, date, config)
-                    else:
-                        bars = gold_loader.load_bars(symbol, date, date)
+                    bars, resolved_source = load_bars_with_fallback(
+                        symbol=symbol,
+                        start_date=date,
+                        end_date=date,
+                        config=config,
+                        gold_loader=gold_loader,
+                    )
                     if not bars.empty:
                         bars["symbol"] = symbol
                         all_bars.append(bars)
                         day_bar_frames.append(bars)
-                        logger.info(f"Loaded {len(bars)} bars for {symbol} on {date}")
+                        logger.info(
+                            "Loaded %s %s bars for %s on %s",
+                            len(bars),
+                            resolved_source,
+                            symbol,
+                            date,
+                        )
                 except Exception as e:
                     logger.warning(f"Failed to load {symbol} on {date}: {e}")
                 try:
@@ -659,14 +717,22 @@ def run_single_hypothesis(
     else:
         for symbol in symbols:
             try:
-                if bar_source == "polygon":
-                    bars = load_polygon_bars(symbol, start_date, end_date, config)
-                else:
-                    bars = gold_loader.load_bars(symbol, start_date, end_date)
+                bars, resolved_source = load_bars_with_fallback(
+                    symbol=symbol,
+                    start_date=start_date,
+                    end_date=end_date,
+                    config=config,
+                    gold_loader=gold_loader,
+                )
                 if not bars.empty:
                     bars["symbol"] = symbol
                     all_bars.append(bars)
-                    logger.info(f"Loaded {len(bars)} bars for {symbol}")
+                    logger.info(
+                        "Loaded %s %s bars for %s",
+                        len(bars),
+                        resolved_source,
+                        symbol,
+                    )
             except Exception as e:
                 logger.warning(f"Failed to load {symbol}: {e}")
 
