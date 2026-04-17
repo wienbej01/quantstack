@@ -197,6 +197,9 @@ class AlphaBacktestEngine:
 
         # Process bars by timestamp (maintain temporal integrity)
         current_ts_idx = 0
+        signals_require_features = any(
+            getattr(signal, "requires_features", True) for signal in (signals or [])
+        )
 
         # Track equity curve
         equity_values = [self.initial_capital]
@@ -214,14 +217,17 @@ class AlphaBacktestEngine:
 
             # Check signals and generate new entries
             for _, bar in group.iterrows():
-                symbol_history = (
-                    bars_by_symbol[str(bar["symbol"])]
-                    .iloc[: int(bar["_symbol_bar_idx"]) + 1]
-                    .copy()
-                )
-                bar_data = self._prepare_bar_data(
-                    bar, l2_df, ts, bar_history=symbol_history
-                )
+                if signals_require_features:
+                    symbol_history = (
+                        bars_by_symbol[str(bar["symbol"])]
+                        .iloc[: int(bar["_symbol_bar_idx"]) + 1]
+                        .copy()
+                    )
+                    bar_data = self._prepare_bar_data(
+                        bar, l2_df, ts, bar_history=symbol_history
+                    )
+                else:
+                    bar_data = BarData(bars=bar)
                 self._process_bar(bar_data, signals, result)
 
             # Update equity
@@ -261,8 +267,14 @@ class AlphaBacktestEngine:
         for symbol, group in indexed.groupby("symbol", sort=False):
             ordered = group.sort_values("ts_utc").reset_index(drop=True)
             self._l2_by_symbol[str(symbol)] = ordered
+            # Arrow-backed timestamp columns may preserve microsecond units. Convert
+            # explicitly to nanoseconds so searchsorted uses the same unit as
+            # Timestamp.value in the causal L2 lookup path.
             self._l2_ts_by_symbol[str(symbol)] = (
-                ordered["ts_utc"].astype("int64").to_numpy()
+                pd.to_datetime(ordered["ts_utc"], utc=True)
+                .dt.as_unit("ns")
+                .astype("int64")
+                .to_numpy()
             )
 
     def _lookup_l2_context(
@@ -462,7 +474,13 @@ class AlphaBacktestEngine:
     ) -> Dict[str, Any]:
         """Compute the latest ML feature vector from a causal L2 lookback window."""
         normalized = self._normalize_ml_window(window, symbol=symbol, date=date)
-        featured = compute_ml_features(normalized)
+        if any(column.startswith("bid_px_") for column in window.columns):
+            featured = compute_ml_features(normalized)
+        else:
+            # Feature-source L2 rows are already windowed feature snapshots. During
+            # replay, recomputing rolling features for every bar is quadratic in the
+            # L2 window size and does not change the latest precomputed snapshot.
+            featured = normalized
         featured["event_score"] = compute_event_score(featured)
         latest = featured.iloc[-1]
         numeric_cols = featured.select_dtypes(include=[np.number, bool]).columns

@@ -1,0 +1,267 @@
+{
+  "model_family": "action_ranker_xgb_logistic",
+  "model": "<src.models.action_ranker.ActionRankerXGBoost object at 0x7520a0dc27b0>",
+  "feature_columns": [
+    "mid",
+    "spread",
+    "microprice",
+    "micro_off",
+    "depth_bid_k",
+    "depth_ask_k",
+    "depth_imb_k",
+    "pressure_k",
+    "obi_1",
+    "obi_2",
+    "obi_3",
+    "obi_5",
+    "obi_10",
+    "d_mid_5s",
+    "d_spread_5s",
+    "d_obi_1_5s",
+    "d_micro_off_5s",
+    "d_mid_30s",
+    "d_spread_30s",
+    "d_obi_1_30s",
+    "d_micro_off_30s",
+    "d_mid_60s",
+    "d_spread_60s",
+    "d_obi_1_60s",
+    "d_micro_off_60s",
+    "seconds_since_open",
+    "session_bucket",
+    "session_progress",
+    "source_is_features",
+    "source_is_raw",
+    "spread_mean_10s",
+    "spread_std_10s",
+    "pressure_k_mean_10s",
+    "pressure_k_std_10s",
+    "micro_off_mean_10s",
+    "micro_off_std_10s",
+    "depth_imb_k_mean_10s",
+    "depth_imb_k_std_10s",
+    "spread_mean_60s",
+    "spread_std_60s",
+    "pressure_k_mean_60s",
+    "pressure_k_std_60s",
+    "micro_off_mean_60s",
+    "micro_off_std_60s",
+    "depth_imb_k_mean_60s",
+    "depth_imb_k_std_60s",
+    "session_is_open",
+    "session_is_morning",
+    "session_is_midday",
+    "session_is_close",
+    "depth_imb_positive_10s",
+    "depth_imb_negative_10s",
+    "depth_imb_positive_60s",
+    "depth_imb_negative_60s",
+    "micro_off_positive_30s",
+    "micro_off_negative_30s",
+    "micro_off_positive_60s",
+    "micro_off_negative_60s",
+    "dist_vwap_bps",
+    "hl_range_pct",
+    "oc_change_pct",
+    "volume_rel_20",
+    "atr_pct",
+    "position_in_range",
+    "rsi",
+    "bb_position",
+    "ret_1",
+    "log_log_ret_1",
+    "ret_3",
+    "log_log_ret_3",
+    "ret_5",
+    "log_log_ret_5",
+    "ret_10",
+    "log_log_ret_10"
+  ],
+  "action_specs": [
+    {
+      "side": "long",
+      "hold_minutes": 3
+    },
+    {
+      "side": "long",
+      "hold_minutes": 5
+    },
+    {
+      "side": "long",
+      "hold_minutes": 8
+    },
+    {
+      "side": "long",
+      "hold_minutes": 12
+    },
+    {
+      "side": "short",
+      "hold_minutes": 3
+    },
+    {
+      "side": "short",
+      "hold_minutes": 5
+    },
+    {
+      "side": "short",
+      "hold_minutes": 8
+    },
+    {
+      "side": "short",
+      "hold_minutes": 12
+    }
+  ],
+  "hold_minutes": [
+    3,
+    5,
+    8,
+    12
+  ],
+  "base_edge_bps": 8.0,
+  "spread_weight": 0.35,
+  "open_penalty_bps": 1.0,
+  "raw_penalty_bps": 1.0,
+  "positive_edge_buffer_bps": 2.0,
+  "edge_weight_scale_bps": 12.0,
+  "edge_weight_max_multiplier": 3.0,
+  "objective": "xgb_logistic",
+  "ridge_alpha": 2.0,
+  "xgb_params": {
+    "max_depth": 4,
+    "n_estimators": 200,
+    "learning_rate": 0.05,
+    "subsample": 0.8,
+    "colsample_bytree": 0.7,
+    "min_child_weight": 25.0,
+    "reg_alpha": 0.1,
+    "reg_lambda": 1.0,
+    "n_jobs": 1
+  },
+  "feature_profile": "stable_causal",
+  "side_aware_context_features": true,
+  "causal_price_features": true,
+  "training_window": {
+    "start_date": "2025-12-19",
+    "end_date": "2026-03-13",
+    "business_days_only": true
+  },
+  "cache_source_type": "features",
+  "split_mode": "explicit_blocked",
+  "explicit_split_window": {
+    "train_end_date": "2026-02-23",
+    "val_end_date": "2026-03-09"
+  },
+  "split_info": {
+    "train_dates": [
+      "2025-12-19",
+      "2025-12-23",
+      "2026-01-08",
+      "2026-01-09",
+      "2026-01-15",
+      "2026-01-16",
+      "2026-01-20",
+      "2026-01-27",
+      "2026-01-28"
+    ],
+    "val_dates": [
+      "2026-03-09"
+    ],
+    "test_dates": [
+      "2026-03-10",
+      "2026-03-11",
+      "2026-03-12",
+      "2026-03-13"
+    ],
+    "train_symbols": [
+      "HIMS",
+      "F",
+      "MARA",
+      "CPB",
+      "T",
+      "SLV",
+      "RILY",
+      "BE",
+      "HPE",
+      "VST",
+      "DOMO",
+      "OCUL",
+      "HAL",
+      "INTC",
+      "RIOT",
+      "USO",
+      "GM"
+    ],
+    "holdout_symbols": [
+      "AAOI",
+      "SMR",
+      "SBUX",
+      "ACHR"
+    ]
+  },
+  "validation_top_k": 4,
+  "validation_summary": {
+    "days": 1,
+    "selected": 4,
+    "precision": 0.75,
+    "mean_edge_bps": 46.590336322784424
+  },
+  "test_summary": {
+    "days": 4,
+    "selected": 16,
+    "precision": 0.5,
+    "mean_edge_bps": 14.476334063212077
+  },
+  "coverage_summary": {
+    "rows": 9671,
+    "dates": 14,
+    "symbols": 21,
+    "rows_by_date": {
+      "2025-12-19": 381,
+      "2025-12-23": 259,
+      "2026-01-08": 900,
+      "2026-01-09": 664,
+      "2026-01-15": 190,
+      "2026-01-16": 945,
+      "2026-01-20": 47,
+      "2026-01-27": 761,
+      "2026-01-28": 1155,
+      "2026-03-09": 301,
+      "2026-03-10": 1173,
+      "2026-03-11": 1173,
+      "2026-03-12": 732,
+      "2026-03-13": 990
+    },
+    "rows_by_symbol": {
+      "USO": 1088,
+      "HIMS": 1019,
+      "INTC": 817,
+      "SMR": 723,
+      "VST": 647,
+      "HAL": 640,
+      "DOMO": 391,
+      "SBUX": 391,
+      "CPB": 391,
+      "HPE": 391,
+      "GM": 382,
+      "T": 373,
+      "AAOI": 371,
+      "SLV": 371,
+      "MARA": 327,
+      "RIOT": 315,
+      "BE": 300,
+      "ACHR": 300,
+      "F": 300,
+      "OCUL": 67,
+      "RILY": 67
+    },
+    "rows_by_session": {
+      "0.0": 558,
+      "1.0": 3597,
+      "2.0": 4792,
+      "3.0": 724
+    },
+    "rows_by_source": {
+      "features": 9671
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "artifact_path": "/home/jacobw/trading/repos/quantstack/alpha/models/action_ranker_xgb_2026-03-19.pkl",
+  "bar_source": "polygon",
+  "completed_at_utc": "2026-04-06T20:00:22.768045Z",
+  "cutoff_et": "2026-04-06T15:58:08.543823-04:00",
+  "daily_top_k": 4,
+  "date": "2026-04-06",
+  "latest_signals_json": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-06/latest_signals.json",
+  "max_longs_per_day": 2,
+  "max_symbols": 3,
+  "min_score": 0.5,
+  "mode": "paper_shadow_no_orders",
+  "new_paper_signals": 0,
+  "output_dir": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-06",
+  "paper_signals_jsonl": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-06/paper_signals.jsonl",
+  "ranked_actions": 1120,
+  "ranked_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-06/ranked_actions.csv",
+  "selected_actions": 4,
+  "selected_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-06/selected_actions.csv",
+  "sip_symbols": 8,
+  "started_at_utc": "2026-04-06T19:58:05.440563Z",
+  "status": "ok",
+  "symbols": {
+    "CRCL": {
+      "bars": 375,
+      "l2_snapshots": 97775,
+      "ranked_actions": 374
+    },
+    "GLW": {
+      "bars": 374,
+      "l2_snapshots": 97780,
+      "ranked_actions": 373
+    },
+    "OXY": {
+      "bars": 374,
+      "l2_snapshots": 97781,
+      "ranked_actions": 373
+    }
+  },
+  "symbols_selected_from_sip": [
+    "GLW",
+    "OXY",
+    "CRCL"
+  ]
+}

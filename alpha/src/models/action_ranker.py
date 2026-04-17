@@ -49,6 +49,98 @@ ACTION_QUALITY_PRICE_COLUMNS = (
 )
 
 
+class _ConstantBinaryModel:
+    """Predict a fixed positive class probability when a training target is degenerate."""
+
+    def __init__(self, positive_rate: float) -> None:
+        self.positive_rate = float(np.clip(positive_rate, 1e-4, 1.0 - 1e-4))
+
+    def predict_proba(self, X: np.ndarray) -> np.ndarray:
+        n = len(np.asarray(X))
+        positive = np.full(n, self.positive_rate, dtype=np.float32)
+        return np.column_stack([1.0 - positive, positive])
+
+_ACTION_RANKER_STABLE_FEATURES = {
+    "mid",
+    "spread",
+    "microprice",
+    "micro_off",
+    "depth_bid_k",
+    "depth_ask_k",
+    "depth_imb_k",
+    "pressure_k",
+    "obi_1",
+    "obi_2",
+    "obi_3",
+    "obi_5",
+    "obi_10",
+    "d_mid_5s",
+    "d_spread_5s",
+    "d_obi_1_5s",
+    "d_micro_off_5s",
+    "d_mid_30s",
+    "d_spread_30s",
+    "d_obi_1_30s",
+    "d_micro_off_30s",
+    "d_mid_60s",
+    "d_spread_60s",
+    "d_obi_1_60s",
+    "d_micro_off_60s",
+    "session_bucket",
+    "seconds_since_open",
+    "session_progress",
+    "source_is_features",
+    "source_is_raw",
+    "session_is_open",
+    "session_is_morning",
+    "session_is_midday",
+    "session_is_close",
+    "spread_mean_10s",
+    "spread_std_10s",
+    "pressure_k_mean_10s",
+    "pressure_k_std_10s",
+    "depth_imb_k_mean_10s",
+    "depth_imb_k_std_10s",
+    "micro_off_mean_10s",
+    "micro_off_std_10s",
+    "spread_mean_60s",
+    "spread_std_60s",
+    "pressure_k_mean_60s",
+    "pressure_k_std_60s",
+    "depth_imb_k_mean_60s",
+    "depth_imb_k_std_60s",
+    "micro_off_mean_60s",
+    "micro_off_std_60s",
+    "depth_imb_positive_10s",
+    "depth_imb_negative_10s",
+    "depth_imb_positive_60s",
+    "depth_imb_negative_60s",
+    "micro_off_positive_30s",
+    "micro_off_negative_30s",
+    "micro_off_positive_60s",
+    "micro_off_negative_60s",
+}
+
+_ACTION_RANKER_CAUSAL_FEATURES = {
+    "dist_vwap_bps",
+    "hl_range_pct",
+    "oc_change_pct",
+    "volume_rel_20",
+    "atr_pct",
+    "position_in_range",
+    "rsi",
+    "bb_position",
+    "ret_1",
+    "ret_3",
+    "ret_5",
+    "ret_10",
+    "log_log_ret_1",
+    "log_log_ret_3",
+    "log_log_ret_5",
+    "log_log_ret_10",
+}
+
+
 def build_action_specs(hold_minutes: Iterable[int]) -> list[ActionSpec]:
     """Build ordered discrete actions over side x hold."""
     specs: list[ActionSpec] = []
@@ -274,9 +366,8 @@ class ActionRankerLogistic:
                 raise RuntimeError(f"Missing action target column: {target_col}")
             y = df[target_col].to_numpy(dtype=int, copy=False)
             if np.unique(y).size < 2:
-                raise RuntimeError(
-                    f"Action {spec.key} requires both positive and negative examples"
-                )
+                self.models[spec.key] = _ConstantBinaryModel(float(y.mean()))
+                continue
             self.models[spec.key].fit(X_scaled, y, sample_weight=weights)
         return self
 
@@ -290,7 +381,8 @@ class ActionRankerLogistic:
     def feature_importance(self) -> dict[str, float]:
         combined = np.zeros(len(self.feature_columns), dtype=np.float64)
         for model in self.models.values():
-            combined += np.abs(model.coef_[0])
+            if hasattr(model, "coef_"):
+                combined += np.abs(model.coef_[0])
         total = float(combined.sum())
         if total <= 0:
             return {name: 0.0 for name in self.feature_columns}
@@ -500,9 +592,8 @@ class ActionRankerXGBoost:
                 raise RuntimeError(f"Missing action target column: {target_col}")
             y = df[target_col].to_numpy(dtype=np.int32, copy=False)
             if np.unique(y).size < 2:
-                raise RuntimeError(
-                    f"Action {spec.key} requires both positive and negative examples"
-                )
+                self.models[spec.key] = _ConstantBinaryModel(float(y.mean()))
+                continue
             self.models[spec.key].fit(X, y, sample_weight=weights)
         return self
 
@@ -516,7 +607,8 @@ class ActionRankerXGBoost:
     def feature_importance(self) -> dict[str, float]:
         combined = np.zeros(len(self.feature_columns), dtype=np.float64)
         for model in self.models.values():
-            combined += np.asarray(model.feature_importances_, dtype=np.float64)
+            if hasattr(model, "feature_importances_"):
+                combined += np.asarray(model.feature_importances_, dtype=np.float64)
         total = float(combined.sum())
         if total <= 0:
             return {name: 0.0 for name in self.feature_columns}
@@ -526,20 +618,46 @@ class ActionRankerXGBoost:
         }
 
 
-def get_action_ranker_feature_columns(df: pd.DataFrame) -> list[str]:
+def get_action_ranker_feature_columns(
+    df: pd.DataFrame,
+    *,
+    profile: str = "full",
+) -> list[str]:
     """Return numeric ML features safe for action-ranker training.
 
     Excludes forward-return targets and any derived action-label columns to avoid leakage.
     """
 
     disallowed_prefixes = ("ret_fwd_", "label_", "target_", "edge_", "best_action_")
+    disallowed_exact = {
+        "ts_epoch",
+        "smart_depth",
+        "has_depth",
+        "l1_bid",
+        "l1_ask",
+        "l1_bid_size",
+        "l1_ask_size",
+    }
     cols = []
     for column in df.columns:
         if column.startswith(disallowed_prefixes):
             continue
+        if column in disallowed_exact:
+            continue
         if df[column].dtype in (np.float64, np.float32, float, int):
             cols.append(column)
-    return cols
+    if profile == "full":
+        return cols
+
+    allowed = set(_ACTION_RANKER_STABLE_FEATURES)
+    if profile == "stable_causal":
+        allowed |= _ACTION_RANKER_CAUSAL_FEATURES
+    elif profile != "stable":
+        raise ValueError(
+            f"Unsupported action-ranker feature profile '{profile}'. "
+            "Expected one of: full, stable, stable_causal."
+        )
+    return [column for column in cols if column in allowed]
 
 
 def action_edge_sample_weights(

@@ -1,0 +1,68 @@
+============================================================
+BACKTEST PERFORMANCE REPORT
+============================================================
+
+CAPITAL & RETURNS
+----------------------------------------
+Initial Capital: $100,000.00
+Final Equity:    $100,000.00
+Total P&L:      $0.00
+Total Return:    0.00%
+
+PERFORMANCE METRICS
+----------------------------------------
+Sharpe Ratio:    0.00
+Expectancy:      $0.00 per trade
+Win Rate:        0.0%
+Profit Factor:   0.00
+Max Drawdown:    0.00%
+T-Statistic:     0.00
+
+TRADE STATISTICS
+----------------------------------------
+Number of Trades: 0
+Average Win:      $0.00
+Average Loss:     $0.00
+Avg Hold Time:    0.0 minutes
+Best Trade:       $0.00
+Worst Trade:      $0.00
+
+============================================================
+
+RUN CONTEXT
+----------------------------------------
+Hypothesis:       ml
+Date Range:       2026-03-09 to 2026-03-10
+Bar Source:       polygon
+Symbols Tested:   7
+Bars Loaded:      3128
+L2 Snapshots:     503289
+
+ENGINE COUNTS
+----------------------------------------
+Signals Generated: 0
+Entries Executed:  0
+Exits Executed:    0
+Trades Recorded:   0
+
+ML CONFIG
+----------------------------------------
+Model Path:       /home/jacobw/trading/repos/quantstack/alpha/models/xgb_h60_grid_fixedlabels_2026-03-12.pkl
+Threshold:        0.45
+Long Threshold:   0.45
+Short Threshold:  0.45
+Min Prob Gap:     0.0
+Max Flat Prob:    1.0
+Exit Mode:        time_only
+Time Limit Min:   8
+Cooldown Sec:     60
+
+THRESHOLD CHECKS
+----------------------------------------
+Sharpe > 0.75:        FAIL
+Win Rate > 52.0%:       FAIL
+Profit Factor > 1.2:  FAIL
+T-Stat > 2.0:          FAIL
+Trades > 500:           FAIL
+----------------------------------------
+Overall: SOME THRESHOLDS FAILED

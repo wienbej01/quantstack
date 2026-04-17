@@ -420,7 +420,8 @@ def fetch_polygon_ohlcv(
 ) -> pd.DataFrame:
     ensure_dir(cache_dir)
     cache_path = cache_dir / f"{symbol}_{date}.parquet"
-    if cache_path.exists():
+    today_et = pd.Timestamp.now(tz=tz).strftime("%Y-%m-%d")
+    if cache_path.exists() and date != today_et:
         df = pd.read_parquet(cache_path)
         expected_cols = {"ts_minute", "open", "high", "low", "close", "volume"}
         if not expected_cols.issubset(df.columns):

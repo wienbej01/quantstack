@@ -4,13 +4,46 @@ Tests use real data from the data mounts to ensure loaders work correctly.
 Following the project policy: no synthetic data for testing when real data is available.
 """
 
+import json
 from datetime import datetime
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
 from src.data import GoldLoader, L2Loader, SipLoader
+from src.data.l2_loader import L2Source
 from src.data.gold_loader import _next_month
+
+
+def _first_gold_symbol_and_date(loader: GoldLoader) -> tuple[str, str] | None:
+    if not loader.min_1_path.exists():
+        return None
+    for symbol_dir in sorted(p for p in loader.min_1_path.iterdir() if p.is_dir()):
+        parquet_files = sorted(symbol_dir.glob("*/*.parquet"))
+        if parquet_files:
+            year = parquet_files[0].parent.name
+            month = parquet_files[0].stem
+            return symbol_dir.name, f"{year}-{month.split('-')[-1]}-01"
+    return None
+
+
+def _first_spy_month() -> str | None:
+    spy_root = Path("~/gcs-mount/stocks/SPY").expanduser()
+    parquet_files = sorted(spy_root.glob("*/*.parquet"))
+    if not parquet_files:
+        return None
+    year = parquet_files[0].parent.name
+    month = parquet_files[0].stem.split("-")[-1]
+    return f"{year}-{month}-01"
+
+
+def _first_l2_symbol_and_date(loader: L2Loader) -> tuple[str, str] | None:
+    for date in loader.get_available_dates():
+        symbols = loader.get_available_symbols(date)
+        if symbols:
+            return symbols[0], date
+    return None
 
 
 class TestGoldLoader:
@@ -19,9 +52,13 @@ class TestGoldLoader:
     def test_gold_loader_single_symbol(self):
         """Load AAPL, verify columns and data structure."""
         loader = GoldLoader()
+        sample = _first_gold_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("Gold 1m parquet data is not mounted on this machine")
+        symbol, date = sample
 
         # Load a small date range
-        df = loader.load_bars("AAPL", "2024-01-02", "2024-01-02")
+        df = loader.load_bars(symbol, date, date)
 
         # Verify we got data
         assert len(df) > 0, "Should have loaded bars for AAPL"
@@ -43,8 +80,12 @@ class TestGoldLoader:
     def test_gold_loader_date_range(self):
         """Load 1 week, verify continuity and sorting."""
         loader = GoldLoader()
+        sample = _first_gold_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("Gold 1m parquet data is not mounted on this machine")
+        symbol, date = sample
 
-        df = loader.load_bars("AAPL", "2024-01-02", "2024-01-05")
+        df = loader.load_bars(symbol, date, date)
 
         # Verify we got data
         assert len(df) > 0, "Should have loaded bars for date range"
@@ -60,8 +101,11 @@ class TestGoldLoader:
     def test_gold_loader_spy(self):
         """Load SPY for regime classification."""
         loader = GoldLoader()
+        date = _first_spy_month()
+        if date is None:
+            pytest.skip("SPY parquet data is not mounted on this machine")
 
-        df = loader.load_spy_bars("2024-01-02", "2024-01-02")
+        df = loader.load_spy_bars(date, date)
 
         # Verify we got SPY data
         assert len(df) > 0, "Should have loaded SPY bars"
@@ -87,8 +131,12 @@ class TestGoldLoader:
     def test_gold_loader_check_coverage(self):
         """Test coverage check functionality."""
         loader = GoldLoader()
+        sample = _first_gold_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("Gold 1m parquet data is not mounted on this machine")
+        symbol, date = sample
 
-        coverage = loader.check_data_coverage("AAPL", "2024-01-02", "2024-01-05")
+        coverage = loader.check_data_coverage(symbol, date, date)
 
         # Verify coverage keys
         assert "total_bars" in coverage
@@ -176,6 +224,31 @@ class TestSipLoader:
         # Verify date format
         assert all(len(d) == 10 for d in dates), "Dates should be YYYY-MM-DD format"
 
+    def test_sip_loader_loadable_dates_ignore_missing_or_empty_files(self, tmp_path):
+        missing_file_dir = tmp_path / "date=2026-01-08"
+        missing_file_dir.mkdir()
+
+        empty_dir = tmp_path / "date=2026-01-09"
+        empty_dir.mkdir()
+        (empty_dir / "sip_universe.json").write_text(
+            json.dumps({"date": "2026-01-09", "symbols": []})
+        )
+
+        valid_dir = tmp_path / "date=2026-01-10"
+        valid_dir.mkdir()
+        (valid_dir / "sip_universe.json").write_text(
+            json.dumps({"date": "2026-01-10", "symbols": ["AAPL", "MSFT"]})
+        )
+
+        loader = SipLoader(sip_path=tmp_path)
+
+        assert loader.get_available_dates() == ["2026-01-09", "2026-01-10"]
+        assert loader.get_loadable_dates() == ["2026-01-10"]
+        assert loader.get_loadable_dates(require_non_empty=False) == [
+            "2026-01-09",
+            "2026-01-10",
+        ]
+
 
 class TestL2Loader:
     """Tests for L2Loader."""
@@ -183,9 +256,12 @@ class TestL2Loader:
     def test_l2_loader_snapshots(self):
         """Load L2, verify book structure."""
         loader = L2Loader()
+        sample = _first_l2_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("No mounted L2 parquet data found")
+        symbol, date = sample
 
-        # Use a date we know exists from exploration
-        df = loader.load_snapshots("LUV", "2025-12-19")
+        df = loader.load_snapshots(symbol, date)
 
         # Verify we got snapshots
         assert len(df) > 0, "Should have loaded L2 snapshots"
@@ -196,7 +272,10 @@ class TestL2Loader:
             assert col in df.columns, f"Missing column: {col}"
 
         # Verify at least some depth columns exist
-        depth_cols = ["bid_px_1", "ask_px_1", "bid_sz_1", "ask_sz_1"]
+        if "bid_px_1" in df.columns:
+            depth_cols = ["bid_px_1", "ask_px_1", "bid_sz_1", "ask_sz_1"]
+        else:
+            depth_cols = ["mid", "spread", "obi_1", "pressure_k"]
         for col in depth_cols:
             assert col in df.columns, f"Missing depth column: {col}"
 
@@ -210,11 +289,13 @@ class TestL2Loader:
     def test_l2_loader_time_filter(self):
         """Test filtering by time range."""
         loader = L2Loader()
+        sample = _first_l2_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("No mounted L2 parquet data found")
+        symbol, date = sample
 
         # Load with time filter
-        df = loader.load_snapshots(
-            "LUV", "2025-12-19", start_time="09:30:00", end_time="10:00:00"
-        )
+        df = loader.load_snapshots(symbol, date, start_time="09:30:00", end_time="10:00:00")
 
         # Verify we got filtered data
         # (May be empty if no data in that time range, but shouldn't error)
@@ -223,9 +304,13 @@ class TestL2Loader:
     def test_l2_loader_min_depth_filter(self):
         """Test filtering by minimum depth levels."""
         loader = L2Loader()
+        sample = _first_l2_symbol_and_date(loader)
+        if sample is None:
+            pytest.skip("No mounted L2 parquet data found")
+        symbol, date = sample
 
         # Load with minimum depth requirement
-        df = loader.load_snapshots("LUV", "2025-12-19", min_depth=5)
+        df = loader.load_snapshots(symbol, date, min_depth=5)
 
         # Verify all returned snapshots have at least 5 levels
         # (This is implicit in the filter, so we just verify no errors)
@@ -267,12 +352,43 @@ class TestL2Loader:
     def test_l2_loader_get_available_symbols(self):
         """Test getting available symbols for a date."""
         loader = L2Loader()
+        date = next(iter(loader.get_available_dates()), None)
+        if date is None:
+            pytest.skip("No mounted L2 parquet data found")
 
-        symbols = loader.get_available_symbols("2025-12-19")
+        symbols = loader.get_available_symbols(date)
 
         # Verify we got symbols
         if symbols:
-            assert "LUV" in symbols, "LUV should be in available symbols"
+            assert all(isinstance(symbol, str) and symbol for symbol in symbols)
+
+    def test_l2_loader_inventory_filters_weekends_and_empty_symbol_dirs(self, tmp_path):
+        source_root = tmp_path / "raw"
+        weekend_symbol_dir = source_root / "date=2026-01-31" / "symbol=BAD"
+        weekend_symbol_dir.mkdir(parents=True)
+        (weekend_symbol_dir / "part-0.parquet").write_text("placeholder")
+
+        weekday_empty_dir = source_root / "date=2026-02-02" / "symbol=EMPTY"
+        weekday_empty_dir.mkdir(parents=True)
+
+        weekday_symbol_dir = source_root / "date=2026-02-02" / "symbol=GOOD"
+        weekday_symbol_dir.mkdir(parents=True)
+        (weekday_symbol_dir / "part-0.parquet").write_text("placeholder")
+
+        loader = L2Loader(
+            sources=[
+                L2Source(
+                    path=source_root,
+                    source_type="raw",
+                    name="tmp-raw",
+                    priority=1,
+                )
+            ]
+        )
+
+        assert loader.get_available_dates() == ["2026-02-02"]
+        assert loader.get_available_symbols("2026-01-31") == []
+        assert loader.get_available_symbols("2026-02-02") == ["GOOD"]
 
 
 class TestDataAlignment:
@@ -287,7 +403,11 @@ class TestDataAlignment:
         # This is more of a structural test to ensure timestamp formats are compatible
 
         # Load Gold data
-        gold_df = gold_loader.load_bars("AAPL", "2024-01-02", "2024-01-02")
+        gold_sample = _first_gold_symbol_and_date(gold_loader)
+        if gold_sample is None:
+            pytest.skip("Gold 1m parquet data is not mounted on this machine")
+        symbol, date = gold_sample
+        gold_df = gold_loader.load_bars(symbol, date, date)
 
         # Verify timestamp is datetime
         assert pd.api.types.is_datetime64_any_dtype(gold_df["ts"])

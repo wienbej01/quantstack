@@ -234,6 +234,8 @@ def save_compact_cache(
     label_config: LabelArtifactConfig | None = None,
     compact_config: CompactCacheConfig | None = None,
     sample_rows_per_symbol_day: Optional[int] = None,
+    dates: Optional[Iterable[str]] = None,
+    cache_source_type: str = "any",
 ) -> list[Path]:
     """Build and save compact feature cache for all available symbol-days."""
     out_dir = Path(output_dir)
@@ -243,8 +245,9 @@ def save_compact_cache(
     compact_cfg = compact_config or CompactCacheConfig()
     saved_paths: list[Path] = []
     manifest_rows: list[dict[str, object]] = []
+    selected_dates = list(dates) if dates is not None else None
 
-    for chunk in dataset_builder.iter_symbol_days():
+    for chunk in dataset_builder.iter_symbol_days(dates=selected_dates):
         symbol = str(chunk["symbol"].iloc[0])
         date = str(chunk["date"].iloc[0])
         try:
@@ -287,6 +290,8 @@ def save_compact_cache(
             "label_config": asdict(label_cfg),
             "compact_config": asdict(compact_cfg),
             "sample_rows_per_symbol_day": sample_rows_per_symbol_day,
+            "dates": selected_dates,
+            "cache_source_type": cache_source_type,
         },
         "entries": manifest_rows,
     }

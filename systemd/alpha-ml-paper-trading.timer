@@ -1,0 +1,11 @@
+[Unit]
+Description=Start Alpha ML Paper/Shadow Trading after market open
+
+[Timer]
+OnCalendar=Mon-Fri 09:31:00 America/New_York
+Persistent=true
+Unit=alpha-ml-paper-trading.service
+
+[Install]
+WantedBy=timers.target
+

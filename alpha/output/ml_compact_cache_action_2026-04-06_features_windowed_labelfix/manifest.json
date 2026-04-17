@@ -1,0 +1,685 @@
+{
+  "config": {
+    "label_config": {
+      "horizons_seconds": [
+        180,
+        300,
+        480,
+        720
+      ],
+      "threshold_method": "fixed",
+      "fixed_bps": 10.0,
+      "label_mode": "mid_return",
+      "stop_bps": 10.0,
+      "take_profit_bps": 10.0,
+      "direction": "long",
+      "tie_break_policy": "worst_case"
+    },
+    "compact_config": {
+      "bucket_seconds": 1,
+      "event_threshold": 1.0,
+      "session_weights": [
+        0.35,
+        0.25,
+        0.15,
+        0.25
+      ],
+      "event_share": 0.6,
+      "min_rows_per_session": 50
+    },
+    "sample_rows_per_symbol_day": 4000,
+    "dates": [
+      "2025-12-19",
+      "2025-12-22",
+      "2025-12-23",
+      "2025-12-24",
+      "2025-12-25",
+      "2025-12-26",
+      "2025-12-29",
+      "2025-12-30",
+      "2025-12-31",
+      "2026-01-01",
+      "2026-01-02",
+      "2026-01-05",
+      "2026-01-06",
+      "2026-01-07",
+      "2026-01-08",
+      "2026-01-09",
+      "2026-01-12",
+      "2026-01-13",
+      "2026-01-14",
+      "2026-01-15",
+      "2026-01-16",
+      "2026-01-19",
+      "2026-01-20",
+      "2026-01-21",
+      "2026-01-22",
+      "2026-01-23",
+      "2026-01-26",
+      "2026-01-27",
+      "2026-01-28",
+      "2026-01-29",
+      "2026-01-30",
+      "2026-02-02",
+      "2026-02-03",
+      "2026-02-04",
+      "2026-02-05",
+      "2026-02-06",
+      "2026-02-09",
+      "2026-02-10",
+      "2026-02-11",
+      "2026-02-12",
+      "2026-02-13",
+      "2026-02-16",
+      "2026-02-17",
+      "2026-02-18",
+      "2026-02-19",
+      "2026-02-20",
+      "2026-02-23",
+      "2026-02-24",
+      "2026-02-25",
+      "2026-02-26",
+      "2026-02-27",
+      "2026-03-02",
+      "2026-03-03",
+      "2026-03-04",
+      "2026-03-05",
+      "2026-03-06",
+      "2026-03-09",
+      "2026-03-10",
+      "2026-03-11",
+      "2026-03-12",
+      "2026-03-13"
+    ],
+    "cache_source_type": "features"
+  },
+  "entries": [
+    {
+      "date": "2025-12-19",
+      "symbol": "HAL",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2025-12-19/symbol=HAL/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1978,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2025-12-23",
+      "symbol": "HAL",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2025-12-23/symbol=HAL/compact.parquet",
+      "status": "ok",
+      "rows": 1600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1002,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600
+      },
+      "source_counts": {
+        "features": 1600
+      }
+    },
+    {
+      "date": "2026-01-08",
+      "symbol": "ACHR",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-08/symbol=ACHR/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1231,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-01-08",
+      "symbol": "BE",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-08/symbol=BE/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1365,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-01-08",
+      "symbol": "F",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-08/symbol=F/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1108,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-01-09",
+      "symbol": "SMR",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-09/symbol=SMR/compact.parquet",
+      "status": "ok",
+      "rows": 3117,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1444,
+      "session_counts": {
+        "0.0": 730,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 787
+      },
+      "source_counts": {
+        "features": 3117
+      }
+    },
+    {
+      "date": "2026-01-09",
+      "symbol": "VST",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-09/symbol=VST/compact.parquet",
+      "status": "ok",
+      "rows": 3115,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1440,
+      "session_counts": {
+        "0.0": 730,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 785
+      },
+      "source_counts": {
+        "features": 3115
+      }
+    },
+    {
+      "date": "2026-01-15",
+      "symbol": "OCUL",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-15/symbol=OCUL/compact.parquet",
+      "status": "ok",
+      "rows": 3814,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 284,
+      "session_counts": {
+        "0.0": 1174,
+        "1.0": 2640
+      },
+      "source_counts": {
+        "features": 3814
+      }
+    },
+    {
+      "date": "2026-01-15",
+      "symbol": "RILY",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-15/symbol=RILY/compact.parquet",
+      "status": "ok",
+      "rows": 3807,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 126,
+      "session_counts": {
+        "0.0": 1167,
+        "1.0": 2640
+      },
+      "source_counts": {
+        "features": 3807
+      }
+    },
+    {
+      "date": "2026-01-15",
+      "symbol": "SLV",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-15/symbol=SLV/compact.parquet",
+      "status": "ok",
+      "rows": 3232,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1498,
+      "session_counts": {
+        "0.0": 592,
+        "1.0": 2640
+      },
+      "source_counts": {
+        "features": 3232
+      }
+    },
+    {
+      "date": "2026-01-16",
+      "symbol": "RIOT",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-16/symbol=RIOT/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 2001,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-01-16",
+      "symbol": "SLV",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-16/symbol=SLV/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 2732,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-01-16",
+      "symbol": "VST",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-16/symbol=VST/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1990,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-01-20",
+      "symbol": "INTC",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-20/symbol=INTC/compact.parquet",
+      "status": "ok",
+      "rows": 2659,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 585,
+      "session_counts": {
+        "1.0": 2659
+      },
+      "source_counts": {
+        "features": 2659
+      }
+    },
+    {
+      "date": "2026-01-27",
+      "symbol": "GM",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-27/symbol=GM/compact.parquet",
+      "status": "ok",
+      "rows": 1745,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 45,
+      "session_counts": {
+        "0.0": 300,
+        "1.0": 316,
+        "2.0": 340,
+        "3.0": 789
+      },
+      "source_counts": {
+        "features": 1745
+      }
+    },
+    {
+      "date": "2026-01-27",
+      "symbol": "INTC",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-27/symbol=INTC/compact.parquet",
+      "status": "ok",
+      "rows": 1755,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 41,
+      "session_counts": {
+        "0.0": 310,
+        "1.0": 319,
+        "2.0": 338,
+        "3.0": 788
+      },
+      "source_counts": {
+        "features": 1755
+      }
+    },
+    {
+      "date": "2026-01-28",
+      "symbol": "INTC",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-28/symbol=INTC/compact.parquet",
+      "status": "ok",
+      "rows": 2809,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 898,
+      "session_counts": {
+        "0.0": 253,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 956
+      },
+      "source_counts": {
+        "features": 2809
+      }
+    },
+    {
+      "date": "2026-01-28",
+      "symbol": "SBUX",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-28/symbol=SBUX/compact.parquet",
+      "status": "ok",
+      "rows": 2808,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 629,
+      "session_counts": {
+        "0.0": 252,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 956
+      },
+      "source_counts": {
+        "features": 2808
+      }
+    },
+    {
+      "date": "2026-01-28",
+      "symbol": "T",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-01-28/symbol=T/compact.parquet",
+      "status": "ok",
+      "rows": 3672,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 726,
+      "session_counts": {
+        "0.0": 254,
+        "1.0": 1429,
+        "2.0": 1879,
+        "3.0": 110
+      },
+      "source_counts": {
+        "features": 3672
+      }
+    },
+    {
+      "date": "2026-03-09",
+      "symbol": "HIMS",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-09/symbol=HIMS/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 413,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-03-10",
+      "symbol": "HIMS",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-10/symbol=HIMS/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1293,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-10",
+      "symbol": "HPE",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-10/symbol=HPE/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1280,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-10",
+      "symbol": "SMR",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-10/symbol=SMR/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1275,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-11",
+      "symbol": "CPB",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-11/symbol=CPB/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1347,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-11",
+      "symbol": "DOMO",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-11/symbol=DOMO/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1509,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-11",
+      "symbol": "USO",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-11/symbol=USO/compact.parquet",
+      "status": "ok",
+      "rows": 4000,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1610,
+      "session_counts": {
+        "0.0": 1400,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 4000
+      }
+    },
+    {
+      "date": "2026-03-12",
+      "symbol": "AAOI",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-12/symbol=AAOI/compact.parquet",
+      "status": "ok",
+      "rows": 2930,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1166,
+      "session_counts": {
+        "0.0": 330,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2930
+      }
+    },
+    {
+      "date": "2026-03-12",
+      "symbol": "USO",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-12/symbol=USO/compact.parquet",
+      "status": "ok",
+      "rows": 2929,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1303,
+      "session_counts": {
+        "0.0": 329,
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2929
+      }
+    },
+    {
+      "date": "2026-03-13",
+      "symbol": "AAOI",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-13/symbol=AAOI/compact.parquet",
+      "status": "ok",
+      "rows": 196,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 23,
+      "session_counts": {
+        "1.0": 196
+      },
+      "source_counts": {
+        "features": 196
+      }
+    },
+    {
+      "date": "2026-03-13",
+      "symbol": "HIMS",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-13/symbol=HIMS/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1260,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-03-13",
+      "symbol": "MARA",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-13/symbol=MARA/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1129,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    },
+    {
+      "date": "2026-03-13",
+      "symbol": "USO",
+      "path": "alpha/output/ml_compact_cache_action_2026-04-06_features_windowed_labelfix/date=2026-03-13/symbol=USO/compact.parquet",
+      "status": "ok",
+      "rows": 2600,
+      "symbols": 1,
+      "dates": 1,
+      "event_rows": 1286,
+      "session_counts": {
+        "1.0": 1000,
+        "2.0": 600,
+        "3.0": 1000
+      },
+      "source_counts": {
+        "features": 2600
+      }
+    }
+  ]
+}

@@ -149,6 +149,19 @@ class L2Loader:
             f"Tried: {[s.name for s in sources_to_try]}"
         )
 
+    @staticmethod
+    def _is_business_date(date_str: str) -> bool:
+        """Return True when a YYYY-MM-DD string falls on a weekday."""
+        try:
+            return pd.Timestamp(date_str).dayofweek < 5
+        except Exception:
+            return False
+
+    @staticmethod
+    def _symbol_dir_has_parquet(symbol_dir: Path) -> bool:
+        """Require at least one parquet file before treating a symbol-dir as usable."""
+        return symbol_dir.is_dir() and any(symbol_dir.glob("*.parquet"))
+
     def load_snapshots(
         self,
         symbol: str,
@@ -343,7 +356,10 @@ class L2Loader:
         return result
 
     def get_available_dates(
-        self, source_type: Optional[Literal["raw", "features", "any"]] = None
+        self,
+        source_type: Optional[Literal["raw", "features", "any"]] = None,
+        *,
+        trading_days_only: bool = True,
     ) -> List[str]:
         """Get list of available dates across all L2 data sources.
 
@@ -375,6 +391,17 @@ class L2Loader:
 
             for date_dir in date_dirs:
                 date_str = date_dir.name.replace("date=", "")
+                if trading_days_only and not self._is_business_date(date_str):
+                    continue
+                symbol_dirs = [
+                    d
+                    for d in date_dir.iterdir()
+                    if d.is_dir()
+                    and d.name.startswith("symbol=")
+                    and self._symbol_dir_has_parquet(d)
+                ]
+                if not symbol_dirs:
+                    continue
                 all_dates.add(date_str)
 
         return sorted(all_dates)
@@ -393,6 +420,9 @@ class L2Loader:
         Returns:
             Sorted list of unique symbol strings
         """
+        if not self._is_business_date(date):
+            return []
+
         all_symbols = set()
 
         for source in self.sources:
@@ -412,7 +442,9 @@ class L2Loader:
             symbol_dirs = [
                 d
                 for d in date_dir.iterdir()
-                if d.is_dir() and d.name.startswith("symbol=")
+                if d.is_dir()
+                and d.name.startswith("symbol=")
+                and self._symbol_dir_has_parquet(d)
             ]
 
             for symbol_dir in symbol_dirs:

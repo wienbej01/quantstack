@@ -406,7 +406,8 @@ class MLDatasetBuilder:
             missing = [c for c in FEATURE_COLS if c not in df.columns]
             for c in missing:
                 df[c] = 0.0
-            return df[["ts_utc", "symbol", "date", "source_type"] + FEATURE_COLS]
+            selected = df[["ts_utc", "symbol", "date", "source_type"] + FEATURE_COLS]
+            return self._sanitize_symbol_day(selected)
         except FileNotFoundError:
             pass
 
@@ -426,9 +427,43 @@ class MLDatasetBuilder:
             missing = [c for c in FEATURE_COLS if c not in computed.columns]
             for c in missing:
                 computed[c] = 0.0
-            return computed[["ts_utc", "symbol", "date", "source_type"] + FEATURE_COLS]
+            selected = computed[
+                ["ts_utc", "symbol", "date", "source_type"] + FEATURE_COLS
+            ]
+            return self._sanitize_symbol_day(selected)
         except FileNotFoundError:
             return None
+
+    @staticmethod
+    def _sanitize_symbol_day(df: pd.DataFrame) -> Optional[pd.DataFrame]:
+        """Drop non-session and non-marketable rows from a symbol-day frame."""
+        if df.empty:
+            return None
+
+        cleaned = df.copy()
+        cleaned["ts_utc"] = pd.to_datetime(cleaned["ts_utc"], utc=True)
+        ts_et = cleaned["ts_utc"].dt.tz_convert("America/New_York")
+        minutes = ts_et.dt.hour * 60 + ts_et.dt.minute
+        in_session = (minutes >= (9 * 60 + 30)) & (minutes <= (16 * 60))
+        cleaned = cleaned.loc[in_session].copy()
+        if cleaned.empty:
+            return None
+
+        mid = pd.to_numeric(cleaned.get("mid"), errors="coerce").fillna(0.0)
+        spread = pd.to_numeric(cleaned.get("spread"), errors="coerce").fillna(0.0)
+        depth_bid = pd.to_numeric(cleaned.get("depth_bid_k"), errors="coerce").fillna(0.0)
+        depth_ask = pd.to_numeric(cleaned.get("depth_ask_k"), errors="coerce").fillna(0.0)
+        obi_1 = pd.to_numeric(cleaned.get("obi_1"), errors="coerce").fillna(0.0)
+        marketable = (mid > 0.0) & (
+            (spread > 0.0)
+            | ((depth_bid + depth_ask) > 0.0)
+            | (obi_1.abs() > 0.0)
+        )
+        cleaned = cleaned.loc[marketable].copy()
+        if cleaned.empty:
+            return None
+
+        return cleaned.reset_index(drop=True)
 
     @property
     def quality_report(self) -> pd.DataFrame:

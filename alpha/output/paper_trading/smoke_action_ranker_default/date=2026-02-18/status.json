@@ -1,0 +1,46 @@
+{
+  "artifact_path": "/home/jacobw/trading/repos/quantstack/alpha/models/action_ranker_xgb_2026-03-19.pkl",
+  "bar_source": "polygon",
+  "completed_at_utc": "2026-04-06T12:49:17.220079Z",
+  "cutoff_et": "2026-02-18T15:59:00-05:00",
+  "daily_top_k": 4,
+  "date": "2026-02-18",
+  "latest_signals_json": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/smoke_action_ranker_default/date=2026-02-18/latest_signals.json",
+  "max_longs_per_day": 2,
+  "max_symbols": 3,
+  "min_score": 0.5,
+  "mode": "paper_shadow_no_orders",
+  "new_paper_signals": 4,
+  "output_dir": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/smoke_action_ranker_default/date=2026-02-18",
+  "paper_signals_jsonl": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/smoke_action_ranker_default/date=2026-02-18/paper_signals.jsonl",
+  "ranked_actions": 158,
+  "ranked_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/smoke_action_ranker_default/date=2026-02-18/ranked_actions.csv",
+  "selected_actions": 4,
+  "selected_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/smoke_action_ranker_default/date=2026-02-18/selected_actions.csv",
+  "sip_symbols": 21,
+  "started_at_utc": "2026-04-06T12:49:08.517872Z",
+  "status": "ok",
+  "symbols": {
+    "F": {
+      "bars": 390,
+      "l2_snapshots": 56121,
+      "ranked_actions": 128
+    },
+    "KHC": {
+      "bars": 0,
+      "error": "bars: No Polygon data found for KHC between 2026-02-18 and 2026-02-18",
+      "l2_snapshots": 0,
+      "ranked_actions": 0
+    },
+    "NVDA": {
+      "bars": 390,
+      "l2_snapshots": 6773,
+      "ranked_actions": 30
+    }
+  },
+  "symbols_selected_from_sip": [
+    "F",
+    "NVDA",
+    "KHC"
+  ]
+}

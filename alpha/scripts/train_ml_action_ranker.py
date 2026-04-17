@@ -27,6 +27,8 @@ from scripts.train_ml_model import (
     _select_training_universe,
 )
 from src.data.ml_compact_cache import CompactCacheConfig, save_compact_cache
+from src.data.ml_dataset import MLDatasetBuilder
+from src.data.l2_loader import L2Loader
 from src.data.ml_label_artifacts import LabelArtifactConfig
 from src.features.ml_features import add_causal_price_features
 from src.models.action_ranker import (
@@ -37,7 +39,7 @@ from src.models.action_ranker import (
     derive_action_targets,
     get_action_ranker_feature_columns,
 )
-from src.data.ml_labels import temporal_split
+from src.data.ml_labels import SplitInfo, temporal_split
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
@@ -49,8 +51,97 @@ def _parse_hold_minutes(value: str) -> list[int]:
     return [int(item.strip()) for item in value.split(",") if item.strip()]
 
 
+def _filter_dates(
+    df: pd.DataFrame,
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    business_days_only: bool,
+) -> pd.DataFrame:
+    """Apply explicit date-window filters before split creation."""
+    if df.empty:
+        return df
+
+    dates = pd.to_datetime(df["date"], errors="coerce")
+    mask = pd.Series(True, index=df.index)
+
+    if start_date:
+        mask &= dates >= pd.Timestamp(start_date)
+    if end_date:
+        mask &= dates <= pd.Timestamp(end_date)
+    if business_days_only:
+        mask &= dates.dt.dayofweek < 5
+
+    filtered = df.loc[mask].copy()
+    if filtered.empty:
+        raise RuntimeError(
+            "Date filters removed all action-ranker training rows. "
+            f"start_date={start_date!r} end_date={end_date!r} "
+            f"business_days_only={business_days_only}"
+        )
+    logger.info(
+        "Date filter kept %d/%d rows across %d dates",
+        len(filtered),
+        len(df),
+        filtered["date"].nunique(),
+    )
+    return filtered
+
+
+def _explicit_temporal_split(
+    df: pd.DataFrame,
+    *,
+    train_end_date: str,
+    val_end_date: str,
+    symbol_holdout_pct: float = 0.20,
+) -> SplitInfo:
+    """Create an explicit blocked temporal split with symbol holdouts."""
+    if pd.Timestamp(train_end_date) >= pd.Timestamp(val_end_date):
+        raise ValueError(
+            "Explicit split requires train_end_date < val_end_date. "
+            f"Got train_end_date={train_end_date!r}, val_end_date={val_end_date!r}."
+        )
+
+    dates = sorted(df["date"].unique())
+    train_dates = [date for date in dates if date <= train_end_date]
+    val_dates = [date for date in dates if train_end_date < date <= val_end_date]
+    test_dates = [date for date in dates if date > val_end_date]
+    if not train_dates or not val_dates or not test_dates:
+        raise RuntimeError(
+            "Explicit split produced an empty train/val/test block. "
+            f"train_dates={len(train_dates)} val_dates={len(val_dates)} "
+            f"test_dates={len(test_dates)}"
+        )
+
+    symbols = sorted(df["symbol"].unique())
+    n_holdout = max(1, int(len(symbols) * symbol_holdout_pct))
+    rng = np.random.RandomState(42)
+    rng.shuffle(symbols)
+    holdout_symbols = list(symbols[:n_holdout])
+    train_symbols = list(symbols[n_holdout:])
+    logger.info(
+        "Explicit split: train=%d dates val=%d dates test=%d dates holdout_symbols=%s",
+        len(train_dates),
+        len(val_dates),
+        len(test_dates),
+        holdout_symbols,
+    )
+    return SplitInfo(
+        train_dates=train_dates,
+        val_dates=val_dates,
+        test_dates=test_dates,
+        train_symbols=train_symbols,
+        holdout_symbols=holdout_symbols,
+    )
+
+
 def _maybe_build_cache(
-    cache_dir: Path, hold_minutes: list[int], rows_per_symbol_day: int
+    cache_dir: Path,
+    hold_minutes: list[int],
+    rows_per_symbol_day: int,
+    *,
+    dates: list[str] | None = None,
+    cache_source_type: str = "any",
 ) -> None:
     manifest_path = cache_dir / "manifest.json"
     desired_horizons = tuple(sorted({minute * 60 for minute in hold_minutes}))
@@ -61,12 +152,33 @@ def _maybe_build_cache(
             .get("label_config", {})
             .get("horizons_seconds", [])
         )
-        if set(desired_horizons).issubset(set(int(value) for value in actual)):
+        actual_dates = manifest.get("config", {}).get("dates")
+        actual_cache_source_type = manifest.get("config", {}).get(
+            "cache_source_type", "any"
+        )
+        if set(desired_horizons).issubset(set(int(value) for value in actual)) and (
+            dates is None or list(actual_dates or []) == list(dates)
+        ) and actual_cache_source_type == cache_source_type:
             return
 
     logger.info("Building action-ranker compact cache in %s", cache_dir)
+    builder = None
+    if cache_source_type != "any":
+        filtered_sources = [
+            source
+            for source in L2Loader.DEFAULT_SOURCES
+            if source.source_type == cache_source_type
+        ]
+        if not filtered_sources:
+            raise ValueError(
+                f"No L2 sources configured for cache_source_type={cache_source_type!r}"
+            )
+        builder = MLDatasetBuilder(
+            loader=L2Loader(sources=filtered_sources, prefer_features=True)
+        )
     save_compact_cache(
         output_dir=cache_dir,
+        builder=builder,
         label_config=LabelArtifactConfig(
             horizons_seconds=desired_horizons,
             threshold_method="fixed",
@@ -74,6 +186,8 @@ def _maybe_build_cache(
         ),
         compact_config=CompactCacheConfig(bucket_seconds=1),
         sample_rows_per_symbol_day=rows_per_symbol_day,
+        dates=dates,
+        cache_source_type=cache_source_type,
     )
 
 
@@ -134,6 +248,19 @@ def _to_utc_timestamp(series: pd.Series) -> pd.Series:
     if getattr(ts.dt, "tz", None) is None:
         return ts.dt.tz_localize("America/New_York").dt.tz_convert("UTC")
     return ts.dt.tz_convert("UTC")
+
+
+def _cache_dates_from_window(
+    *,
+    start_date: str | None,
+    end_date: str | None,
+    business_days_only: bool,
+) -> list[str] | None:
+    """Build cache dates directly from the requested training window."""
+    if not start_date or not end_date:
+        return None
+    freq = "B" if business_days_only else "D"
+    return [ts.strftime("%Y-%m-%d") for ts in pd.date_range(start_date, end_date, freq=freq)]
 
 
 def _attach_causal_bar_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -259,6 +386,44 @@ def main() -> None:
     parser.add_argument("--xgb-reg-lambda", type=float, default=1.0)
     parser.add_argument("--xgb-n-jobs", type=int, default=1)
     parser.add_argument(
+        "--feature-profile",
+        choices=["full", "stable", "stable_causal"],
+        default="full",
+        help="Action-ranker feature subset to train on",
+    )
+    parser.add_argument(
+        "--start-date",
+        default=None,
+        help="Optional inclusive lower bound YYYY-MM-DD for training-frame dates",
+    )
+    parser.add_argument(
+        "--end-date",
+        default=None,
+        help="Optional inclusive upper bound YYYY-MM-DD for training-frame dates",
+    )
+    parser.add_argument(
+        "--business-days-only",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Filter out weekend-labeled dates before splitting",
+    )
+    parser.add_argument(
+        "--cache-source-type",
+        choices=["any", "features", "raw"],
+        default="any",
+        help="Restrict compact-cache building to a specific L2 source type",
+    )
+    parser.add_argument(
+        "--train-end-date",
+        default=None,
+        help="Optional explicit inclusive train cutoff YYYY-MM-DD",
+    )
+    parser.add_argument(
+        "--val-end-date",
+        default=None,
+        help="Optional explicit inclusive validation cutoff YYYY-MM-DD",
+    )
+    parser.add_argument(
         "--save-path",
         default="models/action_ranker_logistic_2026-03-17.pkl",
         help="Artifact path",
@@ -285,7 +450,18 @@ def main() -> None:
     _configure_runtime(args.cpu_limit, args.memory_limit_gb)
     hold_minutes = _parse_hold_minutes(args.hold_minutes)
     cache_dir = Path(args.compact_cache_dir)
-    _maybe_build_cache(cache_dir, hold_minutes, args.rows_per_symbol_day)
+    cache_dates = _cache_dates_from_window(
+        start_date=args.start_date,
+        end_date=args.end_date,
+        business_days_only=args.business_days_only,
+    )
+    _maybe_build_cache(
+        cache_dir,
+        hold_minutes,
+        args.rows_per_symbol_day,
+        dates=cache_dates,
+        cache_source_type=args.cache_source_type,
+    )
 
     df = _build_training_dataframe_from_compact_cache(
         cache_dir=cache_dir,
@@ -296,6 +472,12 @@ def main() -> None:
     if df.empty:
         raise RuntimeError("No rows available for action-ranker training")
 
+    df = _filter_dates(
+        df,
+        start_date=args.start_date,
+        end_date=args.end_date,
+        business_days_only=args.business_days_only,
+    )
     df = _align_training_rows_to_live_scoring(
         df, bucket_seconds=args.alignment_bucket_seconds
     )
@@ -312,7 +494,9 @@ def main() -> None:
         positive_edge_buffer_bps=args.positive_edge_buffer_bps,
     )
 
-    feature_cols = get_action_ranker_feature_columns(df)
+    feature_cols = get_action_ranker_feature_columns(
+        df, profile=args.feature_profile
+    )
     df[feature_cols] = (
         df[feature_cols]
         .astype("float32")
@@ -320,7 +504,20 @@ def main() -> None:
         .replace([float("inf"), float("-inf")], 0.0)
     )
 
-    _, _, _, split_info = temporal_split(df)
+    if bool(args.train_end_date) != bool(args.val_end_date):
+        raise ValueError(
+            "Explicit blocked splitting requires both --train-end-date and --val-end-date."
+        )
+    if args.train_end_date and args.val_end_date:
+        split_info = _explicit_temporal_split(
+            df,
+            train_end_date=args.train_end_date,
+            val_end_date=args.val_end_date,
+        )
+        split_mode = "explicit_blocked"
+    else:
+        _, _, _, split_info = temporal_split(df)
+        split_mode = "temporal_pct"
     training_df = _select_training_universe(df, split_info)
     train_df = training_df[training_df["date"].isin(split_info.train_dates)].copy()
     val_df = df[df["date"].isin(split_info.val_dates)].copy()
@@ -401,8 +598,27 @@ def main() -> None:
             "reg_lambda": args.xgb_reg_lambda,
             "n_jobs": args.xgb_n_jobs,
         },
+        "feature_profile": args.feature_profile,
         "side_aware_context_features": args.side_aware_context_features,
         "causal_price_features": args.causal_price_features,
+        "training_window": {
+            "start_date": args.start_date,
+            "end_date": args.end_date,
+            "business_days_only": args.business_days_only,
+        },
+        "cache_source_type": args.cache_source_type,
+        "split_mode": split_mode,
+        "explicit_split_window": {
+            "train_end_date": args.train_end_date,
+            "val_end_date": args.val_end_date,
+        },
+        "split_info": {
+            "train_dates": split_info.train_dates,
+            "val_dates": split_info.val_dates,
+            "test_dates": split_info.test_dates,
+            "train_symbols": split_info.train_symbols,
+            "holdout_symbols": split_info.holdout_symbols,
+        },
         "validation_top_k": args.top_k_validation,
         "validation_summary": val_summary,
         "test_summary": test_summary,
@@ -431,6 +647,14 @@ def main() -> None:
         f"- positive edge buffer bps: `{args.positive_edge_buffer_bps}`",
         f"- edge weight scale bps: `{args.edge_weight_scale_bps}`",
         f"- objective: `{args.objective}`",
+        f"- feature profile: `{args.feature_profile}`",
+        f"- train window start: `{args.start_date}`",
+        f"- train window end: `{args.end_date}`",
+        f"- business days only: `{args.business_days_only}`",
+        f"- cache source type: `{args.cache_source_type}`",
+        f"- split mode: `{split_mode}`",
+        f"- train block end: `{args.train_end_date}`",
+        f"- validation block end: `{args.val_end_date}`",
         f"- causal price features: `{args.causal_price_features}`",
         f"- validation top-k: `{args.top_k_validation}`",
         f"- validation selected: `{val_summary['selected']}`",

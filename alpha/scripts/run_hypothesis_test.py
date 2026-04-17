@@ -52,6 +52,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+ALPHA_ROOT = Path(__file__).resolve().parent.parent
+
 
 # Default configuration
 DEFAULT_CONFIG = {
@@ -153,6 +155,47 @@ def _sanitize_for_json(value):
     if isinstance(value, Path):
         return str(value)
     return value
+
+
+def _resolve_alpha_runtime_path(raw_path: str, *, kind: str) -> str:
+    """Resolve relative alpha runtime assets from the repo root safely.
+
+    Homeserver operators run this script from `~/trading/repos/quantstack`, while
+    runtime assets such as models and cached Polygon bars live under `alpha/`.
+    """
+    path = Path(raw_path).expanduser()
+    if path.is_absolute():
+        return str(path)
+
+    if kind in {"model", "cache"}:
+        candidates = [ALPHA_ROOT / path, Path.cwd() / path]
+    else:
+        candidates = [Path.cwd() / path]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
+    fallback_base = ALPHA_ROOT if kind in {"model", "cache"} else Path.cwd()
+    return str((fallback_base / path).resolve())
+
+
+def _prepare_runtime_config(config: dict) -> dict:
+    """Normalize runtime paths used by the homeserver alpha workflow."""
+    runtime_config = copy.deepcopy(config)
+    data_cfg = runtime_config.setdefault("data", {})
+    data_cfg["polygon_cache_dir"] = _resolve_alpha_runtime_path(
+        data_cfg.get("polygon_cache_dir", "output/polygon_ohlcv_cache"),
+        kind="cache",
+    )
+
+    ml_cfg = runtime_config.setdefault("signals", {}).get("ml")
+    if ml_cfg is not None:
+        ml_cfg["model_path"] = _resolve_alpha_runtime_path(
+            ml_cfg.get("model_path", "models/xgb_best.pkl"),
+            kind="model",
+        )
+    return runtime_config
 
 
 def _build_run_context(
@@ -337,7 +380,12 @@ def load_polygon_bars(
 ) -> pd.DataFrame:
     """Load Polygon minute bars and normalize to the backtest schema."""
     data_cfg = config.get("data", {})
-    cache_dir = Path(data_cfg.get("polygon_cache_dir", "output/polygon_ohlcv_cache"))
+    cache_dir = Path(
+        _resolve_alpha_runtime_path(
+            data_cfg.get("polygon_cache_dir", "output/polygon_ohlcv_cache"),
+            kind="cache",
+        )
+    )
     tz = "America/New_York"
     all_frames: list[pd.DataFrame] = []
     for date in pd.date_range(start_date, end_date, freq="D"):
@@ -923,6 +971,7 @@ def main():
                 ml_cfg["time_limit_minutes"] = args.ml_time_limit_minutes
             if args.ml_exit_mode is not None:
                 ml_cfg["exit_mode"] = args.ml_exit_mode
+        config = _prepare_runtime_config(config)
         result = run_single_hypothesis(
             hypothesis=args.hypothesis,
             start_date=args.start,

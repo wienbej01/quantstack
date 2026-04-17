@@ -1,0 +1,28 @@
+[Unit]
+Description=Alpha ML Paper/Shadow Trading System
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/jacobw/trading/repos/quantstack
+Environment=TZ=America/New_York
+Environment=PYTHONPATH=/home/jacobw/trading/repos/quantstack/alpha:/home/jacobw/trading/repos/quantstack
+ExecStart=/home/jacobw/trading/repos/quantstack/alpha/scripts/start_alpha_ml_paper_trading.sh
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=30
+StandardOutput=append:/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/logs/alpha_ml_paper_trade.log
+StandardError=append:/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/logs/alpha_ml_paper_trade.log
+
+# Resource limits
+MemoryMax=1G
+CPUQuota=50%
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
+

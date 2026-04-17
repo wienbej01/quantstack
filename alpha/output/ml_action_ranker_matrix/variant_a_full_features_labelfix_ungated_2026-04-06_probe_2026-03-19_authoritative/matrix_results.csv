@@ -1,0 +1,2 @@
+top_k,max_longs_per_day,min_score,combined_trades,combined_total_pnl,combined_gross_profit,combined_gross_loss,active_days,fw_trades,fw_pnl,fw_profit_factor,combined_total_return_pct,combined_profit_factor,combined_trades_per_day,trade_budget_pass
+4,2,0.5,3,-22.594567049999853,19.910677499999966,42.505244549999816,1,3,-22.594567049999853,0.4684287247560384,-0.022594567049999854,0.4684287247560384,3.0,True

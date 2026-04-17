@@ -1,0 +1,33 @@
+{
+  "artifact_path": "alpha/models/action_ranker_xgb_2026-03-19.pkl",
+  "min_score": 0.0,
+  "weak_context_gate": null,
+  "quality_artifact_path": null,
+  "quality_min_score": null,
+  "grid": {
+    "daily_top_ks": [
+      4
+    ],
+    "max_longs_per_day_values": [
+      2
+    ]
+  },
+  "best_config": {
+    "top_k": 4,
+    "max_longs_per_day": 2,
+    "min_score": 0.0,
+    "combined_trades": 0,
+    "combined_total_pnl": 0.0,
+    "combined_gross_profit": 0.0,
+    "combined_gross_loss": 0.0,
+    "active_days": 5,
+    "fw_trades": 0,
+    "fw_pnl": 0.0,
+    "fw_profit_factor": 0.0,
+    "combined_total_return_pct": 0.0,
+    "combined_profit_factor": 0.0,
+    "combined_trades_per_day": 0.0,
+    "trade_budget_pass": false
+  },
+  "configs_tested": 1
+}

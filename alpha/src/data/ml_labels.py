@@ -33,6 +33,12 @@ class WalkForwardFold:
 BarrierOutcome = Literal["tp_first", "sl_first", "neither", "simultaneous"]
 
 
+def _epoch_seconds_from_ts_utc(ts_utc: pd.Series) -> np.ndarray:
+    """Return UTC epoch seconds independent of datetime64 storage resolution."""
+    ts_ns = pd.to_datetime(ts_utc, utc=True).to_numpy(dtype="datetime64[ns]")
+    return ts_ns.astype("int64") / 1e9
+
+
 def classify_barrier_outcome(
     future_mid: np.ndarray,
     entry_mid: float,
@@ -88,7 +94,7 @@ def generate_labels(
     """
     out = df.copy()
     if "ts_epoch" not in out.columns:
-        out["ts_epoch"] = out["ts_utc"].astype(np.int64) / 1e9
+        out["ts_epoch"] = _epoch_seconds_from_ts_utc(out["ts_utc"])
 
     ts = out["ts_epoch"].values
     mid = out["mid"].values.astype(np.float64)
@@ -153,7 +159,7 @@ def generate_barrier_labels(
     """
     out = df.copy()
     if "ts_epoch" not in out.columns:
-        out["ts_epoch"] = out["ts_utc"].astype(np.int64) / 1e9
+        out["ts_epoch"] = _epoch_seconds_from_ts_utc(out["ts_utc"])
 
     ts = out["ts_epoch"].to_numpy(dtype=np.float64)
     mid = out["mid"].to_numpy(dtype=np.float64)

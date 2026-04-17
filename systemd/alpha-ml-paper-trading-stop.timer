@@ -1,0 +1,11 @@
+[Unit]
+Description=Stop Alpha ML Paper/Shadow Trading after market close
+
+[Timer]
+OnCalendar=Mon-Fri 16:05:00 America/New_York
+Persistent=true
+Unit=alpha-ml-paper-trading-stop.service
+
+[Install]
+WantedBy=timers.target
+

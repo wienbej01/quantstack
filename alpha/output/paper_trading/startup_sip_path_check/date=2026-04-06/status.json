@@ -1,0 +1,15 @@
+{
+  "artifact_path": "/home/jacobw/trading/repos/quantstack/alpha/models/action_ranker_xgb_2026-03-19.pkl",
+  "bar_source": "polygon",
+  "daily_top_k": 4,
+  "date": "2026-04-06",
+  "max_longs_per_day": 2,
+  "max_symbols": 3,
+  "min_score": 0.5,
+  "mode": "paper_shadow_no_orders",
+  "output_dir": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/startup_sip_path_check/date=2026-04-06",
+  "sip_symbols": 0,
+  "started_at_utc": "2026-04-06T13:16:04.978984Z",
+  "status": "no_symbols_after_sip_filter",
+  "symbols_selected_from_sip": []
+}

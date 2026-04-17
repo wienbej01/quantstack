@@ -122,6 +122,31 @@ def test_action_ranker_xgboost_scores_all_actions():
     assert scores[1, 1] > scores[1, 0]
 
 
+def test_action_ranker_xgboost_handles_single_class_action_with_constant_fallback():
+    df = pd.DataFrame(
+        {
+            "f1": [0.0, 1.0, 0.0, 1.0],
+            "f2": [1.0, 0.0, 1.0, 0.0],
+            "target_long_3m": [1, 1, 1, 1],
+            "target_short_3m": [0, 1, 0, 1],
+        }
+    )
+    model = ActionRankerXGBoost(
+        feature_columns=["f1", "f2"],
+        action_specs=build_action_specs([3]),
+        max_depth=2,
+        n_estimators=8,
+        learning_rate=0.3,
+        min_child_weight=0.0,
+    )
+
+    model.fit(df)
+    scores = model.predict_action_scores(df[["f1", "f2"]].to_numpy())
+
+    assert scores.shape == (4, 2)
+    assert (scores[:, 0] > 0.99).all()
+
+
 def test_action_quality_features_build_side_session_and_hold_columns():
     df = pd.DataFrame(
         {
@@ -223,3 +248,36 @@ def test_action_ranker_feature_columns_exclude_derived_targets():
     assert "edge_long_3m_bps" not in cols
     assert "best_action_edge_bps" not in cols
     assert "best_action_positive" not in cols
+
+
+def test_action_ranker_feature_profiles_reduce_metadata_and_allow_causal_subset():
+    df = pd.DataFrame(
+        {
+            "mid": [100.0],
+            "spread": [0.02],
+            "pressure_k": [0.1],
+            "session_progress": [0.5],
+            "source_is_raw": [0.0],
+            "dist_vwap_bps": [12.0],
+            "ret_3": [0.001],
+            "ts_epoch": [1_700_000_000.0],
+            "smart_depth": [0.0],
+            "has_depth": [1.0],
+            "best_action_edge_bps": [5.0],
+        }
+    )
+
+    stable = get_action_ranker_feature_columns(df, profile="stable")
+    stable_causal = get_action_ranker_feature_columns(df, profile="stable_causal")
+
+    assert "mid" in stable
+    assert "pressure_k" in stable
+    assert "session_progress" in stable
+    assert "dist_vwap_bps" not in stable
+    assert "ret_3" not in stable
+    assert "ts_epoch" not in stable
+    assert "smart_depth" not in stable
+    assert "has_depth" not in stable
+
+    assert "dist_vwap_bps" in stable_causal
+    assert "ret_3" in stable_causal

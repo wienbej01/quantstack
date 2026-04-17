@@ -181,9 +181,28 @@ class SipLoader:
         dates = []
         for date_dir in sorted(date_dirs):
             date_str = date_dir.name.replace("date=", "")
+            if not (date_dir / "sip_universe.json").exists():
+                continue
             dates.append(date_str)
 
         return dates
+
+    def get_loadable_dates(self, *, require_non_empty: bool = True) -> List[str]:
+        """Return SIP dates that can actually be loaded.
+
+        When ``require_non_empty`` is True, dates with a present but empty symbols
+        list are excluded. This is useful for overlap accounting and split creation.
+        """
+        loadable: List[str] = []
+        for date in self.get_available_dates():
+            try:
+                symbols = self.load_universe(date)
+            except (FileNotFoundError, RuntimeError, ValueError):
+                continue
+            if require_non_empty and not symbols:
+                continue
+            loadable.append(date)
+        return loadable
 
     def check_coverage(
         self,

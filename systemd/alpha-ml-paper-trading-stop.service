@@ -1,0 +1,7 @@
+[Unit]
+Description=Stop Alpha ML Paper/Shadow Trading after market close
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl --user stop alpha-ml-paper-trading.service
+

@@ -1,0 +1,79 @@
+{
+  "hypothesis": "ml",
+  "metrics": {
+    "num_trades": 0,
+    "initial_capital": 100000,
+    "final_equity": 100000.0,
+    "total_pnl": 0,
+    "total_return_pct": 0.0,
+    "sharpe_ratio": 0.0,
+    "expectancy": 0.0,
+    "win_rate": 0.0,
+    "profit_factor": 0.0,
+    "max_drawdown_pct": 0.0,
+    "t_stat": 0.0,
+    "avg_win": 0.0,
+    "avg_loss": 0.0,
+    "avg_hold_minutes": 0.0,
+    "best_trade_pnl": 0.0,
+    "worst_trade_pnl": 0.0
+  },
+  "threshold_check": {
+    "sharpe_pass": false,
+    "win_rate_pass": false,
+    "profit_factor_pass": false,
+    "t_stat_pass": false,
+    "min_trades_pass": false,
+    "all_pass": false
+  },
+  "run_context": {
+    "hypothesis": "ml",
+    "start_date": "2026-03-09",
+    "end_date": "2026-03-10",
+    "bar_source": "polygon",
+    "max_symbols": 0,
+    "symbols_considered": [
+      "CCL",
+      "DOW",
+      "HIMS",
+      "HPE",
+      "INTC",
+      "SMR",
+      "USO"
+    ],
+    "symbols_tested": [
+      "CCL",
+      "DOW",
+      "HIMS",
+      "HPE",
+      "INTC",
+      "SMR",
+      "USO"
+    ],
+    "symbols_tested_count": 7,
+    "total_bars_loaded": 3128,
+    "l2_snapshots_loaded": 503289,
+    "signals_generated": 0,
+    "entries_executed": 0,
+    "exits_executed": 0,
+    "num_trades": 0,
+    "validation_thresholds": {
+      "min_sharpe": 0.75,
+      "min_win_rate": 52.0,
+      "min_profit_factor": 1.2,
+      "min_t_stat": 2.0,
+      "min_trades": 500
+    },
+    "ml_signal": {
+      "model_path": "/home/jacobw/trading/repos/quantstack/alpha/models/xgb_h60_grid_fixedlabels_2026-03-12.pkl",
+      "confidence_threshold": 0.45,
+      "long_confidence_threshold": 0.45,
+      "short_confidence_threshold": 0.45,
+      "min_probability_gap": 0.0,
+      "max_flat_probability": 1.0,
+      "time_limit_minutes": 8,
+      "cooldown_seconds": 60,
+      "exit_mode": "time_only"
+    }
+  }
+}

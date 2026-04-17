@@ -296,40 +296,55 @@ def add_side_aware_context_features(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _rolling_mean_std(vals: np.ndarray, ts: np.ndarray, window_s: int):
-    """Compute rolling mean and std over a time window using expanding lookback."""
+    """Compute rolling mean and std over a time window.
+
+    This is called many times over second-level L2 frames during replay. A
+    vectorized prefix-sum implementation keeps the same inclusive time-window
+    semantics as the original loop without repeatedly walking rows in Python.
+    """
+    vals = np.asarray(vals, dtype=np.float64)
+    ts = np.asarray(ts, dtype=np.float64)
     n = len(vals)
-    means = np.full(n, np.nan)
-    stds = np.full(n, np.nan)
-    left = 0
-    cumsum = 0.0
-    cumsum2 = 0.0
-    count = 0
-    for i in range(n):
-        v = vals[i]
-        if np.isnan(v):
-            means[i] = means[i - 1] if i > 0 else 0.0
-            stds[i] = stds[i - 1] if i > 0 else 0.0
-            continue
-        cumsum += v
-        cumsum2 += v * v
-        count += 1
-        while left < i and (ts[i] - ts[left]) > window_s:
-            lv = vals[left]
-            if not np.isnan(lv):
-                cumsum -= lv
-                cumsum2 -= lv * lv
-                count -= 1
-            left += 1
-        if count > 0:
-            means[i] = cumsum / count
-            if count > 1:
-                var = (cumsum2 / count) - (means[i] ** 2)
-                stds[i] = np.sqrt(max(var, 0))
-            else:
-                stds[i] = 0.0
+    if n == 0:
+        return np.array([], dtype=np.float64), np.array([], dtype=np.float64)
+
+    valid = np.isfinite(vals)
+    clean_vals = np.where(valid, vals, 0.0)
+    starts = np.searchsorted(ts, ts - float(window_s), side="left")
+    ends = np.arange(n, dtype=np.int64) + 1
+
+    prefix_sum = np.concatenate(([0.0], np.cumsum(clean_vals)))
+    prefix_sum2 = np.concatenate(([0.0], np.cumsum(clean_vals * clean_vals)))
+    prefix_count = np.concatenate(([0], np.cumsum(valid.astype(np.int64))))
+
+    counts = prefix_count[ends] - prefix_count[starts]
+    sums = prefix_sum[ends] - prefix_sum[starts]
+    sums2 = prefix_sum2[ends] - prefix_sum2[starts]
+
+    means = np.divide(
+        sums,
+        counts,
+        out=np.zeros(n, dtype=np.float64),
+        where=counts > 0,
+    )
+    variances = np.divide(
+        sums2,
+        counts,
+        out=np.zeros(n, dtype=np.float64),
+        where=counts > 0,
+    ) - (means * means)
+    stds = np.where(counts > 1, np.sqrt(np.maximum(variances, 0.0)), 0.0)
+
+    # Preserve the historical behavior for rows whose current value is NaN:
+    # carry forward the previous rolling value instead of emitting the window's
+    # numeric aggregate at that timestamp.
+    for idx in np.flatnonzero(~valid):
+        if idx > 0:
+            means[idx] = means[idx - 1]
+            stds[idx] = stds[idx - 1]
         else:
-            means[i] = 0.0
-            stds[i] = 0.0
+            means[idx] = 0.0
+            stds[idx] = 0.0
     return means, stds
 
 

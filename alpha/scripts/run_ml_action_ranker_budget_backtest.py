@@ -23,6 +23,8 @@ from scripts.run_hypothesis_test import DEFAULT_CONFIG, load_polygon_bars
 from src.backtest import AlphaBacktestEngine
 from src.backtest.engine import BacktestResult
 from src.data import GoldLoader, L2Loader
+from src.data.ml_compact_cache import compute_event_score
+from src.features.ml_features import compute_ml_features
 from src.metrics import compute_all_metrics
 from src.models.action_ranker import (
     ACTION_QUALITY_BASE_COLUMNS,
@@ -36,6 +38,29 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+_CAUSAL_BAR_FEATURE_COLUMNS = {
+    "vwap",
+    "dist_vwap_bps",
+    "hl_range_pct",
+    "oc_change_pct",
+    "volume_rel_20",
+    "atr_pct",
+    "position_in_range",
+    "rsi",
+    "bb_width",
+    "bb_position",
+    "session_range",
+    "ret_1",
+    "ret_3",
+    "ret_5",
+    "ret_10",
+    "log_log_ret_1",
+    "log_log_ret_3",
+    "log_log_ret_5",
+    "log_log_ret_10",
+}
 
 
 @dataclass(frozen=True)
@@ -66,6 +91,8 @@ class WeakContextGate:
 
 class ScheduledActionSignal(Signal):
     """Replay selected ranked actions with time-only exits."""
+
+    requires_features = False
 
     def __init__(self, config: dict, scheduled_entries: list[SignalEvent]) -> None:
         super().__init__(config)
@@ -203,21 +230,37 @@ def _score_symbol(
     artifact: dict[str, Any],
 ) -> list[RankedAction]:
     """Score one symbol-day so progress can be cached incrementally."""
+    feature_cols = list(artifact["feature_columns"])
+    if l2_df is not None and not l2_df.empty and not (
+        set(feature_cols) & _CAUSAL_BAR_FEATURE_COLUMNS
+    ):
+        return _score_symbol_l2_only_fast(
+            date=date,
+            symbol=symbol,
+            bars_df=bars_df,
+            l2_df=l2_df,
+            config=config,
+            artifact=artifact,
+        )
+
     bars_df = bars_df.sort_values("ts").reset_index(drop=True)
-    feature_cols = artifact["feature_columns"]
     action_specs = [ActionSpec(**spec) for spec in artifact["action_specs"]]
     model = artifact["model"]
     engine = AlphaBacktestEngine(config)
     if l2_df is not None and not l2_df.empty:
         engine._build_l2_index(l2_df)
     executable_last_ts = pd.Timestamp(bars_df["ts"].max())
+    needs_bar_history = bool(set(feature_cols) & _CAUSAL_BAR_FEATURE_COLUMNS)
 
-    ranked: list[RankedAction] = []
+    feature_rows: list[np.ndarray] = []
+    candidates: list[
+        tuple[pd.Timestamp, dict[str, float | None]]
+    ] = []
     for row_idx, (_, bar) in enumerate(bars_df.iterrows()):
         ts = pd.Timestamp(bar["ts"])
         if ts >= executable_last_ts:
             continue
-        bar_history = bars_df.iloc[: row_idx + 1].copy()
+        bar_history = bars_df.iloc[: row_idx + 1].copy() if needs_bar_history else None
         bar_data = engine._prepare_bar_data(bar, l2_df, ts, bar_history=bar_history)
         if bar_data.features.get("_ml_features_ready") is False:
             continue
@@ -225,12 +268,9 @@ def _score_symbol(
             continue
         row = np.array(
             [bar_data.features[column] for column in feature_cols], dtype=np.float32
-        ).reshape(1, -1)
+        )
         if not np.isfinite(row).all():
             continue
-        scores = model.predict_action_scores(row)[0]
-        best_idx = int(np.argmax(scores))
-        best_spec = action_specs[best_idx]
         quality_context_keys = (
             *(
                 column
@@ -244,6 +284,114 @@ def _score_symbol(
             column: _maybe_float(bar_data.features.get(column))
             for column in quality_context_keys
         }
+        feature_rows.append(row)
+        candidates.append((ts, context))
+
+    if not feature_rows:
+        return []
+
+    score_matrix = model.predict_action_scores(np.vstack(feature_rows))
+    ranked: list[RankedAction] = []
+    for (ts, context), scores in zip(candidates, score_matrix):
+        best_idx = int(np.argmax(scores))
+        best_spec = action_specs[best_idx]
+        ranked.append(
+            RankedAction(
+                date=date,
+                symbol=str(symbol),
+                timestamp=ts,
+                side=SignalSide.LONG if best_spec.side == "long" else SignalSide.SHORT,
+                hold_minutes=best_spec.hold_minutes,
+                score=float(scores[best_idx]),
+                context=context,
+            )
+        )
+    return ranked
+
+
+def _score_symbol_l2_only_fast(
+    *,
+    date: str,
+    symbol: str,
+    bars_df: pd.DataFrame,
+    l2_df: pd.DataFrame,
+    config: dict[str, Any],
+    artifact: dict[str, Any],
+) -> list[RankedAction]:
+    """Score an L2-only symbol-day by computing the feature frame once.
+
+    The slower fallback recomputes rolling ML features for every minute bar. For
+    artifacts that do not depend on causal bar-history features, a full-day L2
+    feature frame plus causal searchsorted lookup matches the training cache shape
+    and avoids repeatedly processing the same 300-second L2 windows.
+    """
+    bars_df = bars_df.sort_values("ts").reset_index(drop=True)
+    if bars_df.empty:
+        return []
+
+    feature_cols = list(artifact["feature_columns"])
+    action_specs = [ActionSpec(**spec) for spec in artifact["action_specs"]]
+    model = artifact["model"]
+    engine = AlphaBacktestEngine(config)
+    engine._build_l2_index(l2_df)
+
+    normalized = engine._normalize_ml_window(
+        l2_df,
+        symbol=str(symbol),
+        date=str(date),
+    )
+    if normalized.empty:
+        return []
+    featured = compute_ml_features(normalized)
+    featured["event_score"] = compute_event_score(featured)
+    featured["ts_utc"] = pd.to_datetime(featured["ts_utc"], utc=True)
+    featured = featured.sort_values("ts_utc").reset_index(drop=True)
+    feature_ts_ns = featured["ts_utc"].dt.as_unit("ns").astype("int64").to_numpy()
+
+    if any(column not in featured.columns for column in feature_cols):
+        return []
+
+    quality_context_keys = (
+        *(column for column in ACTION_QUALITY_BASE_COLUMNS if column != "rank_score"),
+        *ACTION_QUALITY_PRICE_COLUMNS,
+        "session_bucket",
+    )
+    executable_last_ts = pd.Timestamp(bars_df["ts"].max())
+    feature_rows: list[np.ndarray] = []
+    candidates: list[tuple[pd.Timestamp, dict[str, float | None]]] = []
+
+    for _, bar in bars_df.iterrows():
+        ts = pd.Timestamp(bar["ts"])
+        if ts >= executable_last_ts:
+            continue
+        cutoff = engine._decision_cutoff_utc(ts)
+        cutoff_ns = int(cutoff.value)
+        feature_idx = int(np.searchsorted(feature_ts_ns, cutoff_ns, side="right") - 1)
+        if feature_idx < 0:
+            continue
+        latest_ts_ns = int(feature_ts_ns[feature_idx])
+        if cutoff_ns - latest_ts_ns > engine._l2_staleness_seconds * 1_000_000_000:
+            continue
+
+        feature_view = featured.iloc[feature_idx]
+        row = feature_view[feature_cols].to_numpy(dtype=np.float32, copy=True)
+        if not np.isfinite(row).all():
+            continue
+        context = {
+            column: _maybe_float(feature_view.get(column))
+            for column in quality_context_keys
+        }
+        feature_rows.append(row)
+        candidates.append((ts, context))
+
+    if not feature_rows:
+        return []
+
+    score_matrix = model.predict_action_scores(np.vstack(feature_rows))
+    ranked: list[RankedAction] = []
+    for (ts, context), scores in zip(candidates, score_matrix):
+        best_idx = int(np.argmax(scores))
+        best_spec = action_specs[best_idx]
         ranked.append(
             RankedAction(
                 date=date,
