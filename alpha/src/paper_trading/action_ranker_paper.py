@@ -520,8 +520,8 @@ def _execute_records_if_enabled(
     if run_config.execution_mode != "ibkr_paper":
         summary["error"] = f"unsupported execution mode: {run_config.execution_mode}"
         return summary
-    if not records:
-        return summary
+    # NOTE: Do NOT early-return when records is empty — time-exits for
+    # existing open trades must still be processed every pass.
 
     # Use pass cutoff as the reference time for staleness — not wall clock vs bar timestamp.
     # Bar timestamps are always in the past; what matters is whether this pass is recent.
