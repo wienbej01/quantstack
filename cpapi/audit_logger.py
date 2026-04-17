@@ -7,12 +7,19 @@ Handles timezone conversions (UTC/Manila/ET) and event categorization.
 
 import json
 import logging
-from datetime import datetime
+import os
+import uuid
+from datetime import date, datetime
+from decimal import Decimal
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 import pytz
+try:
+    from psycopg2.pool import ThreadedConnectionPool
+except Exception:  # pragma: no cover - optional under minimal envs
+    ThreadedConnectionPool = None
 
 # Timezones
 UTC = pytz.UTC
@@ -68,9 +75,14 @@ class AuditLogger:
             log_dir: Directory for audit logs (default: ~/quantstack/logs/audit)
         """
         self.service_name = service_name
+        self._db_pool = None
 
         if log_dir is None:
-            log_dir = Path.home() / "quantstack" / "logs" / "audit"
+            env_dir = os.getenv("QUANTSTACK_AUDIT_LOG_DIR")
+            if env_dir:
+                log_dir = Path(env_dir)
+            else:
+                log_dir = Path(__file__).resolve().parents[2] / "logs" / "audit"
 
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -86,6 +98,40 @@ class AuditLogger:
         # Setup Python logger for fallback
         self.logger = logging.getLogger(f"audit.{service_name}")
 
+    def _get_db_pool(self):
+        if self._db_pool is not None:
+            return self._db_pool
+        if os.getenv("QUANTSTACK_AUDIT_DB_ENABLED", "1") in {"0", "false", "False"}:
+            return None
+        if ThreadedConnectionPool is None:
+            return None
+        try:
+            self._db_pool = ThreadedConnectionPool(
+                minconn=1,
+                maxconn=2,
+                host=os.getenv("POSTGRES_HOST", "/var/run/postgresql"),
+                port=int(os.getenv("POSTGRES_PORT", "5432")),
+                database=os.getenv("POSTGRES_DB", "trading"),
+                user=os.getenv("POSTGRES_USER", os.getenv("USER", "jacobw")),
+                password=os.getenv("POSTGRES_PASSWORD", ""),
+            )
+        except Exception:
+            self._db_pool = None
+        return self._db_pool
+
+    @staticmethod
+    def _json_default(value: Any):
+        """Serialize common non-JSON-native values used in audit context."""
+        if isinstance(value, Enum):
+            return value.value
+        if isinstance(value, (datetime, date)):
+            return value.isoformat()
+        if isinstance(value, Decimal):
+            return float(value)
+        if isinstance(value, Path):
+            return str(value)
+        return str(value)
+
     def _get_timestamps(self) -> dict[str, str]:
         """Get current time in all three timezones."""
         now_utc = datetime.now(UTC)
@@ -97,6 +143,51 @@ class AuditLogger:
             "timestamp_mnl": now_mnl.isoformat(),
             "timestamp_et": now_et.isoformat(),
         }
+
+    def _write_db_event(self, event: dict[str, Any]) -> None:
+        pool = self._get_db_pool()
+        if pool is None:
+            return
+
+        context = event.get("context") or {}
+        metrics = event.get("metrics") or {}
+        conn = pool.getconn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                INSERT INTO audit_events (
+                    event_id, timestamp_utc, timestamp_mnl, timestamp_et,
+                    service, event_type, severity, message, symbol,
+                    trade_id, signal_id, ibkr_order_id, exec_id,
+                    context, metrics
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+                )
+                """,
+                (
+                    event["event_id"],
+                    event["timestamp_utc"],
+                    event["timestamp_mnl"],
+                    event["timestamp_et"],
+                    event["service"],
+                    event["event_type"],
+                    event["severity"],
+                    event["message"],
+                    context.get("symbol") or event.get("symbol"),
+                    context.get("trade_id"),
+                    context.get("signal_id"),
+                    context.get("ibkr_order_id") or context.get("order_id"),
+                    context.get("exec_id"),
+                    json.dumps(context, default=self._json_default),
+                    json.dumps(metrics, default=self._json_default),
+                ),
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+        finally:
+            pool.putconn(conn)
 
     def log_event(
         self,
@@ -119,6 +210,7 @@ class AuditLogger:
         try:
             # Build event record
             event = {
+                "event_id": str(uuid.uuid4()),
                 **self._get_timestamps(),
                 "event_type": event_type.value,
                 "service": self.service_name,
@@ -133,8 +225,10 @@ class AuditLogger:
                 event["metrics"] = metrics
 
             # Write JSONL
-            with open(self.jsonl_path, "a") as f:
-                f.write(json.dumps(event) + "\n")
+            with open(self.jsonl_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(event, default=self._json_default) + "\n")
+
+            self._write_db_event(event)
 
             # Write human-readable
             now_mnl = datetime.fromisoformat(event["timestamp_mnl"])
@@ -148,12 +242,16 @@ class AuditLogger:
             )
 
             if context:
-                human_line += f" | Context: {json.dumps(context)}"
+                human_line += (
+                    f" | Context: {json.dumps(context, default=self._json_default)}"
+                )
 
             if metrics:
-                human_line += f" | Metrics: {json.dumps(metrics)}"
+                human_line += (
+                    f" | Metrics: {json.dumps(metrics, default=self._json_default)}"
+                )
 
-            with open(self.human_path, "a") as f:
+            with open(self.human_path, "a", encoding="utf-8") as f:
                 f.write(human_line + "\n")
 
         except Exception as e:
@@ -189,7 +287,9 @@ class AuditLogger:
             context=context,
         )
 
-    def service_stop(self, exit_code: int = 0, context: dict[str, Any] | None = None):
+    def service_stop(
+        self, exit_code: int = 0, context: dict[str, Any] | None = None
+    ):
         """Log service stop event."""
         severity = Severity.INFO if exit_code == 0 else Severity.ERROR
         self.log_event(
@@ -240,6 +340,29 @@ class AuditLogger:
             },
         )
 
+    @staticmethod
+    def _canonical_context(
+        *,
+        symbol: str,
+        trade_id: str | None = None,
+        signal_id: str | None = None,
+        ibkr_order_id: int | None = None,
+        exec_id: str | None = None,
+        extra: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        context: dict[str, Any] = {"symbol": symbol}
+        if trade_id:
+            context["trade_id"] = trade_id
+        if signal_id:
+            context["signal_id"] = signal_id
+        if ibkr_order_id is not None:
+            context["ibkr_order_id"] = ibkr_order_id
+        if exec_id:
+            context["exec_id"] = exec_id
+        if extra:
+            context.update(extra)
+        return context
+
     def trade_open(
         self,
         symbol: str,
@@ -247,19 +370,28 @@ class AuditLogger:
         qty: int,
         price: float,
         trade_id: str | None = None,
+        *,
+        signal_id: str | None = None,
+        ibkr_order_id: int | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         """Log trade open event."""
         self.log_event(
             EventType.TRADE_OPEN,
             f"OPEN {direction} {qty} {symbol} @ {price:.2f}",
             Severity.INFO,
-            context={
-                "symbol": symbol,
-                "direction": direction,
-                "qty": qty,
-                "price": price,
-                "trade_id": trade_id,
-            },
+            context=self._canonical_context(
+                symbol=symbol,
+                trade_id=trade_id,
+                signal_id=signal_id,
+                ibkr_order_id=ibkr_order_id,
+                extra={
+                    "direction": direction,
+                    "qty": qty,
+                    "price": price,
+                    **(extra or {}),
+                },
+            ),
         )
 
     def trade_close(
@@ -270,20 +402,31 @@ class AuditLogger:
         price: float,
         pnl: float,
         trade_id: str | None = None,
+        *,
+        signal_id: str | None = None,
+        ibkr_order_id: int | None = None,
+        exec_id: str | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         """Log trade close event."""
         self.log_event(
             EventType.TRADE_CLOSE,
             f"CLOSE {direction} {qty} {symbol} @ {price:.2f} PnL={pnl:.2f}",
             Severity.INFO,
-            context={
-                "symbol": symbol,
-                "direction": direction,
-                "qty": qty,
-                "price": price,
-                "pnl": pnl,
-                "trade_id": trade_id,
-            },
+            context=self._canonical_context(
+                symbol=symbol,
+                trade_id=trade_id,
+                signal_id=signal_id,
+                ibkr_order_id=ibkr_order_id,
+                exec_id=exec_id,
+                extra={
+                    "direction": direction,
+                    "qty": qty,
+                    "price": price,
+                    "pnl": pnl,
+                    **(extra or {}),
+                },
+            ),
         )
 
     def order_fill(
@@ -293,19 +436,30 @@ class AuditLogger:
         qty: int,
         price: float,
         order_id: int | None = None,
+        *,
+        trade_id: str | None = None,
+        signal_id: str | None = None,
+        exec_id: str | None = None,
+        extra: dict[str, Any] | None = None,
     ):
         """Log order fill event."""
         self.log_event(
             EventType.ORDER_FILL,
             f"FILL {side} {qty} {symbol} @ {price:.4f}",
             Severity.INFO,
-            context={
-                "symbol": symbol,
-                "side": side,
-                "qty": qty,
-                "price": price,
-                "order_id": order_id,
-            },
+            context=self._canonical_context(
+                symbol=symbol,
+                trade_id=trade_id,
+                signal_id=signal_id,
+                ibkr_order_id=order_id,
+                exec_id=exec_id,
+                extra={
+                    "side": side,
+                    "qty": qty,
+                    "price": price,
+                    **(extra or {}),
+                },
+            ),
         )
 
     def order_reject(self, symbol: str, reason: str, order_id: int | None = None):

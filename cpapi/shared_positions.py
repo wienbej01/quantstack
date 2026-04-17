@@ -5,6 +5,7 @@ Pre-trade checks query total exposure to prevent margin stacking.
 """
 
 import logging
+import os
 from contextlib import contextmanager
 
 import psycopg2
@@ -12,15 +13,25 @@ from psycopg2.extras import RealDictCursor
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DSN = "dbname=quantstack user=jacobw"
+def _default_dsn() -> str:
+    return " ".join(
+        [
+            f"dbname={os.getenv('POSTGRES_DB', 'trading')}",
+            f"user={os.getenv('POSTGRES_USER', os.getenv('USER', 'jacobw'))}",
+            f"host={os.getenv('POSTGRES_HOST', '/var/run/postgresql')}",
+            f"port={os.getenv('POSTGRES_PORT', '5432')}",
+        ]
+    )
+
+
 GLOBAL_MARGIN_CAP_PCT = 0.80  # Max 80% of account equity in margin
 
 
 class SharedPositionLedger:
     """Shared position ledger backed by PostgreSQL."""
 
-    def __init__(self, dsn: str = DEFAULT_DSN):
-        self._dsn = dsn
+    def __init__(self, dsn: str | None = None):
+        self._dsn = dsn or _default_dsn()
 
     @contextmanager
     def _conn(self):
@@ -34,14 +45,8 @@ class SharedPositionLedger:
         finally:
             conn.close()
 
-    def upsert(
-        self,
-        service: str,
-        symbol: str,
-        quantity: int,
-        avg_price: float,
-        margin_used: float = 0.0,
-    ) -> None:
+    def upsert(self, service: str, symbol: str, quantity: int,
+               avg_price: float, margin_used: float = 0.0) -> None:
         """Insert or update a position."""
         with self._conn() as conn:
             with conn.cursor() as cur:
@@ -80,21 +85,30 @@ class SharedPositionLedger:
                     cur.execute("SELECT * FROM shared_positions")
                 return [dict(r) for r in cur.fetchall()]
 
+    def get_symbol_positions(self, symbol: str) -> list[dict]:
+        """Return all non-zero service positions for a symbol."""
+        with self._conn() as conn:
+            with conn.cursor(cursor_factory=RealDictCursor) as cur:
+                cur.execute(
+                    """
+                    SELECT service, symbol, quantity, avg_price, margin_used, updated_at
+                    FROM shared_positions
+                    WHERE symbol = %s AND quantity <> 0
+                    ORDER BY service
+                    """,
+                    (symbol,),
+                )
+                return [dict(r) for r in cur.fetchall()]
+
     def get_total_margin(self) -> float:
         """Get total margin used across all services."""
         with self._conn() as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions"
-                )
+                cur.execute("SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions")
                 return float(cur.fetchone()[0])
 
-    def check_global_margin(
-        self,
-        new_margin: float,
-        account_equity: float,
-        cap_pct: float = GLOBAL_MARGIN_CAP_PCT,
-    ) -> tuple[bool, str]:
+    def check_global_margin(self, new_margin: float, account_equity: float,
+                            cap_pct: float = GLOBAL_MARGIN_CAP_PCT) -> tuple[bool, str]:
         """Check if adding new_margin would exceed the global cap.
 
         Uses advisory lock for atomicity across concurrent services.
@@ -104,9 +118,7 @@ class SharedPositionLedger:
             with conn.cursor() as cur:
                 # Advisory lock to prevent race between services
                 cur.execute("SELECT pg_advisory_xact_lock(8675309)")
-                cur.execute(
-                    "SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions"
-                )
+                cur.execute("SELECT COALESCE(SUM(margin_used), 0) FROM shared_positions")
                 total = float(cur.fetchone()[0])
 
                 cap = account_equity * cap_pct

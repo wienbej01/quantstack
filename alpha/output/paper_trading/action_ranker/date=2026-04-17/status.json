@@ -1,74 +1,21 @@
 {
   "artifact_path": "/home/jacobw/trading/repos/quantstack/alpha/models/action_ranker_xgb_2026-03-19.pkl",
   "bar_source": "polygon",
-  "completed_at_utc": "2026-04-17T15:43:12.203135Z",
-  "cutoff_et": "2026-04-17T11:42:27.861114-04:00",
+  "completed_at_utc": "2026-04-17T15:46:57.803913Z",
+  "cutoff_et": "2026-04-17T11:46:19.760534-04:00",
   "daily_top_k": 4,
   "date": "2026-04-17",
-  "executable_records": 4,
+  "executable_records": 0,
   "execution": {
-    "attempted": 4,
+    "attempted": 0,
     "exit_mode": "time_only",
-    "failed": 1,
+    "failed": 0,
     "mode": "ibkr_paper",
-    "orders": [
-      {
-        "action_id": "2026-04-17|SCHW|2026-04-17T09:31:00-04:00|long|8",
-        "bracket_ids": [
-          565,
-          566,
-          567
-        ],
-        "order_id": 565,
-        "signal_id": "50fce4a7-0907-5c3b-9c3c-d5959f280184",
-        "status": "submitted",
-        "symbol": "SCHW",
-        "trade_id": "566452bc-49fe-4fad-9c1b-67d2fe60b97f"
-      },
-      {
-        "action_id": "2026-04-17|IONQ|2026-04-17T09:32:00-04:00|long|5",
-        "bracket_ids": [
-          569,
-          570,
-          571
-        ],
-        "order_id": 569,
-        "signal_id": "145a8816-4bbb-59bb-b1f7-9fc0d6839003",
-        "status": "submitted",
-        "symbol": "IONQ",
-        "trade_id": "c41a8115-73cf-484b-882e-483334907eff"
-      },
-      {
-        "action_id": "2026-04-17|SCHW|2026-04-17T09:50:00-04:00|short|5",
-        "bracket_ids": [
-          573,
-          574,
-          575
-        ],
-        "order_id": 573,
-        "signal_id": "ae231ce2-74b6-555d-94ac-1c81f19186b4",
-        "status": "submitted",
-        "symbol": "SCHW",
-        "trade_id": "44638a0d-f18a-4c5a-ae02-a892d4dcf02b"
-      },
-      {
-        "action_id": "2026-04-17|IONQ|2026-04-17T09:55:00-04:00|short|5",
-        "status": "rejected_or_not_submitted",
-        "symbol": "IONQ"
-      }
-    ],
+    "orders": [],
     "skipped_missing_price": 0,
     "skipped_stale": 0,
-    "submitted": 3,
-    "time_exits": {
-      "checked": 0,
-      "due": 0,
-      "failed": 0,
-      "orders": [],
-      "skipped_existing_exit": 0,
-      "skipped_pending_entry": 0,
-      "submitted": 0
-    }
+    "submitted": 0,
+    "time_exits": {}
   },
   "execution_mode": "ibkr_paper",
   "exit_mode": "time_only",
@@ -80,28 +27,28 @@
   "new_paper_signals": 0,
   "output_dir": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-17",
   "paper_signals_jsonl": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-17/paper_signals.jsonl",
-  "ranked_actions": 339,
+  "ranked_actions": 351,
   "ranked_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-17/ranked_actions.csv",
   "selected_actions": 4,
   "selected_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-17/selected_actions.csv",
   "sip_symbols": 13,
-  "started_at_utc": "2026-04-17T15:42:25.792522Z",
+  "started_at_utc": "2026-04-17T15:46:17.832236Z",
   "status": "ok",
   "symbols": {
     "ABT": {
-      "bars": 118,
-      "l2_snapshots": 27775,
-      "ranked_actions": 113
+      "bars": 122,
+      "l2_snapshots": 28714,
+      "ranked_actions": 117
     },
     "IONQ": {
-      "bars": 118,
-      "l2_snapshots": 27829,
-      "ranked_actions": 113
+      "bars": 122,
+      "l2_snapshots": 28749,
+      "ranked_actions": 117
     },
     "SCHW": {
-      "bars": 118,
-      "l2_snapshots": 27755,
-      "ranked_actions": 113
+      "bars": 122,
+      "l2_snapshots": 28694,
+      "ranked_actions": 117
     }
   },
   "symbols_selected_from_sip": [
