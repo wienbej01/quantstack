@@ -608,7 +608,16 @@ def _execute_records_if_enabled(
         if not fresh_records:
             return summary
 
+        _last_order_time: float = 0.0
+        _ORDER_COOLDOWN_SECONDS = 60
+
         for record in fresh_records:
+            # Enforce cooldown between consecutive orders so IBKR position state
+            # has time to settle and OrderManager.can_trade() sees accurate counts.
+            elapsed = time.monotonic() - _last_order_time
+            if _last_order_time > 0 and elapsed < _ORDER_COOLDOWN_SECONDS:
+                time.sleep(_ORDER_COOLDOWN_SECONDS - elapsed)
+
             summary["attempted"] += 1
             signal_id = _record_signal_id(str(record["action_id"]))
             audit.log_event(
@@ -695,6 +704,8 @@ def _execute_records_if_enabled(
                 trade_db.link_order(db_trade_id, int(order.order_id), is_entry=True, symbol=str(record["symbol"]))
             except Exception as db_err:
                 logger.error("Alpha ML DB recording failed (order already placed): %s", db_err)
+
+            _last_order_time = time.monotonic()
 
             # Register in shared positions so other services don't treat this as a ghost
             qty = intent.quantity if record["side"] == "long" else -intent.quantity
