@@ -522,6 +522,23 @@ def _execute_records_if_enabled(
         return summary
     # NOTE: Do NOT early-return when records is empty — time-exits for
     # existing open trades must still be processed every pass.
+    # However, skip the IBKR connection entirely when there are no records
+    # AND no open alpha-ml trades (avoids reconnect spam when data is unavailable).
+    if not records:
+        try:
+            import psycopg2
+            _conn = psycopg2.connect(dbname="trading")
+            try:
+                _cur = _conn.cursor()
+                _cur.execute("SELECT COUNT(*) FROM trades_v2 WHERE system='alpha-ml' AND status='OPEN'")
+                _open_count = _cur.fetchone()[0]
+            finally:
+                _conn.close()
+            if _open_count == 0:
+                logger.info("No executable records and no open alpha-ml trades — skipping IBKR connection")
+                return summary
+        except Exception:
+            pass  # fall through to normal IBKR path if DB check fails
 
     # Use pass cutoff as the reference time for staleness — not wall clock vs bar timestamp.
     # Bar timestamps are always in the past; what matters is whether this pass is recent.

@@ -1,0 +1,70 @@
+{
+  "artifact_path": "/home/jacobw/trading/repos/quantstack/alpha/models/action_ranker_xgb_2026-03-19.pkl",
+  "bar_source": "polygon",
+  "completed_at_utc": "2026-04-20T13:41:56.579609Z",
+  "cutoff_et": "2026-04-20T09:41:53.157772-04:00",
+  "daily_top_k": 4,
+  "date": "2026-04-20",
+  "executable_records": 0,
+  "execution": {
+    "attempted": 0,
+    "exit_mode": "time_only",
+    "failed": 0,
+    "mode": "ibkr_paper",
+    "orders": [],
+    "skipped_missing_price": 0,
+    "skipped_stale": 0,
+    "submitted": 0,
+    "time_exits": {
+      "checked": 0,
+      "due": 0,
+      "failed": 0,
+      "orders": [],
+      "skipped_existing_exit": 0,
+      "skipped_pending_entry": 0,
+      "submitted": 0
+    }
+  },
+  "execution_mode": "ibkr_paper",
+  "exit_mode": "time_only",
+  "latest_signals_json": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-20/latest_signals.json",
+  "max_longs_per_day": 2,
+  "max_symbols": 3,
+  "min_score": 0.5,
+  "mode": "ibkr_paper_orders",
+  "new_paper_signals": 0,
+  "output_dir": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-20",
+  "paper_signals_jsonl": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-20/paper_signals.jsonl",
+  "ranked_actions": 0,
+  "ranked_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-20/ranked_actions.csv",
+  "selected_actions": 0,
+  "selected_actions_csv": "/home/jacobw/trading/repos/quantstack/alpha/output/paper_trading/action_ranker/date=2026-04-20/selected_actions.csv",
+  "sip_symbols": 19,
+  "started_at_utc": "2026-04-20T13:41:51.319962Z",
+  "status": "ok",
+  "symbols": {
+    "HIMS": {
+      "bars": 0,
+      "error": "bars: No Polygon data found for HIMS between 2026-04-20 and 2026-04-20",
+      "l2_snapshots": 0,
+      "ranked_actions": 0
+    },
+    "IONQ": {
+      "bars": 0,
+      "error": "bars: No Polygon data found for IONQ between 2026-04-20 and 2026-04-20",
+      "l2_snapshots": 0,
+      "ranked_actions": 0
+    },
+    "ORCL": {
+      "bars": 0,
+      "error": "bars: No Polygon data found for ORCL between 2026-04-20 and 2026-04-20",
+      "l2_snapshots": 0,
+      "ranked_actions": 0
+    }
+  },
+  "symbols_selected_from_sip": [
+    "ORCL",
+    "IONQ",
+    "HIMS"
+  ]
+}
