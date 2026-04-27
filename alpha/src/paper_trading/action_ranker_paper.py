@@ -76,6 +76,7 @@ class PaperRunConfig:
     ibkr_client_id: int = 410
     ibkr_account_id: str | None = None
     order_ref_prefix: str = "ALPHA_ML"
+    no_new_entries_after: str = "15:45:00"
 
 
 def current_et_date() -> str:
@@ -99,6 +100,10 @@ def is_market_window(
         return False
     current = now.strftime("%H:%M:%S")
     return start_time <= current <= end_time
+
+
+def _at_or_after_et(clock_time: str) -> bool:
+    return current_et_time() >= clock_time
 
 
 def _resolve_path(path: Path | str) -> Path:
@@ -168,12 +173,52 @@ def _load_symbol_bars(
     date: str,
     bar_source: str,
     config: dict[str, Any],
+    ib: Any = None,
 ) -> pd.DataFrame:
     if bar_source == "polygon":
-        return load_polygon_bars(symbol, date, date, config)
+        bars = load_polygon_bars(symbol, date, date, config)
+        if bars.empty and ib is not None:
+            return _ibkr_bar_fallback(ib, symbol, date)
+        return bars
     if bar_source == "gold":
         return GoldLoader().load_bars(symbol, date, date)
     raise ValueError(f"Unsupported bar source: {bar_source}")
+
+
+def _ibkr_bar_fallback(ib: Any, symbol: str, date: str) -> pd.DataFrame:
+    """Fetch 1-min bars from IBKR when Polygon has no same-day data."""
+    try:
+        from ib_insync import Stock
+        contract = Stock(symbol, "SMART", "USD")
+        ib.qualifyContracts(contract)
+        ibkr_bars = ib.reqHistoricalData(
+            contract,
+            endDateTime="",
+            durationStr="1 D",
+            barSizeSetting="1 min",
+            whatToShow="TRADES",
+            useRTH=True,
+            formatDate=2,
+        )
+        if not ibkr_bars:
+            return pd.DataFrame()
+        rows = [
+            {
+                "ts": pd.Timestamp(b.date).tz_convert(ET) if b.date.tzinfo else pd.Timestamp(b.date).tz_localize(ET),
+                "open": b.open,
+                "high": b.high,
+                "low": b.low,
+                "close": b.close,
+                "volume": b.volume,
+                "symbol": symbol,
+            }
+            for b in ibkr_bars
+        ]
+        logger.info("Polygon empty for %s %s, fell back to IBKR bars (%d rows)", symbol, date, len(rows))
+        return pd.DataFrame(rows)
+    except Exception as exc:
+        logger.warning("IBKR bar fallback failed for %s: %s", symbol, exc)
+        return pd.DataFrame()
 
 
 def _timestamp_to_et(timestamp: Any) -> pd.Timestamp:
@@ -277,11 +322,11 @@ def _trade_signal_data(trade: dict[str, Any]) -> dict[str, Any]:
     return {}
 
 
-def _trade_due_for_time_exit(trade: dict[str, Any], *, now: pd.Timestamp) -> bool:
+def _trade_due_for_time_exit(trade: dict[str, Any], *, now: pd.Timestamp, max_hold_minutes: int = 60) -> bool:
     metadata = _trade_signal_data(trade)
     hold_minutes = metadata.get("hold_minutes")
     if hold_minutes is None:
-        return False
+        hold_minutes = max_hold_minutes
     entry_time = trade.get("entry_time")
     if entry_time is None:
         return False
@@ -290,7 +335,8 @@ def _trade_due_for_time_exit(trade: dict[str, Any], *, now: pd.Timestamp) -> boo
         entry_ts = entry_ts.tz_localize("UTC")
     else:
         entry_ts = entry_ts.tz_convert("UTC")
-    return now >= entry_ts + pd.Timedelta(minutes=int(hold_minutes))
+    target_minutes = min(int(hold_minutes), max_hold_minutes)
+    return now >= entry_ts + pd.Timedelta(minutes=target_minutes)
 
 
 def _open_exit_order_exists(trade_db: Any, trade_id: str) -> bool:
@@ -503,6 +549,10 @@ def _execute_records_if_enabled(
     run_config: PaperRunConfig,
     records: list[dict[str, Any]],
     pass_cutoff: pd.Timestamp | None = None,
+    shared_session: Any = None,
+    shared_trade_db: Any = None,
+    shared_adapter: Any = None,
+    shared_manager: Any = None,
 ) -> dict[str, Any]:
     summary: dict[str, Any] = {
         "mode": run_config.execution_mode,
@@ -524,7 +574,8 @@ def _execute_records_if_enabled(
     # existing open trades must still be processed every pass.
     # However, skip the IBKR connection entirely when there are no records
     # AND no open alpha-ml trades (avoids reconnect spam when data is unavailable).
-    if not records:
+    owns_session = shared_session is None
+    if not records and owns_session:
         try:
             import psycopg2
             _conn = psycopg2.connect(dbname="trading")
@@ -569,50 +620,60 @@ def _execute_records_if_enabled(
     shared_pos = SharedPositionLedger()
     submitted_path = _resolve_path(run_config.output_dir) / f"date={run_config.date}" / "submitted_actions.jsonl"
 
-    session = IBKRSession(
-        IBKRSessionConfig(
-            system_name="alpha-ml",
-            connection=IBKRConnectionConfig(
-                host=run_config.ibkr_host,
-                port=run_config.ibkr_port,
-                client_id=run_config.ibkr_client_id,
-                readonly=False,
-                allow_client_id_fallback=True,
-                client_id_fallbacks=5,
-            ),
+    # Reuse shared session/components if provided; otherwise create ephemeral ones
+    session = shared_session
+    trade_db = shared_trade_db
+    adapter = shared_adapter
+    manager = shared_manager
+
+    if owns_session:
+        session = IBKRSession(
+            IBKRSessionConfig(
+                system_name="alpha-ml",
+                connection=IBKRConnectionConfig(
+                    host=run_config.ibkr_host,
+                    port=run_config.ibkr_port,
+                    client_id=run_config.ibkr_client_id,
+                    readonly=False,
+                    allow_client_id_fallback=True,
+                    client_id_fallbacks=5,
+                ),
+            )
         )
-    )
-    trade_db = None
+        trade_db = None
+
     try:
-        if not session.connect():
-            audit.log_event(EventType.DEPENDENCY_FAIL, "alpha-ml IBKR connect failed", Severity.ERROR)
-            summary["error"] = "ibkr_connect_failed"
-            summary["failed"] = len(fresh_records)
-            return summary
-        audit.log_event(EventType.SERVICE_READY, "alpha-ml IBKR connected", context={"client_id": run_config.ibkr_client_id})
-        adapter = IBKRLiveAdapter(
-            session,
-            system_name="alpha-ml",
-            client_id=run_config.ibkr_client_id,
-            order_ref_prefix=run_config.order_ref_prefix,
-            account_id=run_config.ibkr_account_id,
-        )
-        adapter.attach_handlers()
-        manager = OrderManager(
-            adapter,
-            RiskLimits(
-                daily_loss_limit=200.0,
-                max_concurrent_positions=2,
-                max_position_pct=0.02,
-                max_trades_per_day=max(int(run_config.daily_top_k), 1),
-            ),
-        )
-        trade_db = TradeIntegration(
-            ib=session.ib,
-            system_name="alpha-ml",
-            ib_call=session.call,
-        )
-        trade_db.start()
+        if owns_session:
+            if not session.connect():
+                audit.log_event(EventType.DEPENDENCY_FAIL, "alpha-ml IBKR connect failed", Severity.ERROR)
+                summary["error"] = "ibkr_connect_failed"
+                summary["failed"] = len(fresh_records)
+                return summary
+            audit.log_event(EventType.SERVICE_READY, "alpha-ml IBKR connected", context={"client_id": run_config.ibkr_client_id})
+            adapter = IBKRLiveAdapter(
+                session,
+                system_name="alpha-ml",
+                client_id=run_config.ibkr_client_id,
+                order_ref_prefix=run_config.order_ref_prefix,
+                account_id=run_config.ibkr_account_id,
+            )
+            adapter.attach_handlers()
+            manager = OrderManager(
+                adapter,
+                RiskLimits(
+                    daily_loss_limit=200.0,
+                    max_concurrent_positions=2,
+                    max_position_pct=0.02,
+                    max_trades_per_day=max(int(run_config.daily_top_k), 1),
+                ),
+            )
+            trade_db = TradeIntegration(
+                ib=session.ib,
+                system_name="alpha-ml",
+                ib_call=session.call,
+            )
+            trade_db.start()
+
         summary["time_exits"] = _submit_due_time_exits(
             run_config=run_config,
             session=session,
@@ -621,6 +682,12 @@ def _execute_records_if_enabled(
             shared_pos=shared_pos,
             audit=audit,
         )
+
+        # Wait for MKT time-exit fills before disconnecting
+        if summary["time_exits"].get("submitted", 0) > 0:
+            logger.info("Waiting 5s for time-exit fills to settle...")
+            time.sleep(5)
+            session.ib.sleep(0)  # pump ib_insync event loop to process fills
 
         if not fresh_records:
             return summary
@@ -762,15 +829,16 @@ def _execute_records_if_enabled(
         summary["error"] = str(exc)
         summary["failed"] += max(len(fresh_records) - summary["submitted"], 0)
     finally:
-        if trade_db is not None:
+        if owns_session:
+            if trade_db is not None:
+                try:
+                    trade_db.stop()
+                except Exception:
+                    logger.exception("Failed to stop alpha trade integration")
             try:
-                trade_db.stop()
+                session.disconnect()
             except Exception:
-                logger.exception("Failed to stop alpha trade integration")
-        try:
-            session.disconnect()
-        except Exception:
-            logger.exception("Failed to disconnect alpha IBKR session")
+                logger.exception("Failed to disconnect alpha IBKR session")
     return summary
 
 
@@ -797,7 +865,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp_path.replace(path)
 
 
-def run_paper_once(run_config: PaperRunConfig) -> dict[str, Any]:
+def run_paper_once(
+    run_config: PaperRunConfig,
+    *,
+    shared_session: Any = None,
+    shared_trade_db: Any = None,
+    shared_adapter: Any = None,
+    shared_manager: Any = None,
+) -> dict[str, Any]:
     """Run one bounded paper/shadow scoring pass and write output artifacts."""
     date = run_config.date
     output_root = _resolve_path(run_config.output_dir) / f"date={date}"
@@ -860,6 +935,7 @@ def run_paper_once(run_config: PaperRunConfig) -> dict[str, Any]:
                 date=date,
                 bar_source=run_config.bar_source,
                 config=config,
+                ib=shared_session.ib if shared_session is not None and hasattr(shared_session, 'ib') else None,
             )
             bars = _filter_bars_to_cutoff(bars, cutoff)
             if bars.empty:
@@ -958,11 +1034,22 @@ def run_paper_once(run_config: PaperRunConfig) -> dict[str, Any]:
     executable_records = [
         record for record in selected_records if record["action_id"] not in already_submitted
     ]
+    if _at_or_after_et(run_config.no_new_entries_after):
+        logger.info(
+            "Alpha ML: blocking %d new entries after cutoff %s ET",
+            len(executable_records),
+            run_config.no_new_entries_after,
+        )
+        executable_records = []
 
     execution_summary = _execute_records_if_enabled(
         run_config=run_config,
         records=executable_records,
         pass_cutoff=cutoff,
+        shared_session=shared_session,
+        shared_trade_db=shared_trade_db,
+        shared_adapter=shared_adapter,
+        shared_manager=shared_manager,
     )
 
     status.update(
@@ -1080,42 +1167,132 @@ def run_paper_loop(
         except Exception:
             pass
 
-    interval = max(int(interval_seconds), 5)
-    while True:
-        status = run_paper_once(
-            PaperRunConfig(
-                date=run_config.date,
-                artifact_path=run_config.artifact_path,
-                sip_root=run_config.sip_root,
-                output_dir=run_config.output_dir,
-                polygon_cache_dir=run_config.polygon_cache_dir,
-                bar_source=run_config.bar_source,
-                max_symbols=run_config.max_symbols,
-                daily_top_k=run_config.daily_top_k,
-                max_longs_per_day=run_config.max_longs_per_day,
-                min_score=run_config.min_score,
-                cutoff_et=None,
-                l2_source_type=run_config.l2_source_type,
-                execution_mode=run_config.execution_mode,
-                exit_mode=run_config.exit_mode,
-                execution_quantity=run_config.execution_quantity,
-                execution_stop_bps=run_config.execution_stop_bps,
-                execution_target_bps=run_config.execution_target_bps,
-                execution_max_action_age_seconds=run_config.execution_max_action_age_seconds,
-                ibkr_host=run_config.ibkr_host,
-                ibkr_port=run_config.ibkr_port,
-                ibkr_client_id=run_config.ibkr_client_id,
-                ibkr_account_id=run_config.ibkr_account_id,
-                order_ref_prefix=run_config.order_ref_prefix,
+    # --- S1: Persistent session lifecycle ---
+    session = None
+    trade_db = None
+    adapter = None
+    manager = None
+
+    if run_config.execution_mode == "ibkr_paper":
+        try:
+            from cpapi.trade_integration import TradeIntegration  # type: ignore
+            from execution.ibkr_live_adapter import IBKRLiveAdapter  # type: ignore
+            from execution.order_manager import OrderManager, RiskLimits  # type: ignore
+            from qx_broker.ibkr import IBKRConnectionConfig, IBKRSession, IBKRSessionConfig  # type: ignore
+
+            session = IBKRSession(
+                IBKRSessionConfig(
+                    system_name="alpha-ml",
+                    connection=IBKRConnectionConfig(
+                        host=run_config.ibkr_host,
+                        port=run_config.ibkr_port,
+                        client_id=run_config.ibkr_client_id,
+                        readonly=False,
+                        allow_client_id_fallback=True,
+                        client_id_fallbacks=5,
+                    ),
+                )
             )
-        )
-        logger.info("Paper pass status: %s", status.get("status"))
-        if current_et_time() >= session_end:
-            logger.info("Session end reached at %s ET", current_et_time())
-            if audit:
+            if session.connect():
+                if audit:
+                    audit.log_event(EventType.SERVICE_READY, "alpha-ml IBKR connected", context={"client_id": run_config.ibkr_client_id})
+                adapter = IBKRLiveAdapter(
+                    session,
+                    system_name="alpha-ml",
+                    client_id=run_config.ibkr_client_id,
+                    order_ref_prefix=run_config.order_ref_prefix,
+                    account_id=run_config.ibkr_account_id,
+                )
+                adapter.attach_handlers()
+                manager = OrderManager(
+                    adapter,
+                    RiskLimits(
+                        daily_loss_limit=200.0,
+                        max_concurrent_positions=2,
+                        max_position_pct=0.02,
+                        max_trades_per_day=max(int(run_config.daily_top_k), 1),
+                    ),
+                )
+                trade_db = TradeIntegration(
+                    ib=session.ib,
+                    system_name="alpha-ml",
+                    ib_call=session.call,
+                )
+                trade_db.start()
+            else:
+                logger.error("Alpha ML: initial IBKR connect failed, will retry per-pass")
+                session = None
+        except Exception:
+            logger.exception("Alpha ML: failed to create persistent session, will retry per-pass")
+            session = None
+
+    interval = max(int(interval_seconds), 5)
+    try:
+        while True:
+            if current_et_time() >= session_end:
+                logger.info("Session end reached at %s ET before scoring", current_et_time())
+                logger.info("Alpha ML: flattening open positions at session end")
+                _emergency_close_all_positions(run_config)
+                if audit:
+                    try:
+                        audit.log_event(EventType.SERVICE_STOP, "alpha-ml paper trading session ended", context={"exit_mode": "session_end", "positions_flattened": True})
+                    except Exception:
+                        pass
+                return
+
+            # Reconnect if persistent session dropped
+            if run_config.execution_mode == "ibkr_paper" and session is not None:
                 try:
-                    audit.log_event(EventType.SERVICE_STOP, "alpha-ml paper trading session ended")
+                    if not session.ib.isConnected():
+                        logger.warning("Alpha ML: IBKR connection dropped, reconnecting")
+                        if session.connect() and audit:
+                            audit.log_event(EventType.SERVICE_READY, "alpha-ml IBKR reconnected", context={"client_id": run_config.ibkr_client_id})
                 except Exception:
-                    pass
-            return
-        time.sleep(interval)
+                    logger.exception("Alpha ML: reconnect check failed")
+
+            status = run_paper_once(
+                PaperRunConfig(
+                    date=run_config.date,
+                    artifact_path=run_config.artifact_path,
+                    sip_root=run_config.sip_root,
+                    output_dir=run_config.output_dir,
+                    polygon_cache_dir=run_config.polygon_cache_dir,
+                    bar_source=run_config.bar_source,
+                    max_symbols=run_config.max_symbols,
+                    daily_top_k=run_config.daily_top_k,
+                    max_longs_per_day=run_config.max_longs_per_day,
+                    min_score=run_config.min_score,
+                    cutoff_et=None,
+                    l2_source_type=run_config.l2_source_type,
+                    execution_mode=run_config.execution_mode,
+                    exit_mode=run_config.exit_mode,
+                    execution_quantity=run_config.execution_quantity,
+                    execution_stop_bps=run_config.execution_stop_bps,
+                    execution_target_bps=run_config.execution_target_bps,
+                    execution_max_action_age_seconds=run_config.execution_max_action_age_seconds,
+                    ibkr_host=run_config.ibkr_host,
+                    ibkr_port=run_config.ibkr_port,
+                    ibkr_client_id=run_config.ibkr_client_id,
+                    ibkr_account_id=run_config.ibkr_account_id,
+                    order_ref_prefix=run_config.order_ref_prefix,
+                    no_new_entries_after=run_config.no_new_entries_after,
+                ),
+                shared_session=session,
+                shared_trade_db=trade_db,
+                shared_adapter=adapter,
+                shared_manager=manager,
+            )
+            logger.info("Paper pass status: %s", status.get("status"))
+            time.sleep(interval)
+    finally:
+        # Tear down persistent session
+        if trade_db is not None:
+            try:
+                trade_db.stop()
+            except Exception:
+                logger.exception("Failed to stop alpha trade integration")
+        if session is not None:
+            try:
+                session.disconnect()
+            except Exception:
+                logger.exception("Failed to disconnect alpha IBKR session")

@@ -33,7 +33,7 @@ def main() -> int:
     parser.add_argument("--date", default=current_et_date())
     parser.add_argument(
         "--artifact-path",
-        default=str(ALPHA_ROOT / "models" / "action_ranker_xgb_2026-03-19.pkl"),
+        default=str(ALPHA_ROOT / "models" / "action_ranker_xgb_54day_2026-04-23.pkl"),
     )
     parser.add_argument(
         "--sip-root",
@@ -94,6 +94,11 @@ def main() -> int:
     parser.add_argument("--session-start", default="09:31:00")
     parser.add_argument("--session-end", default="16:00:00")
     parser.add_argument(
+        "--no-new-entries-after",
+        default="15:45:00",
+        help="HH:MM[:SS] ET cutoff after which only exits are processed.",
+    )
+    parser.add_argument(
         "--allow-outside-hours",
         action="store_true",
         help="Allow running outside the weekday ET market paper window.",
@@ -130,6 +135,7 @@ def main() -> int:
         ibkr_client_id=args.ibkr_client_id,
         ibkr_account_id=args.ibkr_account_id or None,
         order_ref_prefix=args.order_ref_prefix,
+        no_new_entries_after=args.no_new_entries_after,
     )
     if args.loop:
         run_paper_loop(
