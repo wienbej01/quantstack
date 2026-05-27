@@ -640,6 +640,17 @@ def _submit_due_time_exits(
                 "status": "submitted",
             }
         )
+        # Close canonical trades_v2 row — UnifiedFillProcessor may not see the fill
+        # if the session disconnects before it arrives.
+        try:
+            trade_db.close_trade(
+                trade_id,
+                exit_price=float(trade.get("entry_price") or 0),  # best estimate; fill price unknown
+                exit_reason="TIME_EXIT",
+                pnl=None,  # let DB compute from fill if possible
+            )
+        except Exception as _ce:
+            logger.warning("close_trade failed for time_exit %s: %s", trade_id, _ce)
         # Clear shared position on exit
         if shared_pos is not None:
             try:
@@ -858,9 +869,9 @@ def _execute_records_if_enabled(
                 adapter,
                 RiskLimits(
                     daily_loss_limit=200.0,
-                    max_concurrent_positions=2,
+                    max_concurrent_positions=3,
                     max_position_pct=0.02,
-                    max_trades_per_day=max(int(run_config.daily_top_k), 1),
+                    max_trades_per_day=999,
                 ),
             )
             trade_db = TradeIntegration(
@@ -890,6 +901,13 @@ def _execute_records_if_enabled(
 
         _last_order_time: float = 0.0
         _ORDER_COOLDOWN_SECONDS = 60
+        _open_symbols: set[str] = set()
+        try:
+            for trade in trade_db.get_open_trades():
+                if trade.get("system") == run_config.system_name:
+                    _open_symbols.add(str(trade["symbol"]).upper())
+        except Exception:
+            pass
 
         for record in fresh_records:
             # Enforce cooldown between consecutive orders so IBKR position state
@@ -897,6 +915,11 @@ def _execute_records_if_enabled(
             elapsed = time.monotonic() - _last_order_time
             if _last_order_time > 0 and elapsed < _ORDER_COOLDOWN_SECONDS:
                 time.sleep(_ORDER_COOLDOWN_SECONDS - elapsed)
+
+            # Block same-symbol entry if already holding or pending
+            if str(record["symbol"]).upper() in _open_symbols:
+                summary["orders"].append({"action_id": record["action_id"], "symbol": record["symbol"], "status": "skipped_symbol_already_open"})
+                continue
 
             summary["attempted"] += 1
             signal_id = _record_signal_id(str(record["action_id"]), system_name=run_config.system_name)
@@ -971,6 +994,7 @@ def _execute_records_if_enabled(
                 continue
 
             order_ref = f"{run_config.order_ref_prefix}_ENTRY_{record['symbol']}"
+            _open_symbols.add(str(record["symbol"]).upper())
             db_trade_id = trade_db.open_trade(
                 symbol=str(record["symbol"]),
                 direction=str(record["side"]),
@@ -1373,6 +1397,16 @@ def _emergency_close_all_positions(run_config: PaperRunConfig) -> None:
                         shared_pos.upsert(run_config.system_name, symbol, 0, 0.0)
                     except Exception:
                         pass
+                    # Close canonical trades_v2 row
+                    try:
+                        trade_db.close_trade(
+                            str(trade.get("trade_id")),
+                            exit_price=float(trade.get("entry_price") or 0),
+                            exit_reason="EMERGENCY_CLOSE",
+                            pnl=None,
+                        )
+                    except Exception as _ce:
+                        logger.warning("close_trade failed for emergency close %s: %s", symbol, _ce)
                     audit.log_event(EventType.TRADE_CLOSE, f"Alpha ML emergency close: {symbol}", context={"symbol": symbol, "trade_id": str(trade.get("trade_id")), "exit_mode": "emergency"})
                     logger.info("Alpha ML emergency close submitted: %s order_id=%s", symbol, order_id)
         finally:
@@ -1459,9 +1493,9 @@ def run_paper_loop(
                     adapter,
                     RiskLimits(
                         daily_loss_limit=200.0,
-                        max_concurrent_positions=2,
+                        max_concurrent_positions=3,
                         max_position_pct=0.02,
-                        max_trades_per_day=max(int(run_config.daily_top_k), 1),
+                        max_trades_per_day=999,
                     ),
                 )
                 trade_db = TradeIntegration(
