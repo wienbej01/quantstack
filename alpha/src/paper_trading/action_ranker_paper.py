@@ -645,9 +645,10 @@ def _submit_due_time_exits(
         try:
             trade_db.close_trade(
                 trade_id,
-                exit_price=float(trade.get("entry_price") or 0),  # best estimate; fill price unknown
-                exit_reason="TIME_EXIT",
-                pnl=None,  # let DB compute from fill if possible
+                exit_price=float(trade.get("entry_price") or 0),
+                exit_qty=int(trade.get("entry_qty") or 0),
+                pnl=0.0,
+                reason="TIME_EXIT",
             )
         except Exception as _ce:
             logger.warning("close_trade failed for time_exit %s: %s", trade_id, _ce)
@@ -1413,8 +1414,9 @@ def _emergency_close_all_positions(run_config: PaperRunConfig) -> None:
                         trade_db.close_trade(
                             str(trade.get("trade_id")),
                             exit_price=float(trade.get("entry_price") or 0),
-                            exit_reason="EMERGENCY_CLOSE",
-                            pnl=None,
+                            exit_qty=int(trade.get("entry_qty") or 0),
+                            pnl=0.0,
+                            reason="EMERGENCY_CLOSE",
                         )
                     except Exception as _ce:
                         logger.warning("close_trade failed for emergency close %s: %s", symbol, _ce)
