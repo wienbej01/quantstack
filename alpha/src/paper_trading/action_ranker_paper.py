@@ -1060,7 +1060,11 @@ def _execute_records_if_enabled(
 
             _last_order_time = time.monotonic()
 
-            # Register in shared positions so other services don't treat this as a ghost
+            # Register in shared positions — use pending quantity so other services
+            # don't enter the same symbol while the bracket is live.
+            # NOTE: this is an optimistic upsert (order submitted but not yet filled).
+            # If the limit entry never fills, the stale row will be cleared by
+            # reconcile_startup() on next startup or by the daily orphan sweeper.
             qty = intent.quantity if record["side"] == "long" else -intent.quantity
             try:
                 shared_pos.upsert(run_config.system_name, str(record["symbol"]), qty, float(record["entry_price"]))
