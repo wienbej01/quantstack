@@ -880,6 +880,13 @@ def _execute_records_if_enabled(
                 ib_call=session.call,
             )
             trade_db.start()
+            # Reconcile stale open DB rows from prior sessions
+            try:
+                result = trade_db.reconcile_startup()
+                if result:
+                    logger.info("Alpha ML startup reconciliation: %s", result)
+            except Exception as _re:
+                logger.warning("Alpha ML startup reconciliation failed: %s", _re)
 
         summary["time_exits"] = _submit_due_time_exits(
             run_config=run_config,
